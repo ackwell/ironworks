@@ -18,15 +18,22 @@ impl Query {
 	}
 }
 
-type Schema = juniper::RootNode<'static, Query, juniper::EmptyMutation<Context>, juniper::EmptySubscription<Context>>;
-
 fn main() {
+	let schema: juniper::RootNode<Query, juniper::EmptyMutation<Context>, juniper::EmptySubscription<Context>> = juniper::RootNode::new_with_info(
+		Query,
+		juniper::EmptyMutation::new(),
+		juniper::EmptySubscription::new(),
+		(),
+		(),
+		(),
+	);
+
 	let context = Context(Episode::NewHope);
 
 	let (res, _errors) = juniper::execute_sync(
 		"query { favouriteEpisode }", 
 		None, 
-		&Schema::new(Query, juniper::EmptyMutation::new(), juniper::EmptySubscription::new()), 
+		&schema, 
 		&juniper::Variables::new(), 
 		&context,
 	)
