@@ -17,16 +17,16 @@ impl juniper::GraphQLType<juniper::DefaultScalarValue> for Query {
 		return Some("todo");
 	}
 
-	fn meta<'registry>(_info: &(), registry: &mut juniper::Registry<'registry>) -> juniper::meta::MetaType<'registry>
-	where juniper::DefaultScalarValue: 'registry
+	fn meta<'registry>(
+		_info: &(),
+		registry: &mut juniper::Registry<'registry>,
+	) -> juniper::meta::MetaType<'registry>
+	where
+		juniper::DefaultScalarValue: 'registry,
 	{
-		let fields = &[
-			registry.field::<&Episode>("favouriteEpisode", &()),
-		];
+		let fields = &[registry.field::<&Episode>("favouriteEpisode", &())];
 
-		return registry
-			.build_object_type::<Query>(&(), fields)
-			.into_meta();
+		return registry.build_object_type::<Query>(&(), fields).into_meta();
 	}
 }
 
@@ -43,7 +43,7 @@ impl juniper::GraphQLValue for Query {
 		info: &(),
 		_field_name: &str,
 		_args: &juniper::Arguments,
-		executor: &juniper::Executor<Context>
+		executor: &juniper::Executor<Context>,
 	) -> juniper::ExecutionResult {
 		let context = executor.context();
 		return executor.resolve_with_ctx(info, &context.0);
@@ -53,7 +53,11 @@ impl juniper::GraphQLValue for Query {
 fn main() {
 	let query = Query {};
 
-	let schema: juniper::RootNode<Query, juniper::EmptyMutation<Context>, juniper::EmptySubscription<Context>> = juniper::RootNode::new_with_info(
+	let schema: juniper::RootNode<
+		Query,
+		juniper::EmptyMutation<Context>,
+		juniper::EmptySubscription<Context>,
+	> = juniper::RootNode::new_with_info(
 		query,
 		juniper::EmptyMutation::new(),
 		juniper::EmptySubscription::new(),
@@ -61,22 +65,19 @@ fn main() {
 		(),
 		(),
 	);
-	
+
 	// ---
 
 	let context = Context(Episode::NewHope);
 
 	let (res, _errors) = juniper::execute_sync(
-		"query { favouriteEpisode }", 
-		None, 
-		&schema, 
-		&juniper::Variables::new(), 
+		"query { favouriteEpisode }",
+		None,
+		&schema,
+		&juniper::Variables::new(),
 		&context,
 	)
-		.unwrap();
+	.unwrap();
 
-	assert_eq!(
-		res,
-		graphql_value!({ "favouriteEpisode": "NEW_HOPE" })
-	)
+	assert_eq!(res, graphql_value!({ "favouriteEpisode": "NEW_HOPE" }))
 }
