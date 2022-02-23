@@ -1,5 +1,7 @@
 // This file exists as a temporary runner only
 
+#![allow(clippy::needless_return)]
+
 mod sqpack;
 
 use std::{collections::HashMap, error::Error, path::PathBuf};
