@@ -1,4 +1,5 @@
 use std::{collections::HashMap, path::Path};
+use thiserror::Error;
 
 #[derive(Debug)]
 pub struct SqPack<'a> {
@@ -8,21 +9,31 @@ pub struct SqPack<'a> {
 	pub default_repository: &'a str,
 }
 
-impl SqPack<'_> {
-	pub fn temp_test(&self, sqpack_path: &str) {
-		// TODO: Look into itertools or something?
-		// TODO: error handling that isn't just unwrap memes
-		let mut split = sqpack_path.splitn(3, '/');
-		let category_name = split.next().unwrap();
-		let mut repository_name = split.next().unwrap();
+// TODO: this should probably be in own file
+#[derive(Error, Debug)]
+pub enum SqPackError {
+	#[error("invalid sqpack path \"{0}\"")]
+	InvalidPath(String),
+}
 
-		if !self.repositories.contains_key(repository_name) {
-			repository_name = self.default_repository
+impl SqPack<'_> {
+	pub fn temp_test(&self, sqpack_path: &str) -> Result<(), SqPackError> {
+		// TODO: Look into itertools or something?
+		let split = sqpack_path.splitn(3, '/').take(2).collect::<Vec<&str>>();
+		let (category, mut repository) = match split[..] {
+			[category, repository] => (category, repository),
+			_ => return Err(SqPackError::InvalidPath(sqpack_path.to_string())),
+		};
+
+		if !self.repositories.contains_key(repository) {
+			repository = self.default_repository
 		}
 
 		println!(
 			"test; cat {:?} repo {:?} path {:?}",
-			category_name, repository_name, sqpack_path
+			category, repository, sqpack_path
 		);
+
+		return Ok(());
 	}
 }

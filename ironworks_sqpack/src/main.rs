@@ -2,11 +2,11 @@
 
 mod sqpack;
 
-use std::{collections::HashMap, path::Path};
+use std::{collections::HashMap, error::Error, path::Path};
 
 use crate::sqpack::SqPack;
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
 	let repositories = HashMap::from([
 		("ffxiv", Path::new("/mnt/c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV - A Realm Reborn/game/sqpack/ffxiv")),
 	]);
@@ -21,5 +21,7 @@ fn main() {
 
 	println!("sqpack: {:?}", sqpack);
 
-	sqpack.temp_test("exd/root.exl");
+	sqpack.temp_test("exd/root.exl")?;
+
+	return Ok(());
 }
