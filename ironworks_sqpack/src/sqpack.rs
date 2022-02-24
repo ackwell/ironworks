@@ -1,3 +1,4 @@
+use glob::glob;
 use std::{collections::HashMap, path::PathBuf};
 use thiserror::Error;
 
@@ -43,6 +44,41 @@ impl SqPack {
 
 		println!("repo: {:?}, cat: {}", repository_path, category_id);
 
+		// TODO: Should probably do both index and index2 seperately, and maybe at the same time?
+		// TODO: i mean... TODO: index2 lmao
+		// TODO: chunks, ex (does ex matter, really? in a repo?), platform?
+		// TODO: also this fn is basically a "get_file", this should be done lazily and cached
+		let mut index_path = PathBuf::new();
+		index_path.push(repository_path);
+		index_path.push(format!("{:02x}????.*.index", category_id));
+
+		let indexes = glob(&index_path.to_string_lossy())
+			.unwrap()
+			.map(|path| path.unwrap())
+			.collect::<Vec<PathBuf>>();
+
+		// TODO this is dirty, do stuff better
+		if indexes.len() != 1 {
+			panic!(
+				"too many results in index lookup, fix this shit (chunks?) {:?}",
+				indexes
+			)
+		}
+
+		let index = &indexes[0];
+
+		// TODO: streams? is it even worth it on indexes?
+		// TODO: error handling lmao
+		let index_bytes = std::fs::read(index).unwrap();
+
+		println!(
+			"{:#?}",
+			(&index_bytes[0..8])
+				.iter()
+				.map(|i| i.to_owned() as char)
+				.collect::<Vec<char>>()
+		);
+
 		return Ok(());
 	}
 
@@ -68,6 +104,7 @@ impl SqPack {
 }
 
 // TODO: probs should call this path and namespace on consume
+// TODO: I mean realistically this can just be an internal tuple?
 #[derive(Debug)]
 pub struct SqPackPath {
 	path: String,
