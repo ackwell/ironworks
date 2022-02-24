@@ -1,7 +1,9 @@
-use binrw::{binread, BinRead};
+use binrw::BinRead;
 use glob::glob;
-use std::{collections::HashMap, fs::File, io::SeekFrom, path::PathBuf};
+use std::{collections::HashMap, fs::File, path::PathBuf};
 use thiserror::Error;
+
+use crate::file_structs::Index;
 
 // TODO: this should probably be in own file
 #[derive(Error, Debug)]
@@ -70,7 +72,7 @@ impl SqPack {
 
 		// TODO: error handling lmao
 		let mut reader = File::open(index_path).unwrap();
-		let index = SqPackIndex::read(&mut reader).unwrap();
+		let index = Index::read(&mut reader).unwrap();
 
 		println!("index: {:#?}", index);
 
@@ -105,38 +107,4 @@ pub struct SqPackPath {
 	path: String,
 	category: String,
 	repository: String,
-}
-
-// TODO: etc
-// TODO: name? FileHeader or
-#[derive(Debug)]
-#[binread]
-#[br(little, magic = b"SqPack\0\0")]
-struct SqPackHeader {
-	platform_id: u8,
-	#[br(pad_before = 3)] // unknown1
-	size: u32,
-	version: u32,
-	type_: u32,
-}
-
-// TODO: there's actually a lot more to this, check lumina/kobold impls.
-#[derive(Debug)]
-#[binread]
-#[br(little)]
-struct SqPackIndexHeader {
-	size: u32,
-	version: u32,
-	// TODO: think about names
-	index_data_offset: u32,
-	index_data_size: u32,
-}
-
-#[derive(Debug)]
-#[binread]
-#[br(little)]
-struct SqPackIndex {
-	sqpack_header: SqPackHeader,
-	#[br(seek_before = SeekFrom::Start(sqpack_header.size.into()))]
-	sqpack_index_header: SqPackIndexHeader,
 }

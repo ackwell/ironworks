@@ -2,6 +2,7 @@
 
 #![allow(clippy::needless_return)]
 
+mod file_structs;
 mod sqpack;
 
 use std::{collections::HashMap, error::Error, path::PathBuf};
