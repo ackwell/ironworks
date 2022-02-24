@@ -1,5 +1,6 @@
+use binrw::{binread, BinRead};
 use glob::glob;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::SeekFrom, path::PathBuf};
 use thiserror::Error;
 
 // TODO: this should probably be in own file
@@ -65,19 +66,13 @@ impl SqPack {
 			)
 		}
 
-		let index = &indexes[0];
+		let index_path = &indexes[0];
 
-		// TODO: streams? is it even worth it on indexes?
 		// TODO: error handling lmao
-		let index_bytes = std::fs::read(index).unwrap();
+		let mut reader = File::open(index_path).unwrap();
+		let index = SqPackIndex::read(&mut reader).unwrap();
 
-		println!(
-			"{:#?}",
-			(&index_bytes[0..8])
-				.iter()
-				.map(|i| i.to_owned() as char)
-				.collect::<Vec<char>>()
-		);
+		println!("index: {:#?}", index);
 
 		return Ok(());
 	}
@@ -110,4 +105,38 @@ pub struct SqPackPath {
 	path: String,
 	category: String,
 	repository: String,
+}
+
+// TODO: etc
+// TODO: name? FileHeader or
+#[derive(Debug)]
+#[binread]
+#[br(little, magic = b"SqPack\0\0")]
+struct SqPackHeader {
+	platform_id: u8,
+	#[br(pad_before = 3)] // unknown1
+	size: u32,
+	version: u32,
+	type_: u32,
+}
+
+// TODO: there's actually a lot more to this, check lumina/kobold impls.
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+struct SqPackIndexHeader {
+	size: u32,
+	version: u32,
+	// TODO: think about names
+	index_data_offset: u32,
+	index_data_size: u32,
+}
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+struct SqPackIndex {
+	sqpack_header: SqPackHeader,
+	#[br(seek_before = SeekFrom::Start(sqpack_header.size.into()))]
+	sqpack_index_header: SqPackIndexHeader,
 }
