@@ -3,6 +3,8 @@
 #![allow(dead_code)]
 
 use binrw::binread;
+use modular_bitfield::bitfield;
+use modular_bitfield::prelude::*;
 use std::{
 	fmt::{self, Debug},
 	io::SeekFrom,
@@ -12,58 +14,58 @@ use std::{
 #[binread]
 #[br(little)]
 pub struct Index {
-	header: SharedHeader,
+	pub header: SharedHeader,
+
 	#[br(seek_before = SeekFrom::Start(header.size.into()))]
-	index_header: IndexHeader,
+	pub index_header: IndexHeader,
+
 	#[br(
 		seek_before = SeekFrom::Start(index_header.index_data.offset.into()),
-		count = index_header.index_data.size / 16, // TODO: this is the size of the struct in bytes, share location?
+		count = index_header.index_data.size / INDEX_HASH_TABLE_ENTRY_SIZE,
 	)]
-	indexes: Vec<IndexHashTableEntry>,
-	// test: Vec<u128>,
+	pub indexes: Vec<IndexHashTableEntry>,
 }
 
-// TODO: etc
-// TODO: name? FileHeader or
 #[derive(Debug)]
 #[binread]
 #[br(little, magic = b"SqPack\0\0")]
 pub struct SharedHeader {
-	platform_id: u8,
+	pub platform_id: u8,
+
 	#[br(pad_before = 3)] // unknown1
-	size: u32,
-	version: u32,
-	type_: u32,
+	pub size: u32,
+	pub version: u32,
+	pub type_: u32,
 }
 
-// TODO: there's actually a lot more to this, check lumina/kobold impls.
 #[derive(Debug)]
 #[binread]
 #[br(little)]
 pub struct IndexHeader {
-	size: u32,
-	version: u32,
-	index_data: Metadata,
-	data_file_count: u32,
-	synonym_data: Metadata,
-	empty_block_data: Metadata,
-	dir_index_data: Metadata,
-	index_type: u32,
+	pub size: u32,
+	pub version: u32,
+	pub index_data: Metadata,
+	pub data_file_count: u32,
+	pub synonym_data: Metadata,
+	pub empty_block_data: Metadata,
+	pub dir_index_data: Metadata,
+	pub index_type: u32,
+
 	#[br(pad_before = 656)] // reserved
-	digest: Digest,
+	pub digest: Digest,
 }
 
 #[derive(Debug)]
 #[binread]
 #[br(little)]
 pub struct Metadata {
-	offset: u32,
-	size: u32,
-	digest: Digest,
+	pub offset: u32,
+	pub size: u32,
+	pub digest: Digest,
 }
 
 #[binread]
-struct Digest([u8; 64]);
+pub struct Digest([u8; 64]);
 
 impl Debug for Digest {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -72,11 +74,24 @@ impl Debug for Digest {
 	}
 }
 
+const INDEX_HASH_TABLE_ENTRY_SIZE: u32 = 16;
+
 #[derive(Debug)]
 #[binread]
 #[br(little)]
 pub struct IndexHashTableEntry {
-	hash: u64,
-	#[br(pad_after = 4)]
-	data: u32,
+	pub hash: u64,
+
+	#[br(pad_after = 4)] // padding
+	pub data: IndexHashTableValue,
+}
+
+#[bitfield]
+#[binread]
+#[derive(Debug)]
+#[br(little, map = Self::from_bytes)]
+pub struct IndexHashTableValue {
+	pub is_synonym: bool,
+	pub data_file_id: B3,
+	pub offset: B28,
 }

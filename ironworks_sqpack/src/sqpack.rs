@@ -1,6 +1,6 @@
 use binrw::BinRead;
 use glob::glob;
-use std::{collections::HashMap, fs::File, path::PathBuf};
+use std::{collections::HashMap, io::Cursor, path::PathBuf};
 use thiserror::Error;
 
 use crate::file_structs::Index;
@@ -74,8 +74,11 @@ impl SqPack {
 		let bytes = std::fs::read(index_path).unwrap();
 		let mut reader = Cursor::new(bytes);
 		let index = Index::read(&mut reader).unwrap();
-
-		println!("index: {:#?}", index);
+		println!(
+			"binrw: {} entries, [0]: {:#?}",
+			index.indexes.len(),
+			index.indexes[0]
+		);
 
 		return Ok(());
 	}
