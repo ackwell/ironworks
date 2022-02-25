@@ -15,6 +15,12 @@ pub struct Index {
 	header: SharedHeader,
 	#[br(seek_before = SeekFrom::Start(header.size.into()))]
 	index_header: IndexHeader,
+	#[br(
+		seek_before = SeekFrom::Start(index_header.index_data.offset.into()),
+		count = index_header.index_data.size / 16, // TODO: this is the size of the struct in bytes, share location?
+	)]
+	indexes: Vec<IndexHashTableEntry>,
+	// test: Vec<u128>,
 }
 
 // TODO: etc
@@ -64,4 +70,13 @@ impl Debug for Digest {
 		let digest_string = self.0.map(|byte| format!("{:02x}", byte)).join(" ");
 		return formatter.write_str(&digest_string);
 	}
+}
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+pub struct IndexHashTableEntry {
+	hash: u64,
+	#[br(pad_after = 4)]
+	data: u32,
 }

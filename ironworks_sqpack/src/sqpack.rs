@@ -71,7 +71,8 @@ impl SqPack {
 		let index_path = &indexes[0];
 
 		// TODO: error handling lmao
-		let mut reader = File::open(index_path).unwrap();
+		let bytes = std::fs::read(index_path).unwrap();
+		let mut reader = Cursor::new(bytes);
 		let index = Index::read(&mut reader).unwrap();
 
 		println!("index: {:#?}", index);
