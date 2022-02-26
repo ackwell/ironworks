@@ -19,7 +19,7 @@ pub struct Index {
 
 	#[br(
 		seek_before = SeekFrom::Start(index_header.index_data.offset.into()),
-		count = index_header.index_data.size / INDEX_HASH_TABLE_ENTRY_SIZE,
+		count = index_header.index_data.size / IndexHashTableEntry::SIZE as u32,
 	)]
 	pub indexes: Vec<IndexHashTableEntry>,
 }
@@ -72,8 +72,6 @@ impl Debug for Digest {
 	}
 }
 
-const INDEX_HASH_TABLE_ENTRY_SIZE: u32 = 16;
-
 #[derive(Debug)]
 #[binread]
 #[br(little)]
@@ -82,6 +80,10 @@ pub struct IndexHashTableEntry {
 
 	#[br(pad_after = 4)] // padding
 	pub value: IndexHashTableValue,
+}
+
+impl IndexHashTableEntry {
+	pub const SIZE: usize = 16;
 }
 
 #[derive(Debug)]
@@ -94,11 +96,53 @@ pub struct IndexHashTableValue {
 }
 
 impl IndexHashTableValue {
-	pub fn read(input: u32) -> Self {
+	fn read(input: u32) -> Self {
 		return IndexHashTableValue {
 			is_synonym: (input & 0b1) == 0b1,
 			data_file_id: ((input & 0b1110) >> 1) as u8,
 			offset: (input & !0xF) * 0x08,
 		};
 	}
+}
+
+// TODO: different file? maybe?
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+pub struct FileInfo {
+	pub size: u32,
+	pub type_: FileType,
+	pub raw_file_size: u32,
+	#[br(pad_before = 8)]
+	pub block_count: u32,
+}
+
+impl FileInfo {
+	pub const SIZE: usize = 24;
+}
+
+#[derive(Debug)]
+#[binread]
+#[br(little, repr = u32)]
+pub enum FileType {
+	Empty = 1,
+	Standard = 2,
+	Model = 3,
+	Texture = 4,
+}
+
+// TODO: i think this can be moved into the file info with some compute? maybe not
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+pub struct BlockInfo {
+	pub offset: u32,
+	pub size: u16,
+	pub uncompressed_size: u16,
+}
+
+impl BlockInfo {
+	pub const SIZE: usize = 8;
 }

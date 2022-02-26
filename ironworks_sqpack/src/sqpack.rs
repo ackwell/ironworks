@@ -1,9 +1,16 @@
 use binrw::BinRead;
 use glob::glob;
-use std::{collections::HashMap, io::Cursor, path::PathBuf};
+use std::{
+	collections::HashMap,
+	io::{Cursor, Read, Seek, SeekFrom},
+	path::PathBuf,
+};
 use thiserror::Error;
 
-use crate::{crc::crc32, file_structs::Index};
+use crate::{
+	crc::crc32,
+	file_structs::{BlockInfo, FileInfo, Index},
+};
 
 // TODO: this should probably be in own file
 #[derive(Error, Debug)]
@@ -98,9 +105,47 @@ impl SqPack {
 
 		println!("{}, {} : {}", directory_hash, filename_hash, hash_key);
 
-		let hash_entry = index_hash_table.get(&hash_key);
+		let hash_entry = index_hash_table.get(&hash_key).unwrap();
 
 		println!("value: {:#?}", hash_entry);
+
+		// -----
+
+		// TODO: do this properly
+		let mut index_path = PathBuf::new();
+		index_path.push(repository_path);
+		index_path.push(format!("{:02x}0000.win32.dat0", category_id));
+
+		let mut dat_file = std::fs::File::open(index_path).unwrap();
+		dat_file
+			.seek(SeekFrom::Start(hash_entry.offset.into()))
+			.unwrap();
+
+		// TODO: actual size
+		let mut buf = [0u8; FileInfo::SIZE];
+		dat_file.read_exact(&mut buf).unwrap();
+
+		let file_info = FileInfo::read(&mut Cursor::new(buf)).unwrap();
+
+		// -----
+
+		// TODO: yikes
+		// NOTE: Omitting seek seems fine because fileinfo and block info array are back to back - is... this safe to assume?
+		// dat_file
+		// 	.seek(SeekFrom::Start(
+		// 		(hash_entry.offset as usize + FILE_INFO_SIZE) as u64,
+		// 	))
+		// 	.unwrap();
+
+		let mut buf = vec![0u8; BlockInfo::SIZE * file_info.block_count as usize];
+		dat_file.read_exact(&mut buf).unwrap();
+		let mut reader = Cursor::new(buf);
+		let mut block_info = Vec::<BlockInfo>::new();
+		for _ in 0..file_info.block_count {
+			block_info.push(BlockInfo::read(&mut reader).unwrap())
+		}
+
+		println!("test: {:#?}", block_info);
 
 		return Ok(());
 	}
