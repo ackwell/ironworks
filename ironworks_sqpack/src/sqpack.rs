@@ -3,6 +3,7 @@ use flate2::read::DeflateDecoder;
 use glob::glob;
 use std::{
 	collections::HashMap,
+	fs::File,
 	io::{Cursor, Read, Seek, SeekFrom},
 	path::PathBuf,
 };
@@ -10,7 +11,7 @@ use thiserror::Error;
 
 use crate::{
 	crc::crc32,
-	file_structs::{BlockHeader, BlockInfo, FileInfo, Index},
+	file_structs::{BlockHeader, BlockInfo, FileInfo, Index, IndexHashTableValue},
 };
 
 // TODO: this should probably be in own file
@@ -117,56 +118,11 @@ impl SqPack {
 		index_path.push(repository_path);
 		index_path.push(format!("{:02x}0000.win32.dat0", category_id));
 
-		let mut dat_file = std::fs::File::open(index_path).unwrap();
-		dat_file
-			.seek(SeekFrom::Start(hash_entry.offset.into()))
-			.unwrap();
-
-		// TODO: actual size
-		let mut buf = [0u8; FileInfo::SIZE];
-		dat_file.read_exact(&mut buf).unwrap();
-
-		let file_info = FileInfo::read(&mut Cursor::new(buf)).unwrap();
-
-		// -----
-
-		// TODO: yikes
-		// NOTE: Omitting seek seems fine because fileinfo and block info array are back to back - is... this safe to assume?
-		// dat_file
-		// 	.seek(SeekFrom::Start(
-		// 		(hash_entry.offset as usize + FILE_INFO_SIZE) as u64,
-		// 	))
-		// 	.unwrap();
-
-		let mut buf = vec![0u8; BlockInfo::SIZE * file_info.block_count as usize];
-		dat_file.read_exact(&mut buf).unwrap();
-		let mut reader = Cursor::new(buf);
-
-		// TODO: look into making this less disgusting
-		let mut output: Box<dyn Read> = Box::new(std::io::empty());
-
-		for _ in 0..file_info.block_count {
-			// note: this is relying on sequential reads to `reader`
-			let block_info = BlockInfo::read(&mut reader).unwrap();
-
-			let mut buf = vec![0u8; block_info.size as usize];
-			dat_file
-				.seek(SeekFrom::Start(
-					(hash_entry.offset + file_info.size + block_info.offset) as u64,
-				))
-				.unwrap();
-			dat_file.read_exact(&mut buf).unwrap();
-
-			let mut block_cursor = Cursor::new(buf);
-			// TODO: use
-			let block_header = BlockHeader::read(&mut block_cursor).unwrap();
-
-			let deflate_stream = DeflateDecoder::new(block_cursor);
-			output = Box::new(output.chain(deflate_stream));
-		}
+		let mut dat_file = File::open(index_path).unwrap();
+		let mut file = self.read_file(&mut dat_file, hash_entry);
 
 		let mut exlt = String::new();
-		output.read_to_string(&mut exlt).unwrap();
+		file.read_to_string(&mut exlt).unwrap();
 
 		println!("EXLT: {}", exlt);
 
@@ -191,6 +147,70 @@ impl SqPack {
 			repository: String::from(repository),
 			path: lower,
 		});
+	}
+
+	// TODO: why are these even on &self tbh
+	// TODO: should this function own reading the file on real disk? - tempted to say yes?
+	fn read_file(&self, file: &mut File, index_entry: &IndexHashTableValue) -> impl Read {
+		// Seek to the start of the file and read the basic file header.
+		file.seek(SeekFrom::Start(index_entry.offset.into()))
+			.unwrap();
+
+		let mut buffer = [0u8; FileInfo::SIZE];
+		file.read_exact(&mut buffer).unwrap();
+
+		let file_info = FileInfo::read(&mut Cursor::new(buffer)).unwrap();
+
+		// Use the first part of the file header to read the array of block info.
+		// NOTE: It's really all one header, only split due to the array, hence sequential reads.
+		// TODO: Improve if possible.
+		let mut buffer = vec![0u8; BlockInfo::SIZE * file_info.block_count as usize];
+		file.read_exact(&mut buffer).unwrap();
+		let mut reader = Cursor::new(buffer);
+
+		// Read each block and chain the readers together
+		// TODO: look into making this less disgusting - maybe build vec and then chain together? idk
+		let mut output: Box<dyn Read> = Box::new(std::io::empty());
+
+		for _ in 0..file_info.block_count {
+			// NOTE: this is relying on sequential reads to `reader`
+			let block_info = BlockInfo::read(&mut reader).unwrap();
+
+			let deflate_stream =
+				self.read_block(file, index_entry.offset + file_info.size, block_info);
+
+			output = Box::new(output.chain(deflate_stream));
+		}
+
+		return output;
+	}
+
+	// TODO: this sig is a bit meh, combine the file stuff?
+	fn read_block(
+		&self,
+		file: &mut File,
+		base_offset: u32,
+		block_info: BlockInfo,
+	) -> Box<dyn Read> {
+		// Seek to the start of the block and read the raw bytes out.
+		file.seek(SeekFrom::Start((base_offset + block_info.offset) as u64))
+			.unwrap();
+
+		let mut buffer = vec![0u8; block_info.size as usize];
+		file.read_exact(&mut buffer).unwrap();
+
+		// Build a base cursor and read the header.
+		let mut cursor = Cursor::new(buffer);
+		let header = BlockHeader::read(&mut cursor).unwrap();
+
+		// If the block is uncompressed, we can return without further processing.
+		// TODO: work out where to put this constant
+		if header.uncompressed_size > 16000 {
+			return Box::new(cursor);
+		}
+
+		// Set up deflate on the reader.
+		return Box::new(DeflateDecoder::new(cursor));
 	}
 }
 
