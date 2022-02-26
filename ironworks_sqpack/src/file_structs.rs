@@ -3,8 +3,7 @@
 #![allow(dead_code)]
 
 use binrw::binread;
-use modular_bitfield::bitfield;
-use modular_bitfield::prelude::*;
+use modular_bitfield::{bitfield, prelude::*};
 use std::{
 	fmt::{self, Debug},
 	io::SeekFrom,
@@ -83,7 +82,7 @@ pub struct IndexHashTableEntry {
 	pub hash: u64,
 
 	#[br(pad_after = 4)] // padding
-	pub data: IndexHashTableValue,
+	pub value: IndexHashTableValue,
 }
 
 #[bitfield]

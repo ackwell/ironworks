@@ -3,7 +3,7 @@ use glob::glob;
 use std::{collections::HashMap, io::Cursor, path::PathBuf};
 use thiserror::Error;
 
-use crate::file_structs::Index;
+use crate::{crc::crc32, file_structs::Index};
 
 // TODO: this should probably be in own file
 #[derive(Error, Debug)]
@@ -74,10 +74,31 @@ impl SqPack {
 		let bytes = std::fs::read(index_path).unwrap();
 		let mut reader = Cursor::new(bytes);
 		let index = Index::read(&mut reader).unwrap();
+
+		// TODO: should probably use the into_iter given we'll be discarding the rest... right?
+		let index_table = index.indexes.iter().map(|entry| (entry.hash, &entry.value));
+		// let index_table = index
+		// 	.indexes
+		// 	.into_iter()
+		// 	.map(|entry| (entry.hash, entry.value));
+		let index_hash_table = HashMap::<_, _>::from_iter(index_table);
+
 		println!(
 			"binrw: {} entries, [0]: {:#?}",
 			index.indexes.len(),
 			index.indexes[0]
+		);
+
+		let (directory, filename) = path.path.rsplit_once('/').unwrap();
+
+		let directory_hash = crc32(directory.as_bytes());
+		let filename_hash = crc32(filename.as_bytes());
+
+		let hash_key = (directory_hash as u64) << 32 | filename_hash as u64;
+
+		println!(
+			"lookup contains hash: {}",
+			index_hash_table.contains_key(&hash_key)
 		);
 
 		return Ok(());

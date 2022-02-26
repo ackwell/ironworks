@@ -2,6 +2,7 @@
 
 #![allow(clippy::needless_return)]
 
+mod crc;
 mod file_structs;
 mod sqpack;
 
