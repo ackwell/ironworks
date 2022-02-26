@@ -146,3 +146,13 @@ pub struct BlockInfo {
 impl BlockInfo {
 	pub const SIZE: usize = 8;
 }
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
+pub struct BlockHeader {
+	pub size: u32,
+	#[br(pad_before = 4)] // unknown1
+	pub compressed_size: u32,
+	pub uncompressed_size: u32,
+}

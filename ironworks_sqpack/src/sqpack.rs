@@ -1,4 +1,5 @@
 use binrw::BinRead;
+use flate2::read::DeflateDecoder;
 use glob::glob;
 use std::{
 	collections::HashMap,
@@ -9,7 +10,7 @@ use thiserror::Error;
 
 use crate::{
 	crc::crc32,
-	file_structs::{BlockInfo, FileInfo, Index},
+	file_structs::{BlockHeader, BlockInfo, FileInfo, Index},
 };
 
 // TODO: this should probably be in own file
@@ -140,12 +141,34 @@ impl SqPack {
 		let mut buf = vec![0u8; BlockInfo::SIZE * file_info.block_count as usize];
 		dat_file.read_exact(&mut buf).unwrap();
 		let mut reader = Cursor::new(buf);
-		let mut block_info = Vec::<BlockInfo>::new();
+
+		// TODO: look into making this less disgusting
+		let mut output: Box<dyn Read> = Box::new(std::io::empty());
+
 		for _ in 0..file_info.block_count {
-			block_info.push(BlockInfo::read(&mut reader).unwrap())
+			// note: this is relying on sequential reads to `reader`
+			let block_info = BlockInfo::read(&mut reader).unwrap();
+
+			let mut buf = vec![0u8; block_info.size as usize];
+			dat_file
+				.seek(SeekFrom::Start(
+					(hash_entry.offset + file_info.size + block_info.offset) as u64,
+				))
+				.unwrap();
+			dat_file.read_exact(&mut buf).unwrap();
+
+			let mut block_cursor = Cursor::new(buf);
+			// TODO: use
+			let block_header = BlockHeader::read(&mut block_cursor).unwrap();
+
+			let deflate_stream = DeflateDecoder::new(block_cursor);
+			output = Box::new(output.chain(deflate_stream));
 		}
 
-		println!("test: {:#?}", block_info);
+		let mut exlt = String::new();
+		output.read_to_string(&mut exlt).unwrap();
+
+		println!("EXLT: {}", exlt);
 
 		return Ok(());
 	}
