@@ -3,7 +3,6 @@
 #![allow(dead_code)]
 
 use binrw::binread;
-use modular_bitfield::{bitfield, prelude::*};
 use std::{
 	fmt::{self, Debug},
 	io::SeekFrom,
@@ -85,12 +84,21 @@ pub struct IndexHashTableEntry {
 	pub value: IndexHashTableValue,
 }
 
-#[bitfield]
-#[binread]
 #[derive(Debug)]
-#[br(little, map = Self::from_bytes)]
+#[binread]
+#[br(map = Self::read)]
 pub struct IndexHashTableValue {
 	pub is_synonym: bool,
-	pub data_file_id: B3,
-	pub offset: B28,
+	pub data_file_id: u8,
+	pub offset: u32,
+}
+
+impl IndexHashTableValue {
+	pub fn read(input: u32) -> Self {
+		return IndexHashTableValue {
+			is_synonym: (input & 0b1) == 0b1,
+			data_file_id: ((input & 0b1110) >> 1) as u8,
+			offset: (input & !0xF) * 0x08,
+		};
+	}
 }

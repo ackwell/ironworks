@@ -96,10 +96,11 @@ impl SqPack {
 
 		let hash_key = (directory_hash as u64) << 32 | filename_hash as u64;
 
-		println!(
-			"lookup contains hash: {}",
-			index_hash_table.contains_key(&hash_key)
-		);
+		println!("{}, {} : {}", directory_hash, filename_hash, hash_key);
+
+		let hash_entry = index_hash_table.get(&hash_key);
+
+		println!("value: {:#?}", hash_entry);
 
 		return Ok(());
 	}
