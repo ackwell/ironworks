@@ -110,16 +110,21 @@ impl IndexHashTableValue {
 #[derive(Debug)]
 #[binread]
 #[br(little)]
+pub struct FileHeader {
+	pub file_info: FileInfo,
+	#[br(count = file_info.block_count)]
+	pub blocks: Vec<BlockInfo>,
+}
+
+#[derive(Debug)]
+#[binread]
+#[br(little)]
 pub struct FileInfo {
 	pub size: u32,
 	pub type_: FileType,
 	pub raw_file_size: u32,
 	#[br(pad_before = 8)]
 	pub block_count: u32,
-}
-
-impl FileInfo {
-	pub const SIZE: usize = 24;
 }
 
 #[derive(Debug)]
@@ -141,10 +146,6 @@ pub struct BlockInfo {
 	pub offset: u32,
 	pub size: u16,
 	pub uncompressed_size: u16,
-}
-
-impl BlockInfo {
-	pub const SIZE: usize = 8;
 }
 
 #[derive(Debug)]

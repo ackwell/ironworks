@@ -11,7 +11,7 @@ use thiserror::Error;
 
 use crate::{
 	crc::crc32,
-	file_structs::{BlockHeader, BlockInfo, FileInfo, Index, IndexHashTableValue},
+	file_structs::{BlockHeader, BlockInfo, FileHeader, Index, IndexHashTableValue},
 };
 
 // TODO: this should probably be in own file
@@ -151,38 +151,26 @@ impl SqPack {
 
 	// TODO: why are these even on &self tbh
 	// TODO: should this function own reading the file on real disk? - tempted to say yes?
-	fn read_file(&self, file: &mut File, index_entry: &IndexHashTableValue) -> impl Read {
+	fn read_file(&self, file: &mut File, index_entry: &IndexHashTableValue) -> Box<dyn Read> {
 		// Seek to the start of the file and read the basic file header.
 		file.seek(SeekFrom::Start(index_entry.offset.into()))
 			.unwrap();
 
-		let mut buffer = [0u8; FileInfo::SIZE];
-		file.read_exact(&mut buffer).unwrap();
+		// This is reading directly out of `File` - keep an eye on performance and look into buffering if this starts to bottleneck
+		let header = FileHeader::read(file).unwrap();
+		println!("header: {:#?}", header);
 
-		let file_info = FileInfo::read(&mut Cursor::new(buffer)).unwrap();
+		let base_offset = index_entry.offset + header.file_info.size;
+		let reader = header
+			.blocks
+			.iter()
+			.map(|block_info| self.read_block(file, base_offset, block_info))
+			.reduce(|readers, reader| Box::new(readers.chain(reader)));
 
-		// Use the first part of the file header to read the array of block info.
-		// NOTE: It's really all one header, only split due to the array, hence sequential reads.
-		// TODO: Improve if possible.
-		let mut buffer = vec![0u8; BlockInfo::SIZE * file_info.block_count as usize];
-		file.read_exact(&mut buffer).unwrap();
-		let mut reader = Cursor::new(buffer);
-
-		// Read each block and chain the readers together
-		// TODO: look into making this less disgusting - maybe build vec and then chain together? idk
-		let mut output: Box<dyn Read> = Box::new(std::io::empty());
-
-		for _ in 0..file_info.block_count {
-			// NOTE: this is relying on sequential reads to `reader`
-			let block_info = BlockInfo::read(&mut reader).unwrap();
-
-			let deflate_stream =
-				self.read_block(file, index_entry.offset + file_info.size, block_info);
-
-			output = Box::new(output.chain(deflate_stream));
-		}
-
-		return output;
+		return match reader {
+			None => Box::new(std::io::empty()),
+			Some(reader) => reader,
+		};
 	}
 
 	// TODO: this sig is a bit meh, combine the file stuff?
@@ -190,7 +178,7 @@ impl SqPack {
 		&self,
 		file: &mut File,
 		base_offset: u32,
-		block_info: BlockInfo,
+		block_info: &BlockInfo,
 	) -> Box<dyn Read> {
 		// Seek to the start of the block and read the raw bytes out.
 		file.seek(SeekFrom::Start((base_offset + block_info.offset) as u64))
