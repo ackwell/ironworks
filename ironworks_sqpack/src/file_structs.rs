@@ -116,6 +116,7 @@ pub struct FileHeader {
 	pub blocks: Vec<BlockInfo>,
 }
 
+// TODO: this can probably be absorbed into the parent FileHeader now we're not reading seperately?
 #[derive(Debug)]
 #[binread]
 #[br(little)]
@@ -136,8 +137,6 @@ pub enum FileType {
 	Model = 3,
 	Texture = 4,
 }
-
-// TODO: i think this can be moved into the file info with some compute? maybe not
 
 #[derive(Debug)]
 #[binread]

@@ -1,10 +1,9 @@
 use binrw::BinRead;
 use flate2::read::DeflateDecoder;
-use glob::glob;
 use std::{
 	collections::HashMap,
-	fs::File,
-	io::{Cursor, Read, Seek, SeekFrom},
+	fs::{self, File},
+	io::{self, Cursor, Read, Seek, SeekFrom},
 	path::PathBuf,
 };
 use thiserror::Error;
@@ -42,7 +41,7 @@ impl SqPack {
 		let repository_path = self.repositories.get(&path.repository).ok_or_else(|| {
 			SqPackError::UnknownRepository {
 				path: path.path.clone(),
-				repository: path.repository,
+				repository: path.repository.clone(),
 			}
 		})?;
 
@@ -51,78 +50,25 @@ impl SqPack {
 				.get(&path.category)
 				.ok_or_else(|| SqPackError::UnknownCategory {
 					path: path.path.clone(),
-					category: path.category,
+					category: path.category.clone(),
 				})?;
 
 		println!("repo: {:?}, cat: {}", repository_path, category_id);
 
-		// TODO: Should probably do both index and index2 seperately, and maybe at the same time?
-		// TODO: i mean... TODO: index2 lmao
-		// TODO: chunks, ex (does ex matter, really? in a repo?), platform?
-		// TODO: also this fn is basically a "get_file", this should be done lazily and cached
-		let mut index_path = PathBuf::new();
-		index_path.push(repository_path);
-		index_path.push(format!("{:02x}????.*.index", category_id));
-
-		let indexes = glob(&index_path.to_string_lossy())
-			.unwrap()
-			.map(|path| path.unwrap())
-			.collect::<Vec<PathBuf>>();
-
-		// TODO this is dirty, do stuff better
-		if indexes.len() != 1 {
-			panic!(
-				"too many results in index lookup, fix this shit (chunks?) {:?}",
-				indexes
-			)
-		}
-
-		let index_path = &indexes[0];
-
-		// TODO: error handling lmao
-		let bytes = std::fs::read(index_path).unwrap();
-		let mut reader = Cursor::new(bytes);
-		let index = Index::read(&mut reader).unwrap();
-
-		// TODO: should probably use the into_iter given we'll be discarding the rest... right?
-		let index_table = index.indexes.iter().map(|entry| (entry.hash, &entry.value));
-		// let index_table = index
-		// 	.indexes
-		// 	.into_iter()
-		// 	.map(|entry| (entry.hash, entry.value));
-		let index_hash_table = HashMap::<_, _>::from_iter(index_table);
-
-		println!(
-			"binrw: {} entries, [0]: {:#?}",
-			index.indexes.len(),
-			index.indexes[0]
+		// TODO: cache readers
+		let reader = SqPackReader::new(
+			Repository {
+				id: 0,
+				name: path.repository,
+				path: repository_path.to_owned(),
+			},
+			Category {
+				id: *category_id,
+				name: path.category,
+			},
 		);
 
-		let (directory, filename) = path.path.rsplit_once('/').unwrap();
-
-		let directory_hash = crc32(directory.as_bytes());
-		let filename_hash = crc32(filename.as_bytes());
-
-		let hash_key = (directory_hash as u64) << 32 | filename_hash as u64;
-
-		println!("{}, {} : {}", directory_hash, filename_hash, hash_key);
-
-		let hash_entry = index_hash_table.get(&hash_key).unwrap();
-
-		println!("value: {:#?}", hash_entry);
-
-		// -----
-
-		// TODO: do this properly
-		let mut index_path = PathBuf::new();
-		index_path.push(repository_path);
-		index_path.push(format!("{:02x}0000.win32.dat0", category_id));
-
-		let mut dat_file = File::open(index_path).unwrap();
-		let mut file = self.read_file(&mut dat_file, hash_entry);
-
-		let mut exlt = String::new();
-		file.read_to_string(&mut exlt).unwrap();
+		let exlt = String::from_utf8(reader.read_file(sqpack_path)).unwrap();
 
 		println!("EXLT: {}", exlt);
 
@@ -148,32 +94,79 @@ impl SqPack {
 			path: lower,
 		});
 	}
+}
 
-	// TODO: why are these even on &self tbh
-	// TODO: should this function own reading the file on real disk? - tempted to say yes?
-	fn read_file(&self, file: &mut File, index_entry: &IndexHashTableValue) -> Box<dyn Read> {
-		// Seek to the start of the file and read the basic file header.
-		file.seek(SeekFrom::Start(index_entry.offset.into()))
-			.unwrap();
+// TODO: probs should call this path and namespace on consume
+// TODO: I mean realistically this can just be an internal tuple?
+#[derive(Debug)]
+pub struct SqPackPath {
+	path: String,
+	category: String,
+	repository: String,
+}
 
-		// This is reading directly out of `File` - keep an eye on performance and look into buffering if this starts to bottleneck
-		let header = FileHeader::read(file).unwrap();
-		println!("header: {:#?}", header);
+// note: not calling this category as it a) kinda handles both repo and category, and b) would conflict with a potential category metadata struct
+struct SqPackReader {
+	repository: Repository,
+	category: Category,
 
-		let base_offset = index_entry.offset + header.file_info.size;
-		let reader = header
-			.blocks
-			.iter()
-			.map(|block_info| self.read_block(file, base_offset, block_info))
-			.reduce(|readers, reader| Box::new(readers.chain(reader)));
+	// TODO: should i define these types separately?
+	// TODO:
+	index_table: HashMap<u64, IndexHashTableValue>,
+}
 
-		return match reader {
-			None => Box::new(std::io::empty()),
-			Some(reader) => reader,
+impl SqPackReader {
+	fn new(repository: Repository, category: Category) -> Self {
+		return SqPackReader {
+			index_table: build_index(&repository, &category),
+
+			repository,
+			category,
 		};
 	}
 
-	// TODO: this sig is a bit meh, combine the file stuff?
+	fn read_file(&self, file_path: &str) -> Vec<u8> {
+		// TODO: cache files? idk
+		// TODO: index2
+		// TODO: error handling
+		let entry = self.get_index_entry(file_path).unwrap();
+
+		let dat_path = build_sqpack_path(
+			&self.repository,
+			&self.category,
+			0,
+			"win32",
+			&format!("dat{}", entry.data_file_id),
+		);
+
+		let mut file = File::open(dat_path).unwrap();
+		file.seek(SeekFrom::Start(entry.offset.into())).unwrap();
+
+		let header = FileHeader::read(&mut file).unwrap();
+
+		let base_offset = entry.offset + header.file_info.size;
+		let maybe_reader = header
+			.blocks
+			.iter()
+			.map(|block_info| self.read_block(&mut file, base_offset, block_info))
+			.reduce(|readers, reader| Box::new(readers.chain(reader)));
+
+		// TODO: none should probs be an err?
+		let mut reader = match maybe_reader {
+			None => Box::new(io::empty()),
+			Some(reader) => reader,
+		};
+
+		let mut buffer = Vec::new();
+		let bytes_read = reader.read_to_end(&mut buffer).unwrap() as u32;
+
+		if bytes_read != header.file_info.raw_file_size {
+			panic!("todo: error handling");
+		}
+
+		return buffer;
+	}
+
 	fn read_block(
 		&self,
 		file: &mut File,
@@ -200,13 +193,65 @@ impl SqPack {
 		// Set up deflate on the reader.
 		return Box::new(DeflateDecoder::new(cursor));
 	}
+
+	fn get_index_entry(&self, file_path: &str) -> Option<&IndexHashTableValue> {
+		// TODO: Error handling
+		let (directory, filename) = file_path.rsplit_once('/').unwrap();
+
+		let directory_hash = crc32(directory.as_bytes());
+		let filename_hash = crc32(filename.as_bytes());
+
+		let hash_key = (directory_hash as u64) << 32 | filename_hash as u64;
+
+		return self.index_table.get(&hash_key);
+	}
 }
 
-// TODO: probs should call this path and namespace on consume
-// TODO: I mean realistically this can just be an internal tuple?
-#[derive(Debug)]
-pub struct SqPackPath {
-	path: String,
-	category: String,
-	repository: String,
+// TODO: handle index2
+fn build_index(repository: &Repository, category: &Category) -> HashMap<u64, IndexHashTableValue> {
+	// TODO: Deal with chunks
+	let index_path = build_sqpack_path(repository, category, 0, "win32", "index");
+
+	// Read the index file into memory before parsing to structs to avoid
+	// thrashing seeks on-disk - we want the full data set anyway.
+	// TODO: Error handling
+	let buffer = fs::read(index_path).unwrap();
+	let index = Index::read(&mut Cursor::new(buffer)).unwrap();
+
+	// Build the lookup table
+	// TODO: We probably need to include the chunk id in the map 'cus it's not in the bin
+	let table: HashMap<_, _> = index
+		.indexes
+		.into_iter()
+		.map(|entry| (entry.hash, entry.value))
+		.collect();
+
+	return table;
+}
+
+fn build_sqpack_path(
+	repository: &Repository,
+	category: &Category,
+	chunk_id: u8,
+	platform: &str,
+	file_type: &str,
+) -> PathBuf {
+	let mut path = PathBuf::new();
+	path.push(&repository.path);
+	path.push(format!(
+		"{:02x}{:02x}{:02x}.{}.{}",
+		category.id, repository.id, chunk_id, platform, file_type
+	));
+	return path;
+}
+
+struct Repository {
+	name: String,
+	id: u8,
+	path: PathBuf,
+}
+
+struct Category {
+	name: String,
+	id: u8,
 }
