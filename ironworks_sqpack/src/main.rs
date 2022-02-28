@@ -3,6 +3,7 @@
 #![allow(clippy::needless_return)]
 
 mod crc;
+mod dat_reader;
 mod file_structs;
 mod sqpack;
 
