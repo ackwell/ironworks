@@ -5,9 +5,11 @@ pub enum SqPackError {
 	#[error("invalid sqpack path \"{0}\"")]
 	InvalidPath(String),
 
-	#[error("unknown repository \"{repository}\" in sqpack path \"{path}\"")]
-	UnknownRepository { path: String, repository: String },
-
-	#[error("unknown category \"{category}\" in sqpack path \"{path}\"")]
-	UnknownCategory { path: String, category: String },
+	#[error("unknown {segment_type} \"{segment}\"")]
+	UnknownPathSegment {
+		segment_type: String,
+		segment: String,
+	},
 }
+
+pub type Result<T> = std::result::Result<T, SqPackError>;

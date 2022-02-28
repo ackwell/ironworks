@@ -1,6 +1,9 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use crate::{dat_reader::DatReader, errors::SqPackError};
+use crate::{
+	dat_reader::DatReader,
+	errors::{Result, SqPackError},
+};
 
 #[derive(Debug)]
 pub struct Repository {
@@ -46,65 +49,47 @@ impl SqPack {
 		};
 	}
 
-	// pub fn test(&mut self, thing: String) -> &mut Self {
-	// 	self.default_repository = thing;
-	// 	return self;
-	// }
+	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
+		// Get the category and repository metadata
+		let lower = sqpack_path.to_lowercase();
+		let (category_name, repository_name) = self.parse_segments(&lower)?;
 
-	pub fn temp_test(&self, sqpack_path: &str) -> Result<(), SqPackError> {
-		let path = self.parse_path(sqpack_path)?;
+		let repository = self.get_repository(repository_name)?;
+		let category = self.get_category(category_name)?;
 
-		let repository = self.repositories.get(&path.repository).ok_or_else(|| {
-			SqPackError::UnknownRepository {
-				path: path.path.clone(),
-				repository: path.repository.clone(),
-			}
-		})?;
-
-		let category =
-			self.categories
-				.get(&path.category)
-				.ok_or_else(|| SqPackError::UnknownCategory {
-					path: path.path.clone(),
-					category: path.category.clone(),
-				})?;
-
-		// TODO: cache readers
+		// TODO: cache
 		let reader = DatReader::new(repository, category);
 
-		let exlt = String::from_utf8(reader.read_file(sqpack_path)).unwrap();
-
-		println!("EXLT: {}", exlt);
-
-		return Ok(());
+		return Ok(reader.read_file(sqpack_path));
 	}
 
-	fn parse_path(&self, sqpack_path: &str) -> Result<SqPackPath, SqPackError> {
-		// TODO: Look into itertools or something?
-		let lower = sqpack_path.to_lowercase();
-		let split = lower.splitn(3, '/').take(2).collect::<Vec<&str>>();
-		let (category, mut repository) = match split[..] {
-			[category, repository] => (category, repository),
-			_ => return Err(SqPackError::InvalidPath(sqpack_path.to_string())),
+	fn parse_segments<'a>(&self, path: &'a str) -> Result<(&'a str, &'a str)> {
+		// TODO: consider itertools or similar if we find this pattern a few times
+		let split = path.splitn(3, '/').take(2).collect::<Vec<_>>();
+		return match split[..] {
+			[category_name, repository_name] => Ok((category_name, repository_name)),
+			_ => Err(SqPackError::InvalidPath(path.to_owned())),
 		};
-
-		if !self.repositories.contains_key(repository) {
-			repository = &self.default_repository
-		}
-
-		return Ok(SqPackPath {
-			category: String::from(category),
-			repository: String::from(repository),
-			path: lower,
-		});
 	}
-}
 
-// TODO: probs should call this path and namespace on consume
-// TODO: I mean realistically this can just be an internal tuple?
-#[derive(Debug)]
-pub struct SqPackPath {
-	path: String,
-	category: String,
-	repository: String,
+	fn get_repository(&self, repository_name: &str) -> Result<&Repository> {
+		return self
+			.repositories
+			.get(repository_name)
+			.or_else(|| self.repositories.get(&self.default_repository))
+			.ok_or_else(|| SqPackError::UnknownPathSegment {
+				segment_type: String::from("repository"),
+				segment: repository_name.to_owned(),
+			});
+	}
+
+	fn get_category(&self, category_name: &str) -> Result<&Category> {
+		return self
+			.categories
+			.get(category_name)
+			.ok_or_else(|| SqPackError::UnknownPathSegment {
+				segment_type: String::from("category"),
+				segment: category_name.to_owned(),
+			});
+	}
 }

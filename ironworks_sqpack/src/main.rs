@@ -26,7 +26,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 		}
 	]);
 
-	sqpack.temp_test("exd/root.exl")?;
+	let file_buffer = sqpack.read_file("exd/root.exl")?;
+
+	let exlt = String::from_utf8(file_buffer).unwrap();
+
+	println!("EXLT: {}", exlt);
 
 	return Ok(());
 }
