@@ -10,6 +10,7 @@ use flate2::read::DeflateDecoder;
 
 use crate::{
 	crc::crc32,
+	errors::Result,
 	file_structs::{BlockHeader, BlockInfo, FileHeader, Index, IndexHashTableValue},
 	sqpack::{Category, Repository},
 };
@@ -33,7 +34,7 @@ impl<'a> DatReader<'a> {
 		};
 	}
 
-	pub fn read_file(&self, file_path: &str) -> Vec<u8> {
+	pub fn read_file(&self, file_path: &str) -> Result<Vec<u8>> {
 		// TODO: cache files? idk
 		// TODO: index2
 		// TODO: error handling
@@ -47,32 +48,33 @@ impl<'a> DatReader<'a> {
 			&format!("dat{}", entry.data_file_id),
 		);
 
-		let mut file = File::open(dat_path).unwrap();
-		file.seek(SeekFrom::Start(entry.offset.into())).unwrap();
+		let mut file = File::open(dat_path)?;
+		file.seek(SeekFrom::Start(entry.offset.into()))?;
 
 		let header = FileHeader::read(&mut file).unwrap();
 
 		let base_offset = entry.offset + header.file_info.size;
-		let maybe_reader = header
+
+		let mut reader = header
 			.blocks
 			.iter()
 			.map(|block_info| self.read_block(&mut file, base_offset, block_info))
-			.reduce(|readers, reader| Box::new(readers.chain(reader)));
-
-		// TODO: none should probs be an err?
-		let mut reader = match maybe_reader {
-			None => Box::new(io::empty()),
-			Some(reader) => reader,
-		};
+			.try_fold(
+				Box::new(io::empty()) as Box<dyn Read>,
+				|readers, result| match result {
+					Ok(reader) => Ok(Box::new(readers.chain(reader)) as Box<dyn Read>),
+					Err(error) => Err(error),
+				},
+			)?;
 
 		let mut buffer = Vec::new();
-		let bytes_read = reader.read_to_end(&mut buffer).unwrap() as u32;
+		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
 
 		if bytes_read != header.file_info.raw_file_size {
 			panic!("todo: error handling");
 		}
 
-		return buffer;
+		return Ok(buffer);
 	}
 
 	fn read_block(
@@ -80,13 +82,13 @@ impl<'a> DatReader<'a> {
 		file: &mut File,
 		base_offset: u32,
 		block_info: &BlockInfo,
-	) -> Box<dyn Read> {
+	) -> Result<Box<dyn Read>> {
 		// Seek to the start of the block and read the raw bytes out.
 		file.seek(SeekFrom::Start((base_offset + block_info.offset) as u64))
 			.unwrap();
 
 		let mut buffer = vec![0u8; block_info.size as usize];
-		file.read_exact(&mut buffer).unwrap();
+		file.read_exact(&mut buffer)?;
 
 		// Build a base cursor and read the header.
 		let mut cursor = Cursor::new(buffer);
@@ -95,11 +97,11 @@ impl<'a> DatReader<'a> {
 		// If the block is uncompressed, we can return without further processing.
 		// TODO: work out where to put this constant
 		if header.uncompressed_size > 16000 {
-			return Box::new(cursor);
+			return Ok(Box::new(cursor));
 		}
 
 		// Set up deflate on the reader.
-		return Box::new(DeflateDecoder::new(cursor));
+		return Ok(Box::new(DeflateDecoder::new(cursor)));
 	}
 
 	fn get_index_entry(&self, file_path: &str) -> Option<&IndexHashTableValue> {

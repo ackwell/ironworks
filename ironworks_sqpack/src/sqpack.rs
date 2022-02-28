@@ -18,14 +18,12 @@ pub struct Category {
 	pub id: u8,
 }
 
-// TODO: this should probably be in own file
-
 #[derive(Debug)]
 pub struct SqPack {
 	repositories: HashMap<String, Repository>,
 	categories: HashMap<String, Category>,
 
-	pub default_repository: String,
+	default_repository: String,
 }
 
 impl SqPack {
@@ -60,7 +58,7 @@ impl SqPack {
 		// TODO: cache
 		let reader = DatReader::new(repository, category);
 
-		return Ok(reader.read_file(sqpack_path));
+		return reader.read_file(sqpack_path);
 	}
 
 	fn parse_segments<'a>(&self, path: &'a str) -> Result<(&'a str, &'a str)> {
