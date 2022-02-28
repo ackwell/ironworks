@@ -4,6 +4,7 @@
 
 mod crc;
 mod dat_reader;
+mod errors;
 mod file_structs;
 mod sqpack;
 

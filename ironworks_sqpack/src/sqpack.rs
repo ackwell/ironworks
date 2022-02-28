@@ -1,8 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
-use thiserror::Error;
-
-use crate::dat_reader::DatReader;
+use crate::{dat_reader::DatReader, errors::SqPackError};
 
 pub struct Repository {
 	pub name: String,
@@ -16,17 +14,6 @@ pub struct Category {
 }
 
 // TODO: this should probably be in own file
-#[derive(Error, Debug)]
-pub enum SqPackError {
-	#[error("invalid sqpack path \"{0}\"")]
-	InvalidPath(String),
-
-	#[error("unknown repository \"{repository}\" in sqpack path \"{path}\"")]
-	UnknownRepository { path: String, repository: String },
-
-	#[error("unknown category \"{category}\" in sqpack path \"{path}\"")]
-	UnknownCategory { path: String, category: String },
-}
 
 #[derive(Debug)]
 pub struct SqPack {
