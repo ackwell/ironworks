@@ -14,19 +14,19 @@ use crate::{
 	sqpack::{Category, Repository},
 };
 
-pub struct DatReader {
-	repository: Repository,
-	category: Category,
+pub struct DatReader<'a> {
+	repository: &'a Repository,
+	category: &'a Category,
 
 	// TODO: should i define these types separately?
 	// TODO:
 	index_table: HashMap<u64, IndexHashTableValue>,
 }
 
-impl DatReader {
-	pub fn new(repository: Repository, category: Category) -> Self {
+impl<'a> DatReader<'a> {
+	pub fn new(repository: &'a Repository, category: &'a Category) -> Self {
 		return DatReader {
-			index_table: build_index(&repository, &category),
+			index_table: build_index(repository, category),
 
 			repository,
 			category,
@@ -40,8 +40,8 @@ impl DatReader {
 		let entry = self.get_index_entry(file_path).unwrap();
 
 		let dat_path = build_sqpack_path(
-			&self.repository,
-			&self.category,
+			self.repository,
+			self.category,
 			0,
 			"win32",
 			&format!("dat{}", entry.data_file_id),

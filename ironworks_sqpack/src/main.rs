@@ -8,24 +8,23 @@ mod errors;
 mod file_structs;
 mod sqpack;
 
-use std::{collections::HashMap, error::Error, path::PathBuf};
+use std::{error::Error, path::PathBuf};
 
-use crate::sqpack::SqPack;
+use sqpack::{Category, Repository, SqPack};
 
 fn main() -> Result<(), Box<dyn Error>> {
-	let repositories = HashMap::from([
-		(String::from("ffxiv"), PathBuf::from("/mnt/c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV - A Realm Reborn/game/sqpack/ffxiv")),
+	let sqpack = SqPack::new(String::from("ffxiv"), [
+		Repository {
+			id: 0,
+			name: String::from("ffxiv"),
+			path: PathBuf::from("/mnt/c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV - A Realm Reborn/game/sqpack/ffxiv")
+		}
+	], [
+		Category {
+			id: 0x0A,
+			name: String::from("exd"),
+		}
 	]);
-
-	let categories = HashMap::from([(String::from("exd"), 0x0A)]);
-
-	let sqpack = SqPack {
-		repositories,
-		categories,
-		default_repository: String::from("ffxiv"),
-	};
-
-	println!("sqpack: {:?}", sqpack);
 
 	sqpack.temp_test("exd/root.exl")?;
 

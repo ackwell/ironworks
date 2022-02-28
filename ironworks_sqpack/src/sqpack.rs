@@ -2,12 +2,14 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::{dat_reader::DatReader, errors::SqPackError};
 
+#[derive(Debug)]
 pub struct Repository {
 	pub name: String,
 	pub id: u8,
 	pub path: PathBuf,
 }
 
+#[derive(Debug)]
 pub struct Category {
 	pub name: String,
 	pub id: u8,
@@ -17,24 +19,49 @@ pub struct Category {
 
 #[derive(Debug)]
 pub struct SqPack {
-	pub repositories: HashMap<String, PathBuf>,
-	pub categories: HashMap<String, u8>,
+	repositories: HashMap<String, Repository>,
+	categories: HashMap<String, Category>,
 
 	pub default_repository: String,
 }
 
 impl SqPack {
+	pub fn new(
+		default_repository: String,
+		repositories: impl IntoIterator<Item = Repository>,
+		categories: impl IntoIterator<Item = Category>,
+	) -> Self {
+		return SqPack {
+			default_repository,
+
+			repositories: repositories
+				.into_iter()
+				.map(|repository| (repository.name.to_owned(), repository))
+				.collect(),
+
+			categories: categories
+				.into_iter()
+				.map(|category| (category.name.to_owned(), category))
+				.collect(),
+		};
+	}
+
+	// pub fn test(&mut self, thing: String) -> &mut Self {
+	// 	self.default_repository = thing;
+	// 	return self;
+	// }
+
 	pub fn temp_test(&self, sqpack_path: &str) -> Result<(), SqPackError> {
 		let path = self.parse_path(sqpack_path)?;
 
-		let repository_path = self.repositories.get(&path.repository).ok_or_else(|| {
+		let repository = self.repositories.get(&path.repository).ok_or_else(|| {
 			SqPackError::UnknownRepository {
 				path: path.path.clone(),
 				repository: path.repository.clone(),
 			}
 		})?;
 
-		let category_id =
+		let category =
 			self.categories
 				.get(&path.category)
 				.ok_or_else(|| SqPackError::UnknownCategory {
@@ -42,20 +69,8 @@ impl SqPack {
 					category: path.category.clone(),
 				})?;
 
-		println!("repo: {:?}, cat: {}", repository_path, category_id);
-
 		// TODO: cache readers
-		let reader = DatReader::new(
-			Repository {
-				id: 0,
-				name: path.repository,
-				path: repository_path.to_owned(),
-			},
-			Category {
-				id: *category_id,
-				name: path.category,
-			},
-		);
+		let reader = DatReader::new(repository, category);
 
 		let exlt = String::from_utf8(reader.read_file(sqpack_path)).unwrap();
 
