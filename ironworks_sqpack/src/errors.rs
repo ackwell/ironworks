@@ -4,7 +4,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SqPackError {
-	#[error("Invalid sqpack path \"{0}\"")]
+	#[error("Could not find file \"{0}\"")]
+	NotFound(String),
+
+	#[error("Invalid path \"{0}\"")]
 	InvalidPath(String),
 
 	#[error("Unknown {segment_type} \"{segment}\"")]
@@ -12,6 +15,9 @@ pub enum SqPackError {
 		segment_type: String,
 		segment: String,
 	},
+
+	#[error("Invalid data encountered: {0}")]
+	InvalidData(String),
 
 	#[error("IO error: {0}")]
 	Io(#[from] io::Error),

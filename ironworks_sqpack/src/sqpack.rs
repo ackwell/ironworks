@@ -56,7 +56,7 @@ impl SqPack {
 		let category = self.get_category(category_name)?;
 
 		// TODO: cache
-		let reader = DatReader::new(repository, category);
+		let reader = DatReader::new(repository, category)?;
 
 		return reader.read_file(sqpack_path);
 	}

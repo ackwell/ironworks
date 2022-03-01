@@ -10,7 +10,7 @@ use flate2::read::DeflateDecoder;
 
 use crate::{
 	crc::crc32,
-	errors::Result,
+	errors::{Result, SqPackError},
 	file_structs::{BlockHeader, BlockInfo, FileHeader, Index, IndexHashTableValue},
 	sqpack::{Category, Repository},
 };
@@ -20,25 +20,23 @@ pub struct DatReader<'a> {
 	category: &'a Category,
 
 	// TODO: should i define these types separately?
-	// TODO:
 	index_table: HashMap<u64, IndexHashTableValue>,
 }
 
 impl<'a> DatReader<'a> {
-	pub fn new(repository: &'a Repository, category: &'a Category) -> Self {
-		return DatReader {
-			index_table: build_index(repository, category),
+	pub fn new(repository: &'a Repository, category: &'a Category) -> Result<Self> {
+		return Ok(DatReader {
+			index_table: build_index(repository, category)?,
 
 			repository,
 			category,
-		};
+		});
 	}
 
 	pub fn read_file(&self, file_path: &str) -> Result<Vec<u8>> {
 		// TODO: cache files? idk
 		// TODO: index2
-		// TODO: error handling
-		let entry = self.get_index_entry(file_path).unwrap();
+		let entry = self.get_index_entry(file_path)?;
 
 		let dat_path = build_sqpack_path(
 			self.repository,
@@ -48,10 +46,16 @@ impl<'a> DatReader<'a> {
 			&format!("dat{}", entry.data_file_id),
 		);
 
-		let mut file = File::open(dat_path)?;
+		let mut file = File::open(&dat_path)?;
 		file.seek(SeekFrom::Start(entry.offset.into()))?;
 
-		let header = FileHeader::read(&mut file).unwrap();
+		let header = FileHeader::read(&mut file).map_err(|_| {
+			SqPackError::InvalidData(format!(
+				"File header in \"{}\" at {:#x}",
+				dat_path.to_string_lossy(),
+				entry.offset
+			))
+		})?;
 
 		let base_offset = entry.offset + header.file_info.size;
 
@@ -84,15 +88,16 @@ impl<'a> DatReader<'a> {
 		block_info: &BlockInfo,
 	) -> Result<Box<dyn Read>> {
 		// Seek to the start of the block and read the raw bytes out.
-		file.seek(SeekFrom::Start((base_offset + block_info.offset) as u64))
-			.unwrap();
+		let offset = base_offset + block_info.offset;
+		file.seek(SeekFrom::Start(offset as u64))?;
 
 		let mut buffer = vec![0u8; block_info.size as usize];
 		file.read_exact(&mut buffer)?;
 
 		// Build a base cursor and read the header.
 		let mut cursor = Cursor::new(buffer);
-		let header = BlockHeader::read(&mut cursor).unwrap();
+		let header = BlockHeader::read(&mut cursor)
+			.map_err(|_| SqPackError::InvalidData(format!("Block header at {:#x}", offset)))?;
 
 		// If the block is uncompressed, we can return without further processing.
 		// TODO: work out where to put this constant
@@ -104,29 +109,40 @@ impl<'a> DatReader<'a> {
 		return Ok(Box::new(DeflateDecoder::new(cursor)));
 	}
 
-	fn get_index_entry(&self, file_path: &str) -> Option<&IndexHashTableValue> {
-		// TODO: Error handling
-		let (directory, filename) = file_path.rsplit_once('/').unwrap();
+	fn get_index_entry(&self, file_path: &str) -> Result<&IndexHashTableValue> {
+		let (directory, filename) = file_path
+			.rsplit_once('/')
+			.ok_or_else(|| SqPackError::InvalidPath(file_path.to_owned()))?;
 
 		let directory_hash = crc32(directory.as_bytes());
 		let filename_hash = crc32(filename.as_bytes());
 
 		let hash_key = (directory_hash as u64) << 32 | filename_hash as u64;
 
-		return self.index_table.get(&hash_key);
+		return self
+			.index_table
+			.get(&hash_key)
+			.ok_or_else(|| SqPackError::NotFound(file_path.to_owned()));
 	}
 }
 
 // TODO: handle index2
-fn build_index(repository: &Repository, category: &Category) -> HashMap<u64, IndexHashTableValue> {
+fn build_index(
+	repository: &Repository,
+	category: &Category,
+) -> Result<HashMap<u64, IndexHashTableValue>> {
 	// TODO: Deal with chunks
 	let index_path = build_sqpack_path(repository, category, 0, "win32", "index");
 
 	// Read the index file into memory before parsing to structs to avoid
 	// thrashing seeks on-disk - we want the full data set anyway.
-	// TODO: Error handling
-	let buffer = fs::read(index_path).unwrap();
-	let index = Index::read(&mut Cursor::new(buffer)).unwrap();
+	let buffer = fs::read(&index_path)?;
+	let index = Index::read(&mut Cursor::new(buffer)).map_err(|_| {
+		SqPackError::InvalidData(format!(
+			"Index data in \"{}\"",
+			index_path.to_string_lossy(),
+		))
+	})?;
 
 	// Build the lookup table
 	// TODO: We probably need to include the chunk id in the map 'cus it's not in the bin
@@ -136,7 +152,7 @@ fn build_index(repository: &Repository, category: &Category) -> HashMap<u64, Ind
 		.map(|entry| (entry.hash, entry.value))
 		.collect();
 
-	return table;
+	return Ok(table);
 }
 
 fn build_sqpack_path(
