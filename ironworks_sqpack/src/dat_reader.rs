@@ -76,7 +76,12 @@ impl<'a> DatReader<'a> {
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
 
 		if bytes_read != header.raw_file_size {
-			panic!("todo: error handling");
+			return Err(SqPackError::InvalidData(format!(
+				"Expected \"{}\" to have size {}, got {}",
+				file_path.to_owned(),
+				header.raw_file_size,
+				bytes_read
+			)));
 		}
 
 		return Ok(buffer);
