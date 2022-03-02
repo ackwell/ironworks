@@ -1,4 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+	cell::RefCell,
+	collections::{hash_map::Entry, HashMap},
+	path::PathBuf,
+	rc::Rc,
+};
 
 use crate::{
 	dat_reader::DatReader,
@@ -19,14 +24,15 @@ pub struct Category {
 }
 
 #[derive(Debug)]
-pub struct SqPack {
+pub struct SqPack<'a> {
+	default_repository: String,
 	repositories: HashMap<String, Repository>,
 	categories: HashMap<String, Category>,
 
-	default_repository: String,
+	reader_cache: RefCell<HashMap<String, Rc<DatReader<'a>>>>,
 }
 
-impl SqPack {
+impl<'a> SqPack<'a> {
 	pub fn new(
 		default_repository: String,
 		repositories: impl IntoIterator<Item = Repository>,
@@ -44,24 +50,37 @@ impl SqPack {
 				.into_iter()
 				.map(|category| (category.name.to_owned(), category))
 				.collect(),
+
+			reader_cache: RefCell::new(HashMap::new()),
 		};
 	}
 
-	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
-		// Get the category and repository metadata
-		let lower = sqpack_path.to_lowercase();
-		let (category_name, repository_name) = self.parse_segments(&lower)?;
-
-		let repository = self.get_repository(repository_name)?;
-		let category = self.get_category(category_name)?;
-
-		// TODO: cache
-		let reader = DatReader::new(repository, category)?;
-
-		return reader.read_file(sqpack_path);
+	pub fn read_file(&'a self, raw_sqpack_path: &str) -> Result<Vec<u8>> {
+		let sqpack_path = raw_sqpack_path.to_lowercase();
+		let reader = self.get_reader(&sqpack_path)?;
+		return reader.read_file(&sqpack_path);
 	}
 
-	fn parse_segments<'a>(&self, path: &'a str) -> Result<(&'a str, &'a str)> {
+	fn get_reader(&'a self, sqpack_path: &str) -> Result<Rc<DatReader>> {
+		// TODO: maybe try_borrow_mut?
+		let mut cache = self.reader_cache.borrow_mut();
+
+		// Check if we have a reader for the given metadata, and return it if we do.
+		let (category_name, repository_name) = self.parse_segments(sqpack_path)?;
+		let vacant_entry = match cache.entry(format!("{}:{}", category_name, repository_name)) {
+			Entry::Occupied(entry) => return Ok(entry.get().clone()),
+			Entry::Vacant(entry) => entry,
+		};
+
+		// No existing reader found, build a new one and store in the cache.
+		let repository = self.get_repository(repository_name)?;
+		let category = self.get_category(category_name)?;
+		let reader = Rc::new(DatReader::new(repository, category)?);
+
+		return Ok(vacant_entry.insert(reader).clone());
+	}
+
+	fn parse_segments<'b>(&self, path: &'b str) -> Result<(&'b str, &'b str)> {
 		// TODO: consider itertools or similar if we find this pattern a few times
 		let split = path.splitn(3, '/').take(2).collect::<Vec<_>>();
 		return match split[..] {

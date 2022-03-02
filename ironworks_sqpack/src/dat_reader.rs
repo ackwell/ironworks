@@ -15,6 +15,7 @@ use crate::{
 	sqpack::{Category, Repository},
 };
 
+#[derive(Debug)]
 pub struct DatReader<'a> {
 	repository: &'a Repository,
 	category: &'a Category,
