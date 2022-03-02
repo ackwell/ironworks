@@ -111,21 +111,14 @@ impl IndexHashTableValue {
 #[binread]
 #[br(little)]
 pub struct FileHeader {
-	pub file_info: FileInfo,
-	#[br(count = file_info.block_count)]
-	pub blocks: Vec<BlockInfo>,
-}
-
-// TODO: this can probably be absorbed into the parent FileHeader now we're not reading seperately?
-#[derive(Debug)]
-#[binread]
-#[br(little)]
-pub struct FileInfo {
 	pub size: u32,
 	pub type_: FileType,
 	pub raw_file_size: u32,
 	#[br(pad_before = 8)]
 	pub block_count: u32,
+
+	#[br(count = block_count)]
+	pub blocks: Vec<BlockInfo>,
 }
 
 #[derive(Debug)]

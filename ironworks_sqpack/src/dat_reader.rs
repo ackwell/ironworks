@@ -58,7 +58,7 @@ impl<'a> DatReader<'a> {
 			))
 		})?;
 
-		let base_offset = entry.offset + header.file_info.size;
+		let base_offset = entry.offset + header.size;
 
 		let mut reader = header
 			.blocks
@@ -75,7 +75,7 @@ impl<'a> DatReader<'a> {
 		let mut buffer = Vec::new();
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
 
-		if bytes_read != header.file_info.raw_file_size {
+		if bytes_read != header.raw_file_size {
 			panic!("todo: error handling");
 		}
 
