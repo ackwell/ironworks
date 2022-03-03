@@ -6,7 +6,9 @@ mod crc;
 mod dat_reader;
 mod errors;
 mod file_structs;
+mod index;
 mod sqpack;
+mod utility;
 
 use std::{error::Error, path::PathBuf};
 
