@@ -19,14 +19,22 @@ pub struct DatReader<'a> {
 	repository: &'a Repository,
 	category: &'a Category,
 
-	index: Index,
+	chunks: Vec<Index>,
 }
 
 impl<'a> DatReader<'a> {
 	pub fn new(repository: &'a Repository, category: &'a Category) -> Result<Self> {
+		let mut chunks: Vec<Index> = vec![];
+
+		for chunk_id in 0u8..=255 {
+			match Index::new(repository, category, chunk_id)? {
+				None => continue,
+				Some(index) => chunks.push(index),
+			};
+		}
+
 		return Ok(DatReader {
-			// TODO: multiple chunks
-			index: Index::new(repository, category, 0)?.unwrap(),
+			chunks,
 
 			repository,
 			category,
@@ -35,7 +43,19 @@ impl<'a> DatReader<'a> {
 
 	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
 		// TODO: cache files? idk
-		let location = self.index.get_file_location(sqpack_path)?;
+		let location = self
+			.chunks
+			.iter()
+			.find_map(|index| {
+				index.get_file_location(sqpack_path).map_or_else(
+					|err| match err {
+						SqPackError::NotFound(_) => None,
+						_ => Some(Err(err)),
+					},
+					|location| Some(Ok(location)),
+				)
+			})
+			.unwrap_or_else(|| Err(SqPackError::NotFound(sqpack_path.to_owned())))?;
 
 		let dat_path = build_file_path(
 			self.repository,
