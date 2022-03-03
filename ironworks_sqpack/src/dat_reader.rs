@@ -7,8 +7,8 @@ use binrw::BinRead;
 use flate2::read::DeflateDecoder;
 
 use crate::{
-	errors::{Result, SqPackError},
-	file_structs::{BlockHeader, BlockInfo, FileHeader},
+	error::{Result, SqPackError},
+	file_struct::{BlockHeader, BlockInfo, FileHeader},
 	index::Index,
 	sqpack::{Category, Repository},
 	utility::build_file_path,

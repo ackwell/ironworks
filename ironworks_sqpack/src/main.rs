@@ -4,8 +4,8 @@
 
 mod crc;
 mod dat_reader;
-mod errors;
-mod file_structs;
+mod error;
+mod file_struct;
 mod index;
 mod sqpack;
 mod utility;

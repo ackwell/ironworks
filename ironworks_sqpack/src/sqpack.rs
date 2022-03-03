@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
 	dat_reader::DatReader,
-	errors::{Result, SqPackError},
+	error::{Result, SqPackError},
 };
 
 #[derive(Debug)]

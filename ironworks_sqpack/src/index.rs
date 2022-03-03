@@ -8,8 +8,8 @@ use binrw::BinRead;
 
 use crate::{
 	crc::crc32,
-	errors::{Result, SqPackError},
-	file_structs,
+	error::{Result, SqPackError},
+	file_struct,
 	sqpack::{Category, Repository},
 	utility::build_file_path,
 };
@@ -95,7 +95,7 @@ fn build_index_table(
 
 fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 	// TODO: fix the name abiguity here somehow
-	let index = file_structs::Index::read(&mut Cursor::new(buffer))
+	let index = file_struct::Index::read(&mut Cursor::new(buffer))
 		.map_err(|_| SqPackError::InvalidData(format!("Index data in \"{}\"", "TODO",)))?;
 
 	// Build the lookup table
