@@ -70,6 +70,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ironworks_ffxiv"
+version = "0.1.0"
+dependencies = [
+ "ironworks_sqpack",
+]
+
+[[package]]
 name = "ironworks_sqpack"
 version = "0.1.0"
 dependencies = [

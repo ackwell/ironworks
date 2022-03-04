@@ -1,4 +1,5 @@
 [workspace]
 members = [
-	"ironworks_sqpack"
+	"ironworks_ffxiv",
+	"ironworks_sqpack",
 ]

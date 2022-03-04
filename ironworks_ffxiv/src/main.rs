@@ -2,17 +2,9 @@
 
 #![allow(clippy::needless_return)]
 
-mod crc;
-mod dat_reader;
-mod error;
-mod file_struct;
-mod index;
-mod sqpack;
-mod utility;
-
 use std::{error::Error, path::PathBuf};
 
-use sqpack::{Category, Repository, SqPack};
+use ironworks_sqpack::{Category, Repository, SqPack};
 
 fn main() -> Result<(), Box<dyn Error>> {
 	let sqpack = SqPack::new(String::from("ffxiv"), [
