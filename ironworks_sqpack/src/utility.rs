@@ -15,5 +15,5 @@ pub fn build_file_path(
 		"{:02x}{:02x}{:02x}.{}.{}",
 		category.id, repository.id, chunk_id, platform, file_type
 	));
-	return path;
+	path
 }

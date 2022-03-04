@@ -1,7 +1,4 @@
 // This file exists as a temporary runner only
-
-#![allow(clippy::needless_return)]
-
 use std::{error::Error, fs, path::PathBuf};
 
 use ironworks_sqpack::{Category, Repository, SqPack};
@@ -44,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 	println!("EXLT: {}", exlt);
 
-	return Ok(());
+	Ok(())
 }
 
 fn find_install() -> Option<PathBuf> {

@@ -39,10 +39,10 @@ impl Index {
 	pub fn new(repository: &Repository, category: &Category, chunk_id: u8) -> Result<Option<Self>> {
 		// Preemptively build the index table. If there is no table for this
 		// configuration of sqpack, fail gracefully.
-		return match build_index_table(repository, category, chunk_id)? {
-			None => return Ok(None),
+		match build_index_table(repository, category, chunk_id)? {
+			None => Ok(None),
 			Some((kind, table)) => Ok(Some(Self { kind, table })),
-		};
+		}
 	}
 
 	pub fn get_file_location(&self, sqpack_path: &str) -> Result<&FileLocation> {
@@ -90,7 +90,7 @@ fn build_index_table(
 		_ => todo!(),
 	};
 
-	return Ok(Some(table));
+	Ok(Some(table))
 }
 
 fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
@@ -114,7 +114,7 @@ fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 		})
 		.collect();
 
-	return Ok(table);
+	Ok(table)
 }
 
 fn get_index_buffer(
@@ -124,7 +124,7 @@ fn get_index_buffer(
 ) -> io::Result<(IndexKind, Vec<u8>)> {
 	// Try to load `.index`, falling back to `.index2`.
 	// Disambiguating the file types via kind.
-	return fs::read(build_file_path(
+	fs::read(build_file_path(
 		repository, category, chunk_id, "win32", "index",
 	))
 	.map(|buffer| (IndexKind::Index1, buffer))
@@ -133,5 +133,5 @@ fn get_index_buffer(
 			repository, category, chunk_id, "win32", "index2",
 		))
 		.map(|buffer| (IndexKind::Index2, buffer))
-	});
+	})
 }

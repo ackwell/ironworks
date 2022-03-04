@@ -35,7 +35,7 @@ const fn build_table() -> Table {
 		i += 1;
 	}
 
-	return table;
+	table
 }
 
 pub fn crc32(bytes: &[u8]) -> u32 {
@@ -75,5 +75,5 @@ pub fn crc32(bytes: &[u8]) -> u32 {
 		start += 1;
 	}
 
-	return !(working ^ u32::MAX);
+	!(working ^ u32::MAX)
 }

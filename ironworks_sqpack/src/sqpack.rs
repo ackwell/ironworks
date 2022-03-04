@@ -38,7 +38,7 @@ impl<'a> SqPack<'a> {
 		repositories: impl IntoIterator<Item = Repository>,
 		categories: impl IntoIterator<Item = Category>,
 	) -> Self {
-		return SqPack {
+		SqPack {
 			default_repository,
 
 			repositories: repositories
@@ -52,13 +52,13 @@ impl<'a> SqPack<'a> {
 				.collect(),
 
 			reader_cache: RefCell::new(HashMap::new()),
-		};
+		}
 	}
 
 	pub fn read_file(&'a self, raw_sqpack_path: &str) -> Result<Vec<u8>> {
 		let sqpack_path = raw_sqpack_path.to_lowercase();
 		let reader = self.get_reader(&sqpack_path)?;
-		return reader.read_file(&sqpack_path);
+		reader.read_file(&sqpack_path)
 	}
 
 	fn get_reader(&'a self, sqpack_path: &str) -> Result<Rc<DatReader>> {
@@ -83,10 +83,10 @@ impl<'a> SqPack<'a> {
 	fn parse_segments<'b>(&self, path: &'b str) -> Result<(&'b str, &'b str)> {
 		// TODO: consider itertools or similar if we find this pattern a few times
 		let split = path.splitn(3, '/').take(2).collect::<Vec<_>>();
-		return match split[..] {
+		match split[..] {
 			[category_name, repository_name] => Ok((category_name, repository_name)),
 			_ => Err(Error::InvalidPath(path.to_owned())),
-		};
+		}
 	}
 
 	fn get_repository(&self, repository_name: &str) -> Result<&Repository> {

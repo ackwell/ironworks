@@ -33,12 +33,12 @@ impl<'a> DatReader<'a> {
 			};
 		}
 
-		return Ok(DatReader {
+		Ok(DatReader {
 			chunks,
 
 			repository,
 			category,
-		});
+		})
 	}
 
 	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
@@ -102,7 +102,7 @@ impl<'a> DatReader<'a> {
 			)));
 		}
 
-		return Ok(buffer);
+		Ok(buffer)
 	}
 
 	fn read_block(
@@ -130,6 +130,6 @@ impl<'a> DatReader<'a> {
 		}
 
 		// Set up deflate on the reader.
-		return Ok(Box::new(DeflateDecoder::new(cursor)));
+		Ok(Box::new(DeflateDecoder::new(cursor)))
 	}
 }
