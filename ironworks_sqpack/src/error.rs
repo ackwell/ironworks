@@ -3,7 +3,7 @@ use std::io;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum SqPackError {
+pub enum Error {
 	#[error("Could not find file \"{0}\"")]
 	NotFound(String),
 
@@ -23,4 +23,4 @@ pub enum SqPackError {
 	Io(#[from] io::Error),
 }
 
-pub type Result<T> = std::result::Result<T, SqPackError>;
+pub type Result<T> = std::result::Result<T, Error>;

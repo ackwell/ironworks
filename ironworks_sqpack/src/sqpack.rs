@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
 	dat_reader::DatReader,
-	error::{Result, SqPackError},
+	error::{Error, Result},
 };
 
 #[derive(Debug)]
@@ -85,7 +85,7 @@ impl<'a> SqPack<'a> {
 		let split = path.splitn(3, '/').take(2).collect::<Vec<_>>();
 		return match split[..] {
 			[category_name, repository_name] => Ok((category_name, repository_name)),
-			_ => Err(SqPackError::InvalidPath(path.to_owned())),
+			_ => Err(Error::InvalidPath(path.to_owned())),
 		};
 	}
 
@@ -94,7 +94,7 @@ impl<'a> SqPack<'a> {
 			.repositories
 			.get(repository_name)
 			.or_else(|| self.repositories.get(&self.default_repository))
-			.ok_or_else(|| SqPackError::UnknownPathSegment {
+			.ok_or_else(|| Error::UnknownPathSegment {
 				segment_type: String::from("repository"),
 				segment: repository_name.to_owned(),
 			});
@@ -104,7 +104,7 @@ impl<'a> SqPack<'a> {
 		return self
 			.categories
 			.get(category_name)
-			.ok_or_else(|| SqPackError::UnknownPathSegment {
+			.ok_or_else(|| Error::UnknownPathSegment {
 				segment_type: String::from("category"),
 				segment: category_name.to_owned(),
 			});

@@ -8,7 +8,7 @@ use binrw::BinRead;
 
 use crate::{
 	crc::crc32,
-	error::{Result, SqPackError},
+	error::{Error, Result},
 	file_struct,
 	sqpack::{Category, Repository},
 	utility::build_file_path,
@@ -57,7 +57,7 @@ impl Index {
 		// Build a hash via combination of crc of the two segments.
 		let (directory, filename) = sqpack_path
 			.rsplit_once('/')
-			.ok_or_else(|| SqPackError::InvalidPath(sqpack_path.to_owned()))?;
+			.ok_or_else(|| Error::InvalidPath(sqpack_path.to_owned()))?;
 
 		let directory_hash = crc32(directory.as_bytes());
 		let filename_hash = crc32(filename.as_bytes());
@@ -67,7 +67,7 @@ impl Index {
 		return self
 			.table
 			.get(&hash_key)
-			.ok_or_else(|| SqPackError::NotFound(sqpack_path.to_owned()));
+			.ok_or_else(|| Error::NotFound(sqpack_path.to_owned()));
 	}
 }
 
@@ -81,7 +81,7 @@ fn build_index_table(
 	let buffer = match get_index_buffer(repository, category, chunk_id) {
 		Ok(buffer) => buffer,
 		Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
-		Err(error) => return Err(SqPackError::from(error)),
+		Err(error) => return Err(Error::from(error)),
 	};
 
 	// Build the index-kind specific table
@@ -96,7 +96,7 @@ fn build_index_table(
 fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 	// TODO: fix the name abiguity here somehow
 	let index = file_struct::Index::read(&mut Cursor::new(buffer))
-		.map_err(|_| SqPackError::InvalidData(format!("Index data in \"{}\"", "TODO",)))?;
+		.map_err(|_| Error::InvalidData(format!("Index data in \"{}\"", "TODO",)))?;
 
 	// Build the lookup table
 	let table: HashMap<_, _> = index

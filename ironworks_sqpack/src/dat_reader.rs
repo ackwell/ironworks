@@ -7,7 +7,7 @@ use binrw::BinRead;
 use flate2::read::DeflateDecoder;
 
 use crate::{
-	error::{Result, SqPackError},
+	error::{Error, Result},
 	file_struct::{BlockHeader, BlockInfo, FileHeader},
 	index::Index,
 	sqpack::{Category, Repository},
@@ -49,13 +49,13 @@ impl<'a> DatReader<'a> {
 			.find_map(|index| {
 				index.get_file_location(sqpack_path).map_or_else(
 					|err| match err {
-						SqPackError::NotFound(_) => None,
+						Error::NotFound(_) => None,
 						_ => Some(Err(err)),
 					},
 					|location| Some(Ok(location)),
 				)
 			})
-			.unwrap_or_else(|| Err(SqPackError::NotFound(sqpack_path.to_owned())))?;
+			.unwrap_or_else(|| Err(Error::NotFound(sqpack_path.to_owned())))?;
 
 		let dat_path = build_file_path(
 			self.repository,
@@ -69,7 +69,7 @@ impl<'a> DatReader<'a> {
 		file.seek(SeekFrom::Start(location.offset.into()))?;
 
 		let header = FileHeader::read(&mut file).map_err(|_| {
-			SqPackError::InvalidData(format!(
+			Error::InvalidData(format!(
 				"File header in \"{}\" at {:#x}",
 				dat_path.to_string_lossy(),
 				location.offset
@@ -94,7 +94,7 @@ impl<'a> DatReader<'a> {
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
 
 		if bytes_read != header.raw_file_size {
-			return Err(SqPackError::InvalidData(format!(
+			return Err(Error::InvalidData(format!(
 				"Expected \"{}\" to have size {}, got {}",
 				sqpack_path.to_owned(),
 				header.raw_file_size,
@@ -121,7 +121,7 @@ impl<'a> DatReader<'a> {
 		// Build a base cursor and read the header.
 		let mut cursor = Cursor::new(buffer);
 		let header = BlockHeader::read(&mut cursor)
-			.map_err(|_| SqPackError::InvalidData(format!("Block header at {:#x}", offset)))?;
+			.map_err(|_| Error::InvalidData(format!("Block header at {:#x}", offset)))?;
 
 		// If the block is uncompressed, we can return without further processing.
 		// TODO: work out where to put this constant
