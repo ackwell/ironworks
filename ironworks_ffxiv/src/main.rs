@@ -1,6 +1,7 @@
 // This file exists as a temporary runner only
-use std::{error::Error, fs, path::PathBuf};
+use std::{ffi, path::PathBuf};
 
+use anyhow::Context;
 use ironworks_sqpack::{Category, Repository, SqPack};
 
 const TRY_PATHS: &[&str] = &[
@@ -15,12 +16,13 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
 	// TODO: allow override
-	let mut install = find_install().unwrap();
-	for segment in SQPACK_PATH {
-		install.push(segment);
-	}
+	let install: PathBuf = find_install()
+		.context("failed to find install")?
+		.iter()
+		.chain(SQPACK_PATH.iter().map(|s| ffi::OsStr::new(*s)))
+		.collect();
 
 	let sqpack = SqPack::new(
 		"ffxiv".into(),
@@ -36,8 +38,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 	);
 
 	let file_buffer = sqpack.read_file("exd/root.exl")?;
-
-	let exlt = String::from_utf8(file_buffer).unwrap();
+	let exlt = String::from_utf8(file_buffer)?;
 
 	println!("EXLT: {}", exlt);
 
