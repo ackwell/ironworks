@@ -123,13 +123,13 @@ impl<'a> DatReader<'a> {
 		let header = BlockHeader::read(&mut cursor)
 			.map_err(|_| Error::InvalidData(format!("Block header at {:#x}", offset)))?;
 
-		// If the block is uncompressed, we can return without further processing.
 		// TODO: work out where to put this constant
-		if header.uncompressed_size > 16000 {
-			return Ok(Box::new(cursor));
-		}
-
-		// Set up deflate on the reader.
-		Ok(Box::new(DeflateDecoder::new(cursor)))
+		Ok(if header.uncompressed_size > 16000 {
+			// If the block is uncompressed, we can return without further processing.
+			Box::new(cursor)
+		} else {
+			// Set up deflate on the reader.
+			Box::new(DeflateDecoder::new(cursor))
+		})
 	}
 }

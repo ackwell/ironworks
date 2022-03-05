@@ -77,7 +77,7 @@ impl<'a> SqPack<'a> {
 		let category = self.get_category(category_name)?;
 		let reader = Rc::new(DatReader::new(repository, category)?);
 
-		return Ok(vacant_entry.insert(reader).clone());
+		Ok(vacant_entry.insert(reader).clone())
 	}
 
 	fn parse_segments<'b>(&self, path: &'b str) -> Result<(&'b str, &'b str)> {

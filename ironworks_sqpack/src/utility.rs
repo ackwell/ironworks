@@ -9,11 +9,8 @@ pub fn build_file_path(
 	platform: &str,
 	file_type: &str,
 ) -> PathBuf {
-	let mut path = PathBuf::new();
-	path.push(&repository.path);
-	path.push(format!(
+	repository.path.join(format!(
 		"{:02x}{:02x}{:02x}.{}.{}",
 		category.id, repository.id, chunk_id, platform, file_type
-	));
-	path
+	))
 }

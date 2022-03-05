@@ -124,14 +124,11 @@ fn get_index_buffer(
 ) -> io::Result<(IndexKind, Vec<u8>)> {
 	// Try to load `.index`, falling back to `.index2`.
 	// Disambiguating the file types via kind.
-	fs::read(build_file_path(
-		repository, category, chunk_id, "win32", "index",
-	))
-	.map(|buffer| (IndexKind::Index1, buffer))
-	.or_else(|_| {
-		fs::read(build_file_path(
-			repository, category, chunk_id, "win32", "index2",
-		))
-		.map(|buffer| (IndexKind::Index2, buffer))
-	})
+	let read_index = |index_type, platform, file_type| {
+		let file_path = build_file_path(repository, category, chunk_id, platform, file_type);
+		fs::read(file_path).map(|buffer| (index_type, buffer))
+	};
+
+	read_index(IndexKind::Index1, "win32", "index")
+		.or_else(|_| read_index(IndexKind::Index2, "win32", "index2"))
 }
