@@ -23,15 +23,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 	}
 
 	let sqpack = SqPack::new(
-		String::from("ffxiv"),
+		"ffxiv".into(),
 		[Repository {
 			id: 0,
-			name: String::from("ffxiv"),
+			name: "ffxiv".into(),
 			path: install.join("ffxiv"),
 		}],
 		[Category {
 			id: 0x0A,
-			name: String::from("exd"),
+			name: "exd".into(),
 		}],
 	);
 
@@ -57,6 +57,6 @@ fn find_install() -> Option<PathBuf> {
 					.collect::<PathBuf>(),
 			]
 		})
-		.find(|path| fs::metadata(path).is_ok())
+		.find(|p| p.exists())
 		.map(PathBuf::from)
 }
