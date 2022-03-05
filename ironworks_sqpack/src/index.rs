@@ -39,10 +39,8 @@ impl Index {
 	pub fn new(repository: &Repository, category: &Category, chunk_id: u8) -> Result<Option<Self>> {
 		// Preemptively build the index table. If there is no table for this
 		// configuration of sqpack, fail gracefully.
-		match build_index_table(repository, category, chunk_id)? {
-			None => Ok(None),
-			Some((kind, table)) => Ok(Some(Self { kind, table })),
-		}
+		Ok(build_index_table(repository, category, chunk_id)?
+			.map(|(kind, table)| Self { kind, table }))
 	}
 
 	pub fn get_file_location(&self, sqpack_path: &str) -> Result<&FileLocation> {

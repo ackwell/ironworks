@@ -24,14 +24,9 @@ pub struct DatReader<'a> {
 
 impl<'a> DatReader<'a> {
 	pub fn new(repository: &'a Repository, category: &'a Category) -> Result<Self> {
-		let mut chunks: Vec<Index> = vec![];
-
-		for chunk_id in 0u8..=255 {
-			match Index::new(repository, category, chunk_id)? {
-				None => continue,
-				Some(index) => chunks.push(index),
-			};
-		}
+		let chunks = (0u8..=255)
+			.filter_map(|chunk_id| Index::new(repository, category, chunk_id).transpose())
+			.collect::<Result<Vec<_>>>()?;
 
 		Ok(DatReader {
 			chunks,
@@ -82,13 +77,9 @@ impl<'a> DatReader<'a> {
 			.blocks
 			.iter()
 			.map(|block_info| self.read_block(&mut file, base_offset, block_info))
-			.try_fold(
-				Box::new(io::empty()) as Box<dyn Read>,
-				|readers, result| match result {
-					Ok(reader) => Ok(Box::new(readers.chain(reader)) as Box<dyn Read>),
-					Err(error) => Err(error),
-				},
-			)?;
+			.try_fold(Box::new(io::empty()) as Box<dyn Read>, |readers, result| {
+				result.map(|r| Box::new(readers.chain(r)) as Box<dyn Read>)
+			})?;
 
 		let mut buffer = Vec::new();
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
