@@ -29,7 +29,7 @@ pub struct SqPack<'a> {
 	repositories: HashMap<String, Repository>,
 	categories: HashMap<String, Category>,
 
-	reader_cache: RefCell<HashMap<String, Rc<DatReader<'a>>>>,
+	reader_cache: RefCell<HashMap<(String, String), Rc<DatReader<'a>>>>,
 }
 
 impl<'a> SqPack<'a> {
@@ -67,7 +67,7 @@ impl<'a> SqPack<'a> {
 
 		// Check if we have a reader for the given metadata, and return it if we do.
 		let (category_name, repository_name) = self.parse_segments(sqpack_path)?;
-		let vacant_entry = match cache.entry(format!("{}:{}", category_name, repository_name)) {
+		let vacant_entry = match cache.entry((category_name.into(), repository_name.into())) {
 			Entry::Occupied(entry) => return Ok(entry.get().clone()),
 			Entry::Vacant(entry) => entry,
 		};
