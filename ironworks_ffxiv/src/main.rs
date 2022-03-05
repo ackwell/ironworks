@@ -3,7 +3,7 @@ use std::{error::Error, fs, path::PathBuf};
 
 use ironworks_sqpack::{Category, Repository, SqPack};
 
-const TRY_PATHS: [&str; 5] = [
+const TRY_PATHS: &[&str] = &[
 	"C:\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
 	"C:\\Program Files (x86)\\Steam\\steamapps\\common\\FINAL FANTASY XIV Online",
 	"C:\\Program Files (x86)\\Steam\\steamapps\\common\\FINAL FANTASY XIV - A Realm Reborn",
@@ -11,9 +11,9 @@ const TRY_PATHS: [&str; 5] = [
 	"C:\\Program Files (x86)\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
 ];
 
-const WSL_PREFIX: [&str; 2] = ["/mnt", "c"];
+const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
-const SQPACK_PATH: [&str; 2] = ["game", "sqpack"];
+const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
 fn main() -> Result<(), Box<dyn Error>> {
 	// TODO: allow override
@@ -45,17 +45,18 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn find_install() -> Option<PathBuf> {
-	return TRY_PATHS
+	TRY_PATHS
 		.iter()
 		.flat_map(|path| {
 			[
 				PathBuf::from(path),
 				WSL_PREFIX
-					.into_iter()
+					.iter()
+					.copied()
 					.chain(path.split('\\').skip(1))
 					.collect::<PathBuf>(),
 			]
 		})
 		.find(|path| fs::metadata(path).is_ok())
-		.map(PathBuf::from);
+		.map(PathBuf::from)
 }
