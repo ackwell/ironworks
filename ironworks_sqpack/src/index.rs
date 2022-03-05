@@ -47,10 +47,10 @@ impl Index {
 
 	pub fn get_file_location(&self, sqpack_path: &str) -> Result<&FileLocation> {
 		// Drop down to index kind specific lookup logic
-		return match self.kind {
+		match self.kind {
 			IndexKind::Index1 => self.get_index1_location(sqpack_path),
-			_ => todo!(),
-		};
+			IndexKind::Index2 => todo!(),
+		}
 	}
 
 	fn get_index1_location(&self, sqpack_path: &str) -> Result<&FileLocation> {
@@ -87,7 +87,7 @@ fn build_index_table(
 	// Build the index-kind specific table
 	let table = match buffer {
 		(IndexKind::Index1, buffer) => (IndexKind::Index1, build_index1_table(buffer, chunk_id)?),
-		_ => todo!(),
+		(IndexKind::Index2, _) => todo!(),
 	};
 
 	Ok(Some(table))
