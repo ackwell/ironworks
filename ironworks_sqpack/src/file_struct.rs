@@ -68,7 +68,7 @@ pub struct Digest([u8; 64]);
 impl Debug for Digest {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let digest_string = self.0.map(|byte| format!("{:02x}", byte)).join(" ");
-		return formatter.write_str(&digest_string);
+		formatter.write_str(&digest_string)
 	}
 }
 
@@ -97,11 +97,11 @@ pub struct IndexHashTableValue {
 
 impl IndexHashTableValue {
 	fn read(input: u32) -> Self {
-		return IndexHashTableValue {
+		IndexHashTableValue {
 			is_synonym: (input & 0b1) == 0b1,
 			data_file_id: ((input & 0b1110) >> 1) as u8,
 			offset: (input & !0xF) * 0x08,
-		};
+		}
 	}
 }
 

@@ -29,7 +29,7 @@ pub struct SqPack<'a> {
 	repositories: HashMap<String, Repository>,
 	categories: HashMap<String, Category>,
 
-	reader_cache: RefCell<HashMap<String, Rc<DatReader<'a>>>>,
+	reader_cache: RefCell<HashMap<(String, String), Rc<DatReader<'a>>>>,
 }
 
 impl<'a> SqPack<'a> {
@@ -38,7 +38,7 @@ impl<'a> SqPack<'a> {
 		repositories: impl IntoIterator<Item = Repository>,
 		categories: impl IntoIterator<Item = Category>,
 	) -> Self {
-		return SqPack {
+		SqPack {
 			default_repository,
 
 			repositories: repositories
@@ -52,13 +52,13 @@ impl<'a> SqPack<'a> {
 				.collect(),
 
 			reader_cache: RefCell::new(HashMap::new()),
-		};
+		}
 	}
 
 	pub fn read_file(&'a self, raw_sqpack_path: &str) -> Result<Vec<u8>> {
 		let sqpack_path = raw_sqpack_path.to_lowercase();
 		let reader = self.get_reader(&sqpack_path)?;
-		return reader.read_file(&sqpack_path);
+		reader.read_file(&sqpack_path)
 	}
 
 	fn get_reader(&'a self, sqpack_path: &str) -> Result<Rc<DatReader>> {
@@ -67,7 +67,7 @@ impl<'a> SqPack<'a> {
 
 		// Check if we have a reader for the given metadata, and return it if we do.
 		let (category_name, repository_name) = self.parse_segments(sqpack_path)?;
-		let vacant_entry = match cache.entry(format!("{}:{}", category_name, repository_name)) {
+		let vacant_entry = match cache.entry((category_name.into(), repository_name.into())) {
 			Entry::Occupied(entry) => return Ok(entry.get().clone()),
 			Entry::Vacant(entry) => entry,
 		};
@@ -77,16 +77,16 @@ impl<'a> SqPack<'a> {
 		let category = self.get_category(category_name)?;
 		let reader = Rc::new(DatReader::new(repository, category)?);
 
-		return Ok(vacant_entry.insert(reader).clone());
+		Ok(vacant_entry.insert(reader).clone())
 	}
 
 	fn parse_segments<'b>(&self, path: &'b str) -> Result<(&'b str, &'b str)> {
 		// TODO: consider itertools or similar if we find this pattern a few times
 		let split = path.splitn(3, '/').take(2).collect::<Vec<_>>();
-		return match split[..] {
+		match split[..] {
 			[category_name, repository_name] => Ok((category_name, repository_name)),
 			_ => Err(Error::InvalidPath(path.to_owned())),
-		};
+		}
 	}
 
 	fn get_repository(&self, repository_name: &str) -> Result<&Repository> {

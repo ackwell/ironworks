@@ -24,21 +24,16 @@ pub struct DatReader<'a> {
 
 impl<'a> DatReader<'a> {
 	pub fn new(repository: &'a Repository, category: &'a Category) -> Result<Self> {
-		let mut chunks: Vec<Index> = vec![];
+		let chunks = (0u8..=255)
+			.filter_map(|chunk_id| Index::new(repository, category, chunk_id).transpose())
+			.collect::<Result<Vec<_>>>()?;
 
-		for chunk_id in 0u8..=255 {
-			match Index::new(repository, category, chunk_id)? {
-				None => continue,
-				Some(index) => chunks.push(index),
-			};
-		}
-
-		return Ok(DatReader {
+		Ok(DatReader {
 			chunks,
 
 			repository,
 			category,
-		});
+		})
 	}
 
 	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
@@ -82,13 +77,9 @@ impl<'a> DatReader<'a> {
 			.blocks
 			.iter()
 			.map(|block_info| self.read_block(&mut file, base_offset, block_info))
-			.try_fold(
-				Box::new(io::empty()) as Box<dyn Read>,
-				|readers, result| match result {
-					Ok(reader) => Ok(Box::new(readers.chain(reader)) as Box<dyn Read>),
-					Err(error) => Err(error),
-				},
-			)?;
+			.try_fold(Box::new(io::empty()) as Box<dyn Read>, |readers, result| {
+				result.map(|r| Box::new(readers.chain(r)) as Box<dyn Read>)
+			})?;
 
 		let mut buffer = Vec::new();
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
@@ -102,7 +93,7 @@ impl<'a> DatReader<'a> {
 			)));
 		}
 
-		return Ok(buffer);
+		Ok(buffer)
 	}
 
 	fn read_block(
@@ -123,13 +114,13 @@ impl<'a> DatReader<'a> {
 		let header = BlockHeader::read(&mut cursor)
 			.map_err(|_| Error::InvalidData(format!("Block header at {:#x}", offset)))?;
 
-		// If the block is uncompressed, we can return without further processing.
 		// TODO: work out where to put this constant
-		if header.uncompressed_size > 16000 {
-			return Ok(Box::new(cursor));
-		}
-
-		// Set up deflate on the reader.
-		return Ok(Box::new(DeflateDecoder::new(cursor)));
+		Ok(if header.uncompressed_size > 16000 {
+			// If the block is uncompressed, we can return without further processing.
+			Box::new(cursor)
+		} else {
+			// Set up deflate on the reader.
+			Box::new(DeflateDecoder::new(cursor))
+		})
 	}
 }

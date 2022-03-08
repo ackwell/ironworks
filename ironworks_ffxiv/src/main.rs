@@ -1,12 +1,10 @@
 // This file exists as a temporary runner only
+use std::{ffi, path::PathBuf};
 
-#![allow(clippy::needless_return)]
-
-use std::{error::Error, fs, path::PathBuf};
-
+use anyhow::Context;
 use ironworks_sqpack::{Category, Repository, SqPack};
 
-const TRY_PATHS: [&str; 5] = [
+const TRY_PATHS: &[&str] = &[
 	"C:\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
 	"C:\\Program Files (x86)\\Steam\\steamapps\\common\\FINAL FANTASY XIV Online",
 	"C:\\Program Files (x86)\\Steam\\steamapps\\common\\FINAL FANTASY XIV - A Realm Reborn",
@@ -14,51 +12,52 @@ const TRY_PATHS: [&str; 5] = [
 	"C:\\Program Files (x86)\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
 ];
 
-const WSL_PREFIX: [&str; 2] = ["/mnt", "c"];
+const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
-const SQPACK_PATH: [&str; 2] = ["game", "sqpack"];
+const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
 	// TODO: allow override
-	let mut install = find_install().unwrap();
-	for segment in SQPACK_PATH {
-		install.push(segment);
-	}
+	let install: PathBuf = find_install()
+		.context("failed to find install")?
+		.iter()
+		.chain(SQPACK_PATH.iter().map(|s| ffi::OsStr::new(*s)))
+		.collect();
 
 	let sqpack = SqPack::new(
-		String::from("ffxiv"),
+		"ffxiv".into(),
 		[Repository {
 			id: 0,
-			name: String::from("ffxiv"),
+			name: "ffxiv".into(),
 			path: install.join("ffxiv"),
 		}],
 		[Category {
 			id: 0x0A,
-			name: String::from("exd"),
+			name: "exd".into(),
 		}],
 	);
 
 	let file_buffer = sqpack.read_file("exd/root.exl")?;
-
-	let exlt = String::from_utf8(file_buffer).unwrap();
+	let exlt = String::from_utf8(file_buffer)?;
 
 	println!("EXLT: {}", exlt);
 
-	return Ok(());
+	Ok(())
 }
 
 fn find_install() -> Option<PathBuf> {
-	return TRY_PATHS
+	TRY_PATHS
 		.iter()
 		.flat_map(|path| {
 			[
 				PathBuf::from(path),
 				WSL_PREFIX
-					.into_iter()
+					.iter()
+					.copied()
 					.chain(path.split('\\').skip(1))
 					.collect::<PathBuf>(),
 			]
 		})
-		.find(|path| fs::metadata(path).is_ok())
-		.map(PathBuf::from);
+		.find(|p| p.exists())
+		.map(PathBuf::from)
 }

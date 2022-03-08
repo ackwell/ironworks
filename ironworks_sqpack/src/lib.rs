@@ -1,5 +1,3 @@
-#![allow(clippy::needless_return)]
-
 mod crc;
 mod dat_reader;
 mod error;

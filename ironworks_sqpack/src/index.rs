@@ -39,18 +39,16 @@ impl Index {
 	pub fn new(repository: &Repository, category: &Category, chunk_id: u8) -> Result<Option<Self>> {
 		// Preemptively build the index table. If there is no table for this
 		// configuration of sqpack, fail gracefully.
-		return match build_index_table(repository, category, chunk_id)? {
-			None => return Ok(None),
-			Some((kind, table)) => Ok(Some(Self { kind, table })),
-		};
+		Ok(build_index_table(repository, category, chunk_id)?
+			.map(|(kind, table)| Self { kind, table }))
 	}
 
 	pub fn get_file_location(&self, sqpack_path: &str) -> Result<&FileLocation> {
 		// Drop down to index kind specific lookup logic
-		return match self.kind {
+		match self.kind {
 			IndexKind::Index1 => self.get_index1_location(sqpack_path),
-			_ => todo!(),
-		};
+			IndexKind::Index2 => todo!(),
+		}
 	}
 
 	fn get_index1_location(&self, sqpack_path: &str) -> Result<&FileLocation> {
@@ -87,10 +85,10 @@ fn build_index_table(
 	// Build the index-kind specific table
 	let table = match buffer {
 		(IndexKind::Index1, buffer) => (IndexKind::Index1, build_index1_table(buffer, chunk_id)?),
-		_ => todo!(),
+		(IndexKind::Index2, _) => todo!(),
 	};
 
-	return Ok(Some(table));
+	Ok(Some(table))
 }
 
 fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
@@ -114,7 +112,7 @@ fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 		})
 		.collect();
 
-	return Ok(table);
+	Ok(table)
 }
 
 fn get_index_buffer(
@@ -124,14 +122,11 @@ fn get_index_buffer(
 ) -> io::Result<(IndexKind, Vec<u8>)> {
 	// Try to load `.index`, falling back to `.index2`.
 	// Disambiguating the file types via kind.
-	return fs::read(build_file_path(
-		repository, category, chunk_id, "win32", "index",
-	))
-	.map(|buffer| (IndexKind::Index1, buffer))
-	.or_else(|_| {
-		fs::read(build_file_path(
-			repository, category, chunk_id, "win32", "index2",
-		))
-		.map(|buffer| (IndexKind::Index2, buffer))
-	});
+	let read_index = |index_type, platform, file_type| {
+		let file_path = build_file_path(repository, category, chunk_id, platform, file_type);
+		fs::read(file_path).map(|buffer| (index_type, buffer))
+	};
+
+	read_index(IndexKind::Index1, "win32", "index")
+		.or_else(|_| read_index(IndexKind::Index2, "win32", "index2"))
 }
