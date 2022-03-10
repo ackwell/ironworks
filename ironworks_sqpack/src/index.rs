@@ -2,6 +2,7 @@ use std::{
 	collections::HashMap,
 	fs,
 	io::{self, Cursor},
+	path::PathBuf,
 };
 
 use binrw::BinRead;
@@ -21,7 +22,7 @@ pub struct FileLocation {
 	pub offset: u32,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 enum IndexKind {
 	Index1,
 	Index2,
@@ -82,19 +83,23 @@ fn build_index_table(
 		Err(error) => return Err(Error::from(error)),
 	};
 
-	// Build the index-kind specific table
-	let table = match buffer {
-		(IndexKind::Index1, buffer) => (IndexKind::Index1, build_index1_table(buffer, chunk_id)?),
-		(IndexKind::Index2, _) => todo!(),
+	let kind = buffer.kind;
+	let table = match kind {
+		IndexKind::Index1 => build_index1_table(buffer, chunk_id)?,
+		IndexKind::Index2 => todo!(),
 	};
 
-	Ok(Some(table))
+	Ok(Some((kind, table)))
 }
 
-fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
+fn build_index1_table(buffer: IndexBuffer, chunk_id: u8) -> Result<IndexTable> {
 	// TODO: fix the name abiguity here somehow
-	let index = file_struct::Index::read(&mut Cursor::new(buffer)).map_err(|error| {
-		Error::InvalidDatabase(format!("Erroneous index data in \"{}\": {}", "TODO", error))
+	let index = file_struct::Index::read(&mut Cursor::new(buffer.buffer)).map_err(|error| {
+		Error::InvalidDatabase(format!(
+			"Erroneous index data in \"{}\": {}",
+			buffer.path.to_string_lossy(),
+			error
+		))
 	})?;
 
 	// Build the lookup table
@@ -116,16 +121,22 @@ fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 	Ok(table)
 }
 
+struct IndexBuffer {
+	kind: IndexKind,
+	path: PathBuf,
+	buffer: Vec<u8>,
+}
+
 fn get_index_buffer(
 	repository: &Repository,
 	category: &Category,
 	chunk_id: u8,
-) -> io::Result<(IndexKind, Vec<u8>)> {
+) -> io::Result<IndexBuffer> {
 	// Try to load `.index`, falling back to `.index2`.
 	// Disambiguating the file types via kind.
-	let read_index = |index_type, platform, file_type| {
-		let file_path = build_file_path(repository, category, chunk_id, platform, file_type);
-		fs::read(file_path).map(|buffer| (index_type, buffer))
+	let read_index = |kind, platform, file_type| {
+		let path = build_file_path(repository, category, chunk_id, platform, file_type);
+		fs::read(&path).map(|buffer| IndexBuffer { kind, path, buffer })
 	};
 
 	read_index(IndexKind::Index1, "win32", "index")
