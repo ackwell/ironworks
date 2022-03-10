@@ -22,9 +22,11 @@ pub enum Error {
 		segment: String,
 	},
 
-	/// Malformed binary data was found while reading database files.
-	#[error("Invalid data encountered: {0}")]
-	InvalidData(String),
+	/// Invalid or unexpected information was found while reading database files.
+	/// This typically signifies that the configured database is corrupt, missing
+	/// files, or has an incorrect path.
+	#[error("Invalid database: {0}")]
+	InvalidDatabase(String),
 
 	/// An IO error occured.
 	#[error("IO error: {0}")]

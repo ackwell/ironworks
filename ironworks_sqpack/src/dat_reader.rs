@@ -63,11 +63,12 @@ impl<'a> DatReader<'a> {
 		let mut file = File::open(&dat_path)?;
 		file.seek(SeekFrom::Start(location.offset.into()))?;
 
-		let header = FileHeader::read(&mut file).map_err(|_| {
-			Error::InvalidData(format!(
-				"File header in \"{}\" at {:#x}",
+		let header = FileHeader::read(&mut file).map_err(|error| {
+			Error::InvalidDatabase(format!(
+				"Erroneous file header in \"{}\" at {:#x}: {}",
 				dat_path.to_string_lossy(),
-				location.offset
+				location.offset,
+				error,
 			))
 		})?;
 
@@ -85,7 +86,7 @@ impl<'a> DatReader<'a> {
 		let bytes_read = reader.read_to_end(&mut buffer)? as u32;
 
 		if bytes_read != header.raw_file_size {
-			return Err(Error::InvalidData(format!(
+			return Err(Error::InvalidDatabase(format!(
 				"Expected \"{}\" to have size {}, got {}",
 				sqpack_path.to_owned(),
 				header.raw_file_size,
@@ -112,7 +113,7 @@ impl<'a> DatReader<'a> {
 		// Build a base cursor and read the header.
 		let mut cursor = Cursor::new(buffer);
 		let header = BlockHeader::read(&mut cursor)
-			.map_err(|_| Error::InvalidData(format!("Block header at {:#x}", offset)))?;
+			.map_err(|_| Error::InvalidDatabase(format!("Block header at {:#x}", offset)))?;
 
 		// TODO: work out where to put this constant
 		Ok(if header.uncompressed_size > 16000 {

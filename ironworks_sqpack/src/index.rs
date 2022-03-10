@@ -93,8 +93,9 @@ fn build_index_table(
 
 fn build_index1_table(buffer: Vec<u8>, chunk_id: u8) -> Result<IndexTable> {
 	// TODO: fix the name abiguity here somehow
-	let index = file_struct::Index::read(&mut Cursor::new(buffer))
-		.map_err(|_| Error::InvalidData(format!("Index data in \"{}\"", "TODO",)))?;
+	let index = file_struct::Index::read(&mut Cursor::new(buffer)).map_err(|error| {
+		Error::InvalidDatabase(format!("Erroneous index data in \"{}\": {}", "TODO", error))
+	})?;
 
 	// Build the lookup table
 	let table: HashMap<_, _> = index
