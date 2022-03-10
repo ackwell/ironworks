@@ -10,19 +10,27 @@ use crate::{
 	error::{Error, Result},
 };
 
+/// Representation of a top-level repository directory within a SqPack database.
 #[derive(Debug)]
 pub struct Repository {
+	/// Name of the repository as it appears in SqPack file paths.
 	pub name: String,
+	/// Numeric ID of the repository as used in SqPack archive file names.
 	pub id: u8,
+	/// File path to the location of the repository directory on disk.
 	pub path: PathBuf,
 }
 
+/// Representation of a data category within a SqPack database.
 #[derive(Debug)]
 pub struct Category {
+	/// Name of the category as it appears in SqPack file paths.
 	pub name: String,
+	/// Numeric ID of the category as used in SqPack archive file names.
 	pub id: u8,
 }
 
+/// Representation of a group of SqPack archive files that form a single database.
 #[derive(Debug)]
 pub struct SqPack<'a> {
 	default_repository: String,
@@ -33,6 +41,9 @@ pub struct SqPack<'a> {
 }
 
 impl<'a> SqPack<'a> {
+	// TODO: Should we sanity check the default repo at this point?
+	/// Build a representation of a SqPack database. It is expected that the
+	/// `default_repository` is a valid `name` for a provided repository.
 	pub fn new(
 		default_repository: String,
 		repositories: impl IntoIterator<Item = Repository>,
@@ -55,8 +66,9 @@ impl<'a> SqPack<'a> {
 		}
 	}
 
-	pub fn read_file(&'a self, raw_sqpack_path: &str) -> Result<Vec<u8>> {
-		let sqpack_path = raw_sqpack_path.to_lowercase();
+	/// Try to read the file at `sqpack_path` as raw bytes from the SqPack database.
+	pub fn read_file(&'a self, sqpack_path: &str) -> Result<Vec<u8>> {
+		let sqpack_path = sqpack_path.to_lowercase();
 		let reader = self.get_reader(&sqpack_path)?;
 		reader.read_file(&sqpack_path)
 	}
