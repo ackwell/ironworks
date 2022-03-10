@@ -1,5 +1,8 @@
 // This file exists as a temporary runner only
-use std::{ffi, path::PathBuf};
+use std::{
+	ffi,
+	path::{self, Path, PathBuf},
+};
 
 use anyhow::Context;
 use ironworks_sqpack::{Category, Repository, SqPack};
@@ -17,25 +20,7 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
 fn main() -> anyhow::Result<()> {
-	// TODO: allow override
-	let install: PathBuf = find_install()
-		.context("failed to find install")?
-		.iter()
-		.chain(SQPACK_PATH.iter().map(|s| ffi::OsStr::new(*s)))
-		.collect();
-
-	let sqpack = SqPack::new(
-		"ffxiv".into(),
-		[Repository {
-			id: 0,
-			name: "ffxiv".into(),
-			path: install.join("ffxiv"),
-		}],
-		[Category {
-			id: 0x0A,
-			name: "exd".into(),
-		}],
-	);
+	let sqpack = SqPack::ffxiv();
 
 	let file_buffer = sqpack.read_file("exd/root.exl")?;
 	let exlt = String::from_utf8(file_buffer)?;
@@ -43,6 +28,39 @@ fn main() -> anyhow::Result<()> {
 	println!("EXLT: {}", exlt);
 
 	Ok(())
+}
+
+trait SqPackFfxiv {
+	fn ffxiv() -> Self;
+	fn ffxiv_at(path: &Path) -> Self;
+}
+
+impl SqPackFfxiv for SqPack<'_> {
+	fn ffxiv() -> Self {
+		// TODO: error handling
+		// TODO: should i just inline find_install here
+		Self::ffxiv_at(&find_install().unwrap())
+	}
+
+	fn ffxiv_at(path: &Path) -> Self {
+		let install_path: PathBuf = path
+			.iter()
+			.chain(SQPACK_PATH.iter().map(|s| ffi::OsStr::new(*s)))
+			.collect();
+
+		Self::new(
+			"ffxiv".into(),
+			[Repository {
+				id: 0,
+				name: "ffxiv".into(),
+				path: install_path.join("ffxiv"),
+			}],
+			[Category {
+				id: 0x0A,
+				name: "exd".into(),
+			}],
+		)
+	}
 }
 
 fn find_install() -> Option<PathBuf> {
