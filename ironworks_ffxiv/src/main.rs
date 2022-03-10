@@ -1,11 +1,10 @@
 // This file exists as a temporary runner only
 use std::{
 	ffi,
-	path::{self, Path, PathBuf},
+	path::{Path, PathBuf},
 };
 
-use anyhow::Context;
-use ironworks_sqpack::{Category, Repository, SqPack};
+use ironworks_sqpack::{Category, Error, Repository, SqPack};
 
 const TRY_PATHS: &[&str] = &[
 	"C:\\SquareEnix\\FINAL FANTASY XIV - A Realm Reborn",
@@ -20,7 +19,7 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
 fn main() -> anyhow::Result<()> {
-	let sqpack = SqPack::ffxiv();
+	let sqpack = SqPack::ffxiv()?;
 
 	let file_buffer = sqpack.read_file("exd/root.exl")?;
 	let exlt = String::from_utf8(file_buffer)?;
@@ -31,15 +30,21 @@ fn main() -> anyhow::Result<()> {
 }
 
 trait SqPackFfxiv {
-	fn ffxiv() -> Self;
+	fn ffxiv() -> Result<Self, Error>
+	where
+		Self: Sized;
+
 	fn ffxiv_at(path: &Path) -> Self;
 }
 
 impl SqPackFfxiv for SqPack<'_> {
-	fn ffxiv() -> Self {
-		// TODO: error handling
-		// TODO: should i just inline find_install here
-		Self::ffxiv_at(&find_install().unwrap())
+	fn ffxiv() -> Result<Self, Error> {
+		let path = find_install().ok_or_else(|| {
+			Error::InvalidDatabase(
+				"Could not find install in common locations, please provide a path.".into(),
+			)
+		})?;
+		Ok(Self::ffxiv_at(&path))
 	}
 
 	fn ffxiv_at(path: &Path) -> Self {
