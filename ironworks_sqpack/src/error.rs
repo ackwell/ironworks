@@ -9,6 +9,7 @@ pub enum Error {
 	#[error("Could not find file \"{0}\"")]
 	NotFound(String),
 
+	// TODO: This might be combineable with UnknownPathSegment, I'm not convinced the seperation is worthwhile
 	/// A requested file path was invalid.
 	#[error("Invalid path \"{0}\"")]
 	InvalidPath(String),
@@ -22,6 +23,7 @@ pub enum Error {
 		segment: String,
 	},
 
+	// TODO: this is probably a bit overloaded. maybe split into "couldn't find db" and "db is broken"
 	/// Invalid or unexpected information was found while reading database files.
 	/// This typically signifies that the configured database is corrupt, missing
 	/// files, or has an incorrect path.

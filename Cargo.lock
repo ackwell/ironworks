@@ -79,7 +79,6 @@ dependencies = [
 name = "ironworks_ffxiv"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ironworks_sqpack",
 ]
 
@@ -141,6 +140,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "temp_test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ironworks_ffxiv",
+ "ironworks_sqpack",
 ]
 
 [[package]]

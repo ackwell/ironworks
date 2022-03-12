@@ -1,6 +1,5 @@
-// This file exists as a temporary runner only
 use std::{
-	ffi,
+	ffi::OsStr,
 	path::{Path, PathBuf},
 };
 
@@ -18,18 +17,7 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
-fn main() -> anyhow::Result<()> {
-	let sqpack = SqPack::ffxiv()?;
-
-	let file_buffer = sqpack.read_file("exd/root.exl")?;
-	let exlt = String::from_utf8(file_buffer)?;
-
-	println!("EXLT: {}", exlt);
-
-	Ok(())
-}
-
-trait SqPackFfxiv {
+pub trait SqPackFfxiv {
 	fn ffxiv() -> Result<Self, Error>
 	where
 		Self: Sized;
@@ -39,6 +27,7 @@ trait SqPackFfxiv {
 
 impl SqPackFfxiv for SqPack<'_> {
 	fn ffxiv() -> Result<Self, Error> {
+		// TODO: Inline find_install?
 		let path = find_install().ok_or_else(|| {
 			Error::InvalidDatabase(
 				"Could not find install in common locations, please provide a path.".into(),
@@ -50,7 +39,7 @@ impl SqPackFfxiv for SqPack<'_> {
 	fn ffxiv_at(path: &Path) -> Self {
 		let install_path: PathBuf = path
 			.iter()
-			.chain(SQPACK_PATH.iter().map(|s| ffi::OsStr::new(*s)))
+			.chain(SQPACK_PATH.iter().map(|s| OsStr::new(*s)))
 			.collect();
 
 		Self::new(

@@ -2,4 +2,6 @@
 members = [
 	"ironworks_ffxiv",
 	"ironworks_sqpack",
+
+	"temp_test",
 ]
