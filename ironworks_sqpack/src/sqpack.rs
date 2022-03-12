@@ -32,15 +32,15 @@ pub struct Category {
 
 /// Representation of a group of SqPack archive files that form a single database.
 #[derive(Debug)]
-pub struct SqPack<'a> {
+pub struct SqPack {
 	default_repository: String,
-	repositories: HashMap<String, Repository>,
-	categories: HashMap<String, Category>,
+	repositories: HashMap<String, Rc<Repository>>,
+	categories: HashMap<String, Rc<Category>>,
 
-	reader_cache: RefCell<HashMap<(String, String), Rc<DatReader<'a>>>>,
+	reader_cache: RefCell<HashMap<(String, String), Rc<DatReader>>>,
 }
 
-impl<'a> SqPack<'a> {
+impl SqPack {
 	// TODO: Should we sanity check the default repo at this point?
 	/// Build a representation of a SqPack database. It is expected that the
 	/// `default_repository` is a valid `name` for a provided repository.
@@ -54,12 +54,12 @@ impl<'a> SqPack<'a> {
 
 			repositories: repositories
 				.into_iter()
-				.map(|repository| (repository.name.to_owned(), repository))
+				.map(|repository| (repository.name.to_owned(), Rc::new(repository)))
 				.collect(),
 
 			categories: categories
 				.into_iter()
-				.map(|category| (category.name.to_owned(), category))
+				.map(|category| (category.name.to_owned(), Rc::new(category)))
 				.collect(),
 
 			reader_cache: RefCell::new(HashMap::new()),
@@ -67,13 +67,13 @@ impl<'a> SqPack<'a> {
 	}
 
 	/// Try to read the file at `sqpack_path` as raw bytes from the SqPack database.
-	pub fn read_file(&'a self, sqpack_path: &str) -> Result<Vec<u8>> {
+	pub fn read_file(&self, sqpack_path: &str) -> Result<Vec<u8>> {
 		let sqpack_path = sqpack_path.to_lowercase();
 		let reader = self.get_reader(&sqpack_path)?;
 		reader.read_file(&sqpack_path)
 	}
 
-	fn get_reader(&'a self, sqpack_path: &str) -> Result<Rc<DatReader>> {
+	fn get_reader(&self, sqpack_path: &str) -> Result<Rc<DatReader>> {
 		// TODO: maybe try_borrow_mut?
 		let mut cache = self.reader_cache.borrow_mut();
 
@@ -101,24 +101,24 @@ impl<'a> SqPack<'a> {
 		}
 	}
 
-	fn get_repository(&self, repository_name: &str) -> Result<&Repository> {
-		return self
-			.repositories
+	fn get_repository(&self, repository_name: &str) -> Result<Rc<Repository>> {
+		self.repositories
 			.get(repository_name)
 			.or_else(|| self.repositories.get(&self.default_repository))
+			.cloned()
 			.ok_or_else(|| Error::UnknownPathSegment {
 				segment_type: String::from("repository"),
 				segment: repository_name.to_owned(),
-			});
+			})
 	}
 
-	fn get_category(&self, category_name: &str) -> Result<&Category> {
-		return self
-			.categories
+	fn get_category(&self, category_name: &str) -> Result<Rc<Category>> {
+		self.categories
 			.get(category_name)
+			.cloned()
 			.ok_or_else(|| Error::UnknownPathSegment {
 				segment_type: String::from("category"),
 				segment: category_name.to_owned(),
-			});
+			})
 	}
 }

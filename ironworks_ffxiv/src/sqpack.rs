@@ -48,7 +48,7 @@ pub trait SqPackFfxiv {
 	fn ffxiv_at(path: &Path) -> Self;
 }
 
-impl SqPackFfxiv for SqPack<'_> {
+impl SqPackFfxiv for SqPack {
 	fn ffxiv() -> Result<Self, Error> {
 		let path = find_install().ok_or_else(|| {
 			Error::InvalidDatabase(

@@ -1,6 +1,7 @@
 use std::{
 	fs::File,
 	io::{self, Cursor, Read, Seek, SeekFrom},
+	rc::Rc,
 };
 
 use binrw::BinRead;
@@ -15,17 +16,17 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct DatReader<'a> {
-	repository: &'a Repository,
-	category: &'a Category,
+pub struct DatReader {
+	repository: Rc<Repository>,
+	category: Rc<Category>,
 
 	chunks: Vec<Index>,
 }
 
-impl<'a> DatReader<'a> {
-	pub fn new(repository: &'a Repository, category: &'a Category) -> Result<Self> {
+impl DatReader {
+	pub fn new(repository: Rc<Repository>, category: Rc<Category>) -> Result<Self> {
 		let chunks = (0u8..=255)
-			.filter_map(|chunk_id| Index::new(repository, category, chunk_id).transpose())
+			.filter_map(|chunk_id| Index::new(&repository, &category, chunk_id).transpose())
 			.collect::<Result<Vec<_>>>()?;
 
 		Ok(DatReader {
@@ -53,8 +54,8 @@ impl<'a> DatReader<'a> {
 			.unwrap_or_else(|| Err(Error::NotFound(sqpack_path.to_owned())))?;
 
 		let dat_path = build_file_path(
-			self.repository,
-			self.category,
+			&self.repository,
+			&self.category,
 			location.chunk_id,
 			"win32",
 			&format!("dat{}", location.data_file_id),
