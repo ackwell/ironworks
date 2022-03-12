@@ -35,11 +35,16 @@ const CATEGORIES: &[(&str, u8)] = &[
 	("debug", 0x13),
 ];
 
+/// Extension trait that adds methods to construct SqPack instances pre-configured
+/// for FFXIV data.
 pub trait SqPackFfxiv {
+	/// Search for a FFXIV install in common locations (on Windows), and configure
+	/// a SqPack instance with the found install, if any.
 	fn ffxiv() -> Result<Self, Error>
 	where
 		Self: Sized;
 
+	/// Configure a SqPack instance with an installation of FFXIV at the specified path.
 	fn ffxiv_at(path: &Path) -> Self;
 }
 
