@@ -45,7 +45,6 @@ pub trait SqPackFfxiv {
 
 impl SqPackFfxiv for SqPack<'_> {
 	fn ffxiv() -> Result<Self, Error> {
-		// TODO: Inline find_install?
 		let path = find_install().ok_or_else(|| {
 			Error::InvalidDatabase(
 				"Could not find install in common locations, please provide a path.".into(),
@@ -55,25 +54,19 @@ impl SqPackFfxiv for SqPack<'_> {
 	}
 
 	fn ffxiv_at(path: &Path) -> Self {
-		let install_path: PathBuf = path
+		let sqpack_path = path
 			.iter()
 			.chain(SQPACK_PATH.iter().map(|s| OsStr::new(*s)))
-			.collect();
+			.collect::<PathBuf>();
+
+		let repositories = find_repositories(&sqpack_path);
 
 		let categories = CATEGORIES.iter().map(|(name, id)| Category {
 			name: (*name).into(),
 			id: *id,
 		});
 
-		Self::new(
-			"ffxiv".into(),
-			[Repository {
-				id: 0,
-				name: "ffxiv".into(),
-				path: install_path.join("ffxiv"),
-			}],
-			categories,
-		)
+		Self::new("ffxiv".into(), repositories, categories)
 	}
 }
 
@@ -90,6 +83,22 @@ fn find_install() -> Option<PathBuf> {
 					.collect::<PathBuf>(),
 			]
 		})
-		.find(|p| p.exists())
-		.map(PathBuf::from)
+		.find(|path| path.exists())
+}
+
+fn find_repositories(sqpack_path: &Path) -> impl IntoIterator<Item = Repository> + '_ {
+	(0..=9)
+		.map(|index| {
+			let name = if index == 0 {
+				"ffxiv".into()
+			} else {
+				format!("ex{}", index)
+			};
+			Repository {
+				id: index,
+				path: sqpack_path.join(&name),
+				name,
+			}
+		})
+		.filter(|repository| repository.path.exists())
 }
