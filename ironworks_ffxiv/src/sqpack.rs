@@ -17,6 +17,24 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
+const CATEGORIES: &[(&str, u8)] = &[
+	("common", 0x00),
+	("bgcommon", 0x01),
+	("bg", 0x02),
+	("cut", 0x03),
+	("chara", 0x04),
+	("shader", 0x05),
+	("ui", 0x06),
+	("sound", 0x07),
+	("vfx", 0x08),
+	("ui_script", 0x09),
+	("exd", 0x0a),
+	("game_script", 0x0b),
+	("music", 0x0c),
+	("sqpack_test", 0x12),
+	("debug", 0x13),
+];
+
 pub trait SqPackFfxiv {
 	fn ffxiv() -> Result<Self, Error>
 	where
@@ -42,6 +60,11 @@ impl SqPackFfxiv for SqPack<'_> {
 			.chain(SQPACK_PATH.iter().map(|s| OsStr::new(*s)))
 			.collect();
 
+		let categories = CATEGORIES.iter().map(|(name, id)| Category {
+			name: (*name).into(),
+			id: *id,
+		});
+
 		Self::new(
 			"ffxiv".into(),
 			[Repository {
@@ -49,10 +72,7 @@ impl SqPackFfxiv for SqPack<'_> {
 				name: "ffxiv".into(),
 				path: install_path.join("ffxiv"),
 			}],
-			[Category {
-				id: 0x0A,
-				name: "exd".into(),
-			}],
+			categories,
 		)
 	}
 }
