@@ -20,7 +20,7 @@ struct SqpackResource {
 impl ExcelResource for SqpackResource {
 	fn list(&self) -> ResourceResult<ExcelList> {
 		let bytes = self.sqpack.read_file("exd/root.exl")?;
-		let list = ExcelList::from_bytes(&bytes);
+		let list = ExcelList::from_bytes(&bytes)?;
 		Ok(list)
 	}
 }

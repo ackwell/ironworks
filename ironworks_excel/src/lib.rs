@@ -1,5 +1,11 @@
 use std::collections::HashSet;
 
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+	#[error("Invalid resource: {0}")]
+	InvalidResource(String),
+}
+
 pub type ResourceResult<T> = Result<T, Box<dyn std::error::Error>>;
 
 pub trait ExcelResource {
@@ -15,16 +21,23 @@ pub struct ExcelList {
 }
 
 impl ExcelList {
-	pub fn from_bytes(bytes: &[u8]) -> Self {
-		// TODO: Error handling
-
+	// TODO: should this move the bytes?
+	pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
 		// Binary format is actually just text.
-		let mut lines = std::str::from_utf8(bytes).unwrap().split("\r\n");
+		let mut lines = std::str::from_utf8(bytes)
+			.map_err(|error| {
+				Error::InvalidResource(format!("Invalid utf8 sequence in ExcelList: {}", error))
+			})?
+			.split("\r\n");
 
 		// First line is a magic, make sure we've got one.
 		match lines.next().map(|line| &line[0..4]) {
 			Some("EXLT") => (),
-			_ => panic!("magic missing"),
+			_ => {
+				return Err(Error::InvalidResource(
+					"Missing EXLT magic in ExcelList".into(),
+				))
+			}
 		}
 
 		// Build the set of sheets. We're ignoring the sheet ID, as it's pretty
@@ -36,7 +49,7 @@ impl ExcelList {
 			})
 			.collect::<HashSet<_>>();
 
-		Self { sheets }
+		Ok(Self { sheets })
 	}
 
 	pub fn has_sheet(&self, sheet_name: &str) -> bool {
