@@ -80,6 +80,7 @@ name = "ironworks_excel"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "binrw",
  "thiserror",
 ]
 

@@ -1,4 +1,4 @@
-use ironworks_excel::{Excel, ExcelList, ExcelResource, ResourceResult};
+use ironworks_excel::{Excel, ExcelHeader, ExcelList, ExcelResource, ResourceResult};
 use ironworks_ffxiv::SqPackFfxiv;
 use ironworks_sqpack::SqPack;
 
@@ -6,7 +6,7 @@ fn main() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
 	let excel = Excel::new(SqPackResource::new(&sqpack));
-	let sheet = excel.get_raw_sheet("Item")?;
+	let sheet = excel.get_raw_sheet("AozAction")?;
 
 	println!("{:#?}", sheet);
 
@@ -28,5 +28,11 @@ impl ExcelResource for SqPackResource<'_> {
 		let bytes = self.sqpack.read_file("exd/root.exl")?;
 		let list = ExcelList::from_bytes(&bytes)?;
 		Ok(list)
+	}
+
+	fn header(&self, sheet_name: &str) -> ResourceResult<ExcelHeader> {
+		let bytes = self.sqpack.read_file(&format!("exd/{}.exh", sheet_name))?;
+		let header = ExcelHeader::from_bytes(&bytes)?;
+		Ok(header)
 	}
 }
