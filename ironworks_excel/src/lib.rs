@@ -14,7 +14,23 @@ pub trait ExcelResource {
 	// fn page() -> ResourceResult<ExcelPage>;
 }
 
-struct Excel {}
+pub struct Excel<'a> {
+	resource: Box<dyn ExcelResource + 'a>,
+}
+
+impl<'a> Excel<'a> {
+	pub fn new(resource: impl ExcelResource + 'a) -> Self {
+		Self {
+			resource: Box::new(resource),
+		}
+	}
+
+	pub fn temp_test(&self) {
+		let list = self.resource.list().unwrap();
+
+		println!("has item: {}", list.has_sheet("Item"));
+	}
+}
 
 pub struct ExcelList {
 	sheets: HashSet<String>,
