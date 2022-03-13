@@ -4,9 +4,26 @@ use std::collections::HashSet;
 pub enum Error {
 	#[error("Invalid resource: {0}")]
 	InvalidResource(String),
+
+	#[error(transparent)]
+	Downstream(anyhow::Error),
 }
 
-pub type ResourceResult<T> = Result<T, Box<dyn std::error::Error>>;
+// Due to the nature of the ExcelResource trait, it's expected that an anyhow::Error
+// returned by a resource function could be a first-party error. To avoid blindly
+// bubbling our own errors up as a Downstream, we're manually implementing From
+// here and trying to downcast to ourselves - only wrapping in Downstream if that
+// is not possible.
+impl From<anyhow::Error> for Error {
+	fn from(error: anyhow::Error) -> Self {
+		match error.downcast::<Error>() {
+			Ok(error) => error,
+			Err(error) => Error::Downstream(error),
+		}
+	}
+}
+
+pub type ResourceResult<T> = Result<T, anyhow::Error>;
 
 pub trait ExcelResource {
 	fn list(&self) -> ResourceResult<ExcelList>;
@@ -25,10 +42,12 @@ impl<'a> Excel<'a> {
 		}
 	}
 
-	pub fn temp_test(&self) {
-		let list = self.resource.list().unwrap();
+	pub fn get_sheet(&self, sheet_name: &str) -> Result<(), Error> {
+		let list = self.resource.list()?;
 
-		println!("has item: {}", list.has_sheet("Item"));
+		println!("has item: {}", list.has_sheet(sheet_name));
+
+		Ok(())
 	}
 }
 
