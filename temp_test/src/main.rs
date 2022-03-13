@@ -6,7 +6,9 @@ fn main() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
 	let excel = Excel::new(SqPackResource::new(&sqpack));
-	excel.get_sheet("Item")?;
+	let sheet = excel.get_raw_sheet("Item")?;
+
+	println!("{:#?}", sheet);
 
 	Ok(())
 }

@@ -5,6 +5,9 @@ pub enum Error {
 	#[error("Invalid resource: {0}")]
 	InvalidResource(String),
 
+	#[error("Not found: {0}")]
+	NotFound(String),
+
 	#[error(transparent)]
 	Downstream(anyhow::Error),
 }
@@ -42,12 +45,15 @@ impl<'a> Excel<'a> {
 		}
 	}
 
-	pub fn get_sheet(&self, sheet_name: &str) -> Result<(), Error> {
+	pub fn get_raw_sheet(&self, sheet_name: &str) -> Result<RawExcelSheet, Error> {
+		// NOTE: who owns caching this?
 		let list = self.resource.list()?;
 
-		println!("has item: {}", list.has_sheet(sheet_name));
+		if !list.has_sheet(sheet_name) {
+			return Err(Error::NotFound(format!("Sheet \"{}\"", sheet_name)));
+		}
 
-		Ok(())
+		Ok(RawExcelSheet {})
 	}
 }
 
@@ -92,7 +98,8 @@ impl ExcelList {
 	}
 }
 
-struct ExcelSheet {}
+#[derive(Debug)]
+pub struct RawExcelSheet {}
 
 struct ExcelHeader {}
 
