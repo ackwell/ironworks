@@ -17,13 +17,10 @@ impl ExcelList {
 			.split("\r\n");
 
 		// First line is a magic, make sure we've got one.
-		match lines.next().map(|line| &line[0..4]) {
-			Some("EXLT") => (),
-			_ => {
-				return Err(Error::InvalidResource(
-					"Missing EXLT magic in ExcelList".into(),
-				))
-			}
+		if !matches!(lines.next().map(|line| &line[0..4]), Some("EXLT")) {
+			return Err(Error::InvalidResource(
+				"Missing EXLT magic in ExcelList".into(),
+			));
 		}
 
 		// Build the set of sheets. We're ignoring the sheet ID, as it's pretty
