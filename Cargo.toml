@@ -1,5 +1,6 @@
 [workspace]
 members = [
+	"ironworks_excel",
 	"ironworks_ffxiv",
 	"ironworks_sqpack",
 
