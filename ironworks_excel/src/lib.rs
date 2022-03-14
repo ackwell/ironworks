@@ -5,6 +5,5 @@ mod list;
 mod page;
 mod sheet;
 
+pub use error::Error;
 pub use excel::{Excel, ExcelResource, ResourceResult};
-pub use header::ExcelHeader;
-pub use list::ExcelList;

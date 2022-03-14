@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{error::Error, ExcelResource};
+use crate::{error::Error, header::ExcelHeader, ExcelResource};
 
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
@@ -25,8 +25,9 @@ impl<'a> RawExcelSheet<'a> {
 	}
 
 	pub fn get_subrow(&self, row_id: u16, subrow_id: u16) -> Result<RowReader, Error> {
-		// this should be cached - who owns caching?
-		let header = self.resource.header(&self.sheet_name)?;
+		let header = self.get_header()?;
+
+		println!("{:#?}", header);
 
 		// get page
 		// header
@@ -38,6 +39,12 @@ impl<'a> RawExcelSheet<'a> {
 		// is row reader going to pull directly out of page, or?
 
 		Ok(RowReader {})
+	}
+
+	fn get_header(&self) {
+		// todo: cache
+		let header_bytes = self.resource.header(&self.sheet_name)?;
+		let header = ExcelHeader::from_bytes(&header_bytes)?;
 	}
 }
 

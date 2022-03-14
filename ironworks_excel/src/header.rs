@@ -7,7 +7,7 @@ use crate::error::Error;
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
-struct ExcelHeaderDefinition {
+pub struct ExcelHeader {
 	version: u16,
 	row_size: u16,
 	#[br(temp)]
@@ -32,6 +32,14 @@ struct ExcelHeaderDefinition {
 
 	#[br(count = language_count)]
 	languages: Vec<ExcelLanguageDefinition>,
+}
+
+impl ExcelHeader {
+	pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+		let header = Self::read(&mut Cursor::new(bytes)).unwrap();
+
+		Ok(header)
+	}
 }
 
 #[derive(BinRead, Debug)]
@@ -91,18 +99,4 @@ struct ExcelLanguageDefinition {
 	// TODO: this is an enum - but the values are probably usecase-specific. work out how to handle, maybe a-la cat/repo in sqpack?
 	language: u8,
 	// unkown1: u8, // probably padding
-}
-
-#[derive(Debug)]
-pub struct ExcelHeader {
-	// TODO: don't actually do this - move the shit we need and that's it
-	remove_me: ExcelHeaderDefinition,
-}
-
-impl ExcelHeader {
-	pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-		let header = ExcelHeaderDefinition::read(&mut Cursor::new(bytes)).unwrap();
-
-		Ok(Self { remove_me: header })
-	}
 }
