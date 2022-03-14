@@ -1,21 +1,24 @@
+use std::{fmt::Debug, rc::Rc};
+
 use crate::{error::Error, header::ExcelHeader, list::ExcelList, sheet::RawExcelSheet};
 
 pub type ResourceResult<T> = Result<T, anyhow::Error>;
 
-pub trait ExcelResource {
+// TODO: Consider if this should just return Result<Vec<u8>, _>
+pub trait ExcelResource: Debug {
 	fn list(&self) -> ResourceResult<ExcelList>;
 	fn header(&self, sheet_name: &str) -> ResourceResult<ExcelHeader>;
 	// fn page(&self) -> ResourceResult<ExcelPage>;
 }
 
 pub struct Excel<'a> {
-	resource: Box<dyn ExcelResource + 'a>,
+	resource: Rc<dyn ExcelResource + 'a>,
 }
 
 impl<'a> Excel<'a> {
 	pub fn new(resource: impl ExcelResource + 'a) -> Self {
 		Self {
-			resource: Box::new(resource),
+			resource: Rc::new(resource),
 		}
 	}
 
@@ -27,9 +30,8 @@ impl<'a> Excel<'a> {
 			return Err(Error::NotFound(format!("Sheet \"{}\"", sheet_name)));
 		}
 
-		// TODO: we're going to need to retrieve pages as-needed from the sheet, so maybe we should pass the resource directly to the sheet?
-		let header = self.resource.header(sheet_name)?;
-
-		Ok(RawExcelSheet { header })
+		Ok(RawExcelSheet::new(sheet_name, self.resource.clone()))
 	}
 }
+
+// maybe like rawsheet is a self-impl of sheet which also uses sheetreader?

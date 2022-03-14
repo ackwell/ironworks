@@ -6,13 +6,15 @@ fn main() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
 	let excel = Excel::new(SqPackResource::new(&sqpack));
-	let sheet = excel.get_raw_sheet("AozAction")?;
+	let sheet = excel.get_raw_sheet("CompanionTransient")?;
+	let row = sheet.get_row(101);
 
-	println!("{:#?}", sheet);
+	println!("{:#?}", row);
 
 	Ok(())
 }
 
+#[derive(Debug)]
 struct SqPackResource<'a> {
 	sqpack: &'a SqPack,
 }
