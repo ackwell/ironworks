@@ -1,6 +1,11 @@
 use std::rc::Rc;
 
-use crate::{error::Result, header::ExcelHeader, ExcelResource};
+use crate::{
+	error::{Error, Result},
+	excel::ExcelResource,
+	header::ExcelHeader,
+	page::ExcelPage,
+};
 
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
@@ -21,15 +26,28 @@ impl<'a> RawExcelSheet<'a> {
 	// todo iterable rows?
 	// todo: lang?
 
-	pub fn get_row(&self, row_id: u16) -> Result<RowReader> {
+	pub fn get_row(&self, row_id: u32) -> Result<RowReader> {
 		self.get_subrow(row_id, 0)
 	}
 
-	pub fn get_subrow(&self, row_id: u16, subrow_id: u16) -> Result<RowReader> {
+	pub fn get_subrow(&self, row_id: u32, subrow_id: u32) -> Result<RowReader> {
 		let header = self.get_header()?;
 
-		// get page definition
-		// header
+		// Find the page definition for the requested row, if any.
+		let page_definition = header
+			.pages
+			.iter()
+			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
+			.ok_or_else(|| Error::NotFound(format!("Row ID \"{}\"", row_id)))?;
+
+		// ---
+
+		println!("{:#?}", page_definition);
+
+		// read in page struct thing
+		let page = self.get_page(page_definition.start_id)?;
+
+		println!("{:#?}", page);
 
 		// get row in page
 		// is this just a byte slice? what about the extradata shit for strings &c?
@@ -42,9 +60,17 @@ impl<'a> RawExcelSheet<'a> {
 
 	fn get_header(&self) -> Result<ExcelHeader> {
 		// todo: cache
-		let header_bytes = self.resource.header(&self.sheet_name)?;
-		let header = ExcelHeader::from_bytes(&header_bytes)?;
+		let bytes = self.resource.header(&self.sheet_name)?;
+		let header = ExcelHeader::from_bytes(&bytes)?;
 		Ok(header)
+	}
+
+	fn get_page(&self, start_id: u32) -> Result<ExcelPage> {
+		// TODO: this _needs_ to handle language
+		// TODO: cache
+		let bytes = self.resource.page(&self.sheet_name, start_id)?;
+		let page = ExcelPage::from_bytes(&bytes)?;
+		Ok(page)
 	}
 }
 

@@ -10,6 +10,7 @@ pub enum Error {
 	Downstream(anyhow::Error),
 }
 
+// TODO: the below is no longer correct. remove?
 // Due to the nature of the ExcelResource trait, it's expected that an anyhow::Error
 // returned by a resource function could be a first-party error. To avoid blindly
 // bubbling our own errors up as a Downstream, we're manually implementing From

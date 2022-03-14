@@ -43,7 +43,7 @@ impl ExcelHeader {
 }
 
 #[derive(BinRead, Debug)]
-#[br(big, repr=u8)]
+#[br(big, repr = u8)]
 enum ExcelSheetKind {
 	Unknown = 0,
 	Default = 1,
@@ -87,9 +87,9 @@ enum ExcelColumnKind {
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-struct ExcelPageDefinition {
-	start_id: u32,
-	row_count: u32,
+pub struct ExcelPageDefinition {
+	pub start_id: u32,
+	pub row_count: u32,
 }
 
 #[derive(BinRead, Debug)]

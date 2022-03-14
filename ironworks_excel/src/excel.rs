@@ -11,7 +11,7 @@ pub type ResourceResult<T> = std::result::Result<T, anyhow::Error>;
 pub trait ExcelResource: Debug {
 	fn list(&self) -> ResourceResult<Vec<u8>>;
 	fn header(&self, sheet_name: &str) -> ResourceResult<Vec<u8>>;
-	// fn page(&self) -> ResourceResult<Vec<u8>>;
+	fn page(&self, sheet_name: &str, start_id: u32) -> ResourceResult<Vec<u8>>;
 }
 
 pub struct Excel<'a> {

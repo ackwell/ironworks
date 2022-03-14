@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
 
 	let excel = Excel::new(SqPackResource::new(&sqpack));
 	let sheet = excel.get_raw_sheet("CompanionTransient")?;
-	let row = sheet.get_row(101);
+	let row = sheet.get_row(101)?;
 
 	println!("{:#?}", row);
 
@@ -33,6 +33,14 @@ impl ExcelResource for SqPackResource<'_> {
 
 	fn header(&self, sheet_name: &str) -> ResourceResult<Vec<u8>> {
 		let bytes = self.sqpack.read_file(&format!("exd/{}.exh", sheet_name))?;
+		Ok(bytes)
+	}
+
+	fn page(&self, sheet_name: &str, start_id: u32) -> ResourceResult<Vec<u8>> {
+		// TODO: HANDLE LANG! "en" is invalid on unlang sheets, plus we want multiple langs and shit
+		let bytes = self
+			.sqpack
+			.read_file(&format!("exd/{}_{}_en.exd", sheet_name, start_id))?;
 		Ok(bytes)
 	}
 }
