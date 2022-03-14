@@ -26,7 +26,7 @@ pub struct DatReader {
 impl DatReader {
 	pub fn new(repository: Rc<Repository>, category: Rc<Category>) -> Result<Self> {
 		let chunks = (0u8..=255)
-			.filter_map(|chunk_id| Index::new(&repository, &category, chunk_id).transpose())
+			.map_while(|chunk_id| Index::new(&repository, &category, chunk_id).transpose())
 			.collect::<Result<Vec<_>>>()?;
 
 		Ok(DatReader {
