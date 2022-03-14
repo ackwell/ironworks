@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use binrw::{binread, BinRead};
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 #[binread]
 #[derive(Debug)]
@@ -36,8 +36,9 @@ pub struct ExcelHeader {
 
 impl ExcelHeader {
 	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
-		// TODO error handling
-		let header = Self::read(&mut Cursor::new(bytes)).unwrap();
+		let header = Self::read(&mut Cursor::new(bytes)).map_err(|error| {
+			Error::InvalidResource(format!("Failed to read ExcelHeader: {}", error))
+		})?;
 		Ok(header)
 	}
 }

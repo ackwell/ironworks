@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use binrw::{binread, BinRead};
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 #[binread]
 #[derive(Debug)]
@@ -25,20 +25,25 @@ struct ExcelRowDefinition {
 }
 
 impl ExcelRowDefinition {
-	pub const SIZE: usize = 8;
+	const SIZE: usize = 8;
 }
 
 #[derive(Debug)]
 pub struct ExcelPage {
 	header: ExcelPageHeader,
+	data: Vec<u8>,
 }
 
 impl ExcelPage {
 	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
-		// TODO error handling
-		let mut cursor = Cursor::new(bytes);
-		let header = ExcelPageHeader::read(&mut cursor).unwrap();
+		let mut cursor = Cursor::new(&bytes);
+		let header = ExcelPageHeader::read(&mut cursor).map_err(|error| {
+			Error::InvalidResource(format!("Failed to read ExcelPage header: {}", error))
+		})?;
 
-		Ok(Self { header })
+		Ok(Self {
+			header,
+			data: bytes,
+		})
 	}
 }

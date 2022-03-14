@@ -40,12 +40,9 @@ impl<'a> RawExcelSheet<'a> {
 			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
 			.ok_or_else(|| Error::NotFound(format!("Row ID \"{}\"", row_id)))?;
 
-		// ---
-
-		println!("{:#?}", page_definition);
-
-		// read in page struct thing
 		let page = self.get_page(page_definition.start_id)?;
+
+		// ---
 
 		println!("{:#?}", page);
 
