@@ -61,7 +61,7 @@ impl<'a> RawExcelSheet<'a> {
 	fn get_header(&self) -> Result<ExcelHeader> {
 		// todo: cache
 		let bytes = self.resource.header(&self.sheet_name)?;
-		let header = ExcelHeader::from_bytes(&bytes)?;
+		let header = ExcelHeader::from_bytes(bytes)?;
 		Ok(header)
 	}
 
@@ -69,7 +69,7 @@ impl<'a> RawExcelSheet<'a> {
 		// TODO: this _needs_ to handle language
 		// TODO: cache
 		let bytes = self.resource.page(&self.sheet_name, start_id)?;
-		let page = ExcelPage::from_bytes(&bytes)?;
+		let page = ExcelPage::from_bytes(bytes)?;
 		Ok(page)
 	}
 }

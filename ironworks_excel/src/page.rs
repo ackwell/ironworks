@@ -34,7 +34,7 @@ pub struct ExcelPage {
 }
 
 impl ExcelPage {
-	pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
 		// TODO error handling
 		let mut cursor = Cursor::new(bytes);
 		let header = ExcelPageHeader::read(&mut cursor).unwrap();

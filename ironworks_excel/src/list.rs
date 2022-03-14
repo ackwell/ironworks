@@ -8,9 +8,9 @@ pub struct ExcelList {
 
 impl ExcelList {
 	// TODO: should this move the bytes?
-	pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
 		// Binary format is actually just text.
-		let mut lines = std::str::from_utf8(bytes)
+		let mut lines = std::str::from_utf8(&bytes)
 			.map_err(|error| {
 				Error::InvalidResource(format!("Invalid utf8 sequence in ExcelList: {}", error))
 			})?

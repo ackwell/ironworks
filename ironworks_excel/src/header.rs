@@ -35,7 +35,7 @@ pub struct ExcelHeader {
 }
 
 impl ExcelHeader {
-	pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
 		// TODO error handling
 		let header = Self::read(&mut Cursor::new(bytes)).unwrap();
 		Ok(header)

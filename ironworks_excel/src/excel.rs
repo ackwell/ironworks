@@ -39,7 +39,7 @@ impl<'a> Excel<'a> {
 	fn get_list(&self) -> Result<ExcelList> {
 		// todo: cache
 		let bytes = self.resource.list()?;
-		let list = ExcelList::from_bytes(&bytes)?;
+		let list = ExcelList::from_bytes(bytes)?;
 		Ok(list)
 	}
 }
