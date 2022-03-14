@@ -24,7 +24,7 @@ pub struct ExcelHeader {
 	#[br(pad_before = 2)]
 	row_count: u32,
 	// unknown4: [u32; 2]
-	#[br(count = column_count, pad_before = 8)]
+	#[br(pad_before = 8, count = column_count)]
 	columns: Vec<ExcelColumnDefinition>,
 
 	#[br(count = page_count)]
@@ -36,8 +36,8 @@ pub struct ExcelHeader {
 
 impl ExcelHeader {
 	pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+		// TODO error handling
 		let header = Self::read(&mut Cursor::new(bytes)).unwrap();
-
 		Ok(header)
 	}
 }
