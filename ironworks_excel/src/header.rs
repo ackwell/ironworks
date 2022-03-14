@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use binrw::{binread, BinRead};
 
-use crate::error::Error;
+use crate::error::Result;
 
 #[binread]
 #[derive(Debug)]
@@ -28,14 +28,14 @@ pub struct ExcelHeader {
 	columns: Vec<ExcelColumnDefinition>,
 
 	#[br(count = page_count)]
-	pages: Vec<ExcelPageDefinition>,
+	pub pages: Vec<ExcelPageDefinition>,
 
 	#[br(count = language_count)]
 	languages: Vec<ExcelLanguageDefinition>,
 }
 
 impl ExcelHeader {
-	pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+	pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
 		let header = Self::read(&mut Cursor::new(bytes)).unwrap();
 
 		Ok(header)

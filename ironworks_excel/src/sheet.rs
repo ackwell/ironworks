@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{error::Error, header::ExcelHeader, ExcelResource};
+use crate::{error::Result, header::ExcelHeader, ExcelResource};
 
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
@@ -19,17 +19,16 @@ impl<'a> RawExcelSheet<'a> {
 	}
 
 	// todo iterable rows?
+	// todo: lang?
 
-	pub fn get_row(&self, row_id: u16) -> Result<RowReader, Error> {
+	pub fn get_row(&self, row_id: u16) -> Result<RowReader> {
 		self.get_subrow(row_id, 0)
 	}
 
-	pub fn get_subrow(&self, row_id: u16, subrow_id: u16) -> Result<RowReader, Error> {
+	pub fn get_subrow(&self, row_id: u16, subrow_id: u16) -> Result<RowReader> {
 		let header = self.get_header()?;
 
-		println!("{:#?}", header);
-
-		// get page
+		// get page definition
 		// header
 
 		// get row in page
@@ -41,10 +40,11 @@ impl<'a> RawExcelSheet<'a> {
 		Ok(RowReader {})
 	}
 
-	fn get_header(&self) {
+	fn get_header(&self) -> Result<ExcelHeader> {
 		// todo: cache
 		let header_bytes = self.resource.header(&self.sheet_name)?;
 		let header = ExcelHeader::from_bytes(&header_bytes)?;
+		Ok(header)
 	}
 }
 
