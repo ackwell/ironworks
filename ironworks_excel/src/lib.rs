@@ -3,6 +3,7 @@ mod excel;
 mod header;
 mod list;
 mod page;
+mod row;
 mod sheet;
 
 pub use error::Error;
