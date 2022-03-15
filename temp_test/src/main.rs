@@ -8,8 +8,9 @@ fn main() -> anyhow::Result<()> {
 	let excel = Excel::new(SqPackResource::new(&sqpack));
 	let sheet = excel.get_raw_sheet("CompanionTransient")?;
 	let row = sheet.get_row(101)?;
+	let field = row.temp_test();
 
-	println!("{:#?}", row);
+	println!("{:?}", field);
 
 	Ok(())
 }

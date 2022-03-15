@@ -1,4 +1,6 @@
-use std::rc::Rc;
+use std::{io::Cursor, rc::Rc};
+
+use binrw::{BinRead, BinReaderExt, NullString};
 
 use crate::{
 	error::{Error, Result},
@@ -42,17 +44,30 @@ impl<'a> RawExcelSheet<'a> {
 
 		let page = self.get_page(page_definition.start_id)?;
 
-		// ---
+		// Find the row definition for the requested row. A failure here implies
+		// corrupt resources.
+		let row_definition = page
+			.header
+			.rows
+			.iter()
+			.find(|row| row.row_id == row_id)
+			.expect("Requested row ID is not defined by the provided page.");
 
-		println!("{:#?}", page);
+		// Read the row's header.
+		// TODO: handle subrows + validation
+		let mut cursor = Cursor::new(&page.data);
+		cursor.set_position(row_definition.offset.into());
+		let row_header = ExcelRowHeader::read(&mut cursor).unwrap();
 
-		// get row in page
-		// is this just a byte slice? what about the extradata shit for strings &c?
+		// Slice the page data for just the requested row.
+		let offset = cursor.position() as usize;
+		// TODO: Check data_length behavior on a subrow sheet.
+		let length = header.data_offset as usize + row_header.data_size as usize;
+		let data = &page.data[offset..offset + length];
 
-		// build row reader
-		// is row reader going to pull directly out of page, or?
+		let row_reader = RowReader::new(data);
 
-		Ok(RowReader {})
+		Ok(row_reader)
 	}
 
 	fn get_header(&self) -> Result<ExcelHeader> {
@@ -72,6 +87,49 @@ impl<'a> RawExcelSheet<'a> {
 }
 
 // TODO put this somewhere sensible
+#[derive(BinRead, Debug)]
+#[br(big)]
+struct ExcelRowHeader {
+	data_size: u32,
+	row_count: u16,
+}
+
 // TODO this is basically a raw row - standardise naming with the raw sheet. do we have a sheetreader and rowreader, or rawsheet and rawrow, or...
 #[derive(Debug)]
-pub struct RowReader {}
+pub struct RowReader {
+	data: Vec<u8>,
+}
+
+impl RowReader {
+	fn new(data: &[u8]) -> Self {
+		Self {
+			data: data.to_owned(),
+		}
+	}
+
+	pub fn temp_test(&self) -> SeString {
+		// TODO: do we want to store the cursor in the main struct? might help with auto advancing rows... but at the same time, columns are not in byte order nessicarily
+		let mut cursor = Cursor::new(&self.data);
+
+		// todo: temp obv
+		let column_offset = 0x10u64;
+		cursor.set_position(column_offset);
+
+		// read the string offset
+		let string_offset = cursor.read_be::<u32>().unwrap();
+
+		// read sestr from the offset pos
+		// todo: how are we getting the 28 here?
+		cursor.set_position(string_offset as u64 + 28);
+		let string = SeString::read(&mut cursor).unwrap();
+
+		return string;
+	}
+}
+
+// TODO: this shouldn't be here
+#[derive(BinRead, Debug)]
+#[br(big)]
+pub struct SeString {
+	raw: NullString,
+}

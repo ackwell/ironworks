@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 #[br(big, magic = b"EXHF")]
 pub struct ExcelHeader {
 	version: u16,
-	row_size: u16,
+	pub data_offset: u16,
 	#[br(temp)]
 	column_count: u16,
 	#[br(temp)]
