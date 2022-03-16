@@ -25,7 +25,7 @@ pub struct ExcelHeader {
 	row_count: u32,
 	// unknown4: [u32; 2]
 	#[br(pad_before = 8, count = column_count)]
-	columns: Vec<ExcelColumnDefinition>,
+	pub columns: Vec<ExcelColumnDefinition>,
 
 	#[br(count = page_count)]
 	pub pages: Vec<ExcelPageDefinition>,
@@ -51,16 +51,18 @@ enum ExcelSheetKind {
 	Subrows = 2,
 }
 
-#[derive(BinRead, Debug)]
+// TODO: remove clone
+#[derive(BinRead, Clone, Debug)]
 #[br(big)]
-struct ExcelColumnDefinition {
-	kind: ExcelColumnKind,
-	offset: u16,
+pub struct ExcelColumnDefinition {
+	pub kind: ExcelColumnKind,
+	pub offset: u16,
 }
 
-#[derive(BinRead, Debug)]
+// TODO: remove clone
+#[derive(BinRead, Clone, Debug)]
 #[br(big, repr = u16)]
-enum ExcelColumnKind {
+pub enum ExcelColumnKind {
 	String = 0x0,
 	Bool = 0x1,
 	Int8 = 0x2,

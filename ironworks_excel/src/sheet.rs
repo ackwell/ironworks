@@ -66,7 +66,7 @@ impl<'a> RawExcelSheet<'a> {
 		let length = header.data_offset as usize + row_header.data_size as usize;
 		let data = &page.data[offset..offset + length];
 
-		let row_reader = RowReader::new(data);
+		let row_reader = RowReader::new(&header.columns, data);
 
 		Ok(row_reader)
 	}
