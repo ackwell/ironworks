@@ -16,9 +16,6 @@ pub struct ExcelRowHeader {
 	row_count: u16,
 }
 
-// TODO: this name is pretty bad, think about it
-//       mixed term between field and column atm
-//       tempated to say "column" is only used to refer to a _full_ column, and field for fetching a single... field
 #[derive(Debug)]
 pub enum ExcelField {
 	String(SeString),
@@ -39,7 +36,7 @@ impl RowReader {
 		}
 	}
 
-	pub fn read_column(&self, column_index: u32) -> Result<ExcelField> {
+	pub fn read_field(&self, column_index: u32) -> Result<ExcelField> {
 		// get column definition
 		let column = self
 			.header
