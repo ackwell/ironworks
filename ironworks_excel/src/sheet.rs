@@ -81,7 +81,7 @@ impl<'a> RawExcelSheet<'a> {
 	fn get_page(&self, start_id: u32) -> Result<ExcelPage> {
 		// TODO: this _needs_ to handle language
 		// TODO: cache
-		let bytes = self.resource.page(&self.sheet_name, start_id)?;
+		let bytes = self.resource.page(&self.sheet_name, start_id, 2)?;
 		let page = ExcelPage::from_bytes(bytes)?;
 		Ok(page)
 	}

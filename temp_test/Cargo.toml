@@ -10,3 +10,4 @@ anyhow = "1.0.55"
 ironworks_excel = {path = "../ironworks_excel"}
 ironworks_ffxiv = {path = "../ironworks_ffxiv"}
 ironworks_sqpack = {path = "../ironworks_sqpack"}
+num_enum = "0.5.7"
