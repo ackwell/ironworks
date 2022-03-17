@@ -9,7 +9,7 @@ use crate::error::{Error, Result};
 #[br(big, magic = b"EXHF")]
 pub struct ExcelHeader {
 	version: u16,
-	pub data_offset: u16,
+	pub row_size: u16,
 	#[br(temp)]
 	column_count: u16,
 	#[br(temp)]
@@ -51,16 +51,14 @@ enum ExcelSheetKind {
 	Subrows = 2,
 }
 
-// TODO: remove clone
-#[derive(BinRead, Clone, Debug)]
+#[derive(BinRead, Debug)]
 #[br(big)]
 pub struct ExcelColumnDefinition {
 	pub kind: ExcelColumnKind,
 	pub offset: u16,
 }
 
-// TODO: remove clone
-#[derive(BinRead, Clone, Debug)]
+#[derive(BinRead, Debug)]
 #[br(big, repr = u16)]
 pub enum ExcelColumnKind {
 	String = 0x0,

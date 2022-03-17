@@ -63,19 +63,19 @@ impl<'a> RawExcelSheet<'a> {
 		// Slice the page data for just the requested row.
 		let offset = cursor.position() as usize;
 		// TODO: Check data_length behavior on a subrow sheet.
-		let length = header.data_offset as usize + row_header.data_size as usize;
+		let length = header.row_size as usize + row_header.data_size as usize;
 		let data = &page.data[offset..offset + length];
 
-		let row_reader = RowReader::new(&header.columns, data);
+		let row_reader = RowReader::new(header, data);
 
 		Ok(row_reader)
 	}
 
-	fn get_header(&self) -> Result<ExcelHeader> {
+	fn get_header(&self) -> Result<Rc<ExcelHeader>> {
 		// todo: cache
 		let bytes = self.resource.header(&self.sheet_name)?;
 		let header = ExcelHeader::from_bytes(bytes)?;
-		Ok(header)
+		Ok(Rc::new(header))
 	}
 
 	fn get_page(&self, start_id: u32) -> Result<ExcelPage> {

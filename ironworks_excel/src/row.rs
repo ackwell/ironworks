@@ -1,10 +1,10 @@
-use std::io::Cursor;
+use std::{io::Cursor, rc::Rc};
 
 use binrw::{BinRead, BinReaderExt, NullString};
 
 use crate::{
 	error::Result,
-	header::{ExcelColumnDefinition, ExcelColumnKind},
+	header::{ExcelColumnKind, ExcelHeader},
 	Error,
 };
 
@@ -18,6 +18,7 @@ pub struct ExcelRowHeader {
 
 // TODO: this name is pretty bad, think about it
 //       mixed term between field and column atm
+//       tempated to say "column" is only used to refer to a _full_ column, and field for fetching a single... field
 #[derive(Debug)]
 pub enum ExcelField {
 	String(SeString),
@@ -26,15 +27,14 @@ pub enum ExcelField {
 // TODO this is basically a raw row - standardise naming with the raw sheet. do we have a sheetreader and rowreader, or rawsheet and rawrow, or...
 #[derive(Debug)]
 pub struct RowReader {
-	// TODO: this should probably be an Rc
-	columns: Vec<ExcelColumnDefinition>,
+	header: Rc<ExcelHeader>,
 	data: Vec<u8>,
 }
 
 impl RowReader {
-	pub fn new(columns: &[ExcelColumnDefinition], data: &[u8]) -> Self {
+	pub fn new(header: Rc<ExcelHeader>, data: &[u8]) -> Self {
 		Self {
-			columns: columns.to_vec(),
+			header,
 			data: data.to_vec(),
 		}
 	}
@@ -42,6 +42,7 @@ impl RowReader {
 	pub fn read_column(&self, column_index: u32) -> Result<ExcelField> {
 		// get column definition
 		let column = self
+			.header
 			.columns
 			.get(column_index as usize)
 			.ok_or_else(|| Error::NotFound(format!("Column {}", column_index)))?;
@@ -54,8 +55,7 @@ impl RowReader {
 			ExcelColumnKind::String => {
 				// TODO: error handling
 				let string_offset = cursor.read_be::<u32>().unwrap();
-				// TODO: 28 is the row size... maybe rows should have a full rc ref of the header?
-				cursor.set_position(string_offset as u64 + 28);
+				cursor.set_position(string_offset as u64 + self.header.row_size as u64);
 				let string = SeString::read(&mut cursor).unwrap();
 				Ok(ExcelField::String(string))
 			}
