@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc};
 use crate::{
 	error::{Error, Result},
 	list::ExcelList,
-	sheet::RawExcelSheet,
+	sheet::{RawExcelSheet, SheetOptions},
 };
 
 pub type ResourceResult<T> = std::result::Result<T, anyhow::Error>;
@@ -14,13 +14,32 @@ pub trait ExcelResource: Debug {
 	fn page(&self, sheet_name: &str, start_id: u32, language_id: u8) -> ResourceResult<Vec<u8>>;
 }
 
+pub struct ExcelOptions {
+	pub default_language: u8,
+}
+
+impl ExcelOptions {
+	fn new() -> Self {
+		Self {
+			default_language: 0,
+		}
+	}
+}
+
 pub struct Excel<'a> {
+	default_language: u8,
 	resource: Rc<dyn ExcelResource + 'a>,
 }
 
 impl<'a> Excel<'a> {
+	#[inline]
 	pub fn new(resource: impl ExcelResource + 'a) -> Self {
+		Self::with_options(resource, ExcelOptions::new())
+	}
+
+	pub fn with_options(resource: impl ExcelResource + 'a, options: ExcelOptions) -> Self {
 		Self {
+			default_language: options.default_language,
 			resource: Rc::new(resource),
 		}
 	}
@@ -33,7 +52,15 @@ impl<'a> Excel<'a> {
 		}
 
 		// todo: possibly should cache the raw sheets
-		Ok(RawExcelSheet::new(sheet_name, self.resource.clone()))
+		let sheet = RawExcelSheet::with_options(
+			sheet_name,
+			self.resource.clone(),
+			SheetOptions {
+				default_language: self.default_language,
+			},
+		);
+
+		Ok(sheet)
 	}
 
 	fn get_list(&self) -> Result<ExcelList> {

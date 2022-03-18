@@ -10,18 +10,29 @@ use crate::{
 	row::{ExcelRowHeader, RowReader},
 };
 
+pub struct SheetOptions {
+	pub default_language: u8,
+}
+
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
 pub struct RawExcelSheet<'a> {
 	sheet_name: String,
+	default_language: u8,
 
 	resource: Rc<dyn ExcelResource + 'a>,
 }
 
 impl<'a> RawExcelSheet<'a> {
-	pub fn new(sheet_name: &str, resource: Rc<dyn ExcelResource + 'a>) -> Self {
+	// pub(crate)?
+	pub fn with_options(
+		sheet_name: &str,
+		resource: Rc<dyn ExcelResource + 'a>,
+		options: SheetOptions,
+	) -> Self {
 		Self {
 			sheet_name: sheet_name.into(),
+			default_language: options.default_language,
 			resource,
 		}
 	}
@@ -81,7 +92,9 @@ impl<'a> RawExcelSheet<'a> {
 	fn get_page(&self, start_id: u32) -> Result<ExcelPage> {
 		// TODO: this _needs_ to handle language
 		// TODO: cache
-		let bytes = self.resource.page(&self.sheet_name, start_id, 2)?;
+		let bytes = self
+			.resource
+			.page(&self.sheet_name, start_id, self.default_language)?;
 		let page = ExcelPage::from_bytes(bytes)?;
 		Ok(page)
 	}
