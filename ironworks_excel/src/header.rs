@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{collections::HashSet, io::Cursor};
 
 use binrw::{binread, BinRead};
 
@@ -30,8 +30,11 @@ pub struct ExcelHeader {
 	#[br(count = page_count)]
 	pub pages: Vec<ExcelPageDefinition>,
 
-	#[br(count = language_count)]
-	languages: Vec<ExcelLanguageDefinition>,
+	#[br(
+		count = language_count,
+		map = ExcelLanguageDefinition::to_set
+	)]
+	pub languages: HashSet<u8>,
 }
 
 impl ExcelHeader {
@@ -95,9 +98,15 @@ pub struct ExcelPageDefinition {
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-struct ExcelLanguageDefinition {
+pub struct ExcelLanguageDefinition {
 	#[br(pad_after = 1)]
-	// TODO: this is an enum - but the values are probably usecase-specific. work out how to handle, maybe a-la cat/repo in sqpack?
-	language: u8,
-	// unkown1: u8, // probably padding
+	pub language: u8,
+	// unknown1: u8, // probably padding
+}
+
+impl ExcelLanguageDefinition {
+	// Flatten the language struct into u8s
+	fn to_set(languages: Vec<Self>) -> HashSet<u8> {
+		languages.iter().map(|language| language.language).collect()
+	}
 }

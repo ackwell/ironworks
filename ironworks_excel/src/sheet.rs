@@ -10,8 +10,26 @@ use crate::{
 	row::{ExcelRowHeader, RowReader},
 };
 
+const LANGUAGE_NONE: u8 = 0;
+
 pub struct SheetOptions {
 	pub default_language: u8,
+}
+
+// TODO: should this be in row?
+pub struct RowOptions {
+	pub language: Option<u8>,
+}
+
+impl RowOptions {
+	pub fn new() -> Self {
+		Self { language: None }
+	}
+
+	pub fn language(&mut self, value: impl Into<u8>) -> &mut Self {
+		self.language = Some(value.into());
+		self
+	}
 }
 
 // TODO should this be ExcelRawSheet?
@@ -38,14 +56,43 @@ impl<'a> RawExcelSheet<'a> {
 	}
 
 	// todo iterable rows?
-	// todo: lang?
 
+	#[inline]
 	pub fn get_row(&self, row_id: u32) -> Result<RowReader> {
 		self.get_subrow(row_id, 0)
 	}
 
+	#[inline]
 	pub fn get_subrow(&self, row_id: u32, subrow_id: u32) -> Result<RowReader> {
+		self.get_subrow_with_options(row_id, subrow_id, &RowOptions::new())
+	}
+
+	#[inline]
+	pub fn get_row_with_options(&self, row_id: u32, options: &RowOptions) -> Result<RowReader> {
+		self.get_subrow_with_options(row_id, 0, options)
+	}
+
+	// TODO: think about the api a bit. it might be nice to do something like
+	// sheet.with_options().language(...).get_row(N)
+	// "with options" is a bit weird there, think?
+	pub fn get_subrow_with_options(
+		&self,
+		row_id: u32,
+		subrow_id: u32,
+		options: &RowOptions,
+	) -> Result<RowReader> {
 		let header = self.get_header()?;
+
+		// todo doc
+		// todo do we want an explicit language request in row options to fail hard without defaulting?
+		let requested_language = options.language.unwrap_or(self.default_language);
+
+		let language = header
+			.languages
+			.get(&requested_language)
+			.or_else(|| header.languages.get(&LANGUAGE_NONE))
+			// todo: not conviced this should be notfound
+			.ok_or_else(|| Error::NotFound(format!("Language \"{}\"", requested_language)))?;
 
 		// Find the page definition for the requested row, if any.
 		let page_definition = header
@@ -54,7 +101,7 @@ impl<'a> RawExcelSheet<'a> {
 			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
 			.ok_or_else(|| Error::NotFound(format!("Row ID \"{}\"", row_id)))?;
 
-		let page = self.get_page(page_definition.start_id)?;
+		let page = self.get_page(page_definition.start_id, *language)?;
 
 		// Find the row definition for the requested row. A failure here implies
 		// corrupt resources.
@@ -63,6 +110,7 @@ impl<'a> RawExcelSheet<'a> {
 			.rows
 			.iter()
 			.find(|row| row.row_id == row_id)
+			// todo: maybe okorelse this with an invalid resource?
 			.expect("Requested row ID is not defined by the provided page.");
 
 		// Read the row's header.
@@ -89,12 +137,9 @@ impl<'a> RawExcelSheet<'a> {
 		Ok(Rc::new(header))
 	}
 
-	fn get_page(&self, start_id: u32) -> Result<ExcelPage> {
-		// TODO: this _needs_ to handle language
+	fn get_page(&self, start_id: u32, language: u8) -> Result<ExcelPage> {
 		// TODO: cache
-		let bytes = self
-			.resource
-			.page(&self.sheet_name, start_id, self.default_language)?;
+		let bytes = self.resource.page(&self.sheet_name, start_id, language)?;
 		let page = ExcelPage::from_bytes(bytes)?;
 		Ok(page)
 	}

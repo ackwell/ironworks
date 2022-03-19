@@ -1,4 +1,4 @@
-use ironworks_excel::{Excel, ExcelOptions, ExcelResource, ResourceResult};
+use ironworks_excel::{Excel, ExcelOptions, ExcelResource, ResourceResult, RowOptions};
 use ironworks_ffxiv::SqPackFfxiv;
 use ironworks_sqpack::SqPack;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -6,6 +6,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 fn main() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
+	// let excel = Excel::new(SqPackResource::new(&sqpack));
 	let excel = Excel::with_options(
 		SqPackResource::new(&sqpack),
 		ExcelOptions {
@@ -13,7 +14,7 @@ fn main() -> anyhow::Result<()> {
 		},
 	);
 	let sheet = excel.get_raw_sheet("CompanionTransient")?;
-	let row = sheet.get_row(101)?;
+	let row = sheet.get_row_with_options(101, &RowOptions::new().language(Language::German))?;
 	let field = row.read_field(4)?;
 
 	println!("{:?}", field);

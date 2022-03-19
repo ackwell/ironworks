@@ -8,3 +8,4 @@ mod sheet;
 
 pub use error::Error;
 pub use excel::{Excel, ExcelOptions, ExcelResource, ResourceResult};
+pub use sheet::RowOptions;
