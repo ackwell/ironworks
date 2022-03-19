@@ -1,4 +1,4 @@
-// Stolen and ported to rust from https://github.com/NotAdam/Lumina/blob/8abfa032fc0f47e79a58f7539dca2b23c96c66c8/src/Lumina/Data/Category.cs
+// Stolen and ported to rust from https://github.com/NotAdam/Lumina/blob/8abfa032fc0f47e79a58f7539dca2b23c96c66c8/src/Lumina/Misc/Crc32.cs
 
 const POLY: u32 = 0xEDB88320;
 
