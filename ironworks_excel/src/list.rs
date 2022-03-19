@@ -2,12 +2,11 @@ use std::collections::HashSet;
 
 use crate::error::{Error, Result};
 
-pub struct ExcelList {
+pub struct List {
 	sheets: HashSet<String>,
 }
 
-impl ExcelList {
-	// TODO: should this move the bytes?
+impl List {
 	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
 		// Binary format is actually just text.
 		let mut lines = std::str::from_utf8(&bytes)

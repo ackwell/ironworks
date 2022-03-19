@@ -7,7 +7,7 @@ use crate::error::{Error, Result};
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
-pub struct ExcelHeader {
+pub struct Header {
 	version: u16,
 	pub row_size: u16,
 	#[br(temp)]
@@ -19,25 +19,25 @@ pub struct ExcelHeader {
 	// unknown1: u16,
 	// unknown2: u8,
 	#[br(pad_before = 3)]
-	pub kind: ExcelSheetKind,
+	pub kind: SheetKind,
 	// unknown3: u16,
 	#[br(pad_before = 2)]
 	row_count: u32,
 	// unknown4: [u32; 2]
 	#[br(pad_before = 8, count = column_count)]
-	pub columns: Vec<ExcelColumnDefinition>,
+	pub columns: Vec<ColumnDefinition>,
 
 	#[br(count = page_count)]
-	pub pages: Vec<ExcelPageDefinition>,
+	pub pages: Vec<PageDefinition>,
 
 	#[br(
 		count = language_count,
-		map = ExcelLanguageDefinition::to_set
+		map = LanguageDefinition::to_set
 	)]
 	pub languages: HashSet<u8>,
 }
 
-impl ExcelHeader {
+impl Header {
 	pub fn from_bytes(bytes: Vec<u8>) -> Result<Self> {
 		let header = Self::read(&mut Cursor::new(bytes)).map_err(|error| {
 			Error::InvalidResource(format!("Failed to read ExcelHeader: {}", error))
@@ -48,7 +48,7 @@ impl ExcelHeader {
 
 #[derive(BinRead, Debug, PartialEq)]
 #[br(big, repr = u8)]
-pub enum ExcelSheetKind {
+pub enum SheetKind {
 	Unknown = 0,
 	Default = 1,
 	Subrows = 2,
@@ -56,14 +56,14 @@ pub enum ExcelSheetKind {
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-pub struct ExcelColumnDefinition {
-	pub kind: ExcelColumnKind,
+pub struct ColumnDefinition {
+	pub kind: ColumnKind,
 	pub offset: u16,
 }
 
 #[derive(BinRead, Clone, Copy, Debug)]
 #[br(big, repr = u16)]
-pub enum ExcelColumnKind {
+pub enum ColumnKind {
 	String = 0x0,
 	Bool = 0x1,
 	Int8 = 0x2,
@@ -91,20 +91,20 @@ pub enum ExcelColumnKind {
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-pub struct ExcelPageDefinition {
+pub struct PageDefinition {
 	pub start_id: u32,
 	pub row_count: u32,
 }
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-pub struct ExcelLanguageDefinition {
+pub struct LanguageDefinition {
 	#[br(pad_after = 1)]
 	pub language: u8,
 	// unknown1: u8, // probably padding
 }
 
-impl ExcelLanguageDefinition {
+impl LanguageDefinition {
 	// Flatten the language struct into u8s
 	fn to_set(languages: Vec<Self>) -> HashSet<u8> {
 		languages.iter().map(|language| language.language).collect()

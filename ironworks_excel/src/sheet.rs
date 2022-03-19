@@ -5,9 +5,9 @@ use binrw::BinRead;
 use crate::{
 	error::{Error, Result},
 	excel::ExcelResource,
-	header::{ExcelHeader, ExcelSheetKind},
-	page::ExcelPage,
-	row::{ExcelRowHeader, ExcelSubrowHeader, RowReader},
+	header::{Header, SheetKind},
+	page::Page,
+	row::{RowHeader, RowReader, SubrowHeader},
 };
 
 const LANGUAGE_NONE: u8 = 0;
@@ -40,14 +40,14 @@ impl Default for RowOptions {
 
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
-pub struct RawExcelSheet<'a> {
+pub struct SheetReader<'a> {
 	sheet_name: String,
 	default_language: u8,
 
 	resource: Rc<dyn ExcelResource + 'a>,
 }
 
-impl<'a> RawExcelSheet<'a> {
+impl<'a> SheetReader<'a> {
 	// pub(crate)?
 	pub fn with_options(
 		sheet_name: &str,
@@ -64,33 +64,33 @@ impl<'a> RawExcelSheet<'a> {
 	// todo iterable rows?
 
 	#[inline]
-	pub fn get_row(&self, row_id: u32) -> Result<RowReader> {
-		self.get_subrow(row_id, 0)
+	pub fn row(&self, row_id: u32) -> Result<RowReader> {
+		self.subrow(row_id, 0)
 	}
 
 	#[inline]
-	pub fn get_subrow(&self, row_id: u32, subrow_id: u16) -> Result<RowReader> {
-		self.get_subrow_with_options(row_id, subrow_id, &RowOptions::new())
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<RowReader> {
+		self.subrow_with_options(row_id, subrow_id, &RowOptions::new())
 	}
 
 	#[inline]
-	pub fn get_row_with_options(&self, row_id: u32, options: &RowOptions) -> Result<RowReader> {
-		self.get_subrow_with_options(row_id, 0, options)
+	pub fn row_with_options(&self, row_id: u32, options: &RowOptions) -> Result<RowReader> {
+		self.subrow_with_options(row_id, 0, options)
 	}
 
 	// TODO: think about the api a bit. it might be nice to do something like
 	// sheet.with_options().language(...).get_row(N)
 	// "with options" is a bit weird there, think?
-	pub fn get_subrow_with_options(
+	pub fn subrow_with_options(
 		&self,
 		row_id: u32,
 		subrow_id: u16,
 		options: &RowOptions,
 	) -> Result<RowReader> {
-		let header = self.get_header()?;
+		let header = self.header()?;
 
 		// Only subrow sheets support a subrow > 0, fail early if possible.
-		if header.kind != ExcelSheetKind::Subrows && subrow_id > 0 {
+		if header.kind != SheetKind::Subrows && subrow_id > 0 {
 			// TODO: Improve error message.
 			return Err(Error::NotFound(format!("Subrow ID \"{}\"", subrow_id)));
 		}
@@ -113,7 +113,7 @@ impl<'a> RawExcelSheet<'a> {
 			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
 			.ok_or_else(|| Error::NotFound(format!("Row ID \"{}\"", row_id)))?;
 
-		let page = self.get_page(page_definition.start_id, *language)?;
+		let page = self.page(page_definition.start_id, *language)?;
 
 		// Find the row definition for the requested row. A failure here implies
 		// corrupt resources.
@@ -132,7 +132,7 @@ impl<'a> RawExcelSheet<'a> {
 		// Read the row's header.
 		let mut cursor = Cursor::new(&page.data);
 		cursor.set_position(row_definition.offset.into());
-		let row_header = ExcelRowHeader::read(&mut cursor).map_err(|error| {
+		let row_header = RowHeader::read(&mut cursor).map_err(|error| {
 			Error::InvalidResource(format!(
 				"Failed to read header of row {}: {}",
 				row_id, error
@@ -146,13 +146,13 @@ impl<'a> RawExcelSheet<'a> {
 
 		// Slice the page data for just the requested row.
 		let mut offset = cursor.position() as usize;
-		if header.kind == ExcelSheetKind::Subrows {
-			offset += subrow_id as usize * (header.row_size as usize + ExcelSubrowHeader::SIZE)
-				+ ExcelSubrowHeader::SIZE;
+		if header.kind == SheetKind::Subrows {
+			offset += subrow_id as usize * (header.row_size as usize + SubrowHeader::SIZE)
+				+ SubrowHeader::SIZE;
 		}
 
 		let mut length = header.row_size as usize;
-		if header.kind != ExcelSheetKind::Subrows {
+		if header.kind != SheetKind::Subrows {
 			length += row_header.data_size as usize
 		}
 
@@ -161,17 +161,17 @@ impl<'a> RawExcelSheet<'a> {
 		Ok(RowReader::new(row_id, subrow_id, header, data))
 	}
 
-	fn get_header(&self) -> Result<Rc<ExcelHeader>> {
+	fn header(&self) -> Result<Rc<Header>> {
 		// todo: cache
 		let bytes = self.resource.header(&self.sheet_name)?;
-		let header = ExcelHeader::from_bytes(bytes)?;
+		let header = Header::from_bytes(bytes)?;
 		Ok(Rc::new(header))
 	}
 
-	fn get_page(&self, start_id: u32, language: u8) -> Result<ExcelPage> {
+	fn page(&self, start_id: u32, language: u8) -> Result<Page> {
 		// TODO: cache
 		let bytes = self.resource.page(&self.sheet_name, start_id, language)?;
-		let page = ExcelPage::from_bytes(bytes)?;
+		let page = Page::from_bytes(bytes)?;
 		Ok(page)
 	}
 }

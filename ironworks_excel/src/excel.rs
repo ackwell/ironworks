@@ -2,8 +2,8 @@ use std::{fmt::Debug, rc::Rc};
 
 use crate::{
 	error::{Error, Result},
-	list::ExcelList,
-	sheet::{RawExcelSheet, SheetOptions},
+	list::List,
+	sheet::{SheetOptions, SheetReader},
 };
 
 pub type ResourceResult<T> = std::result::Result<T, anyhow::Error>;
@@ -44,15 +44,15 @@ impl<'a> Excel<'a> {
 		}
 	}
 
-	pub fn get_raw_sheet(&self, sheet_name: &str) -> Result<RawExcelSheet> {
-		let list = self.get_list()?;
+	pub fn sheet_reader(&self, sheet_name: &str) -> Result<SheetReader> {
+		let list = self.list()?;
 
 		if !list.has_sheet(sheet_name) {
 			return Err(Error::NotFound(format!("Sheet \"{}\"", sheet_name)));
 		}
 
 		// todo: possibly should cache the raw sheets
-		let sheet = RawExcelSheet::with_options(
+		let sheet = SheetReader::with_options(
 			sheet_name,
 			self.resource.clone(),
 			SheetOptions {
@@ -63,12 +63,10 @@ impl<'a> Excel<'a> {
 		Ok(sheet)
 	}
 
-	fn get_list(&self) -> Result<ExcelList> {
+	fn list(&self) -> Result<List> {
 		// todo: cache
 		let bytes = self.resource.list()?;
-		let list = ExcelList::from_bytes(bytes)?;
+		let list = List::from_bytes(bytes)?;
 		Ok(list)
 	}
 }
-
-// maybe like rawsheet is a self-impl of sheet which also uses sheetreader?

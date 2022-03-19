@@ -4,30 +4,29 @@ use binrw::{BinRead, BinReaderExt, NullString};
 
 use crate::{
 	error::Result,
-	header::{ExcelColumnDefinition, ExcelColumnKind, ExcelHeader},
+	header::{ColumnDefinition, ColumnKind, Header},
 	Error,
 };
 
-// TODO put this somewhere sensible
 #[derive(BinRead, Debug)]
 #[br(big)]
-pub struct ExcelRowHeader {
+pub struct RowHeader {
 	pub data_size: u32,
 	pub row_count: u16,
 }
 
 #[derive(BinRead, Debug)]
 #[br(big)]
-pub struct ExcelSubrowHeader {
+pub struct SubrowHeader {
 	subrow_id: u16,
 }
 
-impl ExcelSubrowHeader {
+impl SubrowHeader {
 	pub const SIZE: usize = 2;
 }
 
 #[derive(Debug)]
-pub enum ExcelField {
+pub enum Field {
 	String(SeString),
 
 	Bool(bool),
@@ -45,18 +44,17 @@ pub enum ExcelField {
 	F32(f32),
 }
 
-// TODO this is basically a raw row - standardise naming with the raw sheet. do we have a sheetreader and rowreader, or rawsheet and rawrow, or...
 #[derive(Debug)]
 pub struct RowReader {
 	pub row_id: u32,
 	pub subrow_id: u16,
 
-	header: Rc<ExcelHeader>,
+	header: Rc<Header>,
 	data: Vec<u8>,
 }
 
 impl RowReader {
-	pub fn new(row_id: u32, subrow_id: u16, header: Rc<ExcelHeader>, data: &[u8]) -> Self {
+	pub fn new(row_id: u32, subrow_id: u16, header: Rc<Header>, data: &[u8]) -> Self {
 		Self {
 			row_id,
 			subrow_id,
@@ -65,7 +63,7 @@ impl RowReader {
 		}
 	}
 
-	pub fn field(&self, column_index: u32) -> Result<ExcelField> {
+	pub fn field(&self, column_index: u32) -> Result<Field> {
 		// get column definition
 		let column = self
 			.header
@@ -87,42 +85,42 @@ impl RowReader {
 
 	fn read_field(
 		&self,
-		column: &ExcelColumnDefinition,
+		column: &ColumnDefinition,
 		mut cursor: &mut Cursor<&Vec<u8>>,
-	) -> Result<ExcelField, binrw::Error> {
+	) -> Result<Field, binrw::Error> {
 		match column.kind {
-			ExcelColumnKind::String => {
+			ColumnKind::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(string_offset as u64 + self.header.row_size as u64);
 				let string = SeString::read(&mut cursor)?;
-				Ok(ExcelField::String(string))
+				Ok(Field::String(string))
 			}
 
-			ExcelColumnKind::Bool => Ok(ExcelField::Bool(cursor.read_be::<u8>()? != 0)),
-			ExcelColumnKind::PackedBool0
-			| ExcelColumnKind::PackedBool1
-			| ExcelColumnKind::PackedBool2
-			| ExcelColumnKind::PackedBool3
-			| ExcelColumnKind::PackedBool4
-			| ExcelColumnKind::PackedBool5
-			| ExcelColumnKind::PackedBool6
-			| ExcelColumnKind::PackedBool7 => {
-				let mask = 1 << (column.kind as u16 - ExcelColumnKind::PackedBool0 as u16);
+			ColumnKind::Bool => Ok(Field::Bool(cursor.read_be::<u8>()? != 0)),
+			ColumnKind::PackedBool0
+			| ColumnKind::PackedBool1
+			| ColumnKind::PackedBool2
+			| ColumnKind::PackedBool3
+			| ColumnKind::PackedBool4
+			| ColumnKind::PackedBool5
+			| ColumnKind::PackedBool6
+			| ColumnKind::PackedBool7 => {
+				let mask = 1 << (column.kind as u16 - ColumnKind::PackedBool0 as u16);
 				let value = cursor.read_be::<u8>()?;
-				Ok(ExcelField::Bool((value & mask) == mask))
+				Ok(Field::Bool((value & mask) == mask))
 			}
 
-			ExcelColumnKind::Int8 => Ok(ExcelField::I8(cursor.read_be::<i8>()?)),
-			ExcelColumnKind::Int16 => Ok(ExcelField::I16(cursor.read_be::<i16>()?)),
-			ExcelColumnKind::Int32 => Ok(ExcelField::I32(cursor.read_be::<i32>()?)),
-			ExcelColumnKind::Int64 => Ok(ExcelField::I64(cursor.read_be::<i64>()?)),
+			ColumnKind::Int8 => Ok(Field::I8(cursor.read_be::<i8>()?)),
+			ColumnKind::Int16 => Ok(Field::I16(cursor.read_be::<i16>()?)),
+			ColumnKind::Int32 => Ok(Field::I32(cursor.read_be::<i32>()?)),
+			ColumnKind::Int64 => Ok(Field::I64(cursor.read_be::<i64>()?)),
 
-			ExcelColumnKind::UInt8 => Ok(ExcelField::U8(cursor.read_be::<u8>()?)),
-			ExcelColumnKind::UInt16 => Ok(ExcelField::U16(cursor.read_be::<u16>()?)),
-			ExcelColumnKind::UInt32 => Ok(ExcelField::U32(cursor.read_be::<u32>()?)),
-			ExcelColumnKind::UInt64 => Ok(ExcelField::U64(cursor.read_be::<u64>()?)),
+			ColumnKind::UInt8 => Ok(Field::U8(cursor.read_be::<u8>()?)),
+			ColumnKind::UInt16 => Ok(Field::U16(cursor.read_be::<u16>()?)),
+			ColumnKind::UInt32 => Ok(Field::U32(cursor.read_be::<u32>()?)),
+			ColumnKind::UInt64 => Ok(Field::U64(cursor.read_be::<u64>()?)),
 
-			ExcelColumnKind::Float32 => Ok(ExcelField::F32(cursor.read_be::<f32>()?)),
+			ColumnKind::Float32 => Ok(Field::F32(cursor.read_be::<f32>()?)),
 		}
 	}
 }
