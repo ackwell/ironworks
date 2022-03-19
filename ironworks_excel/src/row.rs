@@ -20,6 +20,8 @@ pub struct ExcelRowHeader {
 pub enum ExcelField {
 	String(SeString),
 
+	Bool(bool),
+
 	I8(i8),
 	I16(i16),
 	I32(i32),
@@ -67,6 +69,20 @@ impl RowReader {
 					cursor.set_position(string_offset as u64 + self.header.row_size as u64);
 					let string = SeString::read(&mut cursor)?;
 					Ok(ExcelField::String(string))
+				}
+
+				ExcelColumnKind::Bool => Ok(ExcelField::Bool(cursor.read_be::<u8>()? != 0)),
+				ExcelColumnKind::PackedBool0
+				| ExcelColumnKind::PackedBool1
+				| ExcelColumnKind::PackedBool2
+				| ExcelColumnKind::PackedBool3
+				| ExcelColumnKind::PackedBool4
+				| ExcelColumnKind::PackedBool5
+				| ExcelColumnKind::PackedBool6
+				| ExcelColumnKind::PackedBool7 => {
+					let mask = 1 << (column.kind as u16 - ExcelColumnKind::PackedBool0 as u16);
+					let value = cursor.read_be::<u8>()?;
+					Ok(ExcelField::Bool((value & mask) == mask))
 				}
 
 				ExcelColumnKind::Int8 => Ok(ExcelField::I8(cursor.read_be::<i8>()?)),

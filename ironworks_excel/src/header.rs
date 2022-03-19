@@ -61,7 +61,7 @@ pub struct ExcelColumnDefinition {
 	pub offset: u16,
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead, Clone, Copy, Debug)]
 #[br(big, repr = u16)]
 pub enum ExcelColumnKind {
 	String = 0x0,
