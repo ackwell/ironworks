@@ -19,6 +19,18 @@ pub struct ExcelRowHeader {
 #[derive(Debug)]
 pub enum ExcelField {
 	String(SeString),
+
+	I8(i8),
+	I16(i16),
+	I32(i32),
+	I64(i64),
+
+	U8(u8),
+	U16(u16),
+	U32(u32),
+	U64(u64),
+
+	F32(f32),
 }
 
 // TODO this is basically a raw row - standardise naming with the raw sheet. do we have a sheetreader and rowreader, or rawsheet and rawrow, or...
@@ -48,16 +60,36 @@ impl RowReader {
 		let mut cursor = Cursor::new(&self.data);
 		cursor.set_position(column.offset.into());
 
-		match column.kind {
-			ExcelColumnKind::String => {
-				// TODO: error handling
-				let string_offset = cursor.read_be::<u32>().unwrap();
-				cursor.set_position(string_offset as u64 + self.header.row_size as u64);
-				let string = SeString::read(&mut cursor).unwrap();
-				Ok(ExcelField::String(string))
+		let mut read_field = || -> Result<ExcelField, binrw::Error> {
+			match column.kind {
+				ExcelColumnKind::String => {
+					let string_offset = cursor.read_be::<u32>()?;
+					cursor.set_position(string_offset as u64 + self.header.row_size as u64);
+					let string = SeString::read(&mut cursor)?;
+					Ok(ExcelField::String(string))
+				}
+
+				ExcelColumnKind::Int8 => Ok(ExcelField::I8(cursor.read_be::<i8>()?)),
+				ExcelColumnKind::Int16 => Ok(ExcelField::I16(cursor.read_be::<i16>()?)),
+				ExcelColumnKind::Int32 => Ok(ExcelField::I32(cursor.read_be::<i32>()?)),
+				ExcelColumnKind::Int64 => Ok(ExcelField::I64(cursor.read_be::<i64>()?)),
+
+				ExcelColumnKind::UInt8 => Ok(ExcelField::U8(cursor.read_be::<u8>()?)),
+				ExcelColumnKind::UInt16 => Ok(ExcelField::U16(cursor.read_be::<u16>()?)),
+				ExcelColumnKind::UInt32 => Ok(ExcelField::U32(cursor.read_be::<u32>()?)),
+				ExcelColumnKind::UInt64 => Ok(ExcelField::U64(cursor.read_be::<u64>()?)),
+
+				ExcelColumnKind::Float32 => Ok(ExcelField::F32(cursor.read_be::<f32>()?)),
+				_ => todo!("column kind {:?}", column.kind),
 			}
-			_ => todo!("column kind {:?}", column.kind),
-		}
+		};
+
+		read_field().map_err(|error| {
+			Error::InvalidResource(format!(
+				"Failed to read {:?} at position {}: {}",
+				column.kind, column.offset, error
+			))
+		})
 	}
 }
 

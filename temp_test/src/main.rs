@@ -14,8 +14,8 @@ fn main() -> anyhow::Result<()> {
 		},
 	);
 	let sheet = excel.get_raw_sheet("CompanionTransient")?;
-	let row = sheet.get_row_with_options(101, &RowOptions::new().language(Language::German))?;
-	let field = row.read_field(4)?;
+	let row = sheet.get_row_with_options(101, RowOptions::new().language(Language::German))?;
+	let field = row.read_field(5)?;
 
 	println!("{:?}", field);
 

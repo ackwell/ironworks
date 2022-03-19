@@ -32,6 +32,12 @@ impl RowOptions {
 	}
 }
 
+impl Default for RowOptions {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 // TODO should this be ExcelRawSheet?
 #[derive(Debug)]
 pub struct RawExcelSheet<'a> {
