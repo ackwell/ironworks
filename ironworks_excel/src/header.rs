@@ -19,7 +19,7 @@ pub struct ExcelHeader {
 	// unknown1: u16,
 	// unknown2: u8,
 	#[br(pad_before = 3)]
-	kind: ExcelSheetKind,
+	pub kind: ExcelSheetKind,
 	// unknown3: u16,
 	#[br(pad_before = 2)]
 	row_count: u32,
@@ -46,9 +46,9 @@ impl ExcelHeader {
 	}
 }
 
-#[derive(BinRead, Debug)]
+#[derive(BinRead, Debug, PartialEq)]
 #[br(big, repr = u8)]
-enum ExcelSheetKind {
+pub enum ExcelSheetKind {
 	Unknown = 0,
 	Default = 1,
 	Subrows = 2,

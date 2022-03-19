@@ -13,9 +13,13 @@ fn main() -> anyhow::Result<()> {
 			default_language: Language::English.into(),
 		},
 	);
-	let sheet = excel.get_raw_sheet("CompanionTransient")?;
-	let row = sheet.get_row_with_options(101, RowOptions::new().language(Language::German))?;
-	let field = row.field(10)?;
+	// let sheet = excel.get_raw_sheet("CompanionTransient")?;
+	// let row = sheet.get_row_with_options(101, RowOptions::new().language(Language::German))?;
+	// let field = row.field(4)?;
+
+	let sheet = excel.get_raw_sheet("Behavior")?;
+	let row = sheet.get_subrow(30016, 3)?;
+	let field = row.field(4)?;
 
 	println!("{:?}", field);
 

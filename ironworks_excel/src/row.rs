@@ -13,7 +13,17 @@ use crate::{
 #[br(big)]
 pub struct ExcelRowHeader {
 	pub data_size: u32,
-	row_count: u16,
+	pub row_count: u16,
+}
+
+#[derive(BinRead, Debug)]
+#[br(big)]
+pub struct ExcelSubrowHeader {
+	subrow_id: u16,
+}
+
+impl ExcelSubrowHeader {
+	pub const SIZE: usize = 2;
 }
 
 #[derive(Debug)]
@@ -38,13 +48,18 @@ pub enum ExcelField {
 // TODO this is basically a raw row - standardise naming with the raw sheet. do we have a sheetreader and rowreader, or rawsheet and rawrow, or...
 #[derive(Debug)]
 pub struct RowReader {
+	pub row_id: u32,
+	pub subrow_id: u16,
+
 	header: Rc<ExcelHeader>,
 	data: Vec<u8>,
 }
 
 impl RowReader {
-	pub fn new(header: Rc<ExcelHeader>, data: &[u8]) -> Self {
+	pub fn new(row_id: u32, subrow_id: u16, header: Rc<ExcelHeader>, data: &[u8]) -> Self {
 		Self {
+			row_id,
+			subrow_id,
 			header,
 			data: data.to_vec(),
 		}

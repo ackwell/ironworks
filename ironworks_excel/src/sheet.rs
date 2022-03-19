@@ -5,9 +5,9 @@ use binrw::BinRead;
 use crate::{
 	error::{Error, Result},
 	excel::ExcelResource,
-	header::ExcelHeader,
+	header::{ExcelHeader, ExcelSheetKind},
 	page::ExcelPage,
-	row::{ExcelRowHeader, RowReader},
+	row::{ExcelRowHeader, ExcelSubrowHeader, RowReader},
 };
 
 const LANGUAGE_NONE: u8 = 0;
@@ -69,7 +69,7 @@ impl<'a> RawExcelSheet<'a> {
 	}
 
 	#[inline]
-	pub fn get_subrow(&self, row_id: u32, subrow_id: u32) -> Result<RowReader> {
+	pub fn get_subrow(&self, row_id: u32, subrow_id: u16) -> Result<RowReader> {
 		self.get_subrow_with_options(row_id, subrow_id, &RowOptions::new())
 	}
 
@@ -84,20 +84,26 @@ impl<'a> RawExcelSheet<'a> {
 	pub fn get_subrow_with_options(
 		&self,
 		row_id: u32,
-		subrow_id: u32,
+		subrow_id: u16,
 		options: &RowOptions,
 	) -> Result<RowReader> {
 		let header = self.get_header()?;
 
-		// todo doc
-		// todo do we want an explicit language request in row options to fail hard without defaulting?
-		let requested_language = options.language.unwrap_or(self.default_language);
+		// Only subrow sheets support a subrow > 0, fail early if possible.
+		if header.kind != ExcelSheetKind::Subrows && subrow_id > 0 {
+			// TODO: Improve error message.
+			return Err(Error::NotFound(format!("Subrow ID \"{}\"", subrow_id)));
+		}
 
+		// Get the language for strings, falling back to none if the sheet does not
+		// support it.
+		// TODO: do we want an explicit language request in row options to fail hard without defaulting?
+		let requested_language = options.language.unwrap_or(self.default_language);
 		let language = header
 			.languages
 			.get(&requested_language)
 			.or_else(|| header.languages.get(&LANGUAGE_NONE))
-			// todo: not conviced this should be notfound
+			// TODO: Not conviced this should be NotFound.
 			.ok_or_else(|| Error::NotFound(format!("Language \"{}\"", requested_language)))?;
 
 		// Find the page definition for the requested row, if any.
@@ -116,24 +122,43 @@ impl<'a> RawExcelSheet<'a> {
 			.rows
 			.iter()
 			.find(|row| row.row_id == row_id)
-			// todo: maybe okorelse this with an invalid resource?
-			.expect("Requested row ID is not defined by the provided page.");
+			.ok_or_else(|| {
+				Error::InvalidResource(format!(
+					"Row ID {} found in sheet header, but provided page does not define it.",
+					row_id,
+				))
+			})?;
 
 		// Read the row's header.
-		// TODO: handle subrows + validation
 		let mut cursor = Cursor::new(&page.data);
 		cursor.set_position(row_definition.offset.into());
-		let row_header = ExcelRowHeader::read(&mut cursor).unwrap();
+		let row_header = ExcelRowHeader::read(&mut cursor).map_err(|error| {
+			Error::InvalidResource(format!(
+				"Failed to read header of row {}: {}",
+				row_id, error
+			))
+		})?;
+
+		// Make sure the requested subrow ID is available from this row.
+		if subrow_id >= row_header.row_count {
+			return Err(Error::NotFound(format!("Subrow ID \"{}\"", subrow_id)));
+		}
 
 		// Slice the page data for just the requested row.
-		let offset = cursor.position() as usize;
-		// TODO: Check data_length behavior on a subrow sheet.
-		let length = header.row_size as usize + row_header.data_size as usize;
+		let mut offset = cursor.position() as usize;
+		if header.kind == ExcelSheetKind::Subrows {
+			offset += subrow_id as usize * (header.row_size as usize + ExcelSubrowHeader::SIZE)
+				+ ExcelSubrowHeader::SIZE;
+		}
+
+		let mut length = header.row_size as usize;
+		if header.kind != ExcelSheetKind::Subrows {
+			length += row_header.data_size as usize
+		}
+
 		let data = &page.data[offset..offset + length];
 
-		let row_reader = RowReader::new(header, data);
-
-		Ok(row_reader)
+		Ok(RowReader::new(row_id, subrow_id, header, data))
 	}
 
 	fn get_header(&self) -> Result<Rc<ExcelHeader>> {
