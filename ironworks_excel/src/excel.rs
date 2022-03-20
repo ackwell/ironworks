@@ -1,4 +1,4 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 use crate::{
 	error::{Error, Result},
@@ -29,6 +29,8 @@ impl ExcelOptions {
 pub struct Excel<'a> {
 	default_language: u8,
 	resource: Rc<dyn ExcelResource + 'a>,
+
+	list: RefCell<Option<Rc<List>>>,
 }
 
 impl<'a> Excel<'a> {
@@ -41,6 +43,8 @@ impl<'a> Excel<'a> {
 		Self {
 			default_language: options.default_language,
 			resource: Rc::new(resource),
+
+			list: None.into(),
 		}
 	}
 
@@ -63,10 +67,14 @@ impl<'a> Excel<'a> {
 		Ok(sheet)
 	}
 
-	fn list(&self) -> Result<List> {
-		// todo: cache
-		let bytes = self.resource.list()?;
-		let list = List::from_bytes(bytes)?;
-		Ok(list)
+	fn list(&self) -> Result<Rc<List>> {
+		match &mut *self.list.borrow_mut() {
+			Some(list) => Ok(list.clone()),
+			option @ None => {
+				let bytes = self.resource.list()?;
+				let list = List::from_bytes(bytes)?;
+				Ok(option.insert(Rc::new(list)).clone())
+			}
+		}
 	}
 }

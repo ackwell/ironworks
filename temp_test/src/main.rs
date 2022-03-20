@@ -6,16 +6,17 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 fn main() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
-	// let excel = Excel::new(SqPackResource::new(&sqpack));
 	let excel = Excel::with_options(
 		SqPackResource::new(&sqpack),
 		ExcelOptions {
 			default_language: Language::English.into(),
 		},
 	);
-	// let sheet = excel.get_raw_sheet("CompanionTransient")?;
-	// let row = sheet.get_row_with_options(101, RowOptions::new().language(Language::German))?;
-	// let field = row.field(4)?;
+
+	let sheet = excel.sheet_reader("CompanionTransient")?;
+	let row = sheet.row_with_options(101, RowOptions::new().language(Language::German))?;
+	let field = row.field(4)?;
+	println!("{:?}", field);
 
 	let sheet = excel.sheet_reader("Behavior")?;
 	let row = sheet.subrow(30016, 3)?;
