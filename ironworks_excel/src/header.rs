@@ -8,6 +8,7 @@ use crate::error::{Error, Result};
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
 pub struct Header {
+	#[allow(dead_code)]
 	version: u16,
 	pub row_size: u16,
 	#[br(temp)]
@@ -21,6 +22,7 @@ pub struct Header {
 	#[br(pad_before = 3)]
 	pub kind: SheetKind,
 	// unknown3: u16,
+	#[allow(dead_code)]
 	#[br(pad_before = 2)]
 	row_count: u32,
 	// unknown4: [u32; 2]

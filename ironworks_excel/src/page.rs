@@ -8,6 +8,7 @@ use crate::error::{Error, Result};
 #[derive(Debug)]
 #[br(big, magic = b"EXDF")]
 pub struct PageHeader {
+	#[allow(dead_code)]
 	version: u16,
 	// unknown1: u16,
 	#[br(pad_before = 2, temp)]

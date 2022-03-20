@@ -18,6 +18,7 @@ pub struct RowHeader {
 #[derive(BinRead, Debug)]
 #[br(big)]
 pub struct SubrowHeader {
+	#[allow(dead_code)]
 	subrow_id: u16,
 }
 
@@ -129,5 +130,6 @@ impl RowReader {
 #[derive(BinRead, Debug)]
 #[br(big)]
 pub struct SeString {
+	#[allow(dead_code)]
 	raw: NullString,
 }
