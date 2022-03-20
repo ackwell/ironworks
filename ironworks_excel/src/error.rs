@@ -7,22 +7,7 @@ pub enum Error {
 	NotFound(String),
 
 	#[error(transparent)]
-	Downstream(anyhow::Error),
-}
-
-// TODO: the below is no longer correct. remove?
-// Due to the nature of the ExcelResource trait, it's expected that an anyhow::Error
-// returned by a resource function could be a first-party error. To avoid blindly
-// bubbling our own errors up as a Downstream, we're manually implementing From
-// here and trying to downcast to ourselves - only wrapping in Downstream if that
-// is not possible.
-impl From<anyhow::Error> for Error {
-	fn from(error: anyhow::Error) -> Self {
-		match error.downcast::<Error>() {
-			Ok(error) => error,
-			Err(error) => Error::Downstream(error),
-		}
-	}
+	Downstream(#[from] anyhow::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

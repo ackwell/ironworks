@@ -38,7 +38,6 @@ impl Default for RowOptions {
 	}
 }
 
-// TODO should this be ExcelRawSheet?
 #[derive(Debug)]
 pub struct SheetReader<'a> {
 	sheet_name: String,
