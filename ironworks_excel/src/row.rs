@@ -1,10 +1,11 @@
 use std::{io::Cursor, rc::Rc};
 
-use binrw::{BinRead, BinReaderExt, NullString};
+use binrw::{BinRead, BinReaderExt};
 
 use crate::{
 	error::Result,
 	header::{ColumnDefinition, ColumnKind, Header},
+	string::SeString,
 	Error,
 };
 
@@ -124,12 +125,4 @@ impl RowReader {
 			ColumnKind::Float32 => Ok(Field::F32(cursor.read_be::<f32>()?)),
 		}
 	}
-}
-
-// TODO: this shouldn't be here
-#[derive(BinRead, Debug)]
-#[br(big)]
-pub struct SeString {
-	#[allow(dead_code)]
-	raw: NullString,
 }
