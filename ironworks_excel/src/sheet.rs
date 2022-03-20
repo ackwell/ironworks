@@ -1,4 +1,9 @@
-use std::{io::Cursor, rc::Rc};
+use std::{
+	cell::RefCell,
+	collections::{hash_map::Entry, HashMap},
+	io::Cursor,
+	rc::Rc,
+};
 
 use binrw::BinRead;
 
@@ -44,6 +49,9 @@ pub struct SheetReader<'a> {
 	default_language: u8,
 
 	resource: Rc<dyn ExcelResource + 'a>,
+
+	header: RefCell<Option<Rc<Header>>>,
+	pages: RefCell<HashMap<(u32, u8), Rc<Page>>>,
 }
 
 impl<'a> SheetReader<'a> {
@@ -56,7 +64,11 @@ impl<'a> SheetReader<'a> {
 		Self {
 			sheet_name: sheet_name.into(),
 			default_language: options.default_language,
+
 			resource,
+
+			header: Default::default(),
+			pages: Default::default(),
 		}
 	}
 
@@ -161,16 +173,24 @@ impl<'a> SheetReader<'a> {
 	}
 
 	fn header(&self) -> Result<Rc<Header>> {
-		// todo: cache
-		let bytes = self.resource.header(&self.sheet_name)?;
-		let header = Header::from_bytes(bytes)?;
-		Ok(Rc::new(header))
+		match &mut *self.header.borrow_mut() {
+			Some(header) => Ok(header.clone()),
+			option @ None => {
+				let bytes = self.resource.header(&self.sheet_name)?;
+				let header = Header::from_bytes(bytes)?;
+				Ok(option.insert(header.into()).clone())
+			}
+		}
 	}
 
-	fn page(&self, start_id: u32, language: u8) -> Result<Page> {
-		// TODO: cache
-		let bytes = self.resource.page(&self.sheet_name, start_id, language)?;
-		let page = Page::from_bytes(bytes)?;
-		Ok(page)
+	fn page(&self, start_id: u32, language: u8) -> Result<Rc<Page>> {
+		match self.pages.borrow_mut().entry((start_id, language)) {
+			Entry::Occupied(entry) => Ok(entry.get().clone()),
+			Entry::Vacant(entry) => {
+				let bytes = self.resource.page(&self.sheet_name, start_id, language)?;
+				let page = Page::from_bytes(bytes)?;
+				Ok(entry.insert(page.into()).clone())
+			}
+		}
 	}
 }

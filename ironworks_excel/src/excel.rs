@@ -73,7 +73,7 @@ impl<'a> Excel<'a> {
 			option @ None => {
 				let bytes = self.resource.list()?;
 				let list = List::from_bytes(bytes)?;
-				Ok(option.insert(Rc::new(list)).clone())
+				Ok(option.insert(list.into()).clone())
 			}
 		}
 	}
