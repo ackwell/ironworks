@@ -6,6 +6,7 @@ pub enum Error {
 	#[error("Not found: {0}")]
 	NotFound(String),
 
+	// TODO remove?
 	#[error(transparent)]
 	Downstream(#[from] anyhow::Error),
 }
