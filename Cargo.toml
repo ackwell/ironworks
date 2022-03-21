@@ -3,6 +3,7 @@ members = [
 	"excel",
 	"ffxiv",
 	"schema/core",
+	"schema/saint_coinach",
 	"sqpack",
 
 	"temp_test",

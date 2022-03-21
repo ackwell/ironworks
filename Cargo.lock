@@ -98,6 +98,10 @@ name = "ironworks_schema_core"
 version = "0.1.0"
 
 [[package]]
+name = "ironworks_schema_saint_coinach"
+version = "0.1.0"
+
+[[package]]
 name = "ironworks_sqpack"
 version = "0.1.0"
 dependencies = [
