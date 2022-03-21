@@ -2,6 +2,7 @@
 members = [
 	"ironworks_excel",
 	"ironworks_ffxiv",
+	"ironworks_schema",
 	"ironworks_sqpack",
 
 	"temp_test",
