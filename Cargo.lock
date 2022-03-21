@@ -94,7 +94,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ironworks_schema"
+name = "ironworks_schema_core"
 version = "0.1.0"
 
 [[package]]
