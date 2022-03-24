@@ -153,6 +153,7 @@ name = "ironworks_schema_saint_coinach"
 version = "0.1.0"
 dependencies = [
  "git2",
+ "thiserror",
 ]
 
 [[package]]

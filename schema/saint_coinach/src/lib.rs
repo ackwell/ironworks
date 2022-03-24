@@ -13,6 +13,26 @@ use git2::{build::RepoBuilder, Repository};
 const REPOSITORY_URL: &str = "https://github.com/xivapi/SaintCoinach.git";
 const REPOSITORY_DIRECTORY: &str = "saint_coinach";
 
+#[derive(thiserror::Error, Debug)]
+enum Error {
+	// TODO: I should probably make the not found errors more data-y, like _what_ wasn't found _where_, etc.
+	#[error("Not found: {0}")]
+	NotFound(String),
+
+	// TODO: This exposes the fact that we _use_ git, but not the impl details of git2. is that enough? is that too much? I'm not sure.
+	#[error("Git error: {0}")]
+	Git(String),
+}
+
+// TODO: aaaaaa i don't knoooow
+impl From<git2::Error> for Error {
+	fn from(error: git2::Error) -> Self {
+		Error::Git(error.to_string())
+	}
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 // todo: name?
 #[derive(Debug)]
 struct SaintCoinachSchemaOptions {
@@ -39,7 +59,7 @@ impl SaintCoinachSchemaOptions {
 	}
 
 	#[inline]
-	fn build(&self) -> SaintCoinachSchema {
+	fn build(&self) -> Result<SaintCoinachSchema> {
 		SaintCoinachSchema::with_options(self)
 	}
 }
@@ -51,7 +71,7 @@ struct SaintCoinachSchema {
 
 impl SaintCoinachSchema {
 	#[inline]
-	fn new() -> Self {
+	fn new() -> Result<Self> {
 		Self::with_options(&Self::options())
 	}
 
@@ -60,13 +80,18 @@ impl SaintCoinachSchema {
 		SaintCoinachSchemaOptions::new()
 	}
 
-	fn with_options(options: &SaintCoinachSchemaOptions) -> Self {
+	fn with_options(options: &SaintCoinachSchemaOptions) -> Result<Self> {
 		// todo: look into fs::canonicalize but it sounds like it only works for pre-existing stuff
-		let directory = options.directory.clone().or_else(default_directory);
-
-		// TODO: handle error
-		let directory =
-			directory.expect("dir not found or not provided or something fucky went wrong pls fix");
+		let directory = options
+			.directory
+			.clone()
+			.or_else(default_directory)
+			.ok_or_else(|| {
+				Error::NotFound(
+					"No directory was provided, and default directory could not be resolved."
+						.to_string(),
+				)
+			})?;
 
 		let remote = options
 			.remote
@@ -74,15 +99,27 @@ impl SaintCoinachSchema {
 			.unwrap_or_else(|| REPOSITORY_URL.to_string());
 
 		let repository = if directory.exists() {
-			Repository::open_bare(directory)
+			let repository = Repository::open_bare(&directory)?;
+			// If the pre-existing repository points to an origin we didn't expect,
+			// fail out now so it doesn't do something weird later.
+			match repository.find_remote("origin")?.url() {
+				Some(url) if url == remote => (),
+				url => {
+					return Err(Error::Git(format!(
+						"Repository at {:?} has origin {}, expected {}.",
+						&directory,
+						url.unwrap_or("(none)"),
+						remote
+					)))
+				}
+			}
+
+			repository
 		} else {
-			RepoBuilder::new().bare(true).clone(&remote, &directory)
+			RepoBuilder::new().bare(true).clone(&remote, &directory)?
 		};
 
-		// TODO: handle error
-		let repository = repository.unwrap();
-
-		Self { repository }
+		Ok(Self { repository })
 	}
 }
 
@@ -96,7 +133,7 @@ fn default_directory() -> Option<PathBuf> {
 }
 
 pub fn test() {
-	let schema = SaintCoinachSchema::new();
+	let schema = SaintCoinachSchema::new().unwrap();
 
 	// cool so construction is... dealt with. need to work out the api. having some way to canonicalise a "version" into a true version is important for yes reasons
 	// given we probably want to trait most of this, perhaps a trait + struct impl - for stc impl it can probably be a wrapper around a git2 Oid?
@@ -116,8 +153,6 @@ pub fn test() {
 		.unwrap()
 		.into_tree()
 		.unwrap();
-
-	// println!("reference {:?}", foo.kind());
 
 	definition_tree
 		.iter()
