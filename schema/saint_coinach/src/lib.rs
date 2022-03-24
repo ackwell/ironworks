@@ -64,11 +64,6 @@ impl SaintCoinachSchemaOptions {
 	}
 }
 
-// this should impl a "version" trait or something
-struct SaintCoinachVersion {
-	oid: Oid,
-}
-
 // TODO: can't derive debug on this due to repo - look into crates like `derivative` to handle?
 struct SaintCoinachSchema {
 	repository: Repository,
@@ -129,14 +124,12 @@ impl SaintCoinachSchema {
 		Ok(Self { repository })
 	}
 
-	fn canonicalize_version(&self, spec: &str) -> Result<SaintCoinachVersion> {
+	fn version(&self, spec: &str) -> Result<SaintCoinachVersion> {
 		let commit = self.repository.revparse_single(spec)?.peel_to_commit()?;
-
-		// In a cache miss situation, this will result in looking up the commit
-		// object itself twice, as we're basically just tossing the commit at this
-		// point. Look into if it's worth storing the commit itself in the version
-		// object - can probably define a Hash impl that just uses the commit ID manually?
-		Ok(SaintCoinachVersion { oid: commit.id() })
+		Ok(SaintCoinachVersion {
+			repository: &self.repository,
+			commit,
+		})
 	}
 }
 
@@ -149,30 +142,52 @@ fn default_directory() -> Option<PathBuf> {
 	}
 }
 
+// this should impl a "version" trait or something
+struct SaintCoinachVersion<'repo> {
+	repository: &'repo Repository,
+	commit: Commit<'repo>,
+}
+
+impl SaintCoinachVersion<'_> {
+	// thoughts; for hash map keying & stuff
+	fn id(&self) -> impl Eq + Hash + Display {
+		self.commit.id()
+	}
+
+	// fn schemas -> iter
+
+	fn schema(&self, sheet: &str) -> Result<()> {
+		let definition_tree = self.temp_get_def_tree()?;
+		// TODO: can probably skip this double-tap by having the tree lookup take Option<str> or something and return at the Object point, leave the object cast for the consumer
+		let foo = definition_tree
+			.get_name(&format!("{}.json", sheet))
+			.expect("TODO HANDLE ME");
+		let bar = foo.to_object(self.repository).expect("what is going on");
+		let baz = bar.as_blob().expect("should be a blob");
+		let qux = baz.content();
+		println!("{}", String::from_utf8_lossy(qux));
+		Ok(())
+	}
+
+	fn temp_get_def_tree(&self) -> Result<Tree<'_>, git2::Error> {
+		let tree = self
+			.commit
+			.tree()?
+			.get_path(Path::new("SaintCoinach/Definitions"))?
+			.to_object(self.repository)?
+			.into_tree()
+			.expect("SHIT IS VERY BROKEN");
+		Ok(tree)
+	}
+}
+
 pub fn test() {
 	let schema = SaintCoinachSchema::new().unwrap();
-	// let version = schema.canonicalize_version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
-	// let version = schema.canonicalize_version("69caa7e14fed1caaeb2089").unwrap();
-	// let version = schema.canonicalize_version("refs/tags/69caa7e").unwrap();
-	let version = schema.canonicalize_version("HEAD").unwrap();
-	// let version = schema.canonicalize_version("master").unwrap();
+	// let version = schema.version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
+	// let version = schema.version("69caa7e14fed1caaeb2089").unwrap();
+	// let version = schema.version("refs/tags/69caa7e").unwrap();
+	let version = schema.version("HEAD").unwrap();
+	// let version = schema.version("master").unwrap();
 
-	// cool so construction is... dealt with. need to work out the api. having some way to canonicalise a "version" into a true version is important for yes reasons
-	// given we probably want to trait most of this, perhaps a trait + struct impl - for stc impl it can probably be a wrapper around a git2 Oid?
-	let definition_tree = schema
-		.repository
-		.find_commit(version.oid)
-		.unwrap()
-		.tree()
-		.unwrap()
-		.get_path(Path::new("SaintCoinach/Definitions"))
-		.unwrap()
-		.to_object(&schema.repository)
-		.unwrap()
-		.into_tree()
-		.unwrap();
-
-	definition_tree
-		.iter()
-		.for_each(|e| println!("{:?}", e.name()))
+	version.schema("AOZBoss").unwrap();
 }
