@@ -3,8 +3,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use git2::{build::RepoBuilder, Repository};
-use log::{info, trace};
+use git2::{build::RepoBuilder, Oid, Repository};
 
 // need to build some trait that represents what a "schema provider" looks like (ref manacutter probably)
 // impl of that trait for stc can probably own a repository ref and do lazy lookups into the object db
@@ -65,6 +64,11 @@ impl SaintCoinachSchemaOptions {
 	}
 }
 
+// this should impl a "version" trait or something
+struct SaintCoinachVersion {
+	oid: Oid,
+}
+
 // TODO: can't derive debug on this due to repo - look into crates like `derivative` to handle?
 struct SaintCoinachSchema {
 	repository: Repository,
@@ -115,14 +119,24 @@ impl SaintCoinachSchema {
 				}
 			}
 
-			trace!("Opened SaintCoinach at {:?}", directory);
+			log::trace!("Opened SaintCoinach at {:?}", directory);
 			repository
 		} else {
-			info!("Cloning SaintCoinach from {} to {:?}", remote, directory);
+			log::info!("Cloning SaintCoinach from {} to {:?}", remote, directory);
 			RepoBuilder::new().bare(true).clone(&remote, &directory)?
 		};
 
 		Ok(Self { repository })
+	}
+
+	fn canonicalize_version(&self, spec: &str) -> Result<SaintCoinachVersion> {
+		let commit = self.repository.revparse_single(spec)?.peel_to_commit()?;
+
+		// In a cache miss situation, this will result in looking up the commit
+		// object itself twice, as we're basically just tossing the commit at this
+		// point. Look into if it's worth storing the commit itself in the version
+		// object - can probably define a Hash impl that just uses the commit ID manually?
+		Ok(SaintCoinachVersion { oid: commit.id() })
 	}
 }
 
@@ -137,17 +151,18 @@ fn default_directory() -> Option<PathBuf> {
 
 pub fn test() {
 	let schema = SaintCoinachSchema::new().unwrap();
+	// let version = schema.canonicalize_version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
+	// let version = schema.canonicalize_version("69caa7e14fed1caaeb2089").unwrap();
+	// let version = schema.canonicalize_version("refs/tags/69caa7e").unwrap();
+	let version = schema.canonicalize_version("HEAD").unwrap();
+	// let version = schema.canonicalize_version("master").unwrap();
 
 	// cool so construction is... dealt with. need to work out the api. having some way to canonicalise a "version" into a true version is important for yes reasons
 	// given we probably want to trait most of this, perhaps a trait + struct impl - for stc impl it can probably be a wrapper around a git2 Oid?
-	let commit = schema
+	let definition_tree = schema
 		.repository
-		.find_reference("HEAD")
+		.find_commit(version.oid)
 		.unwrap()
-		.peel_to_commit()
-		.unwrap();
-
-	let definition_tree = commit
 		.tree()
 		.unwrap()
 		.get_path(Path::new("SaintCoinach/Definitions"))
