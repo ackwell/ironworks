@@ -9,4 +9,5 @@ edition = "2021"
 anyhow = "1.0.55"
 ironworks_excel = {path = "../excel"}
 ironworks_ffxiv = {path = "../ffxiv"}
+ironworks_schema_saint_coinach = {path = "../schema/saint_coinach"}
 ironworks_sqpack = {path = "../sqpack"}

@@ -1,8 +1,23 @@
 use ironworks_excel::{Excel, ExcelOptions, RowOptions};
 use ironworks_ffxiv::{ExcelSqPack, Language, SqPackFfxiv};
+use ironworks_schema_saint_coinach::test;
 use ironworks_sqpack::SqPack;
 
 fn main() -> anyhow::Result<()> {
+	stc_test()?;
+	// excel_test()?;
+
+	Ok(())
+}
+
+#[allow(dead_code)]
+fn stc_test() -> anyhow::Result<()> {
+	test();
+	Ok(())
+}
+
+#[allow(dead_code)]
+fn excel_test() -> anyhow::Result<()> {
 	let sqpack = SqPack::ffxiv()?;
 
 	let excel = Excel::sqpack_with_options(
