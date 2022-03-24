@@ -1,9 +1,7 @@
-use std::{
-	env::current_exe,
-	path::{Path, PathBuf},
-};
+use std::{env::current_exe, fmt::Display, hash::Hash, path::PathBuf};
 
-use git2::{build::RepoBuilder, Oid, Repository};
+use git2::{build::RepoBuilder, Commit, Repository, Tree};
+use lazy_static::lazy_static;
 
 // need to build some trait that represents what a "schema provider" looks like (ref manacutter probably)
 // impl of that trait for stc can probably own a repository ref and do lazy lookups into the object db
@@ -12,6 +10,10 @@ use git2::{build::RepoBuilder, Oid, Repository};
 // Default configuration
 const REPOSITORY_URL: &str = "https://github.com/xivapi/SaintCoinach.git";
 const REPOSITORY_DIRECTORY: &str = "saint_coinach";
+
+lazy_static! {
+	static ref DEFINITION_PATH: PathBuf = ["SaintCoinach", "Definitions"].iter().collect();
+}
 
 #[derive(thiserror::Error, Debug)]
 enum Error {
@@ -173,7 +175,7 @@ impl SaintCoinachVersion<'_> {
 		let tree = self
 			.commit
 			.tree()?
-			.get_path(Path::new("SaintCoinach/Definitions"))?
+			.get_path(&DEFINITION_PATH)?
 			.to_object(self.repository)?
 			.into_tree()
 			.expect("SHIT IS VERY BROKEN");

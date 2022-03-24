@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 git2 = "0.14.2"
+lazy_static = "1.4.0"
 log = "0.4.16"
 thiserror = "1.0.30"
