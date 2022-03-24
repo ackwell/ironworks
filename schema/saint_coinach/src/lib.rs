@@ -1,6 +1,11 @@
-use std::{env::current_exe, fmt::Display, hash::Hash, path::PathBuf};
+use std::{
+	env::current_exe,
+	fmt::Display,
+	hash::Hash,
+	path::{Path, PathBuf},
+};
 
-use git2::{build::RepoBuilder, Commit, Repository, Tree};
+use git2::{build::RepoBuilder, Commit, Object, Repository};
 use lazy_static::lazy_static;
 
 // need to build some trait that represents what a "schema provider" looks like (ref manacutter probably)
@@ -159,27 +164,19 @@ impl SaintCoinachVersion<'_> {
 	// fn schemas -> iter
 
 	fn schema(&self, sheet: &str) -> Result<()> {
-		let definition_tree = self.temp_get_def_tree()?;
-		// TODO: can probably skip this double-tap by having the tree lookup take Option<str> or something and return at the Object point, leave the object cast for the consumer
-		let foo = definition_tree
-			.get_name(&format!("{}.json", sheet))
-			.expect("TODO HANDLE ME");
-		let bar = foo.to_object(self.repository).expect("what is going on");
+		let path = DEFINITION_PATH.join(format!("{}.json", sheet));
+		let bar = self.object_at_path(&path).expect("TODO HANDLE ME");
 		let baz = bar.as_blob().expect("should be a blob");
 		let qux = baz.content();
 		println!("{}", String::from_utf8_lossy(qux));
 		Ok(())
 	}
 
-	fn temp_get_def_tree(&self) -> Result<Tree<'_>, git2::Error> {
-		let tree = self
-			.commit
+	fn object_at_path(&self, path: &Path) -> Result<Object<'_>, git2::Error> {
+		self.commit
 			.tree()?
-			.get_path(&DEFINITION_PATH)?
-			.to_object(self.repository)?
-			.into_tree()
-			.expect("SHIT IS VERY BROKEN");
-		Ok(tree)
+			.get_path(path)?
+			.to_object(self.repository)
 	}
 }
 
