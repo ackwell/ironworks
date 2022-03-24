@@ -4,6 +4,8 @@ use ironworks_schema_saint_coinach::test;
 use ironworks_sqpack::SqPack;
 
 fn main() -> anyhow::Result<()> {
+	env_logger::init();
+
 	stc_test()?;
 	// excel_test()?;
 

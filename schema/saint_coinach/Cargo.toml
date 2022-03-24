@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 git2 = "0.14.2"
+log = "0.4.16"
 thiserror = "1.0.30"

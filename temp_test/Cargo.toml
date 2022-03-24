@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.55"
+env_logger = "0.9.0"
 ironworks_excel = {path = "../excel"}
 ironworks_ffxiv = {path = "../ffxiv"}
 ironworks_schema_saint_coinach = {path = "../schema/saint_coinach"}

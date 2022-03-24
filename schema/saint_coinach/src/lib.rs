@@ -4,6 +4,7 @@ use std::{
 };
 
 use git2::{build::RepoBuilder, Repository};
+use log::{info, trace};
 
 // need to build some trait that represents what a "schema provider" looks like (ref manacutter probably)
 // impl of that trait for stc can probably own a repository ref and do lazy lookups into the object db
@@ -114,8 +115,10 @@ impl SaintCoinachSchema {
 				}
 			}
 
+			trace!("Opened SaintCoinach at {:?}", directory);
 			repository
 		} else {
+			info!("Cloning SaintCoinach from {} to {:?}", remote, directory);
 			RepoBuilder::new().bare(true).clone(&remote, &directory)?
 		};
 
