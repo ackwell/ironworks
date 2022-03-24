@@ -98,5 +98,28 @@ fn default_directory() -> Option<PathBuf> {
 pub fn test() {
 	let schema = SaintCoinachSchema::new();
 
-	println!("yay:{}", schema.repository.head().unwrap().name().unwrap())
+	// cool so construction is... dealt with. need to work out the api. having some way to canonicalise a "version" into a true version is important for yes reasons
+	// given we probably want to trait most of this, perhaps a trait + struct impl - for stc impl it can probably be a wrapper around a git2 Oid?
+	let commit = schema
+		.repository
+		.find_reference("HEAD")
+		.unwrap()
+		.peel_to_commit()
+		.unwrap();
+
+	let definition_tree = commit
+		.tree()
+		.unwrap()
+		.get_path(Path::new("SaintCoinach/Definitions"))
+		.unwrap()
+		.to_object(&schema.repository)
+		.unwrap()
+		.into_tree()
+		.unwrap();
+
+	// println!("reference {:?}", foo.kind());
+
+	definition_tree
+		.iter()
+		.for_each(|e| println!("{:?}", e.name()))
 }
