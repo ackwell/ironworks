@@ -1,4 +1,5 @@
 use std::{
+	collections::HashMap,
 	env::current_exe,
 	fmt::Display,
 	hash::Hash,
@@ -6,7 +7,9 @@ use std::{
 };
 
 use git2::{build::RepoBuilder, Commit, Object, Repository};
+use ironworks_schema_core::{Node, ScalarNode, StructNode};
 use lazy_static::lazy_static;
+use serde_json::Value;
 
 // need to build some trait that represents what a "schema provider" looks like (ref manacutter probably)
 // impl of that trait for stc can probably own a repository ref and do lazy lookups into the object db
@@ -29,6 +32,9 @@ enum Error {
 	// TODO: This exposes the fact that we _use_ git, but not the impl details of git2. is that enough? is that too much? I'm not sure.
 	#[error("Repository error: {0}")]
 	Repository(String),
+
+	#[error("Schema error: {0}")]
+	Schema(String),
 }
 
 // TODO: aaaaaa i don't knoooow. if kept, doc(hidden)?
@@ -185,6 +191,12 @@ impl SaintCoinachVersion<'_> {
 		})?;
 
 		println!("{}", String::from_utf8_lossy(blob.content()));
+
+		let foo = serde_json::from_slice::<Value>(blob.content());
+		let def = read_sheet_definition(&foo.unwrap());
+
+		println!("def {:#?}", def);
+
 		Ok(())
 	}
 
@@ -194,6 +206,128 @@ impl SaintCoinachVersion<'_> {
 			.get_path(path)?
 			.to_object(self.repository)
 	}
+}
+
+/// See also:
+/// - [SheetDefinition.cs#L157](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SheetDefinition.cs#L157)
+/// - [PositionedDataDefinition.cs#L71](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/PositionedDataDefinition.cs#L71)
+fn read_sheet_definition(value: &Value) -> Result<Node> {
+	let mut nodes = HashMap::<String, (u32, Node)>::new();
+
+	let definitions = value.get("definitions").and_then(Value::as_array);
+	for definition in definitions.iter().flat_map(|x| *x) {
+		// PositionedDataDefinition inlined as it's only used in one location, and makes setting up the struct fields simpler
+		let index = definition
+			.get("index")
+			.and_then(|value| value.as_u64())
+			.unwrap_or(0);
+
+		// do we want to retun name? what's that about
+		// TODO: This effectively shortcuts the entire read if an error bubbles up - is that the behavior we want? probably?
+		let (node, name) = read_data_definition(definition)?;
+
+		nodes.insert(
+			name.unwrap_or_else(|| format!("Unnamed{}", index)),
+			(index.try_into().unwrap(), node),
+		);
+	}
+
+	// TODO this isn't very ergonomic. should we have sugar Node::new_struct or something?
+	Ok(Node::Struct(StructNode::new(nodes)))
+}
+
+/// See also:
+/// - [IDataDefinition.cs#L34](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/IDataDefinition.cs#L34)
+fn read_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
+	match value.get("type").and_then(Value::as_str) {
+		None => read_single_data_definition(value),
+		Some("group") => read_group_data_definition(value),
+		Some("repeat") => read_repeat_data_definition(value),
+		Some(unknown) => Err(Error::Schema(format!("Unknown data type {}", unknown))),
+	}
+}
+
+/// See also:
+/// - [SingleDataDefinition.cs#L66](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SingleDataDefinition.cs#L66)
+fn read_single_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
+	let name = value.get("name").map(Value::to_string);
+
+	let converter = match value.get("converter") {
+		Some(object) => object,
+		None => return Ok((Node::Scalar(ScalarNode::new()), name)),
+	};
+
+	// TODO: There's also a "quad" type with a converter but I've got no idea how it's instantiated.
+	let node = match converter.get("type").and_then(Value::as_str) {
+		Some("color") => read_color_converter(converter),
+		Some("generic") => read_generic_reference_converter(converter),
+		Some("icon") => read_icon_converter(converter),
+		Some("multiref") => read_multi_reference_converter(converter),
+		Some("link") => read_sheet_link_converter(converter),
+		Some("tomestone") => read_tomestone_or_item_reference_converter(converter),
+		Some("complexlink") => read_complex_link_converter(converter),
+		unknown => Err(Error::Schema(format!(
+			"Unknown converter type {}",
+			unknown.unwrap_or("(none)")
+		))),
+	};
+
+	Ok((node?, name))
+}
+
+/// See also:
+/// - [GroupDataDefinition.cs#L125](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/GroupDataDefinition.cs#L125)
+fn read_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
+	todo!()
+}
+
+/// See also:
+/// - [RepeatDataDefinition.cs#L85](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/RepeatDataDefinition.cs#L85)
+fn read_repeat_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
+	todo!()
+}
+
+/// See also:
+/// - [ColorConverter.cs#L46](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ColorConverter.cs#L46)
+fn read_color_converter(value: &Value) -> Result<Node> {
+	todo!()
+}
+
+/// See also:
+/// - [GenericReferenceConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/GenericReferenceConverter.cs#L33)
+fn read_generic_reference_converter(value: &Value) -> Result<Node> {
+	todo!()
+}
+
+/// See also:
+/// - [IconConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/IconConverter.cs#L33)
+fn read_icon_converter(value: &Value) -> Result<Node> {
+	todo!()
+}
+
+/// See also:
+/// - [MultiReferenceConverter.cs#L50](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/MultiReferenceConverter.cs#L50)
+fn read_multi_reference_converter(value: &Value) -> Result<Node> {
+	todo!()
+}
+
+/// See also:
+/// - [SheetLinkConverter.cs#L40](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/SheetLinkConverter.cs#L40)
+fn read_sheet_link_converter(value: &Value) -> Result<Node> {
+	// TODO: This should be a reference node
+	Ok(Node::Scalar(ScalarNode::new()))
+}
+
+/// See also:
+/// - [TomestoneOrItemReferenceConverter.cs#L54](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/TomestoneOrItemReferenceConverter.cs#L54)
+fn read_tomestone_or_item_reference_converter(value: &Value) -> Result<Node> {
+	todo!()
+}
+
+/// See also:
+/// - [ComplexLinkConverter.cs#L143](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ComplexLinkConverter.cs#L143)
+fn read_complex_link_converter(value: &Value) -> Result<Node> {
+	todo!()
 }
 
 pub fn test() {
