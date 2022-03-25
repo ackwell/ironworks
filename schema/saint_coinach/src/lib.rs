@@ -7,7 +7,7 @@ use std::{
 };
 
 use git2::{build::RepoBuilder, Commit, Object, Repository};
-use ironworks_schema_core::{Node, ScalarNode, StructNode};
+use ironworks_schema_core::Node;
 use lazy_static::lazy_static;
 use serde_json::Value;
 
@@ -232,8 +232,7 @@ fn read_sheet_definition(value: &Value) -> Result<Node> {
 		);
 	}
 
-	// TODO this isn't very ergonomic. should we have sugar Node::new_struct or something?
-	Ok(Node::Struct(StructNode::new(nodes)))
+	Ok(Node::Struct(nodes))
 }
 
 /// See also:
@@ -254,7 +253,7 @@ fn read_single_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 
 	let converter = match value.get("converter") {
 		Some(object) => object,
-		None => return Ok((Node::Scalar(ScalarNode::new()), name)),
+		None => return Ok((Node::Scalar, name)),
 	};
 
 	// TODO: There's also a "quad" type with a converter but I've got no idea how it's instantiated.
@@ -315,7 +314,7 @@ fn read_multi_reference_converter(value: &Value) -> Result<Node> {
 /// - [SheetLinkConverter.cs#L40](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/SheetLinkConverter.cs#L40)
 fn read_sheet_link_converter(value: &Value) -> Result<Node> {
 	// TODO: This should be a reference node
-	Ok(Node::Scalar(ScalarNode::new()))
+	Ok(Node::Scalar)
 }
 
 /// See also:
