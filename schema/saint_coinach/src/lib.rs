@@ -27,14 +27,14 @@ enum Error {
 	NotFound(String),
 
 	// TODO: This exposes the fact that we _use_ git, but not the impl details of git2. is that enough? is that too much? I'm not sure.
-	#[error("Git error: {0}")]
-	Git(String),
+	#[error("Repository error: {0}")]
+	Repository(String),
 }
 
-// TODO: aaaaaa i don't knoooow
+// TODO: aaaaaa i don't knoooow. if kept, doc(hidden)?
 impl From<git2::Error> for Error {
 	fn from(error: git2::Error) -> Self {
-		Error::Git(error.to_string())
+		Error::Repository(error.to_string())
 	}
 }
 
@@ -112,7 +112,7 @@ impl SaintCoinachSchema {
 			match repository.find_remote("origin")?.url() {
 				Some(url) if url == remote => (),
 				url => {
-					return Err(Error::Git(format!(
+					return Err(Error::Repository(format!(
 						"Repository at {:?} has origin {}, expected {}.",
 						&directory,
 						url.unwrap_or("(none)"),
@@ -151,6 +151,7 @@ fn default_directory() -> Option<PathBuf> {
 
 // this should impl a "version" trait or something
 struct SaintCoinachVersion<'repo> {
+	// Should we be Rc-ing the repo so versions can live seperately? Not sure how the lifetime on the commit would work there.
 	repository: &'repo Repository,
 	commit: Commit<'repo>,
 }
@@ -165,10 +166,25 @@ impl SaintCoinachVersion<'_> {
 
 	fn schema(&self, sheet: &str) -> Result<()> {
 		let path = DEFINITION_PATH.join(format!("{}.json", sheet));
-		let bar = self.object_at_path(&path).expect("TODO HANDLE ME");
-		let baz = bar.as_blob().expect("should be a blob");
-		let qux = baz.content();
-		println!("{}", String::from_utf8_lossy(qux));
+
+		let object = self
+			.object_at_path(&path)
+			.map_err(|error| match error.code() {
+				git2::ErrorCode::NotFound => {
+					Error::NotFound(format!("Definition for sheet {}", sheet))
+				}
+				_ => Error::from(error),
+			})?;
+
+		let blob = object.as_blob().ok_or_else(|| {
+			Error::Repository(format!(
+				"Expected blob for {} sheet schema, got {:?}",
+				sheet,
+				object.kind()
+			))
+		})?;
+
+		println!("{}", String::from_utf8_lossy(blob.content()));
 		Ok(())
 	}
 
