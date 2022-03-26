@@ -24,7 +24,7 @@ lazy_static! {
 }
 
 #[derive(thiserror::Error, Debug)]
-enum Error {
+pub enum Error {
 	// TODO: I should probably make the not found errors more data-y, like _what_ wasn't found _where_, etc.
 	#[error("Not found: {0}")]
 	NotFound(String),
@@ -48,52 +48,58 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 // todo: name?
 #[derive(Debug)]
-struct SaintCoinachSchemaOptions {
+pub struct SaintCoinachSchemaOptions {
 	remote: Option<String>,
 	directory: Option<PathBuf>,
 }
 
 impl SaintCoinachSchemaOptions {
-	fn new() -> Self {
+	pub fn new() -> Self {
 		SaintCoinachSchemaOptions {
 			remote: None,
 			directory: None,
 		}
 	}
 
-	fn remote(&mut self, remote: impl ToString) -> &mut Self {
+	pub fn remote(&mut self, remote: impl ToString) -> &mut Self {
 		self.remote = Some(remote.to_string());
 		self
 	}
 
-	fn directory(&mut self, directory: impl Into<PathBuf>) -> &mut Self {
+	pub fn directory(&mut self, directory: impl Into<PathBuf>) -> &mut Self {
 		self.directory = Some(directory.into());
 		self
 	}
 
 	#[inline]
-	fn build(&self) -> Result<SaintCoinachSchema> {
+	pub fn build(&self) -> Result<SaintCoinachSchema> {
 		SaintCoinachSchema::with_options(self)
 	}
 }
 
+impl Default for SaintCoinachSchemaOptions {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 // TODO: can't derive debug on this due to repo - look into crates like `derivative` to handle?
-struct SaintCoinachSchema {
+pub struct SaintCoinachSchema {
 	repository: Repository,
 }
 
 impl SaintCoinachSchema {
 	#[inline]
-	fn new() -> Result<Self> {
+	pub fn new() -> Result<Self> {
 		Self::with_options(&Self::options())
 	}
 
 	#[inline]
-	fn options() -> SaintCoinachSchemaOptions {
+	pub fn options() -> SaintCoinachSchemaOptions {
 		SaintCoinachSchemaOptions::new()
 	}
 
-	fn with_options(options: &SaintCoinachSchemaOptions) -> Result<Self> {
+	pub fn with_options(options: &SaintCoinachSchemaOptions) -> Result<Self> {
 		// todo: look into fs::canonicalize but it sounds like it only works for pre-existing stuff
 		let directory = options
 			.directory
@@ -137,7 +143,7 @@ impl SaintCoinachSchema {
 		Ok(Self { repository })
 	}
 
-	fn version(&self, spec: &str) -> Result<SaintCoinachVersion> {
+	pub fn version(&self, spec: &str) -> Result<SaintCoinachVersion> {
 		let commit = self.repository.revparse_single(spec)?.peel_to_commit()?;
 		Ok(SaintCoinachVersion {
 			repository: &self.repository,
@@ -156,7 +162,7 @@ fn default_directory() -> Option<PathBuf> {
 }
 
 // this should impl a "version" trait or something
-struct SaintCoinachVersion<'repo> {
+pub struct SaintCoinachVersion<'repo> {
 	// Should we be Rc-ing the repo so versions can live seperately? Not sure how the lifetime on the commit would work there.
 	repository: &'repo Repository,
 	commit: Commit<'repo>,
@@ -164,13 +170,13 @@ struct SaintCoinachVersion<'repo> {
 
 impl SaintCoinachVersion<'_> {
 	// thoughts; for hash map keying & stuff
-	fn id(&self) -> impl Eq + Hash + Display {
+	pub fn id(&self) -> impl Eq + Hash + Display {
 		self.commit.id()
 	}
 
 	// fn schemas -> iter
 
-	fn schema(&self, sheet: &str) -> Result<()> {
+	pub fn schema(&self, sheet: &str) -> Result<Node> {
 		let path = DEFINITION_PATH.join(format!("{}.json", sheet));
 
 		let object = self
@@ -190,14 +196,11 @@ impl SaintCoinachVersion<'_> {
 			))
 		})?;
 
-		println!("{}", String::from_utf8_lossy(blob.content()));
+		let value = serde_json::from_slice::<Value>(blob.content())
+			.map_err(|error| Error::Schema(format!("Failed to parse schema: {}", error)))?;
+		let schema = read_sheet_definition(&value)?;
 
-		let foo = serde_json::from_slice::<Value>(blob.content());
-		let def = read_sheet_definition(&foo.unwrap());
-
-		println!("def {:#?}", def);
-
-		Ok(())
+		Ok(schema)
 	}
 
 	fn object_at_path(&self, path: &Path) -> Result<Object<'_>, git2::Error> {
@@ -362,15 +365,4 @@ fn read_tomestone_or_item_reference_converter(_value: &Value) -> Result<Node> {
 fn read_complex_link_converter(_value: &Value) -> Result<Node> {
 	// TODO: Likewise should be a reference
 	Ok(Node::Scalar)
-}
-
-pub fn test() {
-	let schema = SaintCoinachSchema::new().unwrap();
-	// let version = schema.version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
-	// let version = schema.version("69caa7e14fed1caaeb2089").unwrap();
-	// let version = schema.version("refs/tags/69caa7e").unwrap();
-	let version = schema.version("HEAD").unwrap();
-	// let version = schema.version("master").unwrap();
-
-	version.schema("RelicNote").unwrap();
 }

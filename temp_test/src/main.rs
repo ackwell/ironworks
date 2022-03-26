@@ -1,6 +1,6 @@
 use ironworks_excel::{Excel, ExcelOptions, RowOptions};
 use ironworks_ffxiv::{ExcelSqPack, Language, SqPackFfxiv};
-use ironworks_schema_saint_coinach::test;
+use ironworks_schema_saint_coinach::SaintCoinachSchema;
 use ironworks_sqpack::SqPack;
 
 fn main() -> anyhow::Result<()> {
@@ -14,7 +14,17 @@ fn main() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn stc_test() -> anyhow::Result<()> {
-	test();
+	let schema = SaintCoinachSchema::new().unwrap();
+	// let version = schema.version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
+	// let version = schema.version("69caa7e14fed1caaeb2089").unwrap();
+	// let version = schema.version("refs/tags/69caa7e").unwrap();
+	let version = schema.version("HEAD").unwrap();
+	// let version = schema.version("master").unwrap();
+
+	let schema = version.schema("RelicNote").unwrap();
+
+	println!("schema: {:#?}", schema);
+
 	Ok(())
 }
 
