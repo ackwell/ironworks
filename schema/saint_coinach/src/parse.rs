@@ -1,4 +1,8 @@
-use std::{collections::HashMap, iter::once};
+use std::{
+	collections::HashMap,
+	iter::{once, Flatten},
+	option::IntoIter,
+};
 
 use ironworks_schema_core::{Node, ReferenceCondition, ReferenceTarget};
 use serde_json::Value;
@@ -12,15 +16,16 @@ use crate::{
 /// - [SheetDefinition.cs#L157](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SheetDefinition.cs#L157)
 /// - [PositionedDataDefinition.cs#L71](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/PositionedDataDefinition.cs#L71)
 pub fn parse_sheet_definition(value: &Value) -> Result<Node> {
-	let nodes = iter_value_field(value, "definitions")
+	let nodes = value
+		.iter_field("definitions")
 		.map(|definition| {
 			// PositionedDataDefinition inlined as it's only used in one location, and makes setting up the struct fields simpler
-			let index = definition.get("index").and_then(Value::as_u64).unwrap_or(0);
+			let index = definition.get("index").and_then(Value::as_u32).unwrap_or(0);
 			let (node, name) = parse_data_definition(definition)?;
 
 			Ok((
 				name.unwrap_or_else(|| format!("Unnamed{}", index)),
-				(index.try_into().unwrap(), node),
+				(index, node),
 			))
 		})
 		.collect::<Result<HashMap<_, _>>>()?;
@@ -42,7 +47,7 @@ fn parse_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
 /// See also:
 /// - [SingleDataDefinition.cs#L66](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SingleDataDefinition.cs#L66)
 fn parse_single_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	let name = value.get("name").and_then(Value::as_str).map(String::from);
+	let name = value.get("name").and_then(Value::as_string);
 
 	let converter = match value.get("converter") {
 		Some(object) => object,
@@ -70,7 +75,8 @@ fn parse_single_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 /// See also:
 /// - [GroupDataDefinition.cs#L125](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/GroupDataDefinition.cs#L125)
 fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	let nodes = iter_value_field(value, "members")
+	let nodes = value
+		.iter_field("members")
 		.scan(0u32, |size, member| {
 			Some(parse_data_definition(member).map(|(node, name)| {
 				let current_size = *size;
@@ -104,12 +110,12 @@ fn parse_repeat_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 
 	let count = value
 		.get("count")
-		.and_then(Value::as_u64)
+		.and_then(Value::as_u32)
 		.ok_or_else(|| Error::Schema("Repeat missing count".to_string()))?;
 
 	let (node, name) = parse_data_definition(definition)?;
 
-	Ok((Node::Array(count.try_into().unwrap(), Box::new(node)), name))
+	Ok((Node::Array(count, Box::new(node)), name))
 }
 
 /// See also:
@@ -136,10 +142,11 @@ fn parse_icon_converter(_value: &Value) -> Result<Node> {
 /// See also:
 /// - [MultiReferenceConverter.cs#L50](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/MultiReferenceConverter.cs#L50)
 fn parse_multi_reference_converter(value: &Value) -> Result<Node> {
-	let targets = iter_value_field(value, "targets")
-		.filter_map(Value::as_str)
-		.map(|target| ReferenceTarget {
-			sheet: target.to_string(),
+	let targets = value
+		.iter_field("targets")
+		.filter_map(Value::as_string)
+		.map(|sheet| ReferenceTarget {
+			sheet,
 			selector: None,
 			condition: None,
 		})
@@ -153,11 +160,11 @@ fn parse_multi_reference_converter(value: &Value) -> Result<Node> {
 fn parse_sheet_link_converter(value: &Value) -> Result<Node> {
 	let target = value
 		.get("target")
-		.and_then(Value::as_str)
+		.and_then(Value::as_string)
 		.ok_or_else(|| Error::Schema("Link missing target".to_string()))?;
 
 	Ok(Node::Reference(vec![ReferenceTarget {
-		sheet: target.to_string(),
+		sheet: target,
 		selector: None,
 		condition: None,
 	}]))
@@ -176,15 +183,15 @@ fn parse_complex_link_converter(value: &Value) -> Result<Node> {
 	// TODO: Look into projection
 
 	let mut targets = Vec::<ReferenceTarget>::new();
-	for link in iter_value_field(value, "links") {
+	for link in value.iter_field("links") {
 		let condition = link.get("when").map(parse_when_clause).transpose()?;
-		let selector = link.get("key").and_then(Value::as_str).map(str::to_string);
+		let selector = link.get("key").and_then(Value::as_string);
 
-		let sheets = once(link.get("sheet").and_then(Value::as_str))
-			.chain(iter_value_field(link, "sheets").map(Value::as_str))
+		let sheets = once(link.get("sheet").and_then(Value::as_string))
+			.chain(link.iter_field("sheets").map(Value::as_string))
 			.flatten()
 			.map(|sheet| ReferenceTarget {
-				sheet: sheet.to_string(),
+				sheet,
 				selector: selector.clone(),
 				condition: condition.clone(),
 			});
@@ -196,29 +203,61 @@ fn parse_complex_link_converter(value: &Value) -> Result<Node> {
 }
 
 fn parse_when_clause(value: &Value) -> Result<ReferenceCondition> {
-	let key = value
+	let selector = value
 		.get("key")
-		.and_then(Value::as_str)
+		.and_then(Value::as_string)
 		.ok_or_else(|| Error::Schema("When clause missing key".to_string()))?;
 
 	let condition_value = value
 		.get("value")
-		.and_then(Value::as_u64)
+		.and_then(Value::as_u32)
 		.ok_or_else(|| Error::Schema("When clause missing value".to_string()))?;
 
 	Ok(ReferenceCondition {
-		selector: key.to_string(),
-		value: condition_value.try_into().unwrap(),
+		selector,
+		value: condition_value,
 	})
 }
 
-/// Iterate over a field within a value, if it exists. If the field does not
-/// exist, behaves as an empty iterator.
-#[inline]
-fn iter_value_field<'a>(value: &'a Value, field: &str) -> impl Iterator<Item = &'a Value> {
-	value
-		.get(field)
-		.and_then(Value::as_array)
-		.into_iter()
-		.flatten()
+// Utilities on values to make the above cleaner to work with
+trait ValueExt {
+	// Most of what we're doing ends up needing an owned copy - pass it out.
+	fn as_string(&self) -> Option<String>;
+	// Basically all the sheet-related stuff only needs u32s, cast down early.
+	fn as_u32(&self) -> Option<u32>;
+	// Iterate over a field if it exists, otherwise act as an empty iterator
+	fn iter_field(&self, field: &str) -> IterField;
+}
+
+impl ValueExt for Value {
+	fn as_string(&self) -> Option<String> {
+		self.as_str().map(str::to_string)
+	}
+
+	fn as_u32(&self) -> Option<u32> {
+		self.as_u64().and_then(|number| number.try_into().ok())
+	}
+
+	fn iter_field(&self, field: &str) -> IterField {
+		IterField {
+			inner: self
+				.get(field)
+				.and_then(Value::as_array)
+				.into_iter()
+				.flatten(),
+		}
+	}
+}
+
+struct IterField<'a> {
+	inner: Flatten<IntoIter<&'a Vec<Value>>>,
+}
+
+impl<'a> Iterator for IterField<'a> {
+	type Item = &'a Value;
+
+	#[inline]
+	fn next(&mut self) -> Option<Self::Item> {
+		self.inner.next()
+	}
 }
