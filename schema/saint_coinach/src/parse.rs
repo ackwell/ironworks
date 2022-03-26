@@ -144,9 +144,21 @@ fn parse_icon_converter(_value: &Value) -> Result<Node> {
 
 /// See also:
 /// - [MultiReferenceConverter.cs#L50](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/MultiReferenceConverter.cs#L50)
-fn parse_multi_reference_converter(_value: &Value) -> Result<Node> {
-	// TODO: This should be a reference node, once I add those.
-	Ok(Node::Scalar)
+fn parse_multi_reference_converter(value: &Value) -> Result<Node> {
+	// TODO: this is an increasingly common pattern in this file. Perhaps add an extension trait to condense?
+	let targets = value.get("targets").and_then(Value::as_array);
+	let targets = targets
+		.iter()
+		.flat_map(|targets| *targets)
+		.filter_map(Value::as_str)
+		.map(|target| ReferenceTarget {
+			sheet: target.to_string(),
+			selector: None,
+			condition: None,
+		})
+		.collect::<Vec<_>>();
+
+	Ok(Node::Reference(targets))
 }
 
 /// See also:
