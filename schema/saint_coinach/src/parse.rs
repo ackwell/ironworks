@@ -12,24 +12,18 @@ use crate::{
 /// - [SheetDefinition.cs#L157](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SheetDefinition.cs#L157)
 /// - [PositionedDataDefinition.cs#L71](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/PositionedDataDefinition.cs#L71)
 pub fn parse_sheet_definition(value: &Value) -> Result<Node> {
-	let mut nodes = HashMap::<String, (u32, Node)>::new();
+	let nodes = iter_value_field(value, "definitions")
+		.map(|definition| {
+			// PositionedDataDefinition inlined as it's only used in one location, and makes setting up the struct fields simpler
+			let index = definition.get("index").and_then(Value::as_u64).unwrap_or(0);
+			let (node, name) = parse_data_definition(definition)?;
 
-	let definitions = value.get("definitions").and_then(Value::as_array);
-	for definition in definitions.iter().flat_map(|values| *values) {
-		// PositionedDataDefinition inlined as it's only used in one location, and makes setting up the struct fields simpler
-		let index = definition
-			.get("index")
-			.and_then(|value| value.as_u64())
-			.unwrap_or(0);
-
-		// TODO: This effectively shortcuts the entire read if an error bubbles up - is that the behavior we want? probably?
-		let (node, name) = parse_data_definition(definition)?;
-
-		nodes.insert(
-			name.unwrap_or_else(|| format!("Unnamed{}", index)),
-			(index.try_into().unwrap(), node),
-		);
-	}
+			Ok((
+				name.unwrap_or_else(|| format!("Unnamed{}", index)),
+				(index.try_into().unwrap(), node),
+			))
+		})
+		.collect::<Result<HashMap<_, _>>>()?;
 
 	Ok(Node::Struct(nodes))
 }
@@ -76,10 +70,7 @@ fn parse_single_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 /// See also:
 /// - [GroupDataDefinition.cs#L125](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/GroupDataDefinition.cs#L125)
 fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	let members = value.get("members").and_then(Value::as_array);
-	let nodes = members
-		.iter()
-		.flat_map(|members| *members)
+	let nodes = iter_value_field(value, "members")
 		.scan(0u32, |size, member| {
 			Some(parse_data_definition(member).map(|(node, name)| {
 				let current_size = *size;
@@ -145,11 +136,7 @@ fn parse_icon_converter(_value: &Value) -> Result<Node> {
 /// See also:
 /// - [MultiReferenceConverter.cs#L50](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/MultiReferenceConverter.cs#L50)
 fn parse_multi_reference_converter(value: &Value) -> Result<Node> {
-	// TODO: this is an increasingly common pattern in this file. Perhaps add an extension trait to condense?
-	let targets = value.get("targets").and_then(Value::as_array);
-	let targets = targets
-		.iter()
-		.flat_map(|targets| *targets)
+	let targets = iter_value_field(value, "targets")
 		.filter_map(Value::as_str)
 		.map(|target| ReferenceTarget {
 			sheet: target.to_string(),
@@ -188,4 +175,15 @@ fn parse_tomestone_or_item_reference_converter(_value: &Value) -> Result<Node> {
 fn parse_complex_link_converter(_value: &Value) -> Result<Node> {
 	// TODO: Likewise should be a reference
 	Ok(Node::Scalar)
+}
+
+/// Iterate over a field within a value, if it exists. If the field does not
+/// exist, behaves as an empty iterator.
+#[inline]
+fn iter_value_field<'a>(value: &'a Value, field: &str) -> impl Iterator<Item = &'a Value> {
+	value
+		.get(field)
+		.and_then(Value::as_array)
+		.into_iter()
+		.flatten()
 }
