@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use ironworks_schema_core::Node;
 use serde_json::Value;
 
-use crate::error::{Error, Result};
+use crate::{
+	error::{Error, Result},
+	lcs::longest_common_subsequence,
+};
 
 /// See also:
 /// - [SheetDefinition.cs#L157](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SheetDefinition.cs#L157)
@@ -90,7 +93,14 @@ fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 		})
 		.collect::<Result<HashMap<_, _>>>()?;
 
-	Ok((Node::Struct(nodes), None /* TODO */))
+	// StC doesn't give groups a name for some reason -
+	// try to derive a name from the LCS of its keys
+	let name = nodes
+		.keys()
+		.cloned()
+		.reduce(|a, b| longest_common_subsequence(&a, &b));
+
+	Ok((Node::Struct(nodes), name))
 }
 
 /// See also:
