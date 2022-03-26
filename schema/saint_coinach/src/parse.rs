@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::once};
 
-use ironworks_schema_core::{Node, ReferenceTarget};
+use ironworks_schema_core::{Node, ReferenceCondition, ReferenceTarget};
 use serde_json::Value;
 
 use crate::{
@@ -172,9 +172,44 @@ fn parse_tomestone_or_item_reference_converter(_value: &Value) -> Result<Node> {
 
 /// See also:
 /// - [ComplexLinkConverter.cs#L143](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ComplexLinkConverter.cs#L143)
-fn parse_complex_link_converter(_value: &Value) -> Result<Node> {
-	// TODO: Likewise should be a reference
-	Ok(Node::Scalar)
+fn parse_complex_link_converter(value: &Value) -> Result<Node> {
+	// TODO: Look into projection
+
+	let mut targets = Vec::<ReferenceTarget>::new();
+	for link in iter_value_field(value, "links") {
+		let condition = link.get("when").map(parse_when_clause).transpose()?;
+		let selector = link.get("key").and_then(Value::as_str).map(str::to_string);
+
+		let sheets = once(link.get("sheet").and_then(Value::as_str))
+			.chain(iter_value_field(link, "sheets").map(Value::as_str))
+			.flatten()
+			.map(|sheet| ReferenceTarget {
+				sheet: sheet.to_string(),
+				selector: selector.clone(),
+				condition: condition.clone(),
+			});
+
+		targets.extend(sheets);
+	}
+
+	Ok(Node::Reference(targets))
+}
+
+fn parse_when_clause(value: &Value) -> Result<ReferenceCondition> {
+	let key = value
+		.get("key")
+		.and_then(Value::as_str)
+		.ok_or_else(|| Error::Schema("When clause missing key".to_string()))?;
+
+	let condition_value = value
+		.get("value")
+		.and_then(Value::as_u64)
+		.ok_or_else(|| Error::Schema("When clause missing value".to_string()))?;
+
+	Ok(ReferenceCondition {
+		selector: key.to_string(),
+		value: condition_value.try_into().unwrap(),
+	})
 }
 
 /// Iterate over a field within a value, if it exists. If the field does not

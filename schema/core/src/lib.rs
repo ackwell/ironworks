@@ -34,9 +34,9 @@ pub struct ReferenceTarget {
 	pub condition: Option<ReferenceCondition>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ReferenceCondition {
-	pub selector: Option<String>,
+	pub selector: String,
 	// TODO: technically this is an enum, but theoretically could be any value. Resolve?
 	pub value: u32,
 }
