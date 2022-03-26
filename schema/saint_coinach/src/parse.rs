@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ironworks_schema_core::Node;
+use ironworks_schema_core::{Node, ReferenceTarget};
 use serde_json::Value;
 
 use crate::{
@@ -151,9 +151,17 @@ fn parse_multi_reference_converter(_value: &Value) -> Result<Node> {
 
 /// See also:
 /// - [SheetLinkConverter.cs#L40](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/SheetLinkConverter.cs#L40)
-fn parse_sheet_link_converter(_value: &Value) -> Result<Node> {
-	// TODO: Likewise should be a reference
-	Ok(Node::Scalar)
+fn parse_sheet_link_converter(value: &Value) -> Result<Node> {
+	let target = value
+		.get("target")
+		.and_then(Value::as_str)
+		.ok_or_else(|| Error::Schema("Link missing target".to_string()))?;
+
+	Ok(Node::Reference(vec![ReferenceTarget {
+		sheet: target.to_string(),
+		selector: None,
+		condition: None,
+	}]))
 }
 
 /// See also:
