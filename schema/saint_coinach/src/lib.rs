@@ -215,7 +215,7 @@ fn read_sheet_definition(value: &Value) -> Result<Node> {
 	let mut nodes = HashMap::<String, (u32, Node)>::new();
 
 	let definitions = value.get("definitions").and_then(Value::as_array);
-	for definition in definitions.iter().flat_map(|x| *x) {
+	for definition in definitions.iter().flat_map(|values| *values) {
 		// PositionedDataDefinition inlined as it's only used in one location, and makes setting up the struct fields simpler
 		let index = definition
 			.get("index")
@@ -249,7 +249,7 @@ fn read_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
 /// See also:
 /// - [SingleDataDefinition.cs#L66](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SingleDataDefinition.cs#L66)
 fn read_single_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	let name = value.get("name").map(Value::to_string);
+	let name = value.get("name").and_then(Value::as_str).map(String::from);
 
 	let converter = match value.get("converter") {
 		Some(object) => object,
@@ -277,56 +277,91 @@ fn read_single_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 /// See also:
 /// - [GroupDataDefinition.cs#L125](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/GroupDataDefinition.cs#L125)
 fn read_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	todo!()
+	let members = value.get("members").and_then(Value::as_array);
+	let nodes = members
+		.iter()
+		.flat_map(|members| *members)
+		.scan(0u32, |size, member| {
+			Some(read_data_definition(member).map(|(node, name)| {
+				let current_size = *size;
+				*size += node.size();
+
+				(
+					name.unwrap_or_else(|| format!("Unnamed{}", current_size)),
+					(current_size, node),
+				)
+			}))
+		})
+		.collect::<Result<HashMap<_, _>>>()?;
+
+	Ok((Node::Struct(nodes), None /* TODO */))
 }
 
 /// See also:
 /// - [RepeatDataDefinition.cs#L85](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/RepeatDataDefinition.cs#L85)
 fn read_repeat_data_definition(value: &Value) -> Result<(Node, Option<String>)> {
-	todo!()
+	// TODO: These... as well as all the other errors, really... have no way to pinpoint _where_ the error occured. Look into it.
+	let definition = value
+		.get("definition")
+		.ok_or_else(|| Error::Schema("Repeat missing definition".to_string()))?;
+
+	let count = value
+		.get("count")
+		.and_then(Value::as_u64)
+		.ok_or_else(|| Error::Schema("Repeat missing count".to_string()))?;
+
+	let (node, name) = read_data_definition(definition)?;
+
+	Ok((Node::Array(count.try_into().unwrap(), Box::new(node)), name))
 }
 
 /// See also:
 /// - [ColorConverter.cs#L46](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ColorConverter.cs#L46)
-fn read_color_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_color_converter(_value: &Value) -> Result<Node> {
+	// TODO: ?
+	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [GenericReferenceConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/GenericReferenceConverter.cs#L33)
-fn read_generic_reference_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_generic_reference_converter(_value: &Value) -> Result<Node> {
+	// TODO: ?
+	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [IconConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/IconConverter.cs#L33)
-fn read_icon_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_icon_converter(_value: &Value) -> Result<Node> {
+	// TODO: ?
+	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [MultiReferenceConverter.cs#L50](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/MultiReferenceConverter.cs#L50)
-fn read_multi_reference_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_multi_reference_converter(_value: &Value) -> Result<Node> {
+	// TODO: This should be a reference node, once I add those.
+	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [SheetLinkConverter.cs#L40](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/SheetLinkConverter.cs#L40)
-fn read_sheet_link_converter(value: &Value) -> Result<Node> {
-	// TODO: This should be a reference node
+fn read_sheet_link_converter(_value: &Value) -> Result<Node> {
+	// TODO: Likewise should be a reference
 	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [TomestoneOrItemReferenceConverter.cs#L54](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/TomestoneOrItemReferenceConverter.cs#L54)
-fn read_tomestone_or_item_reference_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_tomestone_or_item_reference_converter(_value: &Value) -> Result<Node> {
+	// TODO: ?
+	Ok(Node::Scalar)
 }
 
 /// See also:
 /// - [ComplexLinkConverter.cs#L143](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ComplexLinkConverter.cs#L143)
-fn read_complex_link_converter(value: &Value) -> Result<Node> {
-	todo!()
+fn read_complex_link_converter(_value: &Value) -> Result<Node> {
+	// TODO: Likewise should be a reference
+	Ok(Node::Scalar)
 }
 
 pub fn test() {
@@ -337,5 +372,5 @@ pub fn test() {
 	let version = schema.version("HEAD").unwrap();
 	// let version = schema.version("master").unwrap();
 
-	version.schema("AOZBoss").unwrap();
+	version.schema("RelicNote").unwrap();
 }
