@@ -1,5 +1,7 @@
 [workspace]
 members = [
+	"ironworks",
+
 	"excel",
 	"ffxiv",
 	"schema/core",

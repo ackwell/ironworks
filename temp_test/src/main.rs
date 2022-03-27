@@ -21,7 +21,10 @@ fn stc_test() -> anyhow::Result<()> {
 	let version = schema.version("HEAD").unwrap();
 	// let version = schema.version("master").unwrap();
 
-	let schema = version.schema("RelicNote").unwrap();
+	// let schema = version.schema("RelicNote").unwrap();
+	// let schema = version.schema("ArrayEventHandler").unwrap();
+	// let schema = version.schema("PvPActionSort").unwrap();
+	let schema = version.schema("Item").unwrap();
 
 	println!("schema: {:#?}", schema);
 

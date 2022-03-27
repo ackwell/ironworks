@@ -175,6 +175,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ironworks"
+version = "0.1.0"
+
+[[package]]
 name = "ironworks_excel"
 version = "0.1.0"
 dependencies = [
