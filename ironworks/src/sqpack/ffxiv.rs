@@ -20,7 +20,9 @@ const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
 const DEFAULT_REPOSITORY: &str = "ffxiv";
 
-// should there be a xiv feature?
+// TODO: should there be a ffxiv feature?
+/// Resource adapter pre-configured to work with on-disk sqpack packages laid
+/// out in the FFXIV format.
 #[derive(Debug)]
 pub struct FfxivFsResource {
 	path: PathBuf,
@@ -28,11 +30,14 @@ pub struct FfxivFsResource {
 }
 
 impl FfxivFsResource {
-	// should this error instead of option? i'm tempted to say it should for the sake of consumers
+	// TODO: should this error instead of option? i'm tempted to say it should for the sake of consumers
+	/// Search for a FFXIV install in common locations, configuring a resource
+	/// instance with the found install, if any.
 	pub fn search() -> Option<Self> {
 		Some(Self::at(&find_install()?))
 	}
 
+	/// Configure a resource instance with an installation of FFXIV at the specified path.
 	pub fn at(path: &Path) -> Self {
 		let sqpack_path = path
 			.iter()
