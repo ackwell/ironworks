@@ -1,3 +1,4 @@
+use ironworks::sqpack::FfxivFsResource;
 use ironworks_excel::{Excel, ExcelOptions, RowOptions};
 use ironworks_ffxiv::{ExcelSqPack, Language, SqPackFfxiv};
 use ironworks_schema_saint_coinach::SaintCoinachSchema;
@@ -6,8 +7,19 @@ use ironworks_sqpack::SqPack;
 fn main() -> anyhow::Result<()> {
 	env_logger::init();
 
-	stc_test()?;
+	iw_test()?;
+	// stc_test()?;
 	// excel_test()?;
+
+	Ok(())
+}
+
+#[allow(dead_code)]
+fn iw_test() -> anyhow::Result<()> {
+	let sqpack_resource = FfxivFsResource {};
+	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
+
+	let exl = sqpack.read("exd/root.exl");
 
 	Ok(())
 }

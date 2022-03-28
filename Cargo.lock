@@ -462,6 +462,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "ironworks",
  "ironworks_excel",
  "ironworks_ffxiv",
  "ironworks_schema_saint_coinach",
