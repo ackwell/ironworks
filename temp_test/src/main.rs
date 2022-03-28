@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn iw_test() -> anyhow::Result<()> {
-	let sqpack_resource = FfxivFsResource {};
+	let sqpack_resource = FfxivFsResource::search().unwrap();
 	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
 
 	let exl = sqpack.read("exd/root.exl");
