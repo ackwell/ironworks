@@ -122,21 +122,12 @@ impl Resource for FfxivFsResource {
 
 	type Index = io::Cursor<Vec<u8>>;
 	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
-		let path = self.build_file_path(repository, category, chunk, "index")?;
-		// Read the entire index into memory before returning - we typically need
-		// the full dataset anyway, and working directly on a File causes significant
-		// slowdowns due to IO syscalls.
-		let buffer = match fs::read(path) {
-			Ok(buffer) => buffer,
-			Err(error) if error.kind() == io::ErrorKind::NotFound => return Err(Error::NotFound),
-			Err(error) => todo!("WHAT DO NOW? {error}"),
-		};
-		Ok(io::Cursor::new(buffer))
+		read_index(self.build_file_path(repository, category, chunk, "index")?)
 	}
 
-	type Index2 = io::Empty;
-	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Index2> {
-		Ok(io::empty())
+	type Index2 = io::Cursor<Vec<u8>>;
+	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
+		read_index(self.build_file_path(repository, category, chunk, "index2")?)
 	}
 
 	type Dat = io::Empty;
@@ -177,4 +168,15 @@ fn find_repositories(path: &Path) -> Vec<String> {
 			}
 		})
 		.collect()
+}
+
+fn read_index(path: PathBuf) -> Result<io::Cursor<Vec<u8>>> {
+	// Read the entire index into memory before returning - we typically need
+	// the full dataset anyway, and working directly on a File causes significant
+	// slowdowns due to IO syscalls.
+	let buffer = fs::read(path).map_err(|error| match error.kind() {
+		io::ErrorKind::NotFound => Error::NotFound,
+		_ => Error::Resource,
+	})?;
+	Ok(io::Cursor::new(buffer))
 }

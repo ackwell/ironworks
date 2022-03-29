@@ -24,12 +24,17 @@ pub struct Index<R> {
 
 impl<R: Resource> Index<R> {
 	pub fn new(repository: u8, category: u8, resource: Rc<R>) -> Result<Self> {
-		// TODO: handle chunks
-		let chunk = 0;
+		let chunks = (0u8..=255)
+			.map_while(|chunk_id| {
+				match IndexChunk::new(repository, category, chunk_id, resource.as_ref()) {
+					Err(Error::NotFound) => None,
+					Err(error) => Some(Err(error)),
+					Ok(chunk) => Some(Ok(chunk)),
+				}
+			})
+			.collect::<Result<Vec<_>>>()?;
 
-		let index_chunk = IndexChunk::new(repository, category, chunk, resource.clone());
-
-		println!("uuuuuh... something? {index_chunk:#?}");
+		println!("uuuuuh... something? {chunks:#?}");
 
 		Ok(Self { resource })
 	}
@@ -42,7 +47,7 @@ enum IndexChunk {
 }
 
 impl IndexChunk {
-	fn new<R: Resource>(repository: u8, category: u8, chunk: u8, resource: Rc<R>) -> Result<Self> {
+	fn new<R: Resource>(repository: u8, category: u8, chunk: u8, resource: &R) -> Result<Self> {
 		resource
 			.index(repository, category, chunk)
 			.and_then(|mut reader| {
