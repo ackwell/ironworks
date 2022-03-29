@@ -7,3 +7,4 @@ edition = "2021"
 sqpack = []
 
 [dependencies]
+thiserror = "1.0.30"

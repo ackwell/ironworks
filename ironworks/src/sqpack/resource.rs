@@ -2,7 +2,7 @@ use std::io::{Read, Seek};
 
 /// Resource adapter to fetch information and data on request for a SqPack instance.
 pub trait Resource {
-	/// Retrieve the `(repository, category)` for a given SqPack path, or None if
+	/// Retrieve the `(repository, category)` for a given SqPack path, or `None` if
 	/// the path is invalid or does not conform to valid formatting for this resource.
 	fn path_metadata<'a>(&self, path: &'a str) -> Option<(&'a str, &'a str)>;
 

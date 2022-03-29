@@ -177,6 +177,9 @@ dependencies = [
 [[package]]
 name = "ironworks"
 version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "ironworks_excel"
