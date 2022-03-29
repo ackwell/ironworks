@@ -178,6 +178,7 @@ dependencies = [
 name = "ironworks"
 version = "0.1.0"
 dependencies = [
+ "binrw",
  "thiserror",
 ]
 

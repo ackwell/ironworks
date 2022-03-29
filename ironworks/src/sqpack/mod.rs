@@ -1,6 +1,7 @@
 //! Tools for working with the SqPack package format.
 
 mod ffxiv;
+mod index;
 mod resource;
 mod sqpack;
 

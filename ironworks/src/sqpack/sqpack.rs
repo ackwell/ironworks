@@ -2,7 +2,7 @@ use std::{fmt::Debug, rc::Rc};
 
 use crate::error::{Error, Result};
 
-use super::resource::Resource;
+use super::{index::Index, resource::Resource};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -44,6 +44,10 @@ struct Reader<R> {
 
 impl<R: Resource> Reader<R> {
 	fn new(repository: u8, category: u8, resource: Rc<R>) -> Self {
+		// Eagerly build indexes
+		// TODO
+		let fdsfsd = Index::new(resource.clone());
+
 		Self {
 			repository,
 			category,
