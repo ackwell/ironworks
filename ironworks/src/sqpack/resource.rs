@@ -1,5 +1,7 @@
 use std::io::{Read, Seek};
 
+use crate::error::Result;
+
 /// Resource adapter to fetch information and data on request for a SqPack instance.
 pub trait Resource {
 	/// Retrieve the `(repository, category)` for a given SqPack path, or `None` if
@@ -9,16 +11,16 @@ pub trait Resource {
 	/// The type of an index resource.
 	type Index: Read + Seek;
 	/// Fetches the specified index resource.
-	fn index(&self, repository: u8, category: u8, chunk: u8) -> Self::Index;
+	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index>;
 
 	/// The type of an index2 resource.
 	type Index2: Read + Seek;
 	/// Fetches the specified index2 resource.
-	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Self::Index2;
+	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2>;
 
 	// TODO: this will probably need a dat no. param too
 	/// The type of a dat resource.
 	type Dat: Read + Seek;
 	/// Fetches the specified dat resource.
-	fn dat(&self, repository: u8, category: u8, chunk: u8) -> Self::Dat;
+	fn dat(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Dat>;
 }

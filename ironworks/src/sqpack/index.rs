@@ -24,7 +24,7 @@ impl<R: Resource> Index<R> {
 		// TODO: handle chunks
 
 		// ergh does this mean we need to pass the meta down here too? this is getting messy.
-		let mut foo = resource.index(0, 10, 0);
+		let mut foo = resource.index(0, 10, 0)?;
 		let fsdf = Index1::read(&mut foo);
 		println!("uuuuuh... something? {fsdf:#?}");
 

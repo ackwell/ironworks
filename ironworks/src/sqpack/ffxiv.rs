@@ -1,7 +1,10 @@
 use std::{
 	ffi::OsStr,
+	fs, io,
 	path::{Path, PathBuf},
 };
+
+use crate::error::{Error, Result};
 
 use super::resource::Resource;
 
@@ -71,6 +74,28 @@ impl FfxivFsResource {
 			repositories,
 		}
 	}
+
+	fn build_file_path(
+		&self,
+		repository: u8,
+		category: u8,
+		chunk: u8,
+		extension: &str,
+	) -> Result<PathBuf> {
+		// TODO: Platform?
+		let repository_name = self
+			.repositories
+			.get(usize::from(repository))
+			.ok_or(Error::NotFound)?;
+
+		let file_name = format!("{category:02x}{repository:02x}{chunk:02x}.win32.{extension}");
+
+		let file_path = self
+			.path
+			.join([repository_name, &file_name].iter().collect::<PathBuf>());
+
+		Ok(file_path)
+	}
 }
 
 impl Resource for FfxivFsResource {
@@ -95,19 +120,28 @@ impl Resource for FfxivFsResource {
 		}
 	}
 
-	type Index = std::io::Empty;
-	fn index(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
-		std::io::empty()
+	type Index = io::Cursor<Vec<u8>>;
+	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+		let path = self.build_file_path(repository, category, chunk, "index")?;
+		// Read the entire index into memory before returning - we typically need
+		// the full dataset anyway, and working directly on a File causes significant
+		// slowdowns due to IO syscalls.
+		let buffer = match fs::read(path) {
+			Ok(buffer) => buffer,
+			Err(error) if error.kind() == io::ErrorKind::NotFound => return Err(Error::NotFound),
+			Err(error) => todo!("WHAT DO NOW? {error}"),
+		};
+		Ok(io::Cursor::new(buffer))
 	}
 
-	type Index2 = std::io::Empty;
-	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
-		std::io::empty()
+	type Index2 = io::Empty;
+	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Index2> {
+		Ok(io::empty())
 	}
 
-	type Dat = std::io::Empty;
-	fn dat(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
-		std::io::empty()
+	type Dat = io::Empty;
+	fn dat(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Dat> {
+		Ok(io::empty())
 	}
 }
 
