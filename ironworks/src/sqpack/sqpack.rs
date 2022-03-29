@@ -22,7 +22,7 @@ impl<R: Resource> SqPack<R> {
 		let (repository, category) = self.resource.path_metadata(path).ok_or(Error::NotFound)?;
 
 		// TODO: cache reader
-		let reader = Reader::new(repository.to_string(), category.to_string());
+		let reader = Reader::new(repository, category);
 		println!("{reader:#?}");
 
 		Ok(())
@@ -33,12 +33,12 @@ impl<R: Resource> SqPack<R> {
 // TODO: name - it's effectively a repo+category abstraction?
 #[derive(Debug)]
 struct Reader {
-	repository: String,
-	category: String,
+	repository: u8,
+	category: u8,
 }
 
 impl Reader {
-	fn new(repository: String, category: String) -> Self {
+	fn new(repository: u8, category: u8) -> Self {
 		Self {
 			repository,
 			category,

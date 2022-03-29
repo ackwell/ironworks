@@ -1,5 +1,4 @@
 use std::{
-	collections::HashMap,
 	ffi::OsStr,
 	path::{Path, PathBuf},
 };
@@ -18,7 +17,28 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
-const DEFAULT_REPOSITORY: &str = "ffxiv";
+const CATEGORIES: &[Option<&str>] = &[
+	/* 0x00 */ Some("common"),
+	/* 0x01 */ Some("bgcommon"),
+	/* 0x02 */ Some("bg"),
+	/* 0x03 */ Some("cut"),
+	/* 0x04 */ Some("chara"),
+	/* 0x05 */ Some("shader"),
+	/* 0x06 */ Some("ui"),
+	/* 0x07 */ Some("sound"),
+	/* 0x08 */ Some("vfx"),
+	/* 0x09 */ Some("ui_script"),
+	/* 0x0a */ Some("exd"),
+	/* 0x0b */ Some("game_script"),
+	/* 0x0c */ Some("music"),
+	/* 0x0d */ None,
+	/* 0x0e */ None,
+	/* 0x0f */ None,
+	/* 0x10 */ None,
+	/* 0x11 */ None,
+	/* 0x12 */ Some("sqpack_test"),
+	/* 0x13 */ Some("debug"),
+];
 
 // TODO: should there be a ffxiv feature?
 /// Resource adapter pre-configured to work with on-disk sqpack packages laid
@@ -26,7 +46,7 @@ const DEFAULT_REPOSITORY: &str = "ffxiv";
 #[derive(Debug)]
 pub struct FfxivFsResource {
 	path: PathBuf,
-	repositories: HashMap<String, u8>,
+	repositories: Vec<String>,
 }
 
 impl FfxivFsResource {
@@ -54,32 +74,39 @@ impl FfxivFsResource {
 }
 
 impl Resource for FfxivFsResource {
-	fn path_metadata<'a>(&self, path: &'a str) -> Option<(&'a str, &'a str)> {
+	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
 		let split = path.split('/').take(2).collect::<Vec<_>>();
+
 		match split[..] {
-			[category, repository] => Some((
-				match self.repositories.contains_key(repository) {
-					true => repository,
-					false => DEFAULT_REPOSITORY,
-				},
-				category,
+			[path_category, path_repository] => Some((
+				self.repositories
+					.iter()
+					.position(|repository| repository == path_repository)
+					.unwrap_or(0)
+					.try_into()
+					.unwrap(),
+				CATEGORIES
+					.iter()
+					.position(|category| category == &Some(path_category))?
+					.try_into()
+					.unwrap(),
 			)),
 			_ => None,
 		}
 	}
 
 	type Index = std::io::Empty;
-	fn index(&self, _repository: &str, _category: &str, _chunk: u8) -> Self::Index {
+	fn index(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
 		std::io::empty()
 	}
 
 	type Index2 = std::io::Empty;
-	fn index2(&self, _repository: &str, _category: &str, _chunk: u8) -> Self::Index {
+	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
 		std::io::empty()
 	}
 
 	type Dat = std::io::Empty;
-	fn dat(&self, _repository: &str, _category: &str, _chunk: u8) -> Self::Index {
+	fn dat(&self, _repository: u8, _category: u8, _chunk: u8) -> Self::Index {
 		std::io::empty()
 	}
 }
@@ -100,17 +127,17 @@ fn find_install() -> Option<PathBuf> {
 		.find(|path| path.exists())
 }
 
-fn find_repositories(path: &Path) -> HashMap<String, u8> {
+fn find_repositories(path: &Path) -> Vec<String> {
 	(0..=9)
 		.filter_map(|index| {
 			let name = if index == 0 {
-				DEFAULT_REPOSITORY.into()
+				"ffxiv".into()
 			} else {
 				format!("ex{}", index)
 			};
 
 			if path.join(&name).exists() {
-				Some((name, index))
+				Some(name)
 			} else {
 				None
 			}
