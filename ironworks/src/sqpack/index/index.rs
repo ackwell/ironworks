@@ -18,25 +18,23 @@ use super::{index1::Index1, index2::Index2};
 // with the binary reading stuff this should probably be split up into a few files
 
 #[derive(Debug)]
-pub struct Index<R> {
-	resource: Rc<R>,
+pub struct Index {
+	chunks: Vec<IndexChunk>,
 }
 
-impl<R: Resource> Index<R> {
-	pub fn new(repository: u8, category: u8, resource: Rc<R>) -> Result<Self> {
+impl Index {
+	pub fn new<R: Resource>(repository: u8, category: u8, resource: &R) -> Result<Self> {
 		let chunks = (0u8..=255)
-			.map_while(|chunk_id| {
-				match IndexChunk::new(repository, category, chunk_id, resource.as_ref()) {
+			.map_while(
+				|chunk_id| match IndexChunk::new(repository, category, chunk_id, resource) {
 					Err(Error::NotFound) => None,
 					Err(error) => Some(Err(error)),
 					Ok(chunk) => Some(Ok(chunk)),
-				}
-			})
+				},
+			)
 			.collect::<Result<Vec<_>>>()?;
 
-		println!("uuuuuh... something? {chunks:#?}");
-
-		Ok(Self { resource })
+		Ok(Self { chunks })
 	}
 }
 

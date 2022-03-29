@@ -39,19 +39,21 @@ struct Reader<R> {
 	repository: u8,
 	category: u8,
 
+	index: Index,
 	resource: Rc<R>,
 }
 
 impl<R: Resource> Reader<R> {
-	fn new(repository: u8, category: u8, resource: Rc<R>) -> Self {
-		// Eagerly build indexes
-		// TODO
-		let fdsfsd = Index::new(repository, category, resource.clone());
+	fn new(repository: u8, category: u8, resource: Rc<R>) -> Result<Self> {
+		// Eagerly build index
+		let index = Index::new(repository, category, resource.as_ref())?;
 
-		Self {
+		Ok(Self {
 			repository,
 			category,
+			index,
 			resource,
-		}
+		})
+	}
 	}
 }
