@@ -46,7 +46,7 @@ impl<R: Resource> Reader<R> {
 	fn new(repository: u8, category: u8, resource: Rc<R>) -> Self {
 		// Eagerly build indexes
 		// TODO
-		let fdsfsd = Index::new(resource.clone());
+		let fdsfsd = Index::new(repository, category, resource.clone());
 
 		Self {
 			repository,

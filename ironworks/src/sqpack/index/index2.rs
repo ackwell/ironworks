@@ -1,2 +1,5 @@
+use binrw::BinRead;
+
 // todo
-struct Index2 {}
+#[derive(BinRead, Debug)]
+pub struct Index2 {}

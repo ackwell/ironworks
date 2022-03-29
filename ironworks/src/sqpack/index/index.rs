@@ -2,9 +2,12 @@ use std::rc::Rc;
 
 use binrw::BinRead;
 
-use crate::{error::Result, sqpack::Resource};
+use crate::{
+	error::{Error, Result},
+	sqpack::Resource,
+};
 
-use super::index1::Index1;
+use super::{index1::Index1, index2::Index2};
 
 // do i just trait this?
 // or would making it a trait make the reader, and then the sqpack, need to generic over it
@@ -20,14 +23,39 @@ pub struct Index<R> {
 }
 
 impl<R: Resource> Index<R> {
-	pub fn new(resource: Rc<R>) -> Result<Self> {
+	pub fn new(repository: u8, category: u8, resource: Rc<R>) -> Result<Self> {
 		// TODO: handle chunks
+		let chunk = 0;
 
-		// ergh does this mean we need to pass the meta down here too? this is getting messy.
-		let mut foo = resource.index(0, 10, 0)?;
-		let fsdf = Index1::read(&mut foo);
-		println!("uuuuuh... something? {fsdf:#?}");
+		let index_chunk = IndexChunk::new(repository, category, chunk, resource.clone());
+
+		println!("uuuuuh... something? {index_chunk:#?}");
 
 		Ok(Self { resource })
+	}
+}
+
+#[derive(Debug)]
+enum IndexChunk {
+	Index1(Index1),
+	Index2(Index2),
+}
+
+impl IndexChunk {
+	fn new<R: Resource>(repository: u8, category: u8, chunk: u8, resource: Rc<R>) -> Result<Self> {
+		resource
+			.index(repository, category, chunk)
+			.and_then(|mut reader| {
+				let file = Index1::read(&mut reader).map_err(|_| Error::Resource)?;
+				Ok(IndexChunk::Index1(file))
+			})
+			.or_else(|_| {
+				resource
+					.index2(repository, category, chunk)
+					.and_then(|mut reader| {
+						let file = Index2::read(&mut reader).map_err(|_| Error::Resource)?;
+						Ok(IndexChunk::Index2(file))
+					})
+			})
 	}
 }

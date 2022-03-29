@@ -5,6 +5,10 @@ pub enum Error {
 	// TODO: how do we want to represent these properties of not found?
 	#[error("THING VALUE could not be found.")]
 	NotFound,
+
+	// TODO: again - how do i represent the properties of this error?
+	#[error("TODO: something fucky happened with the resource")]
+	Resource,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
