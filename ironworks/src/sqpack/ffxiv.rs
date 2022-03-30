@@ -130,9 +130,10 @@ impl Resource for FfxivFsResource {
 		read_index(self.build_file_path(repository, category, chunk, "index2")?)
 	}
 
-	type Dat = io::Empty;
-	fn dat(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Dat> {
-		Ok(io::empty())
+	type Dat = fs::File;
+	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
+		let path = self.build_file_path(repository, category, chunk, &format!("dat{dat}"))?;
+		fs::File::open(path).map_err(|_| Error::Resource)
 	}
 }
 

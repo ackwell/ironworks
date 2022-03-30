@@ -9,9 +9,9 @@ use super::{index1::Index1, index2::Index2, shared::FileMetadata};
 
 #[derive(Debug)]
 pub struct Location {
-	chunk: u8,
-	data_file: u8,
-	offset: u32,
+	pub chunk: u8,
+	pub data_file: u8,
+	pub offset: u32,
 }
 
 #[derive(Debug)]

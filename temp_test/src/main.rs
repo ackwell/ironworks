@@ -19,8 +19,10 @@ fn iw_test() -> anyhow::Result<()> {
 	let sqpack_resource = FfxivFsResource::search().unwrap();
 	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
 
-	let exl = sqpack.read("exd/root.exl");
-	let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl");
+	let exl = sqpack.read("exd/root.exl")?;
+	// let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl")?;
+
+	println!("exl: {exl:#?}");
 
 	Ok(())
 }

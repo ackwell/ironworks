@@ -22,5 +22,5 @@ pub trait Resource {
 	/// The type of a dat resource.
 	type Dat: Read + Seek;
 	/// Fetches the specified dat resource.
-	fn dat(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Dat>;
+	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat>;
 }
