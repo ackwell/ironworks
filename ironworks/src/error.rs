@@ -6,6 +6,9 @@ pub enum Error {
 	#[error("THING VALUE could not be found.")]
 	NotFound,
 
+	#[error("THING VALUE is invalid.")]
+	Invalid,
+
 	// TODO: again - how do i represent the properties of this error?
 	#[error("TODO: something fucky happened with the resource")]
 	Resource,

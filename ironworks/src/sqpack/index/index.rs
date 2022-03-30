@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use binrw::BinRead;
 
 use crate::{
@@ -7,15 +5,14 @@ use crate::{
 	sqpack::Resource,
 };
 
-use super::{index1::Index1, index2::Index2};
+use super::{index1::Index1, index2::Index2, shared::FileMetadata};
 
-// do i just trait this?
-// or would making it a trait make the reader, and then the sqpack, need to generic over it
-// in that case wrapper makes more sense i guess
-
-// tempted to say index owns chunks and then it can return file locations like the old one but with less wiring
-
-// with the binary reading stuff this should probably be split up into a few files
+#[derive(Debug)]
+pub struct Location {
+	chunk: u8,
+	data_file: u8,
+	offset: u32,
+}
 
 #[derive(Debug)]
 pub struct Index {
@@ -35,6 +32,27 @@ impl Index {
 			.collect::<Result<Vec<_>>>()?;
 
 		Ok(Self { chunks })
+	}
+
+	pub fn find(&self, path: &str) -> Result<Location> {
+		let matching_chunk = self
+			.chunks
+			.iter()
+			.enumerate()
+			.find_map(|(index, chunk)| match chunk.find(path) {
+				Err(Error::NotFound) => None,
+				Err(error) => Some(Err(error)),
+				Ok(meta) => Some(Ok(Location {
+					chunk: index.try_into().unwrap(),
+					data_file: meta.data_file_id,
+					offset: meta.offset,
+				})),
+			});
+
+		match matching_chunk {
+			None => Err(Error::NotFound),
+			Some(result) => result,
+		}
 	}
 }
 
@@ -60,5 +78,12 @@ impl IndexChunk {
 						Ok(IndexChunk::Index2(file))
 					})
 			})
+	}
+
+	fn find(&self, path: &str) -> Result<FileMetadata> {
+		match self {
+			Self::Index1(index) => index.find(path),
+			Self::Index2(index) => todo!("index2"),
+		}
 	}
 }

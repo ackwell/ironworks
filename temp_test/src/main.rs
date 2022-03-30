@@ -20,6 +20,7 @@ fn iw_test() -> anyhow::Result<()> {
 	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
 
 	let exl = sqpack.read("exd/root.exl");
+	let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl");
 
 	Ok(())
 }

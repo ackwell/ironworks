@@ -25,8 +25,8 @@ impl<R: Resource + Debug> SqPack<R> {
 		let (repository, category) = self.resource.path_metadata(path).ok_or(Error::NotFound)?;
 
 		// TODO: cache reader
-		let reader = Reader::new(repository, category, self.resource.clone());
-		println!("{reader:#?}");
+		let reader = Reader::new(repository, category, self.resource.clone())?;
+		reader.read(path);
 
 		Ok(())
 	}

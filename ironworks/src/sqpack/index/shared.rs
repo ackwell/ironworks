@@ -26,11 +26,11 @@ enum PlatformId {
 pub struct IndexHeader {
 	size: u32,
 	version: u32,
-	index_data: Metadata,
+	pub index_data: Section,
 	data_file_count: u32,
-	synonym_data: Metadata,
-	empty_block_data: Metadata,
-	dir_index_data: Metadata,
+	synonym_data: Section,
+	empty_block_data: Section,
+	dir_index_data: Section,
 	index_type: u32,
 
 	#[br(pad_before = 656)] // reserved
@@ -39,9 +39,9 @@ pub struct IndexHeader {
 
 #[derive(BinRead, Debug)]
 #[br(little)]
-pub struct Metadata {
-	offset: u32,
-	size: u32,
+pub struct Section {
+	pub offset: u32,
+	pub size: u32,
 	digest: Digest,
 }
 
@@ -52,5 +52,23 @@ impl fmt::Debug for Digest {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let digest_string = self.0.map(|byte| format!("{:02x}", byte)).join(" ");
 		formatter.write_str(&digest_string)
+	}
+}
+
+#[derive(BinRead, Clone, Debug)]
+#[br(map = Self::read)]
+pub struct FileMetadata {
+	is_synonym: bool,
+	pub data_file_id: u8,
+	pub offset: u32,
+}
+
+impl FileMetadata {
+	fn read(input: u32) -> Self {
+		Self {
+			is_synonym: (input & 0b1) == 0b1,
+			data_file_id: ((input & 0b1110) >> 1) as u8,
+			offset: (input & !0xF) * 0x08,
+		}
 	}
 }
