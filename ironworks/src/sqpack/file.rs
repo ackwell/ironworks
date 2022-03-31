@@ -5,6 +5,8 @@ use flate2::read::DeflateDecoder;
 
 use crate::error::{Error, Result};
 
+const MAX_COMPRESSED_BLOCK_SIZE: u32 = 16_000;
+
 #[derive(Debug)]
 pub struct File<R> {
 	reader: R,
@@ -18,7 +20,7 @@ where
 	R: Read + Seek,
 {
 	pub fn new(mut reader: R, offset: u32) -> Result<Self> {
-		// todo make reading the file header lazy too?
+		// TODO: Make reading the file header lazy too?
 		reader
 			.seek(SeekFrom::Start(offset.into()))
 			.map_err(|_| Error::Resource)?;
@@ -78,12 +80,16 @@ where
 	let block_header = BlockHeader::read(&mut raw_cursor)
 		.map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
-	// todo assert uncompressed is equal
-	// compressed isn't equal, check coinach/io/file there's some funky padding
+	assert_eq!(
+		block_header.decompressed_size,
+		block_info.decompressed_size.into(),
+		"Block info and header decompressed size differs."
+	);
+
+	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 
 	// Build a block reader for this block
-	// todo where put constant!?!?
-	let block_reader = if block_header.decompressed_size > 16000 {
+	let block_reader = if block_header.decompressed_size > MAX_COMPRESSED_BLOCK_SIZE {
 		BlockReader::Loose(raw_cursor)
 	} else {
 		BlockReader::Compressed(DeflateDecoder::new(raw_cursor))
@@ -113,7 +119,7 @@ struct Header {
 	size: u32,
 	kind: FileKind,
 	raw_file_size: u32,
-	#[br(pad_before = 8)]
+	#[br(temp, pad_before = 8)]
 	block_count: u32,
 	#[br(count = block_count)]
 	blocks: Vec<BlockInfo>,

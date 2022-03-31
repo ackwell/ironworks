@@ -2,11 +2,12 @@ use std::{fmt::Debug, rc::Rc};
 
 use crate::error::{Error, Result};
 
-use super::{index::Index, resource::Resource};
+use super::{file::File, index::Index, resource::Resource};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
 pub struct SqPack<R> {
+	// TODO: Work out if we can have avoid Rc'ing the resource so much, it should be safe api-wise to tie all the innards to the lifetime of sqpack... right?
 	resource: Rc<R>,
 }
 

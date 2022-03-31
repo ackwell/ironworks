@@ -8,6 +8,9 @@ use crate::error::{Error, Result};
 
 use super::resource::Resource;
 
+// TODO: should this and the core resource get moved to a "resource" module by themselves?
+//       do we expect this to also implement the sqpack extension?
+
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
 	r"C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY XIV Online",
