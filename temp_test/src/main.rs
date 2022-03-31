@@ -27,7 +27,7 @@ fn iw_test() -> anyhow::Result<()> {
 	let mut buffer = vec![];
 	exl.read_to_end(&mut buffer)?;
 	let string = String::from_utf8_lossy(&buffer);
-	println!("exl: {string:#?}");
+	println!("exl: {string}");
 
 	Ok(())
 }
