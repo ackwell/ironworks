@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use ironworks::sqpack::FfxivFsResource;
 use ironworks_excel::{Excel, ExcelOptions, RowOptions};
 use ironworks_ffxiv::{ExcelSqPack, Language, SqPackFfxiv};
@@ -19,10 +21,13 @@ fn iw_test() -> anyhow::Result<()> {
 	let sqpack_resource = FfxivFsResource::search().unwrap();
 	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
 
-	let exl = sqpack.read("exd/root.exl")?;
+	let mut exl = sqpack.read("exd/root.exl")?;
 	// let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl")?;
 
-	println!("exl: {exl:#?}");
+	let mut buffer = vec![];
+	exl.read_to_end(&mut buffer)?;
+	let string = String::from_utf8_lossy(&buffer);
+	println!("exl: {string:#?}");
 
 	Ok(())
 }

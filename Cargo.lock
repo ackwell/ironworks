@@ -179,6 +179,7 @@ name = "ironworks"
 version = "0.1.0"
 dependencies = [
  "binrw",
+ "flate2",
  "thiserror",
 ]
 
