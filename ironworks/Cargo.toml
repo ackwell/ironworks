@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-sqpack = []
+sqpack = ["binrw", "flate2"]
 
 [dependencies]
-# TODO: Which of these should be optional?
-binrw = "0.8.4"
-flate2 = "1.0.22"
 thiserror = "1.0.30"
+
+binrw = {version = "0.8.4", optional = true}
+flate2 = {version = "1.0.22", optional = true}
