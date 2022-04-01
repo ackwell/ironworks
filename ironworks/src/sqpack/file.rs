@@ -23,8 +23,8 @@ where
 		// TODO: Make reading the file header lazy too?
 		reader
 			.seek(SeekFrom::Start(offset.into()))
-			.map_err(|_| Error::Resource)?;
-		let header = Header::read(&mut reader).map_err(|_| Error::Resource)?;
+			.map_err(|error| Error::Resource(error.into()))?;
+		let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
 
 		Ok(Self {
 			reader,
@@ -50,6 +50,8 @@ where
 				Ok(vec)
 			},
 		)?;
+
+		// TODO: Check the raw file size here? Is it worth doing with theoretical lazy chunk reading on the horizon?
 
 		Ok(cursor_cache.insert(Cursor::new(out_buffer)))
 	}
@@ -117,8 +119,8 @@ impl Read for BlockReader {
 #[br(little)]
 struct Header {
 	size: u32,
-	kind: FileKind,
-	raw_file_size: u32,
+	_kind: FileKind,
+	_raw_file_size: u32,
 	#[br(temp, pad_before = 8)]
 	block_count: u32,
 	#[br(count = block_count)]
@@ -149,9 +151,9 @@ struct BlockInfo {
 #[derive(Debug)]
 #[br(little)]
 struct BlockHeader {
-	size: u32,
+	_size: u32,
 	// unknown1: u32,
 	#[br(pad_before = 4)]
-	compressed_size: u32,
+	_compressed_size: u32,
 	decompressed_size: u32,
 }

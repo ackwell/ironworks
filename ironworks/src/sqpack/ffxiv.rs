@@ -4,7 +4,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorValue, Result};
 
 use super::resource::Resource;
 
@@ -89,7 +89,9 @@ impl FfxivFsResource {
 		let repository_name = self
 			.repositories
 			.get(usize::from(repository))
-			.ok_or(Error::NotFound)?;
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Other(format!("repository {repository}")))
+			})?;
 
 		let file_name = format!("{category:02x}{repository:02x}{chunk:02x}.win32.{extension}");
 
@@ -136,7 +138,7 @@ impl Resource for FfxivFsResource {
 	type Dat = fs::File;
 	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
 		let path = self.build_file_path(repository, category, chunk, &format!("dat{dat}"))?;
-		fs::File::open(path).map_err(|_| Error::Resource)
+		fs::File::open(path).map_err(|error| Error::Resource(error.into()))
 	}
 }
 
@@ -178,9 +180,9 @@ fn read_index(path: PathBuf) -> Result<io::Cursor<Vec<u8>>> {
 	// Read the entire index into memory before returning - we typically need
 	// the full dataset anyway, and working directly on a File causes significant
 	// slowdowns due to IO syscalls.
-	let buffer = fs::read(path).map_err(|error| match error.kind() {
-		io::ErrorKind::NotFound => Error::NotFound,
-		_ => Error::Resource,
+	let buffer = fs::read(&path).map_err(|error| match error.kind() {
+		io::ErrorKind::NotFound => Error::NotFound(ErrorValue::FilePath(path)),
+		_ => Error::Resource(error.into()),
 	})?;
 	Ok(io::Cursor::new(buffer))
 }

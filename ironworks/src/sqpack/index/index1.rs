@@ -2,7 +2,7 @@ use std::io::SeekFrom;
 
 use binrw::binread;
 
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorValue, Result};
 
 use super::{
 	crc::crc32,
@@ -50,7 +50,12 @@ impl Index1 {
 
 		let hash = match hashed_segments[..] {
 			[file, directory] => (directory as u64) << 32 | file as u64,
-			_ => return Err(Error::Invalid),
+			_ => {
+				return Err(Error::Invalid(
+					ErrorValue::SqpackPath(path.into()),
+					"SqPack paths must contain at least two segments".into(),
+				))
+			}
 		};
 
 		// Look for a matching entry in the index table
@@ -60,6 +65,6 @@ impl Index1 {
 			.iter()
 			.find(|entry| entry.hash == hash)
 			.map(|entry| entry.file_metadata.clone())
-			.ok_or(Error::NotFound)
+			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.into())))
 	}
 }

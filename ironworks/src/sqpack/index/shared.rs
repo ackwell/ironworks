@@ -5,12 +5,13 @@ use binrw::BinRead;
 #[derive(BinRead, Debug)]
 #[br(little, magic = b"SqPack\0\0")]
 pub struct SqPackHeader {
-	platform_id: PlatformId,
+	// TODO: Handle platforms.
+	_platform_id: PlatformId,
 	// unknown: [u8; 3],
 	#[br(pad_before = 3)]
 	pub size: u32,
-	version: u32,
-	kind: u32,
+	_version: u32,
+	_kind: u32,
 }
 
 #[derive(BinRead, Debug)]
@@ -24,17 +25,17 @@ enum PlatformId {
 #[derive(BinRead, Debug)]
 #[br(little)]
 pub struct IndexHeader {
-	size: u32,
-	version: u32,
+	_size: u32,
+	_version: u32,
 	pub index_data: Section,
-	data_file_count: u32,
-	synonym_data: Section,
-	empty_block_data: Section,
-	dir_index_data: Section,
-	index_type: u32,
+	_data_file_count: u32,
+	_synonym_data: Section,
+	_empty_block_data: Section,
+	_dir_index_data: Section,
+	_index_type: u32,
 
 	#[br(pad_before = 656)] // reserved
-	digest: Digest,
+	_digest: Digest,
 }
 
 #[derive(BinRead, Debug)]
@@ -42,7 +43,7 @@ pub struct IndexHeader {
 pub struct Section {
 	pub offset: u32,
 	pub size: u32,
-	digest: Digest,
+	_digest: Digest,
 }
 
 #[derive(BinRead)]

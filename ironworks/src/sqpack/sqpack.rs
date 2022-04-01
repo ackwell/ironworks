@@ -1,6 +1,6 @@
 use std::{fmt::Debug, rc::Rc};
 
-use crate::error::{Error, Result};
+use crate::error::{Error, ErrorValue, Result};
 
 use super::{file::File, index::Index, resource::Resource};
 
@@ -23,7 +23,10 @@ impl<R: Resource> SqPack<R> {
 	// TODO: name
 	/// Read the file at `path` from SqPack.
 	pub fn read(&self, path: &str) -> Result<File<R::Dat>> {
-		let (repository, category) = self.resource.path_metadata(path).ok_or(Error::NotFound)?;
+		let (repository, category) = self
+			.resource
+			.path_metadata(path)
+			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.into())))?;
 
 		// TODO: cache reader
 		let reader = Reader::new(repository, category, self.resource.clone())?;
