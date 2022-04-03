@@ -31,13 +31,16 @@ impl<R: Resource> SqPack<R> {
 	// TODO: name
 	/// Read the file at `path` from SqPack.
 	pub fn read(&self, path: &str) -> Result<File<R::Dat>> {
+		// SqPack paths are always lower case.
+		let path = path.to_lowercase();
+
 		// Look up the location of the requested path.
 		let (repository, category) = self
 			.resource
-			.path_metadata(path)
-			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.into())))?;
+			.path_metadata(&path)
+			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.clone())))?;
 
-		let location = self.index(repository, category)?.find(path)?;
+		let location = self.index(repository, category)?.find(&path)?;
 
 		// Build a File representation.
 		let dat = self
