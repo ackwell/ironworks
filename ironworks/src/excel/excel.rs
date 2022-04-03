@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{Error, ErrorValue, Result};
 
 use super::{list::List, resource::Resource};
 
@@ -20,7 +20,7 @@ impl<R: Resource> Excel<R> {
 		let list = List::read(self.resource.list()?)?;
 
 		if !list.has(sheet) {
-			panic!("TODO: error");
+			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
 		}
 
 		Ok(())

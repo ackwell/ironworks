@@ -25,9 +25,16 @@ pub enum Error {
 #[derive(Debug)]
 pub enum ErrorValue {
 	/// A filesystem path.
+	#[cfg(feature = "sqpack")]
 	FilePath(PathBuf),
+
 	/// A path within the SqPack package repositories.
+	#[cfg(feature = "sqpack")]
 	SqpackPath(String),
+
+	/// An excel sheet.
+	#[cfg(feature = "excel")]
+	Sheet(String),
 
 	/// A value not otherwise represented by the above variants.
 	Other(String),
@@ -36,8 +43,14 @@ pub enum ErrorValue {
 impl fmt::Display for ErrorValue {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
+			#[cfg(feature = "sqpack")]
 			Self::FilePath(path) => write!(formatter, "file {path:?}"),
+
+			#[cfg(feature = "sqpack")]
 			Self::SqpackPath(path) => write!(formatter, "SqPack path \"{path}\""),
+
+			#[cfg(feature = "excel")]
+			Self::Sheet(sheet) => write!(formatter, "Excel sheet \"{sheet}\""),
 
 			Self::Other(value) => write!(formatter, "{value}"),
 		}
