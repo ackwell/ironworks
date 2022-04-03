@@ -1,4 +1,9 @@
-use std::{fmt::Debug, rc::Rc};
+use std::{
+	cell::RefCell,
+	collections::{hash_map::Entry, HashMap},
+	fmt::Debug,
+	rc::Rc,
+};
 
 use crate::error::{Error, ErrorValue, Result};
 
@@ -7,8 +12,9 @@ use super::{file::File, index::Index, resource::Resource};
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
 pub struct SqPack<R> {
-	// TODO: Work out if we can have avoid Rc'ing the resource so much, it should be safe api-wise to tie all the innards to the lifetime of sqpack... right?
-	resource: Rc<R>,
+	resource: R,
+
+	indexes: RefCell<HashMap<(u8, u8), Rc<Index>>>,
 }
 
 impl<R: Resource> SqPack<R> {
@@ -16,60 +22,46 @@ impl<R: Resource> SqPack<R> {
 	/// queried for lookups as required to fulfil SqPack requests.
 	pub fn new(resource: R) -> Self {
 		Self {
-			resource: resource.into(),
+			resource,
+
+			indexes: Default::default(),
 		}
 	}
 
 	// TODO: name
 	/// Read the file at `path` from SqPack.
 	pub fn read(&self, path: &str) -> Result<File<R::Dat>> {
+		// Look up the location of the requested path.
 		let (repository, category) = self
 			.resource
 			.path_metadata(path)
 			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.into())))?;
 
-		// TODO: cache reader
-		let reader = Reader::new(repository, category, self.resource.clone())?;
-		reader.read(path)
-	}
-}
+		let location = self.index(repository, category)?.find(path)?;
 
-// TODO: this should be in another file
-// TODO: name - it's effectively a repo+category abstraction?
-// TODO: If this doesn't grow much more, realistically it can be inlined into the main sqpack struct
-#[derive(Debug)]
-struct Reader<R> {
-	repository: u8,
-	category: u8,
+		// Build a File representation.
+		let dat = self
+			.resource
+			.dat(repository, category, location.chunk, location.data_file)?;
 
-	index: Index,
-	resource: Rc<R>,
-}
-
-impl<R: Resource> Reader<R> {
-	fn new(repository: u8, category: u8, resource: Rc<R>) -> Result<Self> {
-		// Eagerly build index
-		let index = Index::new(repository, category, resource.as_ref())?;
-
-		Ok(Self {
-			repository,
-			category,
-			index,
-			resource,
-		})
-	}
-
-	// TODO: name?
-	fn read(&self, path: &str) -> Result<File<R::Dat>> {
-		let location = self.index.find(path)?;
-
-		let dat = self.resource.dat(
-			self.repository,
-			self.category,
-			location.chunk,
-			location.data_file,
-		)?;
-
+		// TODO: Cache files? Will need to think about ownership and shared cursor
+		// positions if we do that. Maybe an internal structure for dealing with
+		// cached binary data, and then a cloneable "position" structure that isn't cached?
 		File::new(dat, location.offset)
+	}
+
+	fn index(&self, repository: u8, category: u8) -> Result<Rc<Index>> {
+		// TODO: maybe try_borrow_mut?
+		let mut indexes = self.indexes.borrow_mut();
+
+		let index = match indexes.entry((repository, category)) {
+			Entry::Occupied(value) => value.get().clone(),
+			Entry::Vacant(value) => {
+				let index = Index::new(repository, category, &self.resource)?;
+				value.insert(index.into()).clone()
+			}
+		};
+
+		Ok(index)
 	}
 }
