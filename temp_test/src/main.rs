@@ -38,10 +38,10 @@ fn iw_test() -> anyhow::Result<()> {
 struct TestExcelResource<'a, R> {
 	sqpack: &'a ironworks::sqpack::SqPack<R>,
 }
-impl<R> ironworks::excel::Resource for TestExcelResource<'_, R> {
-	type List = std::io::Empty;
+impl<R: ironworks::sqpack::Resource> ironworks::excel::Resource for TestExcelResource<'_, R> {
+	type List = ironworks::sqpack::File<R::Dat>;
 	fn list(&self) -> Result<Self::List, ironworks::Error> {
-		todo!()
+		self.sqpack.read("exd/root.exl")
 	}
 
 	type Header = std::io::Empty;

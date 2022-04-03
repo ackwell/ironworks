@@ -65,6 +65,12 @@ impl<R: Read + Seek> Read for File<R> {
 	}
 }
 
+impl<R: Read + Seek> Seek for File<R> {
+	fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
+		self.cursor()?.seek(pos)
+	}
+}
+
 // TODO: move this into a block struct of some kind if we do lazy reading?
 fn read_block<R>(reader: &mut R, block_info: &BlockInfo, base: u32) -> io::Result<BlockReader>
 where
