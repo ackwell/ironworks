@@ -7,6 +7,7 @@ use crate::error::{Error, Result};
 
 const MAX_COMPRESSED_BLOCK_SIZE: u32 = 16_000;
 
+/// A file within a SqPack package.
 #[derive(Debug)]
 pub struct File<R> {
 	reader: R,
@@ -19,7 +20,7 @@ impl<R> File<R>
 where
 	R: Read + Seek,
 {
-	pub fn new(mut reader: R, offset: u32) -> Result<Self> {
+	pub(crate) fn new(mut reader: R, offset: u32) -> Result<Self> {
 		// TODO: Make reading the file header lazy too?
 		reader
 			.seek(SeekFrom::Start(offset.into()))

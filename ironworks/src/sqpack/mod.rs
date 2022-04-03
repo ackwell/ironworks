@@ -6,6 +6,4 @@ mod index;
 mod resource;
 mod sqpack;
 
-pub use ffxiv::FfxivFsResource;
-pub use resource::Resource;
-pub use sqpack::SqPack;
+pub use {ffxiv::FfxivFsResource, file::File, resource::Resource, sqpack::SqPack};
