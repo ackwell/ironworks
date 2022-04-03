@@ -18,7 +18,6 @@ pub trait Resource {
 	/// Fetches the specified index2 resource.
 	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2>;
 
-	// TODO: this will probably need a dat no. param too
 	/// The type of a dat resource.
 	type Dat: Read + Seek;
 	/// Fetches the specified dat resource.
