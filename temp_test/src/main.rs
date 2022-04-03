@@ -26,10 +26,38 @@ fn iw_test() -> anyhow::Result<()> {
 
 	let mut buffer = vec![];
 	exl.read_to_end(&mut buffer)?;
-	let string = String::from_utf8_lossy(&buffer);
-	println!("exl: {string}");
+
+	let excel = ironworks::excel::Excel::new(TestExcelResource { sqpack: &sqpack });
+	let sheet = excel.sheet("CompanionTransient")?;
+
+	println!("sheet: {sheet:?}");
 
 	Ok(())
+}
+
+struct TestExcelResource<'a, R> {
+	sqpack: &'a ironworks::sqpack::SqPack<R>,
+}
+impl<R> ironworks::excel::Resource for TestExcelResource<'_, R> {
+	type List = std::io::Empty;
+	fn list(&self) -> Result<Self::List, ironworks::Error> {
+		todo!()
+	}
+
+	type Header = std::io::Empty;
+	fn header(&self, sheet: &str) -> Result<Self::Header, ironworks::Error> {
+		todo!()
+	}
+
+	type Page = std::io::Empty;
+	fn page(
+		&self,
+		sheet: &str,
+		start_id: u32,
+		language_id: u8,
+	) -> Result<Self::Page, ironworks::Error> {
+		todo!()
+	}
 }
 
 #[allow(dead_code)]
