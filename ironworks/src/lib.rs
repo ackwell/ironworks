@@ -5,6 +5,8 @@
 #![warn(missing_debug_implementations, missing_docs)]
 
 mod error;
+#[cfg(feature = "excel")]
+pub mod excel;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
 

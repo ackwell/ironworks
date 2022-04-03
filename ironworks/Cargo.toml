@@ -5,6 +5,7 @@ edition = "2021"
 
 [features]
 sqpack = ["binrw", "flate2"]
+excel = []
 
 [dependencies]
 thiserror = "1.0.30"
