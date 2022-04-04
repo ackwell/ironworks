@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use crate::error::{Error, ErrorValue, Result};
 
-use super::{list::List, resource::Resource};
+use super::{list::List, resource::Resource, sheet::Sheet};
 
 /// An excel database.
 #[derive(Debug)]
@@ -23,12 +23,12 @@ impl<R: Resource> Excel<R> {
 	}
 
 	/// Fetch a sheet from the database.
-	pub fn sheet(&self, sheet: &str) -> Result<()> {
+	pub fn sheet(&self, sheet: &str) -> Result<Sheet> {
 		if !self.list_has(sheet)? {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
 		}
 
-		Ok(())
+		Ok(Sheet::new())
 	}
 
 	fn list_has(&self, sheet: &str) -> Result<bool> {

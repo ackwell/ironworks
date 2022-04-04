@@ -3,5 +3,6 @@
 mod excel;
 mod list;
 mod resource;
+mod sheet;
 
-pub use {excel::Excel, resource::Resource};
+pub use {excel::Excel, resource::Resource, sheet::Sheet};
