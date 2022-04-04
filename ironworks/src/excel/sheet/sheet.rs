@@ -3,11 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use binrw::BinRead;
 
 use crate::{
-	error::{Error, Result},
+	error::{Error, ErrorValue, Result},
 	excel::Resource,
 };
 
-use super::header::Header;
+use super::header::{Header, SheetKind};
 
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
 // past the lifetime of the parent Excel instance.
@@ -34,14 +34,23 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
-	pub fn row(&self, row_id: u32) -> Result<()> {
-		self.subrow(row_id, 0)
+	pub fn row(&self, row: u32) -> Result<()> {
+		self.subrow(row, 0)
 	}
 
 	// TODO: u16?
 	/// Fetch a row from this sheet by its ID and subrow ID.
-	pub fn subrow(&self, _row_id: u32, _subrow_id: u16) -> Result<()> {
+	pub fn subrow(&self, row: u32, subrow: u16) -> Result<()> {
 		let header = self.header()?;
+
+		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
+		if header.kind != SheetKind::Subrows && subrow > 0 {
+			return Err(Error::NotFound(ErrorValue::Row {
+				row,
+				subrow,
+				sheet: self.sheet.clone(),
+			}));
+		}
 
 		println!("header: {header:#?}");
 

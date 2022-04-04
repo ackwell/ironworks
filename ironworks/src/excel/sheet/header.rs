@@ -17,7 +17,7 @@ pub struct Header {
 	// unknown1: u16,
 	// unknown2: u8,
 	#[br(pad_before = 3)]
-	kind: SheetKind,
+	pub kind: SheetKind,
 	// unknown3: u16,
 	#[br(pad_before = 2)]
 	row_count: u32,
@@ -38,9 +38,9 @@ pub struct Header {
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[br(repr = u8)]
-enum SheetKind {
+pub enum SheetKind {
 	Unknown = 0,
 	Default = 1,
 	Subrows = 2,

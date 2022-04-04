@@ -32,9 +32,20 @@ pub enum ErrorValue {
 	#[cfg(feature = "sqpack")]
 	SqpackPath(String),
 
-	/// An excel sheet.
+	/// An Excel sheet.
 	#[cfg(feature = "excel")]
 	Sheet(String),
+
+	/// An Excel row.
+	#[cfg(feature = "excel")]
+	Row {
+		/// Row ID.
+		row: u32,
+		/// Sub-row ID.
+		subrow: u16,
+		/// Row's parent sheet.
+		sheet: String,
+	},
 
 	/// A value not otherwise represented by the above variants.
 	Other(String),
@@ -51,6 +62,9 @@ impl fmt::Display for ErrorValue {
 
 			#[cfg(feature = "excel")]
 			Self::Sheet(sheet) => write!(formatter, "Excel sheet \"{sheet}\""),
+
+			#[cfg(feature = "excel")]
+			Self::Row { row, subrow, sheet } => write!(formatter, "Excel row {sheet}/{row}:{subrow}"),
 
 			Self::Other(value) => write!(formatter, "{value}"),
 		}

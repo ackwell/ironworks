@@ -10,4 +10,4 @@ pub mod excel;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
 
-pub use error::Error;
+pub use error::{Error, ErrorValue};
