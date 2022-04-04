@@ -23,12 +23,12 @@ impl<R: Resource> Excel<R> {
 	}
 
 	/// Fetch a sheet from the database.
-	pub fn sheet(&self, sheet: &str) -> Result<Sheet> {
+	pub fn sheet(&self, sheet: &str) -> Result<Sheet<R>> {
 		if !self.list_has(sheet)? {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
 		}
 
-		Ok(Sheet::new())
+		Ok(Sheet::new(sheet.into(), &self.resource))
 	}
 
 	fn list_has(&self, sheet: &str) -> Result<bool> {

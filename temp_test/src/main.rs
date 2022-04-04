@@ -21,16 +21,19 @@ fn iw_test() -> anyhow::Result<()> {
 	let sqpack_resource = FfxivFsResource::search().unwrap();
 	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
 
-	let mut exl = sqpack.read("exd/root.exl")?;
+	// let mut exl = sqpack.read("exd/root.exl")?;
 	// let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl")?;
 
-	let mut buffer = vec![];
-	exl.read_to_end(&mut buffer)?;
+	// let mut buffer = vec![];
+	// exl.read_to_end(&mut buffer)?;
+	// let string = String::from_utf8_lossy(&buffer);
+	// println!("exl: {string}");
 
 	let excel = ironworks::excel::Excel::new(TestExcelResource { sqpack: &sqpack });
 	let sheet = excel.sheet("CompanionTransient")?;
+	let row = sheet.row(101)?;
 
-	println!("sheet: {sheet:?}");
+	println!("row: {row:?}");
 
 	Ok(())
 }
@@ -44,9 +47,9 @@ impl<R: ironworks::sqpack::Resource> ironworks::excel::Resource for TestExcelRes
 		self.sqpack.read("exd/root.exl")
 	}
 
-	type Header = std::io::Empty;
+	type Header = ironworks::sqpack::File<R::Dat>;
 	fn header(&self, sheet: &str) -> Result<Self::Header, ironworks::Error> {
-		todo!()
+		self.sqpack.read(&format!("exd/{sheet}.exh"))
 	}
 
 	type Page = std::io::Empty;
