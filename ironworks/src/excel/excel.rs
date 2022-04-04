@@ -32,8 +32,8 @@ impl<R: Resource> Excel<R> {
 	}
 
 	fn list_has(&self, sheet: &str) -> Result<bool> {
-		let mut list_cell = self.list.borrow_mut();
-		let list = match &mut *list_cell {
+		let mut cell = self.list.borrow_mut();
+		let list = match &mut *cell {
 			Some(list) => list,
 			option @ None => {
 				let list = List::read(self.resource.list()?)?;
