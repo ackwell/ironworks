@@ -1,6 +1,7 @@
-use std::cell::RefCell;
-
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	utility::{OptionCache, OptionCacheExt},
+};
 
 use super::{list::List, resource::Resource, sheet::Sheet};
 
@@ -9,7 +10,7 @@ use super::{list::List, resource::Resource, sheet::Sheet};
 pub struct Excel<R> {
 	resource: R,
 
-	list: RefCell<Option<List>>,
+	list: OptionCache<List>,
 }
 
 impl<R: Resource> Excel<R> {
@@ -17,30 +18,19 @@ impl<R: Resource> Excel<R> {
 	pub fn new(resource: R) -> Self {
 		Self {
 			resource,
-
-			list: None.into(),
+			list: Default::default(),
 		}
 	}
 
 	/// Fetch a sheet from the database.
 	pub fn sheet(&self, sheet: &str) -> Result<Sheet<R>> {
-		if !self.list_has(sheet)? {
+		let list = self
+			.list
+			.try_get_or_insert(|| List::read(self.resource.list()?))?;
+		if !list.has(sheet) {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
 		}
 
 		Ok(Sheet::new(sheet.into(), &self.resource))
-	}
-
-	fn list_has(&self, sheet: &str) -> Result<bool> {
-		let mut cell = self.list.borrow_mut();
-		let list = match &mut *cell {
-			Some(list) => list,
-			option @ None => {
-				let list = List::read(self.resource.list()?)?;
-				option.insert(list)
-			}
-		};
-
-		Ok(list.has(sheet))
 	}
 }

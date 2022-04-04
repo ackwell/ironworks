@@ -9,5 +9,6 @@ mod error;
 pub mod excel;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
+mod utility;
 
 pub use error::{Error, ErrorValue};

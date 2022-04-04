@@ -1,10 +1,9 @@
-use std::{cell::RefCell, rc::Rc};
-
 use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::Resource,
+	utility::{OptionCache, OptionCacheExt},
 };
 
 use super::{
@@ -21,7 +20,7 @@ pub struct Sheet<'r, R> {
 
 	resource: &'r R,
 
-	header: RefCell<Option<Rc<Header>>>,
+	header: OptionCache<Header>,
 }
 
 impl<'r, R: Resource> Sheet<'r, R> {
@@ -44,7 +43,10 @@ impl<'r, R: Resource> Sheet<'r, R> {
 	// TODO: u16?
 	/// Fetch a row from this sheet by its ID and subrow ID.
 	pub fn subrow(&self, row: u32, subrow: u16) -> Result<()> {
-		let header = self.header()?;
+		let header = self.header.try_get_or_insert(|| {
+			let mut reader = self.resource.header(&self.sheet)?;
+			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+		})?;
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
 		if header.kind != SheetKind::Subrows && subrow > 0 {
@@ -78,20 +80,5 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		println!("page: {page:?}");
 
 		Ok(())
-	}
-
-	fn header(&self) -> Result<Rc<Header>> {
-		let mut cell = self.header.borrow_mut();
-		let header = match &mut *cell {
-			Some(header) => header,
-			option @ None => {
-				let mut reader = self.resource.header(&self.sheet)?;
-				let header =
-					Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
-				option.insert(header.into())
-			}
-		};
-
-		Ok(header.clone())
 	}
 }
