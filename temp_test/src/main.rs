@@ -52,14 +52,15 @@ impl<R: ironworks::sqpack::Resource> ironworks::excel::Resource for TestExcelRes
 		self.sqpack.read(&format!("exd/{sheet}.exh"))
 	}
 
-	type Page = std::io::Empty;
+	type Page = ironworks::sqpack::File<R::Dat>;
 	fn page(
 		&self,
 		sheet: &str,
 		start_id: u32,
 		language_id: u8,
 	) -> Result<Self::Page, ironworks::Error> {
-		todo!()
+		// TODO: language
+		self.sqpack.read(&format!("exd/{sheet}_{start_id}_en.exd"))
 	}
 }
 

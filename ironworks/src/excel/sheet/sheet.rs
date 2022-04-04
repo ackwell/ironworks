@@ -7,7 +7,10 @@ use crate::{
 	excel::Resource,
 };
 
-use super::header::{Header, SheetKind};
+use super::{
+	header::{Header, SheetKind},
+	page::Page,
+};
 
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
 // past the lifetime of the parent Excel instance.
@@ -52,7 +55,27 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			}));
 		}
 
-		println!("header: {header:#?}");
+		// Try to read in the page for the requested (sub)row.
+		let page_definition = header
+			.pages
+			.iter()
+			.find(|page| page.start_id <= row && page.start_id + page.row_count > row)
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Row {
+					row,
+					subrow,
+					sheet: self.sheet.clone(),
+				})
+			})?;
+
+		// TODO language
+		// TODO cache
+		let mut reader = self
+			.resource
+			.page(&self.sheet, page_definition.start_id, 1)?;
+		let page = Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
+
+		println!("page: {page:?}");
 
 		Ok(())
 	}

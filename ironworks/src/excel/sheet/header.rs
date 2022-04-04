@@ -28,7 +28,7 @@ pub struct Header {
 	)]
 	columns: Vec<ColumnDefinition>,
 	#[br(count = page_count)]
-	pages: Vec<PageDefinition>,
+	pub pages: Vec<PageDefinition>,
 	// TODO: set
 	#[br(
 		count = language_count,
@@ -86,9 +86,9 @@ enum ColumnKind {
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct PageDefinition {
-	start_id: u32,
-	row_count: u32,
+pub struct PageDefinition {
+	pub start_id: u32,
+	pub row_count: u32,
 }
 
 #[binread]
