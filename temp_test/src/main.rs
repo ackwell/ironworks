@@ -31,13 +31,14 @@ fn iw_test() -> anyhow::Result<()> {
 
 	let excel = ironworks::excel::Excel::new(TestExcelResource { sqpack: &sqpack });
 	let sheet = excel.sheet("CompanionTransient")?;
-	let row = sheet.row(101)?;
+	let row = sheet.with().language(1).row(101)?;
 
 	println!("row: {row:?}");
 
 	Ok(())
 }
 
+#[derive(Debug)]
 struct TestExcelResource<'a, R> {
 	sqpack: &'a ironworks::sqpack::SqPack<R>,
 }
@@ -59,6 +60,7 @@ impl<R: ironworks::sqpack::Resource> ironworks::excel::Resource for TestExcelRes
 		start_id: u32,
 		language_id: u8,
 	) -> Result<Self::Page, ironworks::Error> {
+		println!("req. lang: {language_id}");
 		// TODO: language
 		self.sqpack.read(&format!("exd/{sheet}_{start_id}_en.exd"))
 	}

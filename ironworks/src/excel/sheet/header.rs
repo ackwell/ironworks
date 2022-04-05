@@ -34,7 +34,7 @@ pub struct Header {
 		count = language_count,
 		map = LanguageDefinition::to_set,
 	)]
-	languages: HashSet<u8>,
+	pub languages: HashSet<u8>,
 }
 
 #[binread]

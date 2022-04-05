@@ -5,4 +5,8 @@ mod list;
 mod resource;
 mod sheet;
 
-pub use {excel::Excel, resource::Resource, sheet::Sheet};
+pub use {
+	excel::Excel,
+	resource::Resource,
+	sheet::{RowOptions, Sheet},
+};
