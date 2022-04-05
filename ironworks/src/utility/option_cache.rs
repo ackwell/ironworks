@@ -3,16 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 pub type OptionCache<T> = RefCell<Option<Rc<T>>>;
 
 pub trait OptionCacheExt<T> {
-	fn try_get_or_insert<F, E>(&self, build: F) -> Result<Rc<T>, E>
-	where
-		F: FnOnce() -> Result<T, E>;
+	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Rc<T>, E>;
 }
 
 impl<T> OptionCacheExt<T> for OptionCache<T> {
-	fn try_get_or_insert<F, E>(&self, build: F) -> Result<Rc<T>, E>
-	where
-		F: FnOnce() -> Result<T, E>,
-	{
+	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Rc<T>, E> {
 		Ok(match &mut *self.borrow_mut() {
 			Some(inner) => inner.clone(),
 			option @ None => option.insert(build()?.into()).clone(),

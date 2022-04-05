@@ -1,11 +1,9 @@
-use std::{
-	cell::RefCell,
-	collections::{hash_map::Entry, HashMap},
-	fmt::Debug,
-	rc::Rc,
-};
+use std::fmt::Debug;
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	utility::{HashMapCache, HashMapCacheExt},
+};
 
 use super::{file::File, index::Index, resource::Resource};
 
@@ -14,7 +12,7 @@ use super::{file::File, index::Index, resource::Resource};
 pub struct SqPack<R> {
 	resource: R,
 
-	indexes: RefCell<HashMap<(u8, u8), Rc<Index>>>,
+	indexes: HashMapCache<(u8, u8), Index>,
 }
 
 impl<R: Resource> SqPack<R> {
@@ -40,7 +38,12 @@ impl<R: Resource> SqPack<R> {
 			.path_metadata(&path)
 			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.clone())))?;
 
-		let location = self.index(repository, category)?.find(&path)?;
+		let location = self
+			.indexes
+			.try_get_or_insert((repository, category), || {
+				Index::new(repository, category, &self.resource)
+			})?
+			.find(&path)?;
 
 		// Build a File representation.
 		let dat = self
@@ -51,20 +54,5 @@ impl<R: Resource> SqPack<R> {
 		// positions if we do that. Maybe an internal structure for dealing with
 		// cached binary data, and then a cloneable "position" structure that isn't cached?
 		File::new(dat, location.offset)
-	}
-
-	fn index(&self, repository: u8, category: u8) -> Result<Rc<Index>> {
-		// TODO: maybe try_borrow_mut?
-		let mut indexes = self.indexes.borrow_mut();
-
-		let index = match indexes.entry((repository, category)) {
-			Entry::Occupied(value) => value.get().clone(),
-			Entry::Vacant(value) => {
-				let index = Index::new(repository, category, &self.resource)?;
-				value.insert(index.into()).clone()
-			}
-		};
-
-		Ok(index)
 	}
 }
