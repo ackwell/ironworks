@@ -18,3 +18,7 @@ pub struct SubrowHeader {
 impl SubrowHeader {
 	pub const SIZE: u16 = 2;
 }
+
+/// A (sub)row within an Excel sheet.
+#[derive(Debug)]
+pub struct Row;

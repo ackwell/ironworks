@@ -8,5 +8,5 @@ mod sheet;
 pub use {
 	excel::Excel,
 	resource::Resource,
-	sheet::{RowOptions, Sheet},
+	sheet::{Row, RowOptions, Sheet},
 };

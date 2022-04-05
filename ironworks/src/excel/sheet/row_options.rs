@@ -1,6 +1,6 @@
 use crate::{error::Result, excel::Resource};
 
-use super::sheet::Sheet;
+use super::{row::Row, sheet::Sheet};
 
 /// Options used when reading a row from a sheet.
 #[derive(Debug)]
@@ -25,12 +25,12 @@ impl<'s, R: Resource> RowOptions<'s, R> {
 
 	/// Fetch a row from the sheet by ID. If the sheet supports subrows, this will
 	/// return subrow 0.
-	pub fn row(&self, row_id: u32) -> Result<()> {
+	pub fn row(&self, row_id: u32) -> Result<Row> {
 		self.sheet().row_with_options(row_id, self)
 	}
 
 	/// Fetch a subrow from the sheet by ID.
-	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<()> {
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<Row> {
 		self.sheet().subrow_with_options(row_id, subrow_id, self)
 	}
 

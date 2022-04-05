@@ -11,7 +11,7 @@ use crate::{
 use super::{
 	header::{Header, SheetKind},
 	page::Page,
-	row::{RowHeader, SubrowHeader},
+	row::{Row, RowHeader, SubrowHeader},
 	row_options::RowOptions,
 };
 
@@ -49,16 +49,16 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
-	pub fn row(&self, row_id: u32) -> Result<()> {
+	pub fn row(&self, row_id: u32) -> Result<Row> {
 		self.row_with_options(row_id, &Default::default())
 	}
 
 	/// Fetch a row from this sheet by its ID and subrow ID.
-	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<()> {
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<Row> {
 		self.subrow_with_options(row_id, subrow_id, &Default::default())
 	}
 
-	pub(super) fn row_with_options(&self, row_id: u32, options: &RowOptions<'r, R>) -> Result<()> {
+	pub(super) fn row_with_options(&self, row_id: u32, options: &RowOptions<'r, R>) -> Result<Row> {
 		self.subrow_with_options(row_id, 0, options)
 	}
 
@@ -67,7 +67,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		row_id: u32,
 		subrow_id: u16,
 		options: &RowOptions<'r, R>,
-	) -> Result<()> {
+	) -> Result<Row> {
 		let header = self.header.try_get_or_insert(|| {
 			let mut reader = self.resource.header(&self.sheet)?;
 			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
@@ -146,6 +146,6 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 		println!("new rdat: {data:?}");
 
-		Ok(())
+		Ok(Row {})
 	}
 }
