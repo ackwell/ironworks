@@ -24,7 +24,7 @@ pub struct Page {
     seek_before = SeekFrom::Start(0),
     parse_with = until_eof,
   )]
-	data: Vec<u8>,
+	pub data: Vec<u8>,
 }
 
 #[binread]
@@ -32,7 +32,7 @@ pub struct Page {
 #[br(big)]
 pub struct RowDefinition {
 	pub id: u32,
-	offset: u32,
+	pub offset: u32,
 }
 
 impl RowDefinition {

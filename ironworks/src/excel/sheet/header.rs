@@ -7,7 +7,7 @@ use binrw::binread;
 #[br(big, magic = b"EXHF")]
 pub struct Header {
 	version: u16,
-	row_size: u16,
+	pub row_size: u16,
 	#[br(temp)]
 	column_count: u16,
 	#[br(temp)]

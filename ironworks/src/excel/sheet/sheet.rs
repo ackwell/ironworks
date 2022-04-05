@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use binrw::BinRead;
 
 use crate::{
@@ -9,6 +11,7 @@ use crate::{
 use super::{
 	header::{Header, SheetKind},
 	page::Page,
+	row::{RowHeader, SubrowHeader},
 };
 
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
@@ -84,7 +87,32 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			Error::Resource(format!("{} sheet header indicates row ID {row_id} exists in page {start_id}:{language}, but page header does not define it.", self.sheet).into())
 		})?;
 
-		println!("rowdef: {row_definition:?}");
+		// Read & sanity check the row header
+		let mut cursor = Cursor::new(&page.data);
+		cursor.set_position(row_definition.offset.into());
+		let row_header =
+			RowHeader::read(&mut cursor).map_err(|error| Error::Resource(error.into()))?;
+
+		if subrow_id >= row_header.row_count {
+			return Err(row_not_found());
+		}
+
+		// Slice the data for the requested (sub) row.
+		let mut offset: usize = cursor.position().try_into().unwrap();
+		if header.kind == SheetKind::Subrows {
+			offset += usize::from(
+				subrow_id * (header.row_size + SubrowHeader::SIZE) + SubrowHeader::SIZE,
+			);
+		}
+
+		let mut length: usize = header.row_size.try_into().unwrap();
+		if header.kind != SheetKind::Subrows {
+			length += usize::try_from(row_header.data_size).unwrap();
+		}
+
+		let data = &page.data[offset..offset + length];
+
+		println!("new rdat: {data:?}");
 
 		Ok(())
 	}
