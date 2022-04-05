@@ -3,23 +3,37 @@ use crate::{
 	utility::{OptionCache, OptionCacheExt},
 };
 
-use super::{list::List, resource::Resource, sheet::Sheet};
+use super::{excel_options::ExcelOptions, list::List, resource::Resource, sheet::Sheet};
 
-/// An excel database.
+/// An Excel database.
 #[derive(Debug)]
 pub struct Excel<R> {
+	default_language: u8,
+
 	resource: R,
 
 	list: OptionCache<List>,
 }
 
 impl<R: Resource> Excel<R> {
-	/// Build a representation of an Excel database.
+	/// Build an Excel database.
 	pub fn new(resource: R) -> Self {
+		Self::with_options(resource, &Default::default())
+	}
+
+	pub(super) fn with_options(resource: R, options: &ExcelOptions<R>) -> Self {
 		Self {
+			default_language: options.language.unwrap_or(0),
+
 			resource,
+
 			list: Default::default(),
 		}
+	}
+
+	/// Build an Excel database with additional options.
+	pub fn with() -> ExcelOptions<R> {
+		Default::default()
 	}
 
 	/// Fetch a sheet from the database.
@@ -31,6 +45,10 @@ impl<R: Resource> Excel<R> {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
 		}
 
-		Ok(Sheet::new(sheet.into(), &self.resource))
+		Ok(Sheet::new(
+			sheet.into(),
+			self.default_language,
+			&self.resource,
+		))
 	}
 }

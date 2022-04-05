@@ -15,6 +15,7 @@ use super::{
 	row_options::RowOptions,
 };
 
+// TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
 
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
@@ -23,6 +24,7 @@ const LANGUAGE_NONE: u8 = 0;
 #[derive(Debug)]
 pub struct Sheet<'r, R> {
 	sheet: String,
+	default_language: u8,
 
 	resource: &'r R,
 
@@ -31,9 +33,10 @@ pub struct Sheet<'r, R> {
 }
 
 impl<'r, R: Resource> Sheet<'r, R> {
-	pub(crate) fn new(sheet: String, resource: &'r R) -> Self {
+	pub(crate) fn new(sheet: String, default_language: u8, resource: &'r R) -> Self {
 		Self {
 			sheet,
+			default_language,
 
 			resource,
 
@@ -88,8 +91,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 		// Get the language to load, or NONE if the language is not supported by this sheet.
 		// TODO: Should an explicit language request fail hard on miss?
-		// TODO: Sheet-wide (and global) language defaults?
-		let requested_language = options.language.unwrap_or(LANGUAGE_NONE);
+		let requested_language = options.language.unwrap_or(self.default_language);
 		let language = *header
 			.languages
 			.get(&requested_language)

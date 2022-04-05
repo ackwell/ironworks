@@ -29,9 +29,12 @@ fn iw_test() -> anyhow::Result<()> {
 	// let string = String::from_utf8_lossy(&buffer);
 	// println!("exl: {string}");
 
-	let excel = ironworks::excel::Excel::new(TestExcelResource { sqpack: &sqpack });
+	let resource = TestExcelResource { sqpack: &sqpack };
+	// let excel = ironworks::excel::Excel::new(resource);
+	let excel = ironworks::excel::Excel::with().language(3).build(resource);
 	let sheet = excel.sheet("CompanionTransient")?;
 	let row = sheet.with().language(1).row(101)?;
+	// let row = sheet.row(101)?;
 
 	println!("row: {row:?}");
 
