@@ -50,13 +50,17 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
 		})?;
 
-		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind != SheetKind::Subrows && subrow_id > 0 {
-			return Err(Error::NotFound(ErrorValue::Row {
+		let row_not_found = || {
+			Error::NotFound(ErrorValue::Row {
 				row: row_id,
 				subrow: subrow_id,
 				sheet: self.sheet.clone(),
-			}));
+			})
+		};
+
+		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
+		if header.kind != SheetKind::Subrows && subrow_id > 0 {
+			return Err(row_not_found());
 		}
 
 		// Try to read in the page for the requested (sub)row.
@@ -64,13 +68,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			.pages
 			.iter()
 			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
-			.ok_or_else(|| {
-				Error::NotFound(ErrorValue::Row {
-					row: row_id,
-					subrow: subrow_id,
-					sheet: self.sheet.clone(),
-				})
-			})?
+			.ok_or_else(row_not_found)?
 			.start_id;
 
 		// TODO language
