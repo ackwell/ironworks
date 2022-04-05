@@ -15,7 +15,7 @@ pub struct Page {
     pad_before = 20,
     count = index_size / RowDefinition::SIZE,
   )]
-	rows: Vec<RowDefinition>,
+	pub rows: Vec<RowDefinition>,
 
 	// Row offsets are relative to the start of the file - read in the full file as a buffer.
 	// TODO: Maybe better to work out current offset and save it as something to
@@ -30,8 +30,8 @@ pub struct Page {
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct RowDefinition {
-	row_id: u32,
+pub struct RowDefinition {
+	pub id: u32,
 	offset: u32,
 }
 

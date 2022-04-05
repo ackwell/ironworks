@@ -44,30 +44,30 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 	// TODO: u16?
 	/// Fetch a row from this sheet by its ID and subrow ID.
-	pub fn subrow(&self, row: u32, subrow: u16) -> Result<()> {
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<()> {
 		let header = self.header.try_get_or_insert(|| {
 			let mut reader = self.resource.header(&self.sheet)?;
 			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
 		})?;
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind != SheetKind::Subrows && subrow > 0 {
+		if header.kind != SheetKind::Subrows && subrow_id > 0 {
 			return Err(Error::NotFound(ErrorValue::Row {
-				row,
-				subrow,
+				row: row_id,
+				subrow: subrow_id,
 				sheet: self.sheet.clone(),
 			}));
 		}
 
-		// Try to read in the page start ID for the requested (sub)row.
+		// Try to read in the page for the requested (sub)row.
 		let start_id = header
 			.pages
 			.iter()
-			.find(|page| page.start_id <= row && page.start_id + page.row_count > row)
+			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
 			.ok_or_else(|| {
 				Error::NotFound(ErrorValue::Row {
-					row,
-					subrow,
+					row: row_id,
+					subrow: subrow_id,
 					sheet: self.sheet.clone(),
 				})
 			})?
@@ -80,7 +80,13 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
 		})?;
 
-		println!("page: {page:?}");
+		// Find the row definition in the page. If it's missing, there's something
+		// wrong with the provided resource.
+		let row_definition = page.rows.iter().find(|row| row.id == row_id).ok_or_else(|| {
+			Error::Resource(format!("{} sheet header indicates row ID {row_id} exists in page {start_id}:{language}, but page header does not define it.", self.sheet).into())
+		})?;
+
+		println!("rowdef: {row_definition:?}");
 
 		Ok(())
 	}
