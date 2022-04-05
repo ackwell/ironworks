@@ -3,7 +3,7 @@ use binrw::BinRead;
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::Resource,
-	utility::{OptionCache, OptionCacheExt},
+	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 };
 
 use super::{
@@ -21,6 +21,7 @@ pub struct Sheet<'r, R> {
 	resource: &'r R,
 
 	header: OptionCache<Header>,
+	pages: HashMapCache<(u32, u8), Page>,
 }
 
 impl<'r, R: Resource> Sheet<'r, R> {
@@ -31,6 +32,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			resource,
 
 			header: Default::default(),
+			pages: Default::default(),
 		}
 	}
 
@@ -57,8 +59,8 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			}));
 		}
 
-		// Try to read in the page for the requested (sub)row.
-		let page_definition = header
+		// Try to read in the page start ID for the requested (sub)row.
+		let start_id = header
 			.pages
 			.iter()
 			.find(|page| page.start_id <= row && page.start_id + page.row_count > row)
@@ -68,14 +70,15 @@ impl<'r, R: Resource> Sheet<'r, R> {
 					subrow,
 					sheet: self.sheet.clone(),
 				})
-			})?;
+			})?
+			.start_id;
 
 		// TODO language
-		// TODO cache
-		let mut reader = self
-			.resource
-			.page(&self.sheet, page_definition.start_id, 1)?;
-		let page = Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
+		let language = 1;
+		let page = self.pages.try_get_or_insert((start_id, language), || {
+			let mut reader = self.resource.page(&self.sheet, start_id, language)?;
+			Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+		})?;
 
 		println!("page: {page:?}");
 
