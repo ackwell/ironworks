@@ -6,7 +6,7 @@ use binrw::{binread, until_eof};
 #[derive(Debug)]
 #[br(big, magic = b"EXDF")]
 pub struct Page {
-	version: u16,
+	_version: u16,
 	// unknown1: u16,
 	#[br(pad_before = 2, temp)]
 	index_size: u32,

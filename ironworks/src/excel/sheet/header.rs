@@ -7,7 +7,7 @@ use num_enum::IntoPrimitive;
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
 pub struct Header {
-	version: u16,
+	_version: u16,
 	pub row_size: u16,
 	#[br(temp)]
 	column_count: u16,
@@ -21,7 +21,7 @@ pub struct Header {
 	pub kind: SheetKind,
 	// unknown3: u16,
 	#[br(pad_before = 2)]
-	row_count: u32,
+	_row_count: u32,
 	// unknown4: [u32; 2],
 	#[br(
 		pad_before = 8,
@@ -30,7 +30,6 @@ pub struct Header {
 	pub columns: Vec<ColumnDefinition>,
 	#[br(count = page_count)]
 	pub pages: Vec<PageDefinition>,
-	// TODO: set
 	#[br(
 		count = language_count,
 		map = LanguageDefinition::to_set,
