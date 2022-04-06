@@ -50,14 +50,14 @@ pub enum SheetKind {
 #[derive(Debug)]
 #[br(big)]
 pub struct ColumnDefinition {
-	kind: ColumnKind,
-	offset: u16,
+	pub kind: ColumnKind,
+	pub offset: u16,
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[br(big, repr = u16)]
-enum ColumnKind {
+pub enum ColumnKind {
 	String = 0x0,
 	Bool = 0x1,
 	Int8 = 0x2,
