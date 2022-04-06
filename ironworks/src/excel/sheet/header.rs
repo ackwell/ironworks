@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use binrw::binread;
+use num_enum::IntoPrimitive;
 
 #[binread]
 #[derive(Debug)]
@@ -55,8 +56,9 @@ pub struct ColumnDefinition {
 }
 
 #[binread]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, IntoPrimitive)]
 #[br(big, repr = u16)]
+#[repr(u16)]
 pub enum ColumnKind {
 	String = 0x0,
 	Bool = 0x1,

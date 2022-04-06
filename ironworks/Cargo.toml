@@ -5,10 +5,11 @@ edition = "2021"
 
 [features]
 sqpack = ["binrw", "flate2"]
-excel = []
+excel = ["binrw", "num_enum"]
 
 [dependencies]
 thiserror = "1.0.30"
 
 binrw = {version = "0.8.4", optional = true}
 flate2 = {version = "1.0.22", optional = true}
+num_enum = {version = "0.5.7", optional = true}

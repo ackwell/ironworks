@@ -110,8 +110,7 @@ impl Row {
 			| K::PackedBool5
 			| K::PackedBool6
 			| K::PackedBool7 => {
-				// TODO: num_enum?
-				let mask = 1 << (kind as u8 - K::PackedBool0 as u8);
+				let mask = 1 << (u16::from(kind) - u16::from(K::PackedBool0));
 				let value = cursor.read_be::<u8>()?;
 				F::Bool((value & mask) == mask)
 			}
