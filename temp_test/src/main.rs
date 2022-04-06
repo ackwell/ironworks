@@ -35,8 +35,9 @@ fn iw_test() -> anyhow::Result<()> {
 	let sheet = excel.sheet("CompanionTransient")?;
 	let row = sheet.with().language(1).row(101)?;
 	// let row = sheet.row(101)?;
+	let field = row.field(4)?;
 
-	println!("row: {row:?}");
+	println!("{field:?}");
 
 	Ok(())
 }

@@ -26,7 +26,7 @@ pub struct Header {
 		pad_before = 8,
 		count = column_count,
 	)]
-	columns: Vec<ColumnDefinition>,
+	pub columns: Vec<ColumnDefinition>,
 	#[br(count = page_count)]
 	pub pages: Vec<PageDefinition>,
 	// TODO: set
@@ -49,7 +49,7 @@ pub enum SheetKind {
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct ColumnDefinition {
+pub struct ColumnDefinition {
 	kind: ColumnKind,
 	offset: u16,
 }

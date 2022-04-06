@@ -169,6 +169,8 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		Ok(Row::new(
 			row_definition.id,
 			resource_subrow_id,
+			header,
+			data.to_vec(),
 		))
 	}
 }
