@@ -48,7 +48,6 @@ pub enum Field {
 /// A (sub)row within an Excel sheet.
 #[derive(Debug)]
 pub struct Row {
-	// TODO: do we make these public or use fns
 	row_id: u32,
 	subrow_id: u16,
 
@@ -64,6 +63,16 @@ impl Row {
 			header,
 			data: Cursor::new(data).into(),
 		}
+	}
+
+	/// Row ID of this row.
+	pub fn row_id(&self) -> &u32 {
+		&self.row_id
+	}
+
+	/// Subrow ID of this row.
+	pub fn subrow_id(&self) -> &u16 {
+		&self.subrow_id
 	}
 
 	/// Read the field at the specified column from this row.
@@ -89,8 +98,6 @@ impl Row {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size));
-				// let string = NullString::read(&mut *cursor)?;
-				// let string = cursor.read_be::<NullString>()?;
 				F::String(cursor.read_be::<NullString>()?)
 			}
 
