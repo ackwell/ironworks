@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::io::{Cursor, Seek, SeekFrom};
 
 use binrw::BinRead;
 
@@ -65,6 +65,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		self.subrow_with_options(row_id, 0, options)
 	}
 
+	// TODO: this fn is absurdly long. split it up.
 	pub(super) fn subrow_with_options(
 		&self,
 		row_id: u32,
@@ -131,14 +132,33 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			return Err(row_not_found());
 		}
 
-		// Slice the data for the requested (sub) row.
-		let mut offset: usize = cursor.position().try_into().unwrap();
+		// If this is a subrow sheet, jump to the start of the requested subrow and
+		// double check the ID matches.
+		let mut resource_subrow_id = 0u16;
 		if header.kind == SheetKind::Subrows {
-			offset += usize::from(
-				subrow_id * (header.row_size + SubrowHeader::SIZE) + SubrowHeader::SIZE,
-			);
+			cursor
+				.seek(SeekFrom::Current(
+					(subrow_id * (SubrowHeader::SIZE + header.row_size)).into(),
+				))
+				.map_err(|error| Error::Resource(error.into()))?;
+			let subrow_header =
+				SubrowHeader::read(&mut cursor).map_err(|error| Error::Resource(error.into()))?;
+
+			if subrow_header.id != subrow_id {
+				return Err(Error::Resource(
+					format!(
+						"Data for subrow {subrow_id} exists, but self-reports as subrow {}",
+						subrow_header.id
+					)
+					.into(),
+				));
+			}
+
+			resource_subrow_id = subrow_header.id;
 		}
 
+		// Slice the data for the requested (sub) row.
+		let offset: usize = cursor.position().try_into().unwrap();
 		let mut length: usize = header.row_size.try_into().unwrap();
 		if header.kind != SheetKind::Subrows {
 			length += usize::try_from(row_header.data_size).unwrap();
@@ -146,8 +166,9 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 		let data = &page.data[offset..offset + length];
 
-		println!("new rdat: {data:?}");
-
-		Ok(Row {})
+		Ok(Row::new(
+			row_definition.id,
+			resource_subrow_id,
+		))
 	}
 }

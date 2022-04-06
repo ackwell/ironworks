@@ -88,13 +88,13 @@ impl RowReader {
 	fn read_field(
 		&self,
 		column: &ColumnDefinition,
-		mut cursor: &mut Cursor<&Vec<u8>>,
+		cursor: &mut Cursor<&Vec<u8>>,
 	) -> Result<Field, binrw::Error> {
 		match column.kind {
 			ColumnKind::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(string_offset as u64 + self.header.row_size as u64);
-				let string = SeString::read(&mut cursor)?;
+				let string = SeString::read(cursor)?;
 				Ok(Field::String(string))
 			}
 

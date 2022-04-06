@@ -12,7 +12,7 @@ pub struct RowHeader {
 #[derive(Debug)]
 #[br(big)]
 pub struct SubrowHeader {
-	subrow_id: u16,
+	pub id: u16,
 }
 
 impl SubrowHeader {
@@ -21,4 +21,18 @@ impl SubrowHeader {
 
 /// A (sub)row within an Excel sheet.
 #[derive(Debug)]
-pub struct Row;
+pub struct Row {
+	// TODO: do we make these public or use fns
+	row_id: u32,
+	subrow_id: u16,
+
+}
+
+impl Row {
+	pub(super) fn new(row_id: u32, subrow_id: u16) -> Self {
+		Self {
+			row_id,
+			subrow_id,
+		}
+	}
+}

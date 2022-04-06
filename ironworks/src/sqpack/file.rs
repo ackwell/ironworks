@@ -89,6 +89,7 @@ where
 	let block_header = BlockHeader::read(&mut raw_cursor)
 		.map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
+	// TODO: Should probably be an Error::Resource
 	assert_eq!(
 		block_header.decompressed_size,
 		block_info.decompressed_size.into(),
