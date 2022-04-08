@@ -29,45 +29,23 @@ fn iw_test() -> anyhow::Result<()> {
 	// let string = String::from_utf8_lossy(&buffer);
 	// println!("exl: {string}");
 
-	let resource = TestExcelResource { sqpack: &sqpack };
+	let resource = ironworks::excel::FfxivSqpackResource::new(&sqpack);
 	// let excel = ironworks::excel::Excel::new(resource);
-	let excel = ironworks::excel::Excel::with().language(3).build(resource);
+	let excel = ironworks::excel::Excel::with()
+		.language(ironworks::excel::Language::German)
+		.build(resource);
 	let sheet = excel.sheet("CompanionTransient")?;
-	let row = sheet.with().language(1).row(101)?;
+	// let row = sheet.row(101)?;
+	let row = sheet
+		.with()
+		.language(ironworks::excel::Language::English)
+		.row(101)?;
 	// let row = sheet.row(101)?;
 	let field = row.field(4)?;
 
 	println!("{field:?}");
 
 	Ok(())
-}
-
-#[derive(Debug)]
-struct TestExcelResource<'a, R> {
-	sqpack: &'a ironworks::sqpack::SqPack<R>,
-}
-impl<R: ironworks::sqpack::Resource> ironworks::excel::Resource for TestExcelResource<'_, R> {
-	type List = ironworks::sqpack::File<R::Dat>;
-	fn list(&self) -> Result<Self::List, ironworks::Error> {
-		self.sqpack.read("exd/root.exl")
-	}
-
-	type Header = ironworks::sqpack::File<R::Dat>;
-	fn header(&self, sheet: &str) -> Result<Self::Header, ironworks::Error> {
-		self.sqpack.read(&format!("exd/{sheet}.exh"))
-	}
-
-	type Page = ironworks::sqpack::File<R::Dat>;
-	fn page(
-		&self,
-		sheet: &str,
-		start_id: u32,
-		language_id: u8,
-	) -> Result<Self::Page, ironworks::Error> {
-		println!("req. lang: {language_id}");
-		// TODO: language
-		self.sqpack.read(&format!("exd/{sheet}_{start_id}_en.exd"))
-	}
 }
 
 #[allow(dead_code)]

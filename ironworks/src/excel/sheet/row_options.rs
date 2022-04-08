@@ -18,8 +18,8 @@ impl<'s, R: Resource> RowOptions<'s, R> {
 	}
 
 	/// Set the language to fetch.
-	pub fn language(&mut self, language: u8) -> &mut Self {
-		self.language = Some(language);
+	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
+		self.language = Some(language.into());
 		self
 	}
 

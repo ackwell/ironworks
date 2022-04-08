@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-sqpack = ["binrw", "flate2"]
 excel = ["binrw", "num_enum"]
+sqpack = ["binrw", "flate2"]
 
 [dependencies]
 thiserror = "1.0.30"

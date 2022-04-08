@@ -14,8 +14,8 @@ pub struct ExcelOptions<R> {
 
 impl<R: Resource> ExcelOptions<R> {
 	/// Set the default language of the database
-	pub fn language(&mut self, language: u8) -> &mut Self {
-		self.language = Some(language);
+	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
+		self.language = Some(language.into());
 		self
 	}
 
