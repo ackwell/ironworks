@@ -5,7 +5,7 @@ use crate::{
 	excel, sqpack,
 };
 
-/// TODO: docs
+/// Language of strings in Excel files.
 #[allow(missing_docs)]
 #[derive(Debug, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]

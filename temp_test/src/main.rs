@@ -1,17 +1,14 @@
-use std::io::Read;
-
-use ironworks::sqpack::FfxivFsResource;
-use ironworks_excel::{Excel, ExcelOptions, RowOptions};
-use ironworks_ffxiv::{ExcelSqPack, Language, SqPackFfxiv};
+use ironworks::{
+	excel::{Excel, FfxivSqpackResource, Language},
+	sqpack::{FfxivFsResource, SqPack},
+};
 use ironworks_schema_saint_coinach::SaintCoinachSchema;
-use ironworks_sqpack::SqPack;
 
 fn main() -> anyhow::Result<()> {
 	env_logger::init();
 
 	iw_test()?;
 	// stc_test()?;
-	// excel_test()?;
 
 	Ok(())
 }
@@ -19,30 +16,24 @@ fn main() -> anyhow::Result<()> {
 #[allow(dead_code)]
 fn iw_test() -> anyhow::Result<()> {
 	let sqpack_resource = FfxivFsResource::search().unwrap();
-	let sqpack = ironworks::sqpack::SqPack::new(sqpack_resource);
+	let sqpack = SqPack::new(sqpack_resource);
 
-	// let mut exl = sqpack.read("exd/root.exl")?;
-	// let ded = sqpack.read("exd/fsdfsd/xd/roodsft.exl")?;
+	let resource = FfxivSqpackResource::new(&sqpack);
+	// let excel = Excel::new(resource);
+	let excel = Excel::with().language(Language::German).build(resource);
 
-	// let mut buffer = vec![];
-	// exl.read_to_end(&mut buffer)?;
-	// let string = String::from_utf8_lossy(&buffer);
-	// println!("exl: {string}");
-
-	let resource = ironworks::excel::FfxivSqpackResource::new(&sqpack);
-	// let excel = ironworks::excel::Excel::new(resource);
-	let excel = ironworks::excel::Excel::with()
-		.language(ironworks::excel::Language::German)
-		.build(resource);
 	let sheet = excel.sheet("CompanionTransient")?;
-	// let row = sheet.row(101)?;
-	let row = sheet
-		.with()
-		.language(ironworks::excel::Language::English)
-		.row(101)?;
-	// let row = sheet.row(101)?;
+	let row = sheet.with().language(Language::English).row(101)?;
 	let field = row.field(4)?;
+	println!("{field:?}");
 
+	let row = sheet.row(102)?;
+	let field = row.field(4)?;
+	println!("{field:?}");
+
+	let sheet = excel.sheet("Behavior")?;
+	let row = sheet.subrow(30016, 3)?;
+	let field = row.field(4)?;
 	println!("{field:?}");
 
 	Ok(())
@@ -63,34 +54,6 @@ fn stc_test() -> anyhow::Result<()> {
 	let schema = version.schema("Item").unwrap();
 
 	println!("schema: {:#?}", schema);
-
-	Ok(())
-}
-
-#[allow(dead_code)]
-fn excel_test() -> anyhow::Result<()> {
-	let sqpack = SqPack::ffxiv()?;
-
-	let excel = Excel::sqpack_with_options(
-		&sqpack,
-		ExcelOptions {
-			default_language: Language::German.into(),
-		},
-	);
-
-	let sheet = excel.sheet_reader("CompanionTransient")?;
-	let row = sheet.row_with_options(101, RowOptions::new().language(Language::English))?;
-	let field = row.field(4)?;
-	println!("{:?}", field);
-
-	let row = sheet.row(102)?;
-	let field = row.field(4)?;
-	println!("{:?}", field);
-
-	let sheet = excel.sheet_reader("Behavior")?;
-	let row = sheet.subrow(30016, 3)?;
-	let field = row.field(4)?;
-	println!("{:?}", field);
 
 	Ok(())
 }

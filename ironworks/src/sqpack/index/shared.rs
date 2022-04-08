@@ -14,6 +14,7 @@ pub struct SqPackHeader {
 	_kind: u32,
 }
 
+// TODO: This should probably be a resource concern.
 #[derive(BinRead, Debug)]
 #[br(repr = u8)]
 enum PlatformId {

@@ -469,10 +469,7 @@ dependencies = [
  "anyhow",
  "env_logger",
  "ironworks",
- "ironworks_excel",
- "ironworks_ffxiv",
  "ironworks_schema_saint_coinach",
- "ironworks_sqpack",
 ]
 
 [[package]]
