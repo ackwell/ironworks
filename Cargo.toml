@@ -2,11 +2,8 @@
 members = [
 	"ironworks",
 
-	"excel",
-	"ffxiv",
 	"schema/core",
 	"schema/saint_coinach",
-	"sqpack",
 
 	"temp_test",
 ]
