@@ -7,4 +7,7 @@
 
 mod schema;
 
+#[cfg(feature = "saint_coinach")]
+pub mod saint_coinach;
+
 pub use schema::{Node, Order, Sheet};
