@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 /// Schema and metadata for a sheet within an Excel database.
 #[derive(Debug)]
 pub struct Sheet {
@@ -34,5 +32,5 @@ pub enum Node {
 	Scalar,
 
 	/// A collection of named sub-schemas.
-	Struct(HashMap<String, Node>),
+	Struct(Vec<(String, Node)>),
 }
