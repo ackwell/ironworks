@@ -6,6 +6,18 @@ pub enum Error {
 	/// The requested value could not be found.
 	#[error("The {0} could not be found.")]
 	NotFound(ErrorValue),
+
+	/// An error occured while working with a git repository.
+	#[cfg(feature = "git2")]
+	#[error("{0}")]
+	Repository(String),
+}
+
+#[cfg(feature = "git2")]
+impl From<git2::Error> for Error {
+	fn from(error: git2::Error) -> Self {
+		Error::Repository(error.to_string())
+	}
 }
 
 /// A value associated with an error.
@@ -13,7 +25,7 @@ pub enum Error {
 pub enum ErrorValue {
 	/// A value not represented by other variants.
 	///
-	/// `ErrorValue`s of the `Other` type should only be match`ed on with a wildcard
+	/// `ErrorValue`s of the `Other` type should only be `match`ed on with a wildcard
 	/// (`_`) pattern. Values represented by `Other` may be promoted to a new variant
 	/// in future versions.
 	Other(String),

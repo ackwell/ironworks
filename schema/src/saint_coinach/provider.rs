@@ -4,6 +4,9 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use derivative::Derivative;
+use git2::{build::RepoBuilder, Repository};
+
 use crate::error::{Error, ErrorValue, Result};
 
 // Default configuration
@@ -50,8 +53,12 @@ impl Default for ProviderOptions {
 }
 
 /// A schema provider sourcing data from the SaintCoinach schema repository.
-#[derive(Debug)]
-pub struct Provider {}
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct Provider {
+	#[derivative(Debug = "ignore")]
+	repository: Repository,
+}
 
 impl Provider {
 	/// Build a new `Provider` with default configuration.
@@ -74,7 +81,20 @@ impl Provider {
 			.or_else(default_directory)
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other("Repository directory".into())))?;
 
-		Ok(Self {})
+		let repository = match directory.exists() {
+			false => RepoBuilder::new().bare(true).clone(remote, &directory)?,
+			true => {
+				let repository = Repository::open_bare(&directory)?;
+				if repository.find_remote("origin")?.url() != Some(remote) {
+					return Err(Error::Repository(format!(
+						"Repository at {directory:?} exists, does not have origin {remote}."
+					)));
+				}
+				repository
+			}
+		};
+
+		Ok(Self { repository })
 	}
 }
 
