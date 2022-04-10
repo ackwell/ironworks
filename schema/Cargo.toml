@@ -7,3 +7,4 @@ edition = "2021"
 saint_coinach = []
 
 [dependencies]
+thiserror = "1.0.30"
