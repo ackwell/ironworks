@@ -4,7 +4,7 @@ use binrw::{binread, BinReaderExt, BinResult, NullString};
 
 use crate::error::{Error, ErrorValue, Result};
 
-use super::header::{ColumnKind, Header};
+use super::header::{ColumnDefinition, ColumnKind, Header};
 
 #[binread]
 #[derive(Debug)]
@@ -75,6 +75,7 @@ impl Row {
 		&self.subrow_id
 	}
 
+	// TODO: Perhaps expose this as column: impl IntoColumn so i.e. a coldef can be passed by a theoretical pre-byte-sort'd host
 	/// Read the field at the specified column from this row.
 	pub fn field(&self, column_index: usize) -> Result<Field> {
 		let column = self.header.columns.get(column_index).ok_or_else(|| {
@@ -82,19 +83,19 @@ impl Row {
 			Error::NotFound(ErrorValue::Other(format!("Column {column_index}")))
 		})?;
 
-		self.data.borrow_mut().set_position(column.offset.into());
-
-		self.read_field(column.kind)
+		self.read_field(column)
 			.map_err(|error| Error::Resource(error.into()))
 	}
 
-	fn read_field(&self, kind: ColumnKind) -> BinResult<Field> {
+	fn read_field(&self, column: &ColumnDefinition) -> BinResult<Field> {
 		use ColumnKind as K;
 		use Field as F;
 
 		let mut cursor = self.data.borrow_mut();
 
-		let field = match kind {
+		cursor.set_position(column.offset.into());
+
+		let field = match column.kind {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size));
@@ -110,7 +111,7 @@ impl Row {
 			| K::PackedBool5
 			| K::PackedBool6
 			| K::PackedBool7 => {
-				let mask = 1 << (u16::from(kind) - u16::from(K::PackedBool0));
+				let mask = 1 << (u16::from(column.kind) - u16::from(K::PackedBool0));
 				let value = cursor.read_be::<u8>()?;
 				F::Bool((value & mask) == mask)
 			}
