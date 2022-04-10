@@ -2,7 +2,11 @@ use core::fmt;
 
 /// An error that occured.
 #[derive(thiserror::Error, Debug)]
-pub enum Error {}
+pub enum Error {
+	/// The requested value could not be found.
+	#[error("The {0} could not be found.")]
+	NotFound(ErrorValue),
+}
 
 /// A value associated with an error.
 #[derive(Debug)]
