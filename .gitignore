@@ -1,3 +1,4 @@
 /target
+*.ignore.*
 flamegraph.svg
 perf.data*
