@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-excel = ["binrw", "num_enum"]
-sqpack = ["binrw", "flate2"]
+excel = ["num_enum"]
+sqpack = ["flate2"]
 
 [dependencies]
+binrw = "0.8.4"
 thiserror = "1.0.30"
 
-binrw = {version = "0.8.4", optional = true}
 flate2 = {version = "1.0.22", optional = true}
 num_enum = {version = "0.5.7", optional = true}

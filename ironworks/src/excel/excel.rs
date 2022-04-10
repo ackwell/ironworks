@@ -18,7 +18,12 @@ pub struct Excel<R> {
 impl<R: Resource> Excel<R> {
 	/// Build an Excel database.
 	pub fn new(resource: R) -> Self {
-		Self::with_options(resource, &Default::default())
+		Self::with().build(resource)
+	}
+
+	/// Build an Excel database with additional options.
+	pub fn with() -> ExcelOptions<R> {
+		Default::default()
 	}
 
 	pub(super) fn with_options(resource: R, options: &ExcelOptions<R>) -> Self {
@@ -29,11 +34,6 @@ impl<R: Resource> Excel<R> {
 
 			list: Default::default(),
 		}
-	}
-
-	/// Build an Excel database with additional options.
-	pub fn with() -> ExcelOptions<R> {
-		Default::default()
 	}
 
 	/// Fetch a sheet from the database.

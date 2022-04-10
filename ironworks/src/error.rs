@@ -47,7 +47,11 @@ pub enum ErrorValue {
 		sheet: String,
 	},
 
-	/// A value not otherwise represented by the above variants.
+	/// A value not represented by other variants.
+	///
+	/// `ErrorValue`s of the `Other` type should only be `match`ed on with a wildcard
+	/// (`_`) pattern. Values represented by `Other` may be promoted to a new variant
+	/// in future versions.
 	Other(String),
 }
 
