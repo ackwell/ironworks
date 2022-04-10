@@ -2,8 +2,8 @@
 members = [
 	"ironworks",
 
-	"schema/core",
-	"schema/saint_coinach",
+	"schema_old/core",
+	"schema_old/saint_coinach",
 
 	"temp_test",
 ]

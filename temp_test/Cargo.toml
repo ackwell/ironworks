@@ -9,4 +9,4 @@ edition = "2021"
 anyhow = "1.0.55"
 env_logger = "0.9.0"
 ironworks = {path = "../ironworks", features = ["sqpack", "excel"]}
-ironworks_schema_saint_coinach = {path = "../schema/saint_coinach"}
+ironworks_schema_saint_coinach = {path = "../schema_old/saint_coinach"}
