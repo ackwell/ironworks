@@ -2,13 +2,13 @@ use ironworks::{
 	excel::{Excel, FfxivSqpackResource, Language},
 	sqpack::{FfxivFsResource, SqPack},
 };
-use ironworks_schema_saint_coinach::SaintCoinachSchema;
+use ironworks_schema::saint_coinach::Provider;
 
 fn main() -> anyhow::Result<()> {
 	env_logger::init();
 
-	iw_test()?;
-	// stc_test()?;
+	// iw_test()?;
+	stc_test()?;
 
 	Ok(())
 }
@@ -41,17 +41,17 @@ fn iw_test() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn stc_test() -> anyhow::Result<()> {
-	let schema = SaintCoinachSchema::new().unwrap();
+	let schema = Provider::new().unwrap();
 	// let version = schema.version("69caa7e14fed1caaeb2089fad484c25e491d3c37").unwrap();
 	// let version = schema.version("69caa7e14fed1caaeb2089").unwrap();
 	// let version = schema.version("refs/tags/69caa7e").unwrap();
-	let version = schema.version("HEAD").unwrap();
+	// let version = schema.version("HEAD").unwrap();
 	// let version = schema.version("master").unwrap();
 
 	// let schema = version.schema("RelicNote").unwrap();
 	// let schema = version.schema("ArrayEventHandler").unwrap();
 	// let schema = version.schema("PvPActionSort").unwrap();
-	let schema = version.schema("Item").unwrap();
+	// let schema = version.schema("Item").unwrap();
 
 	println!("schema: {:#?}", schema);
 

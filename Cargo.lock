@@ -462,7 +462,7 @@ dependencies = [
  "anyhow",
  "env_logger",
  "ironworks",
- "ironworks_schema_saint_coinach",
+ "ironworks_schema",
 ]
 
 [[package]]
