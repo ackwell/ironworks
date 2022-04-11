@@ -1,9 +1,13 @@
+use git2::Commit;
+
 /// A single version of the SaintCoinach schema.
 #[derive(Debug)]
-pub struct Version {}
+pub struct Version<'repo> {
+	commit: Commit<'repo>,
+}
 
-impl Version {
-	pub(super) fn new() -> Self {
-		Version {}
+impl<'repo> Version<'repo> {
+	pub(super) fn new(commit: Commit<'repo>) -> Self {
+		Version { commit }
 	}
 }
