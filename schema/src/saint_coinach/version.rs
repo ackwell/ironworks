@@ -5,7 +5,10 @@ use git2::{Commit, Object, Repository};
 use lazy_static::lazy_static;
 use serde_json::Value;
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	schema::{Order, Sheet},
+};
 
 use super::parse::parse_sheet_definition;
 
@@ -28,7 +31,7 @@ impl<'repo> Version<'repo> {
 	}
 
 	/// Get the schema for the requested sheet at this version.
-	pub fn schema(&self, sheet: &str) -> Result<()> {
+	pub fn schema(&self, sheet: &str) -> Result<Sheet> {
 		let path = DEFINITION_PATH.join(format!("{sheet}.json"));
 
 		let object = self
@@ -52,9 +55,12 @@ impl<'repo> Version<'repo> {
 		let value = serde_json::from_slice::<Value>(blob.content()).unwrap();
 		let schema = parse_sheet_definition(&value)?;
 
-		println!("{schema:#?}");
+		let sheet = Sheet {
+			order: Order::Index,
+			schema,
+		};
 
-		Ok(())
+		Ok(sheet)
 	}
 
 	fn object_at_path(&self, path: &Path) -> Result<Object, git2::Error> {
