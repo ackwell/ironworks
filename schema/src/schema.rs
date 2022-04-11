@@ -26,11 +26,41 @@ pub enum Node {
 
 	// TODO: Reference fields
 	/// A reference to one or more rows in other sheets.
-	Reference,
+	Reference(Vec<ReferenceTarget>),
 
 	/// A single scalar field with no further semantics.
 	Scalar,
 
 	/// A collection of named sub-schemas.
 	Struct(Vec<(String, Node)>),
+}
+
+impl Node {
+	/// The size of a given node, in columns.
+	pub fn size(&self) -> u32 {
+		match self {
+			Self::Array { count, schema } => count * schema.size(),
+			Self::Reference(_) => 1,
+			Self::Scalar => 1,
+			Self::Struct(fields) => fields
+				.iter()
+				.fold(0u32, |size, (_, schema)| size + schema.size()),
+		}
+	}
+}
+
+// TODO: Should this all be public?
+#[derive(Debug)]
+pub struct ReferenceTarget {
+	pub sheet: String,
+	// TODO: Some sort of standardised field selector format?
+	pub selector: Option<String>,
+	pub condition: Option<ReferenceCondition>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ReferenceCondition {
+	pub selector: String,
+	// TODO: Technically this is an enum, but theoretically could be any value. Resolve?
+	pub value: u32,
 }
