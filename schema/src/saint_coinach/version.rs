@@ -3,8 +3,11 @@ use std::path::{Path, PathBuf};
 use derivative::Derivative;
 use git2::{Commit, Object, Repository};
 use lazy_static::lazy_static;
+use serde_json::Value;
 
 use crate::error::{Error, ErrorValue, Result};
+
+use super::parse::parse_sheet_definition;
 
 lazy_static! {
 	static ref DEFINITION_PATH: PathBuf = ["SaintCoinach", "Definitions"].iter().collect();
@@ -45,7 +48,11 @@ impl<'repo> Version<'repo> {
 			))
 		})?;
 
-		println!("{}", String::from_utf8_lossy(blob.content()));
+		// todo error
+		let value = serde_json::from_slice::<Value>(blob.content()).unwrap();
+		let schema = parse_sheet_definition(&value)?;
+
+		println!("{schema:#?}");
 
 		Ok(())
 	}

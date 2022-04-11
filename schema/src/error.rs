@@ -7,6 +7,10 @@ pub enum Error {
 	#[error("The {0} could not be found.")]
 	NotFound(ErrorValue),
 
+	/// An error occured while generating a schema.
+	#[error("Schema error: {0}.")]
+	Schema(String),
+
 	/// An error occured while working with a git repository.
 	#[cfg(feature = "git2")]
 	#[error("{0}")]

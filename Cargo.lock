@@ -202,6 +202,7 @@ dependencies = [
  "derivative",
  "git2",
  "lazy_static",
+ "serde_json",
  "thiserror",
 ]
 
