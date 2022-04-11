@@ -82,22 +82,9 @@ impl Provider {
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other("Repository directory".into())))?;
 
 		let repository = match directory.exists() {
-			false => RepoBuilder::new()
-				.bare(true)
-				.remote_create(|repo, name, url| {
-					repo.remote_with_fetch(name, url, "+refs/*:refs/*")
-				})
-				.clone(remote, &directory)?,
-			true => {
-				let repository = Repository::open_bare(&directory)?;
-				if repository.find_remote("origin")?.url() != Some(remote) {
-					return Err(Error::Repository(format!(
-						"Repository at {directory:?} exists, does not have origin {remote}."
-					)));
-				}
-				repository
-			}
-		};
+			true => open_repository(remote, &directory),
+			false => clone_repository(remote, &directory),
+		}?;
 
 		Ok(Self { repository })
 	}
@@ -105,8 +92,24 @@ impl Provider {
 
 // TODO: Maybe... lazy static this? Would that work?
 fn default_directory<'a>() -> Option<Cow<'a, Path>> {
-	current_exe().ok().and_then(|path| {
-		path.parent()
-			.map(|parent| parent.join(REPOSITORY_DIRECTORY).into())
-	})
+	let path = current_exe().ok()?.parent()?.join(REPOSITORY_DIRECTORY);
+	Some(path.into())
+}
+
+fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
+	let repository = RepoBuilder::new()
+		.bare(true)
+		.remote_create(|repo, name, url| repo.remote_with_fetch(name, url, "+refs/*:refs/*"))
+		.clone(remote, directory)?;
+	Ok(repository)
+}
+
+fn open_repository(remote: &str, directory: &Path) -> Result<Repository> {
+	let repository = Repository::open_bare(&directory)?;
+	if repository.find_remote("origin")?.url() != Some(remote) {
+		return Err(Error::Repository(format!(
+			"Repository at {directory:?} exists, does not have origin {remote}."
+		)));
+	}
+	Ok(repository)
 }
