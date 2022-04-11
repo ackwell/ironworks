@@ -9,6 +9,8 @@ use git2::{build::RepoBuilder, Repository};
 
 use crate::error::{Error, ErrorValue, Result};
 
+use super::version::Version;
+
 // Default configuration
 const REPOSITORY_URL: &str = "https://github.com/xivapi/SaintCoinach.git";
 const REPOSITORY_DIRECTORY: &str = "saint_coinach";
@@ -87,6 +89,11 @@ impl Provider {
 		}?;
 
 		Ok(Self { repository })
+	}
+
+	/// Fetch the specified version of the schema.
+	pub fn version(&self) -> Result<Version> {
+		Ok(Version::new())
 	}
 }
 
