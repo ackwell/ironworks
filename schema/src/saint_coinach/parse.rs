@@ -41,18 +41,10 @@ pub fn parse_sheet_definition(value: &Value) -> Result<Node> {
 			// Chain the backfill onto the parsed schema
 			Some(Ok(nodes))
 		})
-		// Hacky bullshit GO
-		.flat_map(|result| {
-			// Transform the result into a pair of options
-			let (inner, error) = match result {
-				Ok(inner) => (Some(inner), None),
-				Err(error) => (None, Some(Err(error))),
-			};
-
-			// Flatten the options into an iterator of results
-			inner.into_iter().flatten().map(Ok).chain(error)
-		})
-		.collect::<Result<Vec<_>>>()?;
+		.try_fold(vec![], |mut vec, nodes| -> Result<_> {
+			vec.extend(nodes?);
+			Ok(vec)
+		})?;
 
 	Ok(Node::Struct(nodes))
 }
