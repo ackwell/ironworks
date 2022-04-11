@@ -201,6 +201,7 @@ version = "0.1.0"
 dependencies = [
  "derivative",
  "git2",
+ "lazy_static",
  "thiserror",
 ]
 

@@ -94,11 +94,10 @@ impl Provider {
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, version: &str) -> Result<Version> {
 		let commit = self.repository.revparse_single(version)?.peel_to_commit()?;
-		Ok(Version::new(commit))
+		Ok(Version::new(&self.repository, commit))
 	}
 }
 
-// TODO: Maybe... lazy static this? Would that work?
 fn default_directory<'a>() -> Option<Cow<'a, Path>> {
 	let path = current_exe().ok()?.parent()?.join(REPOSITORY_DIRECTORY);
 	Some(path.into())

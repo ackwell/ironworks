@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-saint_coinach = ["derivative", "git2"]
+saint_coinach = ["derivative", "git2", "lazy_static"]
 
 [dependencies]
 thiserror = "1.0.30"
 
 derivative = {version = "2.2.0", optional = true}
 git2 = {version = "0.14.2", optional = true}
+lazy_static = {version = "1.4.0", optional = true}
