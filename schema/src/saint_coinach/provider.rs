@@ -82,7 +82,12 @@ impl Provider {
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other("Repository directory".into())))?;
 
 		let repository = match directory.exists() {
-			false => RepoBuilder::new().bare(true).clone(remote, &directory)?,
+			false => RepoBuilder::new()
+				.bare(true)
+				.remote_create(|repo, name, url| {
+					repo.remote_with_fetch(name, url, "+refs/*:refs/*")
+				})
+				.clone(remote, &directory)?,
 			true => {
 				let repository = Repository::open_bare(&directory)?;
 				if repository.find_remote("origin")?.url() != Some(remote) {
