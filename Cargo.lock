@@ -207,22 +207,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ironworks_schema_core"
-version = "0.1.0"
-
-[[package]]
-name = "ironworks_schema_saint_coinach"
-version = "0.1.0"
-dependencies = [
- "git2",
- "ironworks_schema_core",
- "lazy_static",
- "log",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
