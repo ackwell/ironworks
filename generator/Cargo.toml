@@ -1,0 +1,11 @@
+[package]
+name = "generator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.55"
+ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
+lazy_static = "1.4.0"
+quote = "1.0.18"
+regex = "1.5.5"

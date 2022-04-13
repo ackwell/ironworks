@@ -145,6 +145,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "generator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ironworks_schema",
+ "lazy_static",
+ "quote",
+ "regex",
+]
+
+[[package]]
 name = "git2"
 version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -383,9 +394,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.15"
+version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "864d3e96a899863136fc6e99f3d7cae289dafe43bf2c5ac19b70df7210c0a145"
+checksum = "a1feb54ed693b93a84e14094943b84b7c4eae204c512b7ccb95ab0c66d278ad1"
 dependencies = [
  "proc-macro2",
 ]
