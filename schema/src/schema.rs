@@ -4,6 +4,7 @@ pub struct Sheet {
 	/// Expected ordering of column definitions to be used when reading this schema.
 	pub order: Order,
 
+	// TODO: should this just be "node"?
 	/// The schema for the sheet.
 	pub schema: Node,
 }
@@ -50,17 +51,26 @@ impl Node {
 }
 
 // TODO: Should this all be public?
+/// Metadata for a reference to a row in another sheet.
 #[derive(Debug)]
 pub struct ReferenceTarget {
+	/// The sheet this reference points to
 	pub sheet: String,
 	// TODO: Some sort of standardised field selector format?
+	/// Selector pointing to the column in the target sheet that the value of this
+	/// reference matches. If `None`, the row ID is used.
 	pub selector: Option<String>,
+	/// Condition that must match for this target to be considered valid. If `None`,
+	/// this target is always valid.
 	pub condition: Option<ReferenceCondition>,
 }
 
+/// Selector/value pair used to limit the validity of a `ReferenceTarget`.
 #[derive(Clone, Debug)]
 pub struct ReferenceCondition {
+	/// Selector pointing to the column in this sheet that will be matched against.
 	pub selector: String,
 	// TODO: Technically this is an enum, but theoretically could be any value. Resolve?
+	/// Value that will be matched against.
 	pub value: u32,
 }

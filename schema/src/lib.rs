@@ -13,5 +13,5 @@ pub mod saint_coinach;
 
 pub use {
 	error::{Error, ErrorValue},
-	schema::{Node, Order, Sheet},
+	schema::{Node, Order, ReferenceCondition, ReferenceTarget, Sheet},
 };
