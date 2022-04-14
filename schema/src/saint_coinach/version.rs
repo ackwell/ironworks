@@ -30,6 +30,7 @@ impl<'repo> Version<'repo> {
 		Version { repository, commit }
 	}
 
+	// TODO: Given the extra root level "sheet" type, should this be called `sheet`?
 	/// Get the schema for the requested sheet at this version.
 	pub fn schema(&self, sheet: &str) -> Result<Sheet> {
 		let path = DEFINITION_PATH.join(format!("{sheet}.json"));
