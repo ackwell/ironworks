@@ -30,9 +30,8 @@ impl<'repo> Version<'repo> {
 		Version { repository, commit }
 	}
 
-	// TODO: Given the extra root level "sheet" type, should this be called `sheet`?
 	/// Get the schema for the requested sheet at this version.
-	pub fn schema(&self, sheet: &str) -> Result<Sheet> {
+	pub fn sheet(&self, sheet: &str) -> Result<Sheet> {
 		let path = DEFINITION_PATH.join(format!("{sheet}.json"));
 
 		let object = self
@@ -54,11 +53,11 @@ impl<'repo> Version<'repo> {
 
 		// todo error
 		let value = serde_json::from_slice::<Value>(blob.content()).unwrap();
-		let schema = parse_sheet_definition(&value)?;
+		let node = parse_sheet_definition(&value)?;
 
 		let sheet = Sheet {
 			order: Order::Index,
-			schema,
+			node,
 		};
 
 		Ok(sheet)

@@ -20,7 +20,7 @@ fn saint_coinach() -> Result<()> {
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
 
-	let schema = version.schema("CustomTalk")?;
+	let schema = version.sheet("CustomTalk")?;
 
 	generate_sheet(schema);
 
@@ -32,22 +32,22 @@ fn saint_coinach() -> Result<()> {
 // TODO: names travel down the tree - how do i name the structs I generate? context?
 fn generate_sheet(sheet: Sheet) {
 	// TODO: handle the order field
-	generate_node(&sheet.schema);
+	generate_node(&sheet.node);
 }
 
 // TODO: gen node should probably return the (rust) type of the node
 // TODO: it'll also need to return some way to _read_ itself
 fn generate_node(node: &Node) -> TokenStream {
 	match node {
-		Node::Array { count, schema } => generate_array(count, schema),
+		Node::Array { count, node } => generate_array(count, node),
 		Node::Reference(targets) => generate_reference(targets),
 		Node::Scalar => generate_scalar(),
 		Node::Struct(fields) => generate_struct(fields),
 	}
 }
 
-fn generate_array(count: &u32, schema: &Node) -> TokenStream {
-	let type_identifier = generate_node(schema);
+fn generate_array(count: &u32, node: &Node) -> TokenStream {
+	let type_identifier = generate_node(node);
 	quote! { #type_identifier[#count] }
 }
 

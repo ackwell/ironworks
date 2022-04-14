@@ -4,9 +4,8 @@ pub struct Sheet {
 	/// Expected ordering of column definitions to be used when reading this schema.
 	pub order: Order,
 
-	// TODO: should this just be "node"?
 	/// The schema for the sheet.
-	pub schema: Node,
+	pub node: Node,
 }
 
 /// Ordering of column definitions.
@@ -23,7 +22,7 @@ pub enum Order {
 pub enum Node {
 	/// An array of two or more sub-schemas.
 	#[allow(missing_docs)]
-	Array { count: u32, schema: Box<Node> },
+	Array { count: u32, node: Box<Node> },
 
 	// TODO: Reference fields
 	/// A reference to one or more rows in other sheets.
@@ -40,7 +39,7 @@ impl Node {
 	/// The size of a given node, in columns.
 	pub fn size(&self) -> u32 {
 		match self {
-			Self::Array { count, schema } => count * schema.size(),
+			Self::Array { count, node } => count * node.size(),
 			Self::Reference(_) => 1,
 			Self::Scalar => 1,
 			Self::Struct(fields) => fields

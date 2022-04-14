@@ -129,7 +129,7 @@ fn parse_repeat_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 	Ok((
 		Node::Array {
 			count,
-			schema: Box::new(node),
+			node: Box::new(node),
 		},
 		name,
 	))
