@@ -17,9 +17,10 @@ fn saint_coinach() -> Result<()> {
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
 
-	let schema = version.sheet("CustomTalk")?;
+	let sheet_name = "CustomTalk";
+	let schema = version.sheet(sheet_name)?;
 
-	generate_sheet(schema);
+	generate_sheet(sheet_name, schema);
 
 	Ok(())
 }
