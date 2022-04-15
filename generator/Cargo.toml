@@ -7,6 +7,8 @@ edition = "2021"
 anyhow = "1.0.55"
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 lazy_static = "1.4.0"
+prettyplease = "0.1.9"
 proc-macro2 = "1.0.37"
 quote = "1.0.18"
 regex = "1.5.5"
+syn = "1.0.91"

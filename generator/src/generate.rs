@@ -28,11 +28,14 @@ pub fn generate_sheet(name: &str, sheet: Sheet) {
 
 	let items = context.items;
 
-	let module = quote! {
+	let file_tokens = quote! {
 	  #(#items)*
 	};
 
-	println!("{module}")
+	let file_tree = syn::parse2::<syn::File>(file_tokens).unwrap();
+	let formatted = prettyplease::unparse(&file_tree);
+
+	println!("{formatted}")
 }
 
 // TODO: gen node should probably return the (rust) type of the node
@@ -48,7 +51,8 @@ fn generate_node(context: &mut Context, node: &Node) -> TokenStream {
 
 fn generate_array(context: &mut Context, count: &u32, node: &Node) -> TokenStream {
 	let type_identifier = generate_node(context, node);
-	quote! { #type_identifier[#count] }
+	let count = usize::try_from(*count).unwrap();
+	quote! { [#type_identifier; #count] }
 }
 
 fn generate_reference(_context: &mut Context, _targets: &[ReferenceTarget]) -> TokenStream {
