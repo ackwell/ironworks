@@ -4,14 +4,9 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use regex::Regex;
 
-// just thoughts; we need a bunch of stuff on the instance, some of which is
-// tree-based, some of which is persistent - err to not copy?
 #[derive(Debug)]
 struct Context {
-	// path as vec<string>? each step down adds name, step up removes (maybe only at structs?)
 	path: Vec<String>,
-
-	// top level [[thing]] holder to i.e. register new structs in
 	items: Vec<TokenStream>,
 }
 

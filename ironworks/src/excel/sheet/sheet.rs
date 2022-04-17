@@ -31,14 +31,17 @@ pub struct Column {
 }
 
 impl Column {
+	/// Index of this column within the sheet header.
 	pub fn index(&self) -> usize {
 		self.index
 	}
 
+	/// Offset of this column's data within row binary data.
 	pub fn offset(&self) -> u16 {
 		self.offset
 	}
 
+	/// Kind of data held in this column.
 	pub fn kind(&self) -> ColumnKind {
 		self.kind
 	}

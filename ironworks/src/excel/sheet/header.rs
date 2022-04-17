@@ -54,6 +54,8 @@ pub struct ColumnDefinition {
 	pub offset: u16,
 }
 
+/// The kind of data structure stored in a column.
+#[allow(missing_docs)]
 #[binread]
 #[derive(Clone, Copy, Debug, IntoPrimitive)]
 #[br(big, repr = u16)]

@@ -11,7 +11,7 @@ mod sheet;
 pub use {
 	excel::Excel,
 	resource::Resource,
-	sheet::{Row, RowOptions, Sheet},
+	sheet::{Column, ColumnKind, Row, RowOptions, Sheet},
 };
 
 #[cfg(feature = "sqpack")]

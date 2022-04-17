@@ -4,4 +4,9 @@ mod row;
 mod row_options;
 mod sheet;
 
-pub use {row::Row, row_options::RowOptions, sheet::Sheet};
+pub use {
+	header::ColumnKind,
+	row::Row,
+	row_options::RowOptions,
+	sheet::{Column, Sheet},
+};
