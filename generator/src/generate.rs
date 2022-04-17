@@ -1,4 +1,4 @@
-use ironworks::excel::Column;
+use ironworks::excel::{Column, ColumnKind};
 use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
@@ -82,10 +82,9 @@ fn generate_scalar(context: &mut Context) -> TokenStream {
 	let column = &context.columns[context.column_index];
 	context.column_index += 1;
 
-	let temp = format!("{:#?}", column.kind());
-	let identifier = format_ident!("TodoScalar_{temp}");
+	let scalar_type = to_type(column.kind());
 
-	quote! { #identifier }
+	quote! { #scalar_type }
 }
 
 fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> TokenStream {
@@ -118,4 +117,35 @@ lazy_static! {
 fn to_identifier(arg: &str) -> Ident {
 	let sanitized = RE_INVALID_CHARS.replace_all(arg, "");
 	format_ident!("{sanitized}")
+}
+
+fn to_type(kind: ColumnKind) -> TokenStream {
+	use ColumnKind as K;
+
+	// TODO: might need a second similar match statement for read logic on scalars - do i combine the two?
+	match kind {
+		K::String => quote! { String },
+
+		K::Bool
+		| K::PackedBool0
+		| K::PackedBool1
+		| K::PackedBool2
+		| K::PackedBool3
+		| K::PackedBool4
+		| K::PackedBool5
+		| K::PackedBool6
+		| K::PackedBool7 => quote! { bool },
+
+		K::Int8 => quote! { i8 },
+		K::Int16 => quote! { i16 },
+		K::Int32 => quote! { i32 },
+		K::Int64 => quote! { i64 },
+
+		K::UInt8 => quote! { u8 },
+		K::UInt16 => quote! { u16 },
+		K::UInt32 => quote! { u32 },
+		K::UInt64 => quote! { u64 },
+
+		K::Float32 => quote! { f32 },
+	}
 }
