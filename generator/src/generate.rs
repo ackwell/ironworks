@@ -1,20 +1,30 @@
-use ironworks_schema::{Node, ReferenceTarget, Sheet};
+use ironworks::excel::Column;
+use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use regex::Regex;
 
+// TODO: can probably make a decent chunk of this instance methods on &mut self of the context
 #[derive(Debug)]
 struct Context {
 	path: Vec<String>,
+	columns: Vec<Column>,
+	column_index: usize,
 	items: Vec<TokenStream>,
 }
 
 // TODO: some note about being an entry point
 // TODO: I'm not entirely convinced by passing the sheet name in here...
-pub fn generate_sheet(name: &str, sheet: Sheet) {
+pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
+	if sheet.order == Order::Offset {
+		todo!("Offset column order");
+	}
+
 	let mut context = Context {
 		path: vec![name.into()],
+		columns,
+		column_index: 0,
 		items: vec![],
 	};
 
@@ -46,18 +56,35 @@ fn generate_node(context: &mut Context, node: &Node) -> TokenStream {
 
 fn generate_array(context: &mut Context, count: &u32, node: &Node) -> TokenStream {
 	let type_identifier = generate_node(context, node);
+
+	// Walking the array's node will have advanced the column index equivalent to
+	// a count of 1 - skip over any remaining count to ensure further lookups
+	// resume from the right spot.
+	// NOTE: This assumes the array count is correct.
+	context.column_index += usize::try_from(node.size() * (count - 1)).unwrap();
+
 	let count = usize::try_from(*count).unwrap();
 	quote! { [#type_identifier; #count] }
 }
 
-fn generate_reference(_context: &mut Context, _targets: &[ReferenceTarget]) -> TokenStream {
-	let identifier = format_ident!("TodoReference");
+fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> TokenStream {
+	// TODO: should i try to make references work as a superset of scalars?
+	let column = &context.columns[context.column_index];
+	context.column_index += 1;
+
+	let temp = format!("{:#?}", column.kind());
+	let identifier = format_ident!("TodoReference_{temp}");
+
 	quote! { #identifier }
 }
 
-fn generate_scalar(_context: &mut Context) -> TokenStream {
-	// TODO: this will need column header data to resolve the type
-	let identifier = format_ident!("TodoScalar");
+fn generate_scalar(context: &mut Context) -> TokenStream {
+	let column = &context.columns[context.column_index];
+	context.column_index += 1;
+
+	let temp = format!("{:#?}", column.kind());
+	let identifier = format_ident!("TodoScalar_{temp}");
+
 	quote! { #identifier }
 }
 

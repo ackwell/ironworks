@@ -31,9 +31,7 @@ fn saint_coinach() -> Result<()> {
 	let excel = Excel::new(FfxivSqpackResource::new(&sqpack));
 	let sheet = excel.sheet(sheet_name)?;
 
-	println!("cols: {:#?}", sheet.columns());
-
-	generate_sheet(sheet_name, schema);
+	generate_sheet(sheet_name, schema, sheet.columns()?);
 
 	Ok(())
 }

@@ -1,3 +1,5 @@
+// TODO: consider making internals on these private with getters?
+
 /// Schema and metadata for a sheet within an Excel database.
 #[derive(Debug)]
 pub struct Sheet {
@@ -9,7 +11,7 @@ pub struct Sheet {
 }
 
 /// Ordering of column definitions.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Order {
 	/// Ordered by index of definition within Excel header file.
 	Index,
