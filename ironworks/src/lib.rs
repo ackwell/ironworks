@@ -11,6 +11,7 @@ mod utility;
 pub mod excel;
 #[cfg(feature = "ffxiv")]
 pub mod ffxiv;
+pub mod sestring;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
 

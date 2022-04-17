@@ -1,8 +1,11 @@
 use std::{cell::RefCell, io::Cursor, rc::Rc};
 
-use binrw::{binread, BinReaderExt, BinResult, NullString};
+use binrw::{binread, BinReaderExt, BinResult};
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	sestring::SeString,
+};
 
 use super::header::{ColumnDefinition, ColumnKind, Header};
 
@@ -27,8 +30,7 @@ impl SubrowHeader {
 
 #[derive(Debug)]
 pub enum Field {
-	// TODO: SeString, somehow or another
-	String(NullString),
+	String(SeString),
 
 	Bool(bool),
 
@@ -99,7 +101,7 @@ impl Row {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size));
-				F::String(cursor.read_be::<NullString>()?)
+				F::String(cursor.read_be::<SeString>()?)
 			}
 
 			K::Bool => F::Bool(cursor.read_be::<u8>()? != 0),
