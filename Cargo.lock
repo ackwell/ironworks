@@ -149,6 +149,7 @@ name = "generator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ironworks",
  "ironworks_schema",
  "lazy_static",
  "prettyplease",

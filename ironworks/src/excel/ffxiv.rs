@@ -20,6 +20,7 @@ pub enum Language {
 	Korean = 7,
 }
 
+// TODO: Probably should be FfxivSqPackResource
 /// Resource adapter pre-configured to read Excel files from a SqPack instance,
 /// laid out in the expected FFXIV format.
 #[derive(Debug)]

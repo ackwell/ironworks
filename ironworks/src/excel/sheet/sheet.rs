@@ -1,4 +1,7 @@
-use std::io::{Cursor, Seek, SeekFrom};
+use std::{
+	io::{Cursor, Seek, SeekFrom},
+	rc::Rc,
+};
 
 use binrw::BinRead;
 
@@ -9,7 +12,7 @@ use crate::{
 };
 
 use super::{
-	header::{Header, SheetKind},
+	header::{ColumnKind, Header, SheetKind},
 	page::Page,
 	row::{Row, RowHeader, SubrowHeader},
 	row_options::RowOptions,
@@ -17,6 +20,29 @@ use super::{
 
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
+
+// TODO: is this how i want to handle it?
+/// Metadata about a column within a sheet.
+#[derive(Debug)]
+pub struct Column {
+	index: usize,
+	offset: u16,
+	kind: ColumnKind,
+}
+
+impl Column {
+	pub fn index(&self) -> usize {
+		self.index
+	}
+
+	pub fn offset(&self) -> u16 {
+		self.offset
+	}
+
+	pub fn kind(&self) -> ColumnKind {
+		self.kind
+	}
+}
 
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
 // past the lifetime of the parent Excel instance.
@@ -45,6 +71,24 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		}
 	}
 
+	/// Fetch metadata for all columns in this sheet.
+	pub fn columns(&self) -> Result<Vec<Column>> {
+		let header = self.header()?;
+		let columns = header
+			.columns
+			.iter()
+			.enumerate()
+			.map(|(index, definition)| Column {
+				index,
+				offset: definition.offset,
+				kind: definition.kind,
+			})
+			.collect::<Vec<_>>();
+
+		Ok(columns)
+	}
+
+	// TODO: name. row_with? "with" refers to construction, sorta.
 	/// Create a row options builder for this sheet.
 	pub fn with(&'r self) -> RowOptions<'r, R> {
 		RowOptions::new(self)
@@ -72,10 +116,7 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		subrow_id: u16,
 		options: &RowOptions<'r, R>,
 	) -> Result<Row> {
-		let header = self.header.try_get_or_insert(|| {
-			let mut reader = self.resource.header(&self.sheet)?;
-			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
-		})?;
+		let header = self.header()?;
 
 		let row_not_found = || {
 			Error::NotFound(ErrorValue::Row {
@@ -172,5 +213,12 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			header,
 			data.to_vec(),
 		))
+	}
+
+	fn header(&self) -> Result<Rc<Header>> {
+		self.header.try_get_or_insert(|| {
+			let mut reader = self.resource.header(&self.sheet)?;
+			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+		})
 	}
 }
