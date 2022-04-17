@@ -9,6 +9,8 @@ mod utility;
 
 #[cfg(feature = "excel")]
 pub mod excel;
+#[cfg(feature = "ffxiv")]
+pub mod ffxiv;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
 

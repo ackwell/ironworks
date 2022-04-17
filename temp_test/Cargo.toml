@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.55"
 env_logger = "0.9.0"
-ironworks = {path = "../ironworks", features = ["sqpack", "excel"]}
+ironworks = {path = "../ironworks", features = ["sqpack", "ffxiv", "excel"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}

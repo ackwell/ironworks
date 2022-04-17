@@ -2,7 +2,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel, sqpack,
+	sqpack,
 };
 
 /// Language of strings in Excel files.
@@ -24,18 +24,22 @@ pub enum Language {
 /// Resource adapter pre-configured to read Excel files from a SqPack instance,
 /// laid out in the expected FFXIV format.
 #[derive(Debug)]
-pub struct FfxivSqpackResource<'s, R> {
+pub struct SqpackResource<'s, R> {
 	sqpack: &'s sqpack::SqPack<R>,
 }
 
-impl<'s, R: sqpack::Resource> FfxivSqpackResource<'s, R> {
+impl<'s, R: sqpack::Resource> SqpackResource<'s, R> {
 	/// Configure a resource instance with a given SqPack handler.
 	pub fn new(sqpack: &'s sqpack::SqPack<R>) -> Self {
 		Self { sqpack }
 	}
 }
 
-impl<R: sqpack::Resource> excel::Resource for FfxivSqpackResource<'_, R> {
+#[cfg(feature = "excel")]
+use crate::excel;
+
+#[cfg(feature = "excel")]
+impl<R: sqpack::Resource> excel::Resource for SqpackResource<'_, R> {
 	type List = sqpack::File<R::Dat>;
 	fn list(&self) -> Result<Self::List> {
 		self.sqpack.read("exd/root.exl")

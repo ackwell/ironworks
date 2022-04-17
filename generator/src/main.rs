@@ -1,8 +1,9 @@
 use anyhow::Result;
 use generate::generate_sheet;
 use ironworks::{
-	excel::{Excel, FfxivSqpackResource},
-	sqpack::{FfxivFsResource, SqPack},
+	excel::Excel,
+	ffxiv::{FsResource, SqpackResource},
+	sqpack::SqPack,
 };
 use ironworks_schema::saint_coinach::Provider;
 
@@ -27,8 +28,8 @@ fn saint_coinach() -> Result<()> {
 
 	// TODO: probably need args for this stuff too
 	// TODO: this might be shareable across providers
-	let sqpack = SqPack::new(FfxivFsResource::search().unwrap());
-	let excel = Excel::new(FfxivSqpackResource::new(&sqpack));
+	let sqpack = SqPack::new(FsResource::search().unwrap());
+	let excel = Excel::new(SqpackResource::new(&sqpack));
 	let sheet = excel.sheet(sheet_name)?;
 
 	generate_sheet(sheet_name, schema, sheet.columns()?);

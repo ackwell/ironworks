@@ -1,6 +1,7 @@
 use ironworks::{
-	excel::{Excel, FfxivSqpackResource, Language},
-	sqpack::{FfxivFsResource, SqPack},
+	excel::Excel,
+	ffxiv::{FsResource, Language, SqpackResource},
+	sqpack::SqPack,
 };
 use ironworks_schema::saint_coinach::Provider;
 
@@ -15,10 +16,10 @@ fn main() -> anyhow::Result<()> {
 
 #[allow(dead_code)]
 fn iw_test() -> anyhow::Result<()> {
-	let sqpack_resource = FfxivFsResource::search().unwrap();
+	let sqpack_resource = FsResource::search().unwrap();
 	let sqpack = SqPack::new(sqpack_resource);
 
-	let resource = FfxivSqpackResource::new(&sqpack);
+	let resource = SqpackResource::new(&sqpack);
 	// let excel = Excel::new(resource);
 	let excel = Excel::with().language(Language::German).build(resource);
 

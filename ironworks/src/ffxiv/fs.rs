@@ -6,11 +6,6 @@ use std::{
 
 use crate::error::{Error, ErrorValue, Result};
 
-use super::resource::Resource;
-
-// TODO: should this and the core resource get moved to a "resource" module by themselves?
-//       do we expect this to also implement the sqpack extension?
-
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
 	r"C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY XIV Online",
@@ -46,16 +41,15 @@ const CATEGORIES: &[Option<&str>] = &[
 	/* 0x13 */ Some("debug"),
 ];
 
-// TODO: should there be a ffxiv feature?
 /// Resource adapter pre-configured to work with on-disk sqpack packages laid
 /// out in the FFXIV format.
 #[derive(Debug)]
-pub struct FfxivFsResource {
+pub struct FsResource {
 	path: PathBuf,
 	repositories: Vec<String>,
 }
 
-impl FfxivFsResource {
+impl FsResource {
 	// TODO: should this error instead of option? i'm tempted to say it should for the sake of consumers
 	/// Search for a FFXIV install in common locations, configuring a resource
 	/// instance with the found install, if any.
@@ -103,7 +97,11 @@ impl FfxivFsResource {
 	}
 }
 
-impl Resource for FfxivFsResource {
+#[cfg(feature = "sqpack")]
+use crate::sqpack::Resource;
+
+#[cfg(feature = "sqpack")]
+impl Resource for FsResource {
 	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
 		let split = path.split('/').take(2).collect::<Vec<_>>();
 
