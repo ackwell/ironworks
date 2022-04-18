@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use ironworks::excel::{Column, ColumnKind};
 use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
 use lazy_static::lazy_static;
@@ -13,6 +15,7 @@ struct Context {
 	columns: Vec<Column>,
 	column_index: usize,
 	items: Vec<TokenStream>,
+	uses: HashSet<&'static str>,
 }
 
 #[derive(Debug)]
@@ -33,12 +36,21 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String 
 		columns,
 		column_index: 0,
 		items: vec![],
+		uses: Default::default(),
 	};
 
 	generate_node(&mut context, &sheet.node);
 
+	let uses = context
+		.uses
+		.iter()
+		.map(|string| str::parse::<TokenStream>(string))
+		.collect::<Result<Vec<_>, _>>()
+		.unwrap();
 	let items = context.items;
 	let file_tokens = quote! {
+		#(use #uses;)*
+
 	  #(#items)*
 	};
 
@@ -68,16 +80,22 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 	let node_size = usize::try_from(node.size()).unwrap();
 	context.column_index += node_size * (count_usize - 1);
 
-	let type_ = quote! { std::vec::Vec<#identifier> };
+	context.uses.extend([
+		"std::result::Result",
+		"std::vec::Vec",
+		"crate::error::PopulateError",
+	]);
+
+	let type_ = quote! { Vec<#identifier> };
 
 	NodeResult {
 		reader: quote! {
 			(0..#count_usize)
 				.map(|index| {
 					let offset = offset + #node_size * index;
-					std::result::Result::Ok(#reader)
+					Result::Ok(#reader)
 				})
-				.collect::<std::result::Result<#type_, crate::error::PopulateError>>()?
+				.collect::<Result<#type_, PopulateError>>()?
 		},
 		type_,
 	}
@@ -96,10 +114,10 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 
 	use ColumnKind as K;
 	let (scalar_type, converter) = match column.kind() {
-		K::String => (
-			quote! { ironworks::sestring::SeString },
-			quote! { into_string },
-		),
+		K::String => {
+			context.uses.extend(["ironworks::sestring::SeString"]);
+			(quote! { SeString }, quote! { into_string })
+		}
 
 		K::Bool
 		| K::PackedBool0
@@ -164,6 +182,12 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	let types = field_results.iter().map(|result| &result.type_);
 	let readers = field_results.iter().map(|result| &result.reader);
 
+	context.uses.extend([
+		"std::result::Result",
+		"ironworks::excel::Row",
+		"crate::error::PopulateError",
+	]);
+
 	let struct_tokens = quote! {
 		#[derive(Debug)]
 		pub struct #struct_ident {
@@ -174,13 +198,10 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		impl #struct_ident {
 			/// todo docs will probably need to build outside
 			pub fn populate(
-				row: &ironworks::excel::Row,
+				row: &Row,
 				offset: usize,
-			) -> std::result::Result<
-				Self,
-				crate::error::PopulateError,
-			> {
-				std::result::Result::Ok(Self {
+			) -> Result<Self, PopulateError> {
+				Result::Ok(Self {
 					#(#identifiers: #readers),*
 				})
 			}
