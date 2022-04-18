@@ -68,9 +68,9 @@ fn saint_coinach() -> Result<()> {
 	}
 
 	// TODO: this is a bit dupey with some of the generate logic - do we make generate return the file name to use in some way?
-	let gen_dir = src_dir.join("generated");
-	fs::create_dir(&gen_dir)?;
-	fs::write(gen_dir.join(format!("{sheet_name}.rs")), sheet_code)?;
+	let sheet_dir = src_dir.join("sheet");
+	fs::create_dir(&sheet_dir)?;
+	fs::write(sheet_dir.join(format!("{sheet_name}.rs")), sheet_code)?;
 
 	// todo: fucking lmao
 	let module_identifier = format_ident!("{sheet_name}");
@@ -79,7 +79,7 @@ fn saint_coinach() -> Result<()> {
 
 		pub use #module_identifier::*;
 	};
-	fs::write(gen_dir.join("mod.rs"), unparse_tokens(module_contents))?;
+	fs::write(sheet_dir.join("mod.rs"), unparse_tokens(module_contents))?;
 
 	Ok(())
 }
