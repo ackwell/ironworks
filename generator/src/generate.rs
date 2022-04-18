@@ -47,8 +47,6 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String 
 	prettyplease::unparse(&file_tree)
 }
 
-// TODO: gen node should probably return the (rust) type of the node
-// TODO: it'll also need to return some way to _read_ itself - or is that a context thing? nah?
 fn generate_node(context: &mut Context, node: &Node) -> NodeResult {
 	match node {
 		Node::Array { count, node } => generate_array(context, count, node),
@@ -68,19 +66,22 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 	// a count of 1 - skip over any remaining count to ensure further lookups
 	// resume from the right spot.
 	// NOTE: This assumes the array count is correct.
+	let count_usize = usize::try_from(*count).unwrap();
 	let node_size = usize::try_from(node.size()).unwrap();
-	context.column_index += node_size * usize::try_from(count - 1).unwrap();
+	context.column_index += node_size * (count_usize - 1);
+
+	let type_ = quote! { std::vec::Vec<#identifier> };
 
 	NodeResult {
-		type_: quote! { std::vec::Vec<#identifier> },
 		reader: quote! {
-			(0..#count)
+			(0..#count_usize)
 				.map(|index| {
 					let offset = offset + #node_size * index;
 					#reader
 				})
-				.collect::<std::vec::Vec<#identifier>>()
+				.collect::<#type_>()
 		},
+		type_,
 	}
 }
 
@@ -99,7 +100,7 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 	let (scalar_type, converter) = match column.kind() {
 		K::String => (
 			quote! { ironworks::sestring::SeString },
-			quote! { .into_string() },
+			quote! { into_string },
 		),
 
 		K::Bool
@@ -110,25 +111,25 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 		| K::PackedBool4
 		| K::PackedBool5
 		| K::PackedBool6
-		| K::PackedBool7 => (quote! { bool }, quote! { .into_bool() }),
+		| K::PackedBool7 => (quote! { bool }, quote! { into_bool }),
 
-		K::Int8 => (quote! { i8 }, quote! { .into_i8() }),
-		K::Int16 => (quote! { i16 }, quote! { .into_i16() }),
-		K::Int32 => (quote! { i32 }, quote! { .into_i32() }),
-		K::Int64 => (quote! { i64 }, quote! { .into_i64() }),
+		K::Int8 => (quote! { i8 }, quote! { into_i8 }),
+		K::Int16 => (quote! { i16 }, quote! { into_i16 }),
+		K::Int32 => (quote! { i32 }, quote! { into_i32 }),
+		K::Int64 => (quote! { i64 }, quote! { into_i64 }),
 
-		K::UInt8 => (quote! { u8 }, quote! { .into_u8() }),
-		K::UInt16 => (quote! { u16 }, quote! { .into_u16() }),
-		K::UInt32 => (quote! { u32 }, quote! { .into_u32() }),
-		K::UInt64 => (quote! { u64 }, quote! { .into_u64() }),
+		K::UInt8 => (quote! { u8 }, quote! { into_u8 }),
+		K::UInt16 => (quote! { u16 }, quote! { into_u16 }),
+		K::UInt32 => (quote! { u32 }, quote! { into_u32 }),
+		K::UInt64 => (quote! { u64 }, quote! { into_u64 }),
 
-		K::Float32 => (quote! { f32 }, quote! { .into_f32() }),
+		K::Float32 => (quote! { f32 }, quote! { into_f32 }),
 	};
 
 	// TODO: Should possibly put the col idx offset and field idens as statics or something so it's consistent.
 	NodeResult {
 		type_: quote! { #scalar_type },
-		reader: quote! { sheet.field(#field_index + offset)#converter },
+		reader: quote! { row.field(#field_index + offset).#converter() },
 	}
 }
 
@@ -136,7 +137,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	// TODO: actually make this properly
 	let struct_ident = format_ident!("{}", context.path.join("_"));
 
-	// ???
 	struct FieldResult {
 		identifier: Ident,
 		type_: TokenStream,
@@ -176,11 +176,12 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		impl #struct_ident {
 			/// todo docs will probably need to build outside
 			pub fn populate(
-				sheet: &ironworks::excel::Sheet,
+				row: &ironworks::excel::Row,
 				offset: usize,
 			) -> std::result::Result<
 				Self,
-				ironworks::excel::Field,
+				// TODO: Proper error type
+				TodoPopulateError,
 			> {
 				std::result::Result::Ok(Self {
 					#(#identifiers: #readers),*
@@ -194,7 +195,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	NodeResult {
 		type_: quote! { #struct_ident },
 		// TODO: do we need to fully qualify the ident here?
-		reader: quote! { #struct_ident.populate(sheet, offset) },
+		reader: quote! { #struct_ident.populate(row, offset) },
 	}
 }
 
