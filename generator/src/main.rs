@@ -44,6 +44,7 @@ fn main() -> Result<()> {
 
 	// Build the modules for sheets.
 	let modules = saint_coinach()?
+		.into_iter()
 		.map(|schema| -> Result<_, ironworks::Error> {
 			let sheet = excel.sheet(&schema.name)?;
 			let file = generate_sheet(schema, sheet.columns()?);
@@ -77,15 +78,20 @@ fn main() -> Result<()> {
 }
 
 // TODO: Seperate file and all that jazz.
-fn saint_coinach() -> Result<impl Iterator<Item = SchemaSheet>> {
+fn saint_coinach() -> Result<Vec<SchemaSheet>> {
 	let provider = Provider::new()?;
 
 	// TODO: fetch updates to the provider to make sure it's fresh
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
-	let sheet = version.sheet("CustomTalk")?;
 
-	Ok(std::iter::once(sheet))
+	// TODO: TEMP
+	let sheets = ["CustomTalk", "CharaMakeType"];
+
+	sheets
+		.iter()
+		.map(|name| Ok(version.sheet(name)?))
+		.collect::<Result<Vec<_>>>()
 }
 
 fn build_scaffold(out_dir: &Path) -> Result<PathBuf> {
