@@ -14,6 +14,12 @@ struct Context {
 	items: Vec<TokenStream>,
 }
 
+#[derive(Debug)]
+struct NodeResult {
+	type_: TokenStream,
+	reader: TokenStream,
+}
+
 // TODO: some note about being an entry point
 // TODO: I'm not entirely convinced by passing the sheet name in here...
 pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
@@ -37,15 +43,17 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
 	  #(#items)*
 	};
 
+	println!("{file_tokens}");
+
 	let file_tree = syn::parse2::<syn::File>(file_tokens).unwrap();
 	let formatted = prettyplease::unparse(&file_tree);
 
-	println!("{formatted}")
+	println!("{formatted}");
 }
 
 // TODO: gen node should probably return the (rust) type of the node
 // TODO: it'll also need to return some way to _read_ itself - or is that a context thing? nah?
-fn generate_node(context: &mut Context, node: &Node) -> TokenStream {
+fn generate_node(context: &mut Context, node: &Node) -> NodeResult {
 	match node {
 		Node::Array { count, node } => generate_array(context, count, node),
 		Node::Reference(targets) => generate_reference(context, targets),
@@ -54,8 +62,11 @@ fn generate_node(context: &mut Context, node: &Node) -> TokenStream {
 	}
 }
 
-fn generate_array(context: &mut Context, count: &u32, node: &Node) -> TokenStream {
-	let type_identifier = generate_node(context, node);
+fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult {
+	let NodeResult {
+		type_: identifier,
+		reader,
+	} = generate_node(context, node);
 
 	// Walking the array's node will have advanced the column index equivalent to
 	// a count of 1 - skip over any remaining count to ensure further lookups
@@ -63,11 +74,14 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> TokenStrea
 	// NOTE: This assumes the array count is correct.
 	context.column_index += usize::try_from(node.size() * (count - 1)).unwrap();
 
-	let count = usize::try_from(*count).unwrap();
-	quote! { [#type_identifier; #count] }
+	let array_count = usize::try_from(*count).unwrap();
+	NodeResult {
+		type_: quote! { [#identifier; #array_count] },
+		reader: quote! { todo_read_array(#reader) },
+	}
 }
 
-fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> TokenStream {
+fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> NodeResult {
 	// TODO: should i try to make references work as a superset of scalars?
 	let column = &context.columns[context.column_index];
 	context.column_index += 1;
@@ -75,38 +89,76 @@ fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> To
 	let temp = format!("{:#?}", column.kind());
 	let identifier = format_ident!("TodoReference_{temp}");
 
-	quote! { #identifier }
+	NodeResult {
+		type_: quote! { #identifier },
+		reader: quote! { todo_read_reference() },
+	}
 }
 
-fn generate_scalar(context: &mut Context) -> TokenStream {
+fn generate_scalar(context: &mut Context) -> NodeResult {
 	let column = &context.columns[context.column_index];
 	context.column_index += 1;
 
 	let scalar_type = to_type(column.kind());
 
-	quote! { #scalar_type }
+	NodeResult {
+		type_: quote! { #scalar_type },
+		reader: quote! { todo_read_scalar() },
+	}
 }
 
-fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> TokenStream {
+fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResult {
 	// TODO: actually make this properly
 	let struct_ident = format_ident!("{}", context.path.join("_"));
 
-	let field_tokens = fields.iter().map(|(name, node)| {
-		let name_identifier = to_identifier(name);
-		// TODO: this will need to push->pop the name ident onto the path? I think?
-		let type_identifier = generate_node(context, node);
-		quote! { #name_identifier: #type_identifier }
-	});
+	// ???
+	struct FieldResult {
+		identifier: Ident,
+		type_: TokenStream,
+		reader: TokenStream,
+	}
+
+	let field_results = fields
+		.iter()
+		.map(|(name, node)| {
+			let identifier = to_identifier(name);
+
+			// TODO: this will need to push->pop the name ident onto the path? I think?
+			let NodeResult { type_, reader } = generate_node(context, node);
+
+			FieldResult {
+				identifier,
+				type_,
+				reader,
+			}
+		})
+		.collect::<Vec<_>>();
+
+	let identifiers = field_results.iter().map(|result| &result.identifier);
+	let types = field_results.iter().map(|result| &result.type_);
+	let readers = field_results.iter().map(|result| &result.reader);
 
 	let struct_tokens = quote! {
 		struct #struct_ident {
-			#(#field_tokens),*
+			#(#identifiers: #types),*
+		}
+
+		impl #struct_ident {
+			// todo: name implies it acts on an existing entity - what should we call this?
+			/// todo docs will probably need to build outside
+			pub fn populate() {
+				#(#readers;)*
+			}
 		}
 	};
 
 	context.items.push(struct_tokens);
 
-	quote! { #struct_ident }
+	NodeResult {
+		type_: quote! { #struct_ident },
+		// TODO: do we need to fully qualify the ident here?
+		reader: quote! { #struct_ident.populate() },
+	}
 }
 
 lazy_static! {
