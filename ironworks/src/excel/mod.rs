@@ -9,5 +9,5 @@ mod sheet;
 pub use {
 	excel::Excel,
 	resource::Resource,
-	sheet::{Column, ColumnKind, Row, RowOptions, Sheet},
+	sheet::{Column, ColumnKind, Field, Row, RowOptions, Sheet},
 };

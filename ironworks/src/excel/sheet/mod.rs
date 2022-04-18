@@ -6,7 +6,7 @@ mod sheet;
 
 pub use {
 	header::ColumnKind,
-	row::Row,
+	row::{Field, Row},
 	row_options::RowOptions,
 	sheet::{Column, Sheet},
 };

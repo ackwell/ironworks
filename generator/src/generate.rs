@@ -72,38 +72,67 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 	// a count of 1 - skip over any remaining count to ensure further lookups
 	// resume from the right spot.
 	// NOTE: This assumes the array count is correct.
-	context.column_index += usize::try_from(node.size() * (count - 1)).unwrap();
+	let node_size = usize::try_from(node.size()).unwrap();
+	context.column_index += node_size * usize::try_from(count - 1).unwrap();
 
-	let array_count = usize::try_from(*count).unwrap();
 	NodeResult {
-		type_: quote! { [#identifier; #array_count] },
-		reader: quote! { todo_read_array(#reader) },
+		type_: quote! { std::vec::Vec<#identifier> },
+		reader: quote! {
+			(0..#count)
+				.map(|index| {
+					let offset = offset + #node_size * index;
+					#reader
+				})
+				.collect::<std::vec::Vec<#identifier>>()
+		},
 	}
 }
 
 fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> NodeResult {
-	// TODO: should i try to make references work as a superset of scalars?
-	let column = &context.columns[context.column_index];
-	context.column_index += 1;
-
-	let temp = format!("{:#?}", column.kind());
-	let identifier = format_ident!("TodoReference_{temp}");
-
-	NodeResult {
-		type_: quote! { #identifier },
-		reader: quote! { todo_read_reference() },
-	}
+	// TODO: reference logic
+	generate_scalar(context)
 }
 
 fn generate_scalar(context: &mut Context) -> NodeResult {
 	let column = &context.columns[context.column_index];
 	context.column_index += 1;
 
-	let scalar_type = to_type(column.kind());
+	let field_index = column.index();
 
+	use ColumnKind as K;
+	let (scalar_type, converter) = match column.kind() {
+		K::String => (
+			quote! { ironworks::sestring::SeString },
+			quote! { .into_string() },
+		),
+
+		K::Bool
+		| K::PackedBool0
+		| K::PackedBool1
+		| K::PackedBool2
+		| K::PackedBool3
+		| K::PackedBool4
+		| K::PackedBool5
+		| K::PackedBool6
+		| K::PackedBool7 => (quote! { bool }, quote! { .into_bool() }),
+
+		K::Int8 => (quote! { i8 }, quote! { .into_i8() }),
+		K::Int16 => (quote! { i16 }, quote! { .into_i16() }),
+		K::Int32 => (quote! { i32 }, quote! { .into_i32() }),
+		K::Int64 => (quote! { i64 }, quote! { .into_i64() }),
+
+		K::UInt8 => (quote! { u8 }, quote! { .into_u8() }),
+		K::UInt16 => (quote! { u16 }, quote! { .into_u16() }),
+		K::UInt32 => (quote! { u32 }, quote! { .into_u32() }),
+		K::UInt64 => (quote! { u64 }, quote! { .into_u64() }),
+
+		K::Float32 => (quote! { f32 }, quote! { .into_f32() }),
+	};
+
+	// TODO: Should possibly put the col idx offset and field idens as statics or something so it's consistent.
 	NodeResult {
 		type_: quote! { #scalar_type },
-		reader: quote! { todo_read_scalar() },
+		reader: quote! { sheet.field(#field_index + offset)#converter },
 	}
 }
 
@@ -134,20 +163,32 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		})
 		.collect::<Vec<_>>();
 
-	let identifiers = field_results.iter().map(|result| &result.identifier);
+	let identifiers = field_results
+		.iter()
+		.map(|result| &result.identifier)
+		.collect::<Vec<_>>();
 	let types = field_results.iter().map(|result| &result.type_);
 	let readers = field_results.iter().map(|result| &result.reader);
 
 	let struct_tokens = quote! {
+		#[derive(Debug)]
 		struct #struct_ident {
 			#(#identifiers: #types),*
 		}
 
+		// TODO: tempted to make this an `impl Populator` or something, and provide a default impl fn that automates the offset &c
 		impl #struct_ident {
-			// todo: name implies it acts on an existing entity - what should we call this?
 			/// todo docs will probably need to build outside
-			pub fn populate() {
-				#(#readers;)*
+			pub fn populate(
+				sheet: &ironworks::excel::Sheet,
+				offset: usize,
+			) -> std::result::Result<
+				Self,
+				ironworks::excel::Field,
+			> {
+				std::result::Result::Ok(Self {
+					#(#identifiers: #readers),*
+				})
 			}
 		}
 	};
@@ -157,7 +198,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	NodeResult {
 		type_: quote! { #struct_ident },
 		// TODO: do we need to fully qualify the ident here?
-		reader: quote! { #struct_ident.populate() },
+		reader: quote! { #struct_ident.populate(sheet, offset) },
 	}
 }
 
@@ -169,35 +210,4 @@ lazy_static! {
 fn to_identifier(arg: &str) -> Ident {
 	let sanitized = RE_INVALID_CHARS.replace_all(arg, "");
 	format_ident!("{sanitized}")
-}
-
-fn to_type(kind: ColumnKind) -> TokenStream {
-	use ColumnKind as K;
-
-	// TODO: might need a second similar match statement for read logic on scalars - do i combine the two?
-	match kind {
-		K::String => quote! { String },
-
-		K::Bool
-		| K::PackedBool0
-		| K::PackedBool1
-		| K::PackedBool2
-		| K::PackedBool3
-		| K::PackedBool4
-		| K::PackedBool5
-		| K::PackedBool6
-		| K::PackedBool7 => quote! { bool },
-
-		K::Int8 => quote! { i8 },
-		K::Int16 => quote! { i16 },
-		K::Int32 => quote! { i32 },
-		K::Int64 => quote! { i64 },
-
-		K::UInt8 => quote! { u8 },
-		K::UInt16 => quote! { u16 },
-		K::UInt32 => quote! { u32 },
-		K::UInt64 => quote! { u64 },
-
-		K::Float32 => quote! { f32 },
-	}
 }
