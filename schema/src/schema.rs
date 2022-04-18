@@ -3,6 +3,9 @@
 /// Schema and metadata for a sheet within an Excel database.
 #[derive(Debug)]
 pub struct Sheet {
+	/// Canonical name of the sheet.
+	pub name: String,
+
 	/// Expected ordering of column definitions to be used when reading this schema.
 	pub order: Order,
 

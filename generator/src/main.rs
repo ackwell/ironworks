@@ -1,4 +1,8 @@
-use std::{env::current_dir, fs};
+use std::{
+	env::current_dir,
+	fs,
+	path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use generate::generate_sheet;
@@ -7,7 +11,7 @@ use ironworks::{
 	ffxiv::{FsResource, SqpackResource},
 	sqpack::SqPack,
 };
-use ironworks_schema::saint_coinach::Provider;
+use ironworks_schema::{saint_coinach::Provider, Sheet as SchemaSheet};
 use quote::{format_ident, quote};
 use rust_embed::RustEmbed;
 use utility::unparse_tokens;
@@ -24,36 +28,67 @@ struct Src;
 struct Meta;
 
 fn main() -> Result<()> {
-	saint_coinach()?;
+	// TODO: output dir should be configurable
+	// TODO: more sanity lmao
+	// Clear out and prepare the target directory.
+	let out_dir = current_dir()?.join("gen_test");
+	fs::remove_dir_all(&out_dir).ok();
+	fs::create_dir_all(&out_dir)?;
+
+	let src_dir = build_scaffold(&out_dir)?;
+
+	// TODO: configurable lookup dir
+	// We'll need a live Excel DB to generate sheets, set one up.
+	let sqpack = SqPack::new(FsResource::search().unwrap());
+	let excel = Excel::new(SqpackResource::new(&sqpack));
+
+	// Build the modules for sheets.
+	let modules = saint_coinach()?
+		.map(|schema| -> Result<_, ironworks::Error> {
+			let sheet = excel.sheet(&schema.name)?;
+			let file = generate_sheet(schema, sheet.columns()?);
+			Ok(file)
+		})
+		.collect::<Result<Vec<_>, _>>()?;
+
+	// Write out the modules into the scaffold.
+	let sheet_dir = src_dir.join("sheet");
+	fs::create_dir(&sheet_dir)?;
+
+	for module in &modules {
+		fs::write(
+			sheet_dir.join(format!("{}.rs", module.name)),
+			&module.content,
+		)?;
+	}
+
+	// Build the mod.rs file
+	let module_identifiers = modules
+		.iter()
+		.map(|module| format_ident!("{}", module.name))
+		.collect::<Vec<_>>();
+	let module_tokens = quote! {
+		#(mod #module_identifiers;)*
+		#(pub use #module_identifiers::*;)*
+	};
+	fs::write(sheet_dir.join("mod.rs"), unparse_tokens(module_tokens))?;
 
 	Ok(())
 }
 
 // TODO: Seperate file and all that jazz.
-fn saint_coinach() -> Result<()> {
+fn saint_coinach() -> Result<impl Iterator<Item = SchemaSheet>> {
 	let provider = Provider::new()?;
-
-	let sheet_name = "CustomTalk";
 
 	// TODO: fetch updates to the provider to make sure it's fresh
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
-	let schema = version.sheet(sheet_name)?;
+	let sheet = version.sheet("CustomTalk")?;
 
-	// TODO: probably need args for this stuff too
-	// TODO: this might be shareable across providers
-	let sqpack = SqPack::new(FsResource::search().unwrap());
-	let excel = Excel::new(SqpackResource::new(&sqpack));
-	let sheet = excel.sheet(sheet_name)?;
+	Ok(std::iter::once(sheet))
+}
 
-	let sheet_code = generate_sheet(sheet_name, schema, sheet.columns()?);
-
-	// TODO: output dir should probably be configurable
-	// TODO: this should probably be done at the next level up. also, more sanity lmao
-	let out_dir = current_dir()?.join("gen_test");
-	fs::remove_dir_all(&out_dir).ok();
-	fs::create_dir_all(&out_dir)?;
-
+fn build_scaffold(out_dir: &Path) -> Result<PathBuf> {
 	// Build and copy across the metadata
 	let cargo_toml = Meta::get("Cargo.toml").unwrap();
 	// TODO: edit the name/version/etc
@@ -67,19 +102,5 @@ fn saint_coinach() -> Result<()> {
 		fs::write(src_dir.join(path.as_ref()), Src::get(&path).unwrap().data)?;
 	}
 
-	// TODO: this is a bit dupey with some of the generate logic - do we make generate return the file name to use in some way?
-	let sheet_dir = src_dir.join("sheet");
-	fs::create_dir(&sheet_dir)?;
-	fs::write(sheet_dir.join(format!("{sheet_name}.rs")), sheet_code)?;
-
-	// todo: fucking lmao
-	let module_identifier = format_ident!("{sheet_name}");
-	let module_contents = quote! {
-		mod #module_identifier;
-
-		pub use #module_identifier::*;
-	};
-	fs::write(sheet_dir.join("mod.rs"), unparse_tokens(module_contents))?;
-
-	Ok(())
+	Ok(src_dir)
 }

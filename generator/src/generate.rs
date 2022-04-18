@@ -10,6 +10,14 @@ use regex::Regex;
 use crate::utility::unparse_tokens;
 
 #[derive(Debug)]
+pub struct Module {
+	// TODO: Should this be an Ident?
+	pub name: String,
+	// TODO: Should this be a token stream?
+	pub content: String,
+}
+
+#[derive(Debug)]
 struct Context {
 	path: Vec<String>,
 	columns: Vec<Column>,
@@ -25,14 +33,13 @@ struct NodeResult {
 }
 
 // TODO: some note about being an entry point
-// TODO: I'm not entirely convinced by passing the sheet name in here...
-pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String {
+pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 	if sheet.order == Order::Offset {
 		todo!("Offset column order");
 	}
 
 	let mut context = Context {
-		path: vec![name.into()],
+		path: vec![sheet.name.clone()],
 		columns,
 		column_index: 0,
 		items: vec![],
@@ -54,7 +61,10 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String 
 	  #(#items)*
 	};
 
-	unparse_tokens(file_tokens)
+	Module {
+		name: sheet.name,
+		content: unparse_tokens(file_tokens),
+	}
 }
 
 fn generate_node(context: &mut Context, node: &Node) -> NodeResult {

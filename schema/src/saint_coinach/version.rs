@@ -31,14 +31,14 @@ impl<'repo> Version<'repo> {
 	}
 
 	/// Get the schema for the requested sheet at this version.
-	pub fn sheet(&self, sheet: &str) -> Result<Sheet> {
-		let path = DEFINITION_PATH.join(format!("{sheet}.json"));
+	pub fn sheet(&self, name: &str) -> Result<Sheet> {
+		let path = DEFINITION_PATH.join(format!("{name}.json"));
 
 		let object = self
 			.object_at_path(&path)
 			.map_err(|error| match error.code() {
 				git2::ErrorCode::NotFound => {
-					Error::NotFound(ErrorValue::Other(format!("Sheet {sheet}")))
+					Error::NotFound(ErrorValue::Other(format!("Sheet {name}")))
 				}
 				_ => Error::from(error),
 			})?;
@@ -46,7 +46,7 @@ impl<'repo> Version<'repo> {
 		let blob = object.as_blob().ok_or_else(|| {
 			Error::Repository(format!(
 				"Expected blob for {} sheet schema, got {:?}",
-				sheet,
+				name,
 				object.kind()
 			))
 		})?;
@@ -56,6 +56,7 @@ impl<'repo> Version<'repo> {
 		let node = parse_sheet_definition(&value)?;
 
 		let sheet = Sheet {
+			name: name.into(),
 			order: Order::Index,
 			node,
 		};
