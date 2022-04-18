@@ -5,6 +5,8 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use regex::Regex;
 
+use crate::utility::unparse_tokens;
+
 #[derive(Debug)]
 struct Context {
 	path: Vec<String>,
@@ -40,8 +42,7 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String 
 	  #(#items)*
 	};
 
-	let file_tree = syn::parse2::<syn::File>(file_tokens).unwrap();
-	prettyplease::unparse(&file_tree)
+	unparse_tokens(file_tokens)
 }
 
 fn generate_node(context: &mut Context, node: &Node) -> NodeResult {

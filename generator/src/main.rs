@@ -10,8 +10,10 @@ use ironworks::{
 use ironworks_schema::saint_coinach::Provider;
 use quote::{format_ident, quote};
 use rust_embed::RustEmbed;
+use utility::unparse_tokens;
 
 mod generate;
+mod utility;
 
 #[derive(RustEmbed)]
 #[folder = "$CARGO_MANIFEST_DIR/template/src"]
@@ -67,7 +69,10 @@ fn saint_coinach() -> Result<()> {
 
 		pub use #module_identifier::*;
 	};
-	fs::write(generated_folder.join("mod.rs"), module_contents.to_string())?;
+	fs::write(
+		generated_folder.join("mod.rs"),
+		unparse_tokens(module_contents),
+	)?;
 
 	Ok(())
 }
