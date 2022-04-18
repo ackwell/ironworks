@@ -75,9 +75,9 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 			(0..#count_usize)
 				.map(|index| {
 					let offset = offset + #node_size * index;
-					#reader
+					std::result::Result::Ok(#reader)
 				})
-				.collect::<#type_>()
+				.collect::<std::result::Result<#type_, crate::error::PopulateError>>()?
 		},
 		type_,
 	}
@@ -127,7 +127,7 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 	// TODO: Should possibly put the col idx offset and field idens as statics or something so it's consistent.
 	NodeResult {
 		type_: quote! { #scalar_type },
-		reader: quote! { row.field(#field_index + offset).#converter() },
+		reader: quote! { row.field(#field_index + offset)?.#converter()? },
 	}
 }
 
@@ -178,8 +178,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 				offset: usize,
 			) -> std::result::Result<
 				Self,
-				// TODO: Proper error type
-				TodoPopulateError,
+				crate::error::PopulateError,
 			> {
 				std::result::Result::Ok(Self {
 					#(#identifiers: #readers),*
