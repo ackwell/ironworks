@@ -1,0 +1,7 @@
+[package]
+name = "gen_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ironworks = {path = "../ironworks", features = []}

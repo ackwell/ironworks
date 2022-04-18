@@ -19,6 +19,10 @@ mod utility;
 #[folder = "$CARGO_MANIFEST_DIR/template/src"]
 struct Src;
 
+#[derive(RustEmbed)]
+#[folder = "$CARGO_MANIFEST_DIR/template/meta"]
+struct Meta;
+
 fn main() -> Result<()> {
 	saint_coinach()?;
 
@@ -44,23 +48,29 @@ fn saint_coinach() -> Result<()> {
 
 	let sheet_code = generate_sheet(sheet_name, schema, sheet.columns()?);
 
+	// TODO: output dir should probably be configurable
 	// TODO: this should probably be done at the next level up. also, more sanity lmao
-	let folder = current_dir()?.join("gen_test").join("src");
-	fs::remove_dir_all(&folder)?;
-	fs::create_dir_all(&folder)?;
+	let out_dir = current_dir()?.join("gen_test");
+	fs::remove_dir_all(&out_dir).ok();
+	fs::create_dir_all(&out_dir)?;
+
+	// Build and copy across the metadata
+	let cargo_toml = Meta::get("Cargo.toml").unwrap();
+	// TODO: edit the name/version/etc
+	fs::write(out_dir.join("Cargo.toml"), cargo_toml.data)?;
+
+	let src_dir = out_dir.join("src");
+	fs::create_dir(&src_dir)?;
 
 	// Copy out all the supporting source files
 	for path in Src::iter() {
-		fs::write(folder.join(path.as_ref()), Src::get(&path).unwrap().data)?;
+		fs::write(src_dir.join(path.as_ref()), Src::get(&path).unwrap().data)?;
 	}
 
 	// TODO: this is a bit dupey with some of the generate logic - do we make generate return the file name to use in some way?
-	let generated_folder = folder.join("generated");
-	fs::create_dir(&generated_folder)?;
-	fs::write(
-		generated_folder.join(format!("{sheet_name}.rs")),
-		sheet_code,
-	)?;
+	let gen_dir = src_dir.join("generated");
+	fs::create_dir(&gen_dir)?;
+	fs::write(gen_dir.join(format!("{sheet_name}.rs")), sheet_code)?;
 
 	// todo: fucking lmao
 	let module_identifier = format_ident!("{sheet_name}");
@@ -69,10 +79,7 @@ fn saint_coinach() -> Result<()> {
 
 		pub use #module_identifier::*;
 	};
-	fs::write(
-		generated_folder.join("mod.rs"),
-		unparse_tokens(module_contents),
-	)?;
+	fs::write(gen_dir.join("mod.rs"), unparse_tokens(module_contents))?;
 
 	Ok(())
 }
