@@ -1,3 +1,5 @@
+use std::{env::current_dir, fs};
+
 use anyhow::Result;
 use generate::generate_sheet;
 use ironworks::{
@@ -32,7 +34,17 @@ fn saint_coinach() -> Result<()> {
 	let excel = Excel::new(SqpackResource::new(&sqpack));
 	let sheet = excel.sheet(sheet_name)?;
 
-	generate_sheet(sheet_name, schema, sheet.columns()?);
+	let sheet_code = generate_sheet(sheet_name, schema, sheet.columns()?);
+
+	// TODO: this should probably be done at the next level up. also, more sanity lmao
+	let folder = current_dir()?.join("gen_test").join("src");
+	if !folder.exists() {
+		fs::create_dir_all(&folder)?;
+	}
+
+	// TODO: this is a bit dupey with some of the generate logic - do we make generate return the file name to use in some way?
+	let path = folder.join(format!("{sheet_name}.rs"));
+	fs::write(path, sheet_code)?;
 
 	Ok(())
 }

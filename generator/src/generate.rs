@@ -22,7 +22,7 @@ struct NodeResult {
 
 // TODO: some note about being an entry point
 // TODO: I'm not entirely convinced by passing the sheet name in here...
-pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
+pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String {
 	if sheet.order == Order::Offset {
 		todo!("Offset column order");
 	}
@@ -34,11 +34,9 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
 		items: vec![],
 	};
 
-	// TODO: handle the order field
 	generate_node(&mut context, &sheet.node);
 
 	let items = context.items;
-
 	let file_tokens = quote! {
 	  #(#items)*
 	};
@@ -46,9 +44,7 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) {
 	println!("{file_tokens}");
 
 	let file_tree = syn::parse2::<syn::File>(file_tokens).unwrap();
-	let formatted = prettyplease::unparse(&file_tree);
-
-	println!("{formatted}");
+	prettyplease::unparse(&file_tree)
 }
 
 // TODO: gen node should probably return the (rust) type of the node
