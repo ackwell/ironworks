@@ -166,8 +166,8 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 
 	let struct_tokens = quote! {
 		#[derive(Debug)]
-		struct #struct_ident {
-			#(#identifiers: #types),*
+		pub struct #struct_ident {
+			#(pub #identifiers: #types),*
 		}
 
 		// TODO: tempted to make this an `impl Populator` or something, and provide a default impl fn that automates the offset &c
