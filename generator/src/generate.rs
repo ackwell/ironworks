@@ -175,7 +175,9 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 			let identifier = to_identifier(name);
 
 			// TODO: this will need to push->pop the name ident onto the path? I think?
+			context.path.push(name.clone());
 			let NodeResult { type_, reader } = generate_node(context, node);
+			context.path.pop();
 
 			FieldResult {
 				identifier,
@@ -223,7 +225,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	NodeResult {
 		type_: quote! { #struct_ident },
 		// TODO: do we need to fully qualify the ident here?
-		reader: quote! { #struct_ident.populate(row, offset) },
+		reader: quote! { #struct_ident::populate(row, offset)? },
 	}
 }
 
