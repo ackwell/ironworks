@@ -12,4 +12,5 @@ prettyplease = "0.1.9"
 proc-macro2 = "1.0.37"
 quote = "1.0.18"
 regex = "1.5.5"
+rust-embed = {version = "6.4.0", features = ["interpolate-folder-path"]}
 syn = "1.0.91"

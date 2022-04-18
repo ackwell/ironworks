@@ -2,3 +2,5 @@
 *.ignore.*
 flamegraph.svg
 perf.data*
+
+gen_test

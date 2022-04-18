@@ -8,8 +8,14 @@ use ironworks::{
 	sqpack::SqPack,
 };
 use ironworks_schema::saint_coinach::Provider;
+use quote::{format_ident, quote};
+use rust_embed::RustEmbed;
 
 mod generate;
+
+#[derive(RustEmbed)]
+#[folder = "$CARGO_MANIFEST_DIR/template/src"]
+struct Src;
 
 fn main() -> Result<()> {
 	saint_coinach()?;
@@ -38,13 +44,30 @@ fn saint_coinach() -> Result<()> {
 
 	// TODO: this should probably be done at the next level up. also, more sanity lmao
 	let folder = current_dir()?.join("gen_test").join("src");
-	if !folder.exists() {
-		fs::create_dir_all(&folder)?;
+	fs::remove_dir_all(&folder)?;
+	fs::create_dir_all(&folder)?;
+
+	// Copy out all the supporting source files
+	for path in Src::iter() {
+		fs::write(folder.join(path.as_ref()), Src::get(&path).unwrap().data)?;
 	}
 
 	// TODO: this is a bit dupey with some of the generate logic - do we make generate return the file name to use in some way?
-	let path = folder.join(format!("{sheet_name}.rs"));
-	fs::write(path, sheet_code)?;
+	let generated_folder = folder.join("generated");
+	fs::create_dir(&generated_folder)?;
+	fs::write(
+		generated_folder.join(format!("{sheet_name}.rs")),
+		sheet_code,
+	)?;
+
+	// todo: fucking lmao
+	let module_identifier = format_ident!("{sheet_name}");
+	let module_contents = quote! {
+		mod #module_identifier;
+
+		pub use #module_identifier::*;
+	};
+	fs::write(generated_folder.join("mod.rs"), module_contents.to_string())?;
 
 	Ok(())
 }

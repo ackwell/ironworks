@@ -5,7 +5,6 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use regex::Regex;
 
-// TODO: can probably make a decent chunk of this instance methods on &mut self of the context
 #[derive(Debug)]
 struct Context {
 	path: Vec<String>,
@@ -40,8 +39,6 @@ pub fn generate_sheet(name: &str, sheet: Sheet, columns: Vec<Column>) -> String 
 	let file_tokens = quote! {
 	  #(#items)*
 	};
-
-	println!("{file_tokens}");
 
 	let file_tree = syn::parse2::<syn::File>(file_tokens).unwrap();
 	prettyplease::unparse(&file_tree)
