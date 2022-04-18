@@ -106,7 +106,11 @@ fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 	let name = nodes
 		.iter()
 		.map(|(name, _)| name.clone())
-		.reduce(|a, b| longest_common_subsequence(&a, &b));
+		.reduce(|a, b| longest_common_subsequence(&a, &b))
+		.and_then(|lcs| match lcs.as_str() {
+			"" => None,
+			_ => Some(lcs),
+		});
 
 	Ok((Node::Struct(nodes), name))
 }
