@@ -1,5 +1,9 @@
 // Disable lints that trip on harmless generated code
-#![allow(clippy::needless_question_mark, clippy::identity_op)]
+#![allow(
+	clippy::identity_op,
+	clippy::needless_question_mark,
+	non_camel_case_types
+)]
 
 mod error;
 
