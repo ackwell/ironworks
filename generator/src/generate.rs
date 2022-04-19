@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
+use heck::ToSnakeCase;
 use ironworks::excel::{Column, ColumnKind};
 use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
 use lazy_static::lazy_static;
@@ -62,7 +63,7 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 	};
 
 	Module {
-		name: sheet.name,
+		name: sheet.name.to_snake_case(),
 		content: unparse_tokens(file_tokens),
 	}
 }
@@ -172,7 +173,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	let field_results = fields
 		.iter()
 		.map(|(name, node)| {
-			let identifier = to_identifier(name);
+			let identifier = format_ident!("{}", sanitize(name).to_snake_case());
 
 			// TODO: this will need to push->pop the name ident onto the path? I think?
 			context.path.push(name.clone());
@@ -234,7 +235,6 @@ lazy_static! {
 }
 
 // TODO: This might be better off as a -> Cow<str> "sanitize" function so we can sanitize the path before it becomes an ident
-fn to_identifier(arg: &str) -> Ident {
-	let sanitized = RE_INVALID_CHARS.replace_all(arg, "");
-	format_ident!("{sanitized}")
+fn sanitize(arg: &str) -> Cow<str> {
+	RE_INVALID_CHARS.replace_all(arg, "")
 }

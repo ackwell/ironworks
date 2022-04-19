@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.55"
+heck = "0.4.0"
 ironworks = {path = "../ironworks", features = ["excel", "ffxiv", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 lazy_static = "1.4.0"
