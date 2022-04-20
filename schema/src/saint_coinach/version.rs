@@ -30,6 +30,33 @@ impl<'repo> Version<'repo> {
 		Version { repository, commit }
 	}
 
+	/// Get a list of all sheets supported by this version.
+	pub fn sheet_names(&self) -> Result<Vec<String>> {
+		// Get the tree containing sheet definitions.
+		let object = self.object_at_path(&DEFINITION_PATH)?;
+		let tree = object.into_tree().map_err(|object| {
+			Error::Repository(format!(
+				"Definition path {:?} should be a tree, got {:?}",
+				*DEFINITION_PATH,
+				object.kind()
+			))
+		})?;
+
+		// Collect all json files in the tree.
+		let iter = tree
+			.iter()
+			.filter_map(|entry| {
+				let name = entry.name()?;
+				match name.ends_with(".json") {
+					true => Some(name[..name.len() - 5].to_string()),
+					false => None,
+				}
+			})
+			.collect::<Vec<_>>();
+
+		Ok(iter)
+	}
+
 	/// Get the schema for the requested sheet at this version.
 	pub fn sheet(&self, name: &str) -> Result<Sheet> {
 		let path = DEFINITION_PATH.join(format!("{name}.json"));
@@ -43,7 +70,7 @@ impl<'repo> Version<'repo> {
 				_ => Error::from(error),
 			})?;
 
-		let blob = object.as_blob().ok_or_else(|| {
+		let blob = object.into_blob().map_err(|object| {
 			Error::Repository(format!(
 				"Expected blob for {} sheet schema, got {:?}",
 				name,
