@@ -173,10 +173,11 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	let field_results = fields
 		.iter()
 		.map(|(name, node)| {
-			let identifier = format_ident!("{}", sanitize(name.clone()).to_snake_case());
+			let name_cleaned = sanitize(name.clone());
+			let identifier = format_ident!("{}", name_cleaned.to_snake_case());
 
 			// TODO: this will need to push->pop the name ident onto the path? I think?
-			context.path.push(name.clone());
+			context.path.push(name_cleaned);
 			let NodeResult { type_, reader } = generate_node(context, node);
 			context.path.pop();
 
