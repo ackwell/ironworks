@@ -262,7 +262,7 @@ fn sanitize(arg: String) -> String {
 		);
 	};
 
-	// Common symbols with meaningful info.
+	// Replace common symbols with meaningful info.
 	out = out.replace('%', "Percent");
 
 	// Remove any remaining invalid characters.

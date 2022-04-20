@@ -10,3 +10,5 @@ mod error;
 mod utility;
 
 pub mod sheet;
+
+pub use error::PopulateError;
