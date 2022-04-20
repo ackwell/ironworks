@@ -71,7 +71,7 @@ fn main() -> Result<()> {
 	// Build the mod.rs file
 	let module_identifiers = modules
 		.iter()
-		.map(|module| format_ident!("{}", module.name))
+		.map(|module| format_ident!("r#{}", module.name))
 		.collect::<Vec<_>>();
 	let module_tokens = quote! {
 		#(mod #module_identifiers;)*

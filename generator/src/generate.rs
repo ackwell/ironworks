@@ -172,7 +172,8 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		.iter()
 		.map(|(name, node)| {
 			let name_cleaned = sanitize(name.clone());
-			let identifier = format_ident!("{}", name_cleaned.to_snake_case());
+			// TODO: ident parse will err on keyword, use that to avoid prefix?
+			let identifier = format_ident!("r#{}", name_cleaned.to_snake_case());
 
 			// TODO: this will need to push->pop the name ident onto the path? I think?
 			context.path.push(name_cleaned);
