@@ -2,7 +2,8 @@
 #![allow(
 	clippy::identity_op,
 	clippy::needless_question_mark,
-	non_camel_case_types
+	non_camel_case_types,
+	unused_variables
 )]
 
 mod error;
