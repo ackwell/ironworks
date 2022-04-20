@@ -173,7 +173,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	let field_results = fields
 		.iter()
 		.map(|(name, node)| {
-			let identifier = format_ident!("{}", sanitize(name).to_snake_case());
+			let identifier = format_ident!("{}", sanitize(name.clone()).to_snake_case());
 
 			// TODO: this will need to push->pop the name ident onto the path? I think?
 			context.path.push(name.clone());
@@ -234,7 +234,29 @@ lazy_static! {
 	static ref RE_INVALID_CHARS: Regex = Regex::new(r"[^a-zA-Z0-9]").unwrap();
 }
 
-// TODO: This might be better off as a -> Cow<str> "sanitize" function so we can sanitize the path before it becomes an ident
-fn sanitize(arg: &str) -> Cow<str> {
-	RE_INVALID_CHARS.replace_all(arg, "")
+const NUMBERS: &[&str] = &[
+	"Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+];
+
+fn sanitize(arg: String) -> String {
+	let mut out = arg;
+
+	// If there's a leading digit in the string, replace it with a textual representation.
+	let leading_digit = out
+		.chars()
+		.next()
+		.and_then(|char| char.to_digit(10).map(|digit| (digit, char.len_utf8())));
+	if let Some((digit, len)) = leading_digit {
+		out = format!(
+			"{}{}",
+			NUMBERS[usize::try_from(digit).unwrap()],
+			out.split_at(len).1
+		);
+	};
+
+	// Common symbols with meaningful info.
+	out = out.replace('%', "Percent");
+
+	// Remove any remaining invalid characters.
+	RE_INVALID_CHARS.replace_all(&out, "").into_owned()
 }

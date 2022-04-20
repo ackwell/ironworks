@@ -86,7 +86,7 @@ fn saint_coinach() -> Result<Vec<SchemaSheet>> {
 	let version = provider.version("HEAD")?;
 
 	// TODO: TEMP
-	let sheets = ["CustomTalk", "CharaMakeType"];
+	let sheets = ["BaseParam", "CharaMakeType", "CustomTalk"];
 
 	sheets
 		.iter()
