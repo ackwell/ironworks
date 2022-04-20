@@ -116,7 +116,18 @@ fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> No
 }
 
 fn generate_scalar(context: &mut Context) -> NodeResult {
-	let column = &context.columns[context.column_index];
+	let column = match context.columns.get(context.column_index) {
+		Some(column) => column,
+		None => {
+			// Definitions include columns that do not exist - represent them as impossible options.
+			context.uses.extend(["std::convert::Infallible"]);
+			return NodeResult {
+				type_: quote! { Option<Infallible> },
+				reader: quote! { None },
+			};
+		}
+	};
+
 	context.column_index += 1;
 
 	let field_index = column.index();
