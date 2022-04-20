@@ -12,9 +12,7 @@ use crate::utility::unparse_tokens;
 
 #[derive(Debug)]
 pub struct Module {
-	// TODO: Should this be an Ident?
 	pub name: String,
-	// TODO: Should this be a token stream?
 	pub content: String,
 }
 
@@ -33,12 +31,13 @@ struct NodeResult {
 	reader: TokenStream,
 }
 
-// TODO: some note about being an entry point
+/// Generate a rust source code module from a sheet schema definition.
 pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 	if sheet.order == Order::Offset {
 		todo!("Offset column order");
 	}
 
+	// Run the recursive generation.
 	let mut context = Context {
 		path: vec![sheet.name.clone()],
 		columns,
@@ -49,6 +48,7 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 
 	generate_node(&mut context, &sheet.node);
 
+	// Collate results into a token stream.
 	let uses = context
 		.uses
 		.iter()
@@ -162,7 +162,6 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 		K::Float32 => (quote! { f32 }, quote! { into_f32 }),
 	};
 
-	// TODO: Should possibly put the col idx offset and field idens as statics or something so it's consistent.
 	NodeResult {
 		type_: quote! { #scalar_type },
 		reader: quote! { row.field(#field_index + offset)?.#converter()? },
@@ -170,9 +169,9 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 }
 
 fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResult {
-	// TODO: actually make this properly
 	let struct_ident = format_ident!("{}", context.path.join("_"));
 
+	// Walk fields to build the reading logic for them.
 	struct FieldResult {
 		identifier: Ident,
 		type_: TokenStream,
@@ -186,7 +185,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 			// TODO: ident parse will err on keyword, use that to avoid prefix?
 			let identifier = format_ident!("r#{}", name_cleaned.to_snake_case());
 
-			// TODO: this will need to push->pop the name ident onto the path? I think?
 			context.path.push(name_cleaned);
 			let NodeResult { type_, reader } = generate_node(context, node);
 			context.path.pop();
@@ -199,6 +197,7 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		})
 		.collect::<Vec<_>>();
 
+	// Build out the containing struct.
 	let identifiers = field_results
 		.iter()
 		.map(|result| &result.identifier)
@@ -220,7 +219,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 
 		// TODO: tempted to make this an `impl Populator` or something, and provide a default impl fn that automates the offset &c
 		impl #struct_ident {
-			/// todo docs will probably need to build outside
 			pub fn populate(
 				row: &Row,
 				offset: usize,
@@ -236,7 +234,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 
 	NodeResult {
 		type_: quote! { #struct_ident },
-		// TODO: do we need to fully qualify the ident here?
 		reader: quote! { #struct_ident::populate(row, offset)? },
 	}
 }
