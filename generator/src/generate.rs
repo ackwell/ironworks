@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::collections::HashSet;
 
 use heck::ToSnakeCase;
 use ironworks::excel::{Column, ColumnKind};
@@ -95,18 +95,16 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 		"std::result::Result",
 		"std::vec::Vec",
 		"crate::error::PopulateError",
+		"crate::utility::read_array",
 	]);
 
 	let type_ = quote! { Vec<#identifier> };
 
 	NodeResult {
 		reader: quote! {
-			(0..#count_usize)
-				.map(|index| {
-					let offset = offset + #node_size * index;
-					Result::Ok(#reader)
-				})
-				.collect::<Result<#type_, PopulateError>>()?
+			read_array(offset, #count_usize, #node_size, |offset| {
+				Result::Ok(#reader)
+			})?
 		},
 		type_,
 	}
