@@ -45,10 +45,15 @@ fn main() -> Result<()> {
 	// Build the modules for sheets.
 	let modules = saint_coinach()?
 		.into_iter()
-		.map(|schema| -> Result<_, ironworks::Error> {
-			let sheet = excel.sheet(&schema.name)?;
-			let file = generate_sheet(schema, sheet.columns()?);
-			Ok(file)
+		.filter_map(|schema| match excel.sheet(&schema.name) {
+			// Definitions might exist for sheets that no longer exist - ignore them.
+			// TODO: this is a prime target for logging
+			Err(ironworks::Error::NotFound(_)) => None,
+			Err(error) => Some(Err(error)),
+			Ok(sheet) => {
+				let file = generate_sheet(schema, sheet.columns().ok()?);
+				Some(Ok(file))
+			}
 		})
 		.collect::<Result<Vec<_>, _>>()?;
 

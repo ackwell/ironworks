@@ -25,8 +25,7 @@ impl Index {
 			.map_while(
 				|chunk_id| match IndexChunk::new(repository, category, chunk_id, resource) {
 					Err(Error::NotFound(_)) => None,
-					Err(error) => Some(Err(error)),
-					Ok(chunk) => Some(Ok(chunk)),
+					other => Some(other),
 				},
 			)
 			.collect::<Result<Vec<_>>>()?;
