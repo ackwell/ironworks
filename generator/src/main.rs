@@ -90,10 +90,8 @@ fn saint_coinach() -> Result<Vec<SchemaSheet>> {
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
 
-	// TODO: TEMP
-	let sheets = ["BaseParam", "CharaMakeType", "CustomTalk"];
-
-	sheets
+	version
+		.sheet_names()?
 		.iter()
 		.map(|name| Ok(version.sheet(name)?))
 		.collect::<Result<Vec<_>>>()
