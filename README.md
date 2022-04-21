@@ -4,6 +4,9 @@
 
 Modular FFXIV data toolkit written in rust.
 
+[![Crates.io](https://img.shields.io/crates/v/ironworks?style=flat-square)](https://crates.io/crates/)
+[![docs.rs](https://img.shields.io/docsrs/ironworks?style=flat-square)](https://docs.rs/ironworks)
+
 ---
 
 To minimise unused code & dependencies, ironworks is split into a number of discrete features. No features are enabled by default - pick the ones you want to use!
@@ -21,7 +24,7 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 ironworks = {version = "0.1.0", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
-```rs
+```rust
 use ironworks::{
   Error,
   excel::Excel,
