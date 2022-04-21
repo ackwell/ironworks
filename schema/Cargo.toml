@@ -2,6 +2,7 @@
 name = "ironworks_schema"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [features]
 saint_coinach = ["derivative", "git2", "lazy_static", "serde_json"]

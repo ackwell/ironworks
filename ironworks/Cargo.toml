@@ -1,7 +1,12 @@
 [package]
 name = "ironworks"
 version = "0.1.0"
+authors = ["ackwell <saxon@ackwell.com.au>"]
 edition = "2021"
+description = "Modular FFXIV data toolkit written in rust."
+readme = "../README.md"
+repository = "https://github.com/ackwell/ironworks"
+license = "MIT"
 
 [features]
 excel = ["enum-as-inner", "num_enum"]
