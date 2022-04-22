@@ -5,22 +5,12 @@ use binrw::BinRead;
 #[derive(BinRead, Debug)]
 #[br(little, magic = b"SqPack\0\0")]
 pub struct SqPackHeader {
-	// TODO: Handle platforms.
-	_platform_id: PlatformId,
+	_platform_id: u8,
 	// unknown: [u8; 3],
 	#[br(pad_before = 3)]
 	pub size: u32,
 	_version: u32,
 	_kind: u32,
-}
-
-// TODO: This should probably be a resource concern.
-#[derive(BinRead, Debug)]
-#[br(repr = u8)]
-enum PlatformId {
-	Win32,
-	PS3,
-	PS4,
 }
 
 #[derive(BinRead, Debug)]

@@ -41,12 +41,21 @@ const CATEGORIES: &[Option<&str>] = &[
 	/* 0x13 */ Some("debug"),
 ];
 
+#[allow(dead_code)]
+#[derive(Debug)]
+enum Platform {
+	Win32 = 0,
+	PS3 = 1,
+	PS4 = 2,
+}
+
 /// Resource adapter pre-configured to work with on-disk sqpack packages laid
 /// out in the FFXIV format.
 #[derive(Debug)]
 pub struct FsResource {
 	path: PathBuf,
 	repositories: Vec<String>,
+	platform: Platform,
 }
 
 impl FsResource {
@@ -69,6 +78,7 @@ impl FsResource {
 		Self {
 			path: sqpack_path,
 			repositories,
+			platform: Platform::Win32,
 		}
 	}
 
@@ -79,7 +89,6 @@ impl FsResource {
 		chunk: u8,
 		extension: &str,
 	) -> Result<PathBuf> {
-		// TODO: Platform?
 		let repository_name = self
 			.repositories
 			.get(usize::from(repository))
@@ -87,7 +96,13 @@ impl FsResource {
 				Error::NotFound(ErrorValue::Other(format!("repository {repository}")))
 			})?;
 
-		let file_name = format!("{category:02x}{repository:02x}{chunk:02x}.win32.{extension}");
+		let platform = match self.platform {
+			Platform::Win32 => "win32",
+			Platform::PS3 => todo!("PS3 platform"),
+			Platform::PS4 => todo!("PS4 platform"),
+		};
+
+		let file_name = format!("{category:02x}{repository:02x}{chunk:02x}.{platform}.{extension}");
 
 		let file_path = self
 			.path
