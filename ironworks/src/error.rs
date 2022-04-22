@@ -1,9 +1,8 @@
 use std::{fmt, path::PathBuf};
 
-// TODO: non exhaustive?
-// TODO: should we have, like, sqpack error, excel error, etc, and then a big daddy Error that combines them?
 /// An error that occured.
 #[derive(thiserror::Error, Debug)]
+#[non_exhaustive]
 pub enum Error {
 	/// The requested value could not be found.
 	#[error("The {0} could not be found.")]
@@ -20,9 +19,9 @@ pub enum Error {
 	Resource(Box<dyn std::error::Error + Send + Sync>),
 }
 
-// TODO: non exhaustive?
 /// A value associated with an error that occured.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum ErrorValue {
 	/// A filesystem path.
 	#[cfg(feature = "sqpack")]
