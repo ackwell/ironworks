@@ -8,7 +8,7 @@ use anyhow::Result;
 use generate::generate_sheet;
 use ironworks::{
 	excel::Excel,
-	ffxiv::{FsResource, SqpackResource},
+	ffxiv::{FsResource, SqPackResource},
 	sqpack::SqPack,
 };
 use ironworks_schema::{saint_coinach::Provider, Sheet as SchemaSheet};
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
 	// TODO: configurable lookup dir
 	// We'll need a live Excel DB to generate sheets, set one up.
 	let sqpack = SqPack::new(FsResource::search().unwrap());
-	let excel = Excel::new(SqpackResource::new(&sqpack));
+	let excel = Excel::new(SqPackResource::new(&sqpack));
 
 	// Build the modules for sheets.
 	let modules = saint_coinach()?

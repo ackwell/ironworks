@@ -38,7 +38,7 @@ fn main() -> Result<(), Error> {
   let file = sqpack.file("exd/root.exl")?;
 
   // Read fields out of excel.
-  let excel = Excel::new(ffxiv::SqpackResource::new(&sqpack));
+  let excel = Excel::new(ffxiv::SqPackResource::new(&sqpack));
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())

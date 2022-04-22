@@ -8,4 +8,4 @@ mod sqpack;
 pub use fs::FsResource;
 
 #[cfg(feature = "sqpack")]
-pub use sqpack::{Language, SqpackResource};
+pub use sqpack::{Language, SqPackResource};

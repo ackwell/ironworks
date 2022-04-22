@@ -20,15 +20,14 @@ pub enum Language {
 	Korean = 7,
 }
 
-// TODO: Probably should be FfxivSqPackResource
 /// Resource adapter pre-configured to read Excel files from a SqPack instance,
 /// laid out in the expected FFXIV format.
 #[derive(Debug)]
-pub struct SqpackResource<'s, R> {
+pub struct SqPackResource<'s, R> {
 	sqpack: &'s sqpack::SqPack<R>,
 }
 
-impl<'s, R: sqpack::Resource> SqpackResource<'s, R> {
+impl<'s, R: sqpack::Resource> SqPackResource<'s, R> {
 	/// Configure a resource instance with a given SqPack handler.
 	pub fn new(sqpack: &'s sqpack::SqPack<R>) -> Self {
 		Self { sqpack }
@@ -39,7 +38,7 @@ impl<'s, R: sqpack::Resource> SqpackResource<'s, R> {
 use crate::excel;
 
 #[cfg(feature = "excel")]
-impl<R: sqpack::Resource> excel::Resource for SqpackResource<'_, R> {
+impl<R: sqpack::Resource> excel::Resource for SqPackResource<'_, R> {
 	type List = sqpack::File<R::Dat>;
 	fn list(&self) -> Result<Self::List> {
 		self.sqpack.file("exd/root.exl")
