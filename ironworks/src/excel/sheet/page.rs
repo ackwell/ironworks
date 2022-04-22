@@ -18,8 +18,6 @@ pub struct Page {
 	pub rows: Vec<RowDefinition>,
 
 	// Row offsets are relative to the start of the file - read in the full file as a buffer.
-	// TODO: Maybe better to work out current offset and save it as something to
-	// adjust offsets by?
 	#[br(
     seek_before = SeekFrom::Start(0),
     parse_with = until_eof,

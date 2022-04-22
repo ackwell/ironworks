@@ -21,7 +21,6 @@ use super::{
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
 
-// TODO: is this how i want to handle it?
 /// Metadata about a column within a sheet.
 #[derive(Debug)]
 pub struct Column {
