@@ -135,7 +135,6 @@ struct Header {
 	blocks: Vec<BlockInfo>,
 }
 
-// TODO name
 #[binread]
 #[derive(Debug)]
 #[br(little, repr = u32)]

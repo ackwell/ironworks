@@ -26,9 +26,8 @@ impl<R: Resource> SqPack<R> {
 		}
 	}
 
-	// TODO: name
 	/// Read the file at `path` from SqPack.
-	pub fn read(&self, path: &str) -> Result<File<R::Dat>> {
+	pub fn file(&self, path: &str) -> Result<File<R::Dat>> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 

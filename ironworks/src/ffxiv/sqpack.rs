@@ -42,12 +42,12 @@ use crate::excel;
 impl<R: sqpack::Resource> excel::Resource for SqpackResource<'_, R> {
 	type List = sqpack::File<R::Dat>;
 	fn list(&self) -> Result<Self::List> {
-		self.sqpack.read("exd/root.exl")
+		self.sqpack.file("exd/root.exl")
 	}
 
 	type Header = sqpack::File<R::Dat>;
 	fn header(&self, sheet: &str) -> Result<Self::Header> {
-		self.sqpack.read(&format!("exd/{sheet}.exh"))
+		self.sqpack.file(&format!("exd/{sheet}.exh"))
 	}
 
 	type Page = sqpack::File<R::Dat>;
@@ -68,6 +68,6 @@ impl<R: sqpack::Resource> excel::Resource for SqpackResource<'_, R> {
 		};
 
 		self.sqpack
-			.read(&format!("exd/{sheet}_{start_id}{language_suffix}.exd"))
+			.file(&format!("exd/{sheet}_{start_id}{language_suffix}.exd"))
 	}
 }

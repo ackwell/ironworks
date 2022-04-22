@@ -35,7 +35,7 @@ use ironworks::{
 fn main() -> Result<(), Error> {
   // Read out files directly.
   let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
-  let file = sqpack.read("exd/root.exl")?;
+  let file = sqpack.file("exd/root.exl")?;
 
   // Read fields out of excel.
   let excel = Excel::new(ffxiv::SqpackResource::new(&sqpack));
