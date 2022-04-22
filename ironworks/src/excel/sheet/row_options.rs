@@ -1,16 +1,19 @@
-use crate::{error::Result, excel::Resource};
+use crate::{
+	error::Result,
+	excel::{metadata::SheetMetadata, Resource},
+};
 
-use super::{row::Row, sheet::Sheet};
+use super::sheet::Sheet;
 
 /// Options used when reading a row from a sheet.
 #[derive(Debug)]
-pub struct RowOptions<'s, R> {
-	sheet: Option<&'s Sheet<'s, R>>,
+pub struct RowOptions<'s, S, R> {
+	sheet: Option<&'s Sheet<'s, S, R>>,
 	pub(super) language: Option<u8>,
 }
 
-impl<'s, R: Resource> RowOptions<'s, R> {
-	pub(super) fn new(sheet: &'s Sheet<R>) -> Self {
+impl<'s, S: SheetMetadata, R: Resource> RowOptions<'s, S, R> {
+	pub(super) fn new(sheet: &'s Sheet<S, R>) -> Self {
 		Self {
 			sheet: Some(sheet),
 			language: None,
@@ -25,22 +28,22 @@ impl<'s, R: Resource> RowOptions<'s, R> {
 
 	/// Fetch a row from the sheet by ID. If the sheet supports subrows, this will
 	/// return subrow 0.
-	pub fn row(&self, row_id: u32) -> Result<Row> {
+	pub fn row(&self, row_id: u32) -> Result<S::Row> {
 		self.sheet().row_with_options(row_id, self)
 	}
 
 	/// Fetch a subrow from the sheet by ID.
-	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<Row> {
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<S::Row> {
 		self.sheet().subrow_with_options(row_id, subrow_id, self)
 	}
 
-	fn sheet(&self) -> &Sheet<'s, R> {
+	fn sheet(&self) -> &Sheet<'s, S, R> {
 		self.sheet
 			.expect("RowOptions created outside a sheet must be passed to a sheet manually.")
 	}
 }
 
-impl<R> Default for RowOptions<'_, R> {
+impl<S, R> Default for RowOptions<'_, S, R> {
 	fn default() -> Self {
 		Self {
 			sheet: None,

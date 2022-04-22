@@ -205,6 +205,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gen_test"
+version = "0.1.0"
+dependencies = [
+ "ironworks",
+]
+
+[[package]]
 name = "generator"
 version = "0.1.0"
 dependencies = [
@@ -654,6 +661,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "gen_test",
  "ironworks",
  "ironworks_schema",
 ]

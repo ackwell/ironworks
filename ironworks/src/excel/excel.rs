@@ -3,7 +3,10 @@ use crate::{
 	utility::{OptionCache, OptionCacheExt},
 };
 
-use super::{excel_options::ExcelOptions, list::List, resource::Resource, sheet::Sheet};
+use super::{
+	excel_options::ExcelOptions, list::List, metadata::SheetMetadata, resource::Resource,
+	sheet::Sheet,
+};
 
 /// An Excel database.
 #[derive(Debug)]
@@ -37,16 +40,18 @@ impl<R: Resource> Excel<R> {
 	}
 
 	/// Fetch a sheet from the database.
-	pub fn sheet(&self, sheet: &str) -> Result<Sheet<R>> {
+	pub fn sheet<S: SheetMetadata>(&self, sheet_metadata: S) -> Result<Sheet<S, R>> {
+		let sheet_name = sheet_metadata.name();
+
 		let list = self
 			.list
 			.try_get_or_insert(|| List::read(self.resource.list()?))?;
-		if !list.has(sheet) {
-			return Err(Error::NotFound(ErrorValue::Sheet(sheet.into())));
+		if !list.has(&sheet_name) {
+			return Err(Error::NotFound(ErrorValue::Sheet(sheet_name)));
 		}
 
 		Ok(Sheet::new(
-			sheet.into(),
+			sheet_metadata,
 			self.default_language,
 			&self.resource,
 		))

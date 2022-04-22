@@ -1,14 +1,21 @@
+use std::{error::Error, fmt};
+
+use ironworks::excel::Field;
+
+#[derive(Debug)]
 pub struct PopulateError {
 	inner: String,
 }
 
-impl std::string::ToString for PopulateError {
-	fn to_string(&self) -> String {
-		self.inner.clone()
+impl fmt::Display for PopulateError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "{}", self.inner)
 	}
 }
 
-impl std::convert::From<ironworks::Error> for PopulateError {
+impl Error for PopulateError {}
+
+impl From<ironworks::Error> for PopulateError {
 	fn from(error: ironworks::Error) -> Self {
 		Self {
 			inner: error.to_string(),
@@ -16,9 +23,9 @@ impl std::convert::From<ironworks::Error> for PopulateError {
 	}
 }
 
-impl std::convert::From<ironworks::excel::Field> for PopulateError {
+impl From<Field> for PopulateError {
 	// TODO: Would be nice to say what type was expected somehow, too.
-	fn from(field: ironworks::excel::Field) -> Self {
+	fn from(field: Field) -> Self {
 		Self {
 			inner: format!("Read unexpected field {field:?}"),
 		}

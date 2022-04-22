@@ -7,8 +7,9 @@
 )]
 
 mod error;
+mod metadata;
 mod utility;
 
 pub mod sheet;
 
-pub use error::PopulateError;
+pub use {error::PopulateError, metadata::metadata};

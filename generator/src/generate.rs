@@ -37,16 +37,26 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 		todo!("Offset column order");
 	}
 
+	let sheet_name = sheet.name;
+
 	// Run the recursive generation.
 	let mut context = Context {
-		path: vec![sheet.name.clone()],
+		path: vec![sheet_name.clone()],
 		columns,
 		column_index: 0,
 		items: vec![],
 		uses: Default::default(),
 	};
 
-	generate_node(&mut context, &sheet.node);
+	let NodeResult { type_, reader } = generate_node(&mut context, &sheet.node);
+
+	// Extra uses for populator types.
+	context.uses.extend([
+		"std::result::Result",
+		"ironworks::excel::Row",
+		"crate::error::PopulateError",
+		"crate::metadata::MetadataAdapter",
+	]);
 
 	// Collate results into a token stream.
 	let uses = context
@@ -59,11 +69,19 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 	let file_tokens = quote! {
 		#(use #uses;)*
 
+		impl MetadataAdapter for #type_ {
+			fn name() -> String { #sheet_name.to_string() }
+			fn populate(row: &Row) -> Result<Self, PopulateError> {
+				let offset = 0;
+				Result::Ok(#reader)
+			}
+		}
+
 	  #(#items)*
 	};
 
 	Module {
-		name: sheet.name.to_snake_case(),
+		name: sheet_name.to_snake_case(),
 		content: unparse_tokens(file_tokens),
 	}
 }
@@ -217,7 +235,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 			#(pub #identifiers: #types),*
 		}
 
-		// TODO: tempted to make this an `impl Populator` or something, and provide a default impl fn that automates the offset &c
 		impl #struct_ident {
 			pub fn populate(
 				row: &Row,

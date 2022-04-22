@@ -45,7 +45,7 @@ fn main() -> Result<()> {
 	// Build the modules for sheets.
 	let modules = saint_coinach()?
 		.into_iter()
-		.filter_map(|schema| match excel.sheet(&schema.name) {
+		.filter_map(|schema| match excel.sheet(schema.name.clone()) {
 			// Definitions might exist for sheets that no longer exist - ignore them.
 			// TODO: this is a prime target for logging
 			Err(ironworks::Error::NotFound(_)) => None,

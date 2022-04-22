@@ -1,3 +1,4 @@
+use gen_test::{metadata, sheet::CompanionTransient};
 use ironworks::{
 	excel::Excel,
 	ffxiv::{FsResource, Language, SqPackResource},
@@ -8,8 +9,8 @@ use ironworks_schema::saint_coinach::Provider;
 fn main() -> anyhow::Result<()> {
 	env_logger::init();
 
-	// iw_test()?;
-	stc_test()?;
+	iw_test()?;
+	// stc_test()?;
 
 	Ok(())
 }
@@ -27,6 +28,10 @@ fn iw_test() -> anyhow::Result<()> {
 	let row = sheet.with().language(Language::English).row(101)?;
 	let field = row.field(4)?;
 	println!("{field:?}");
+
+	// Gen sheet test
+	let companion_transient = excel.sheet(metadata::<CompanionTransient>())?.row(101)?;
+	println!("{companion_transient:#?}");
 
 	let row = sheet.row(102)?;
 	let field = row.field(4)?;

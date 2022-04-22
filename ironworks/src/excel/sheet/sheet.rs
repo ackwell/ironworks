@@ -7,7 +7,7 @@ use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::Resource,
+	excel::{metadata::SheetMetadata, Resource},
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 };
 
@@ -50,8 +50,8 @@ impl Column {
 // past the lifetime of the parent Excel instance.
 /// A sheet within an Excel database.
 #[derive(Debug)]
-pub struct Sheet<'r, R> {
-	sheet: String,
+pub struct Sheet<'r, S, R> {
+	sheet_metadata: S,
 	default_language: u8,
 
 	resource: &'r R,
@@ -60,10 +60,10 @@ pub struct Sheet<'r, R> {
 	pages: HashMapCache<(u32, u8), Page>,
 }
 
-impl<'r, R: Resource> Sheet<'r, R> {
-	pub(crate) fn new(sheet: String, default_language: u8, resource: &'r R) -> Self {
+impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
+	pub(crate) fn new(sheet_metadata: S, default_language: u8, resource: &'r R) -> Self {
 		Self {
-			sheet,
+			sheet_metadata,
 			default_language,
 
 			resource,
@@ -92,22 +92,26 @@ impl<'r, R: Resource> Sheet<'r, R> {
 
 	// TODO: name. row_with? "with" refers to construction, sorta.
 	/// Create a row options builder for this sheet.
-	pub fn with(&'r self) -> RowOptions<'r, R> {
+	pub fn with(&'r self) -> RowOptions<'r, S, R> {
 		RowOptions::new(self)
 	}
 
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
-	pub fn row(&self, row_id: u32) -> Result<Row> {
+	pub fn row(&self, row_id: u32) -> Result<S::Row> {
 		self.row_with_options(row_id, &Default::default())
 	}
 
 	/// Fetch a row from this sheet by its ID and subrow ID.
-	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<Row> {
+	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<S::Row> {
 		self.subrow_with_options(row_id, subrow_id, &Default::default())
 	}
 
-	pub(super) fn row_with_options(&self, row_id: u32, options: &RowOptions<'r, R>) -> Result<Row> {
+	pub(super) fn row_with_options(
+		&self,
+		row_id: u32,
+		options: &RowOptions<'r, S, R>,
+	) -> Result<S::Row> {
 		self.subrow_with_options(row_id, 0, options)
 	}
 
@@ -116,17 +120,16 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		&self,
 		row_id: u32,
 		subrow_id: u16,
-		options: &RowOptions<'r, R>,
-	) -> Result<Row> {
+		options: &RowOptions<'r, S, R>,
+	) -> Result<S::Row> {
 		let header = self.header()?;
 
-		let row_not_found = || {
-			Error::NotFound(ErrorValue::Row {
-				row: row_id,
-				subrow: subrow_id,
-				sheet: self.sheet.clone(),
-			})
+		let row_error_value = || ErrorValue::Row {
+			row: row_id,
+			subrow: subrow_id,
+			sheet: self.sheet_metadata.name(),
 		};
+		let row_not_found = || Error::NotFound(row_error_value());
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
 		if header.kind != SheetKind::Subrows && subrow_id > 0 {
@@ -155,14 +158,16 @@ impl<'r, R: Resource> Sheet<'r, R> {
 			.start_id;
 
 		let page = self.pages.try_get_or_insert((start_id, language), || {
-			let mut reader = self.resource.page(&self.sheet, start_id, language)?;
+			let mut reader = self
+				.resource
+				.page(&self.sheet_metadata.name(), start_id, language)?;
 			Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
 		})?;
 
 		// Find the row definition in the page. If it's missing, there's something
 		// wrong with the provided resource.
 		let row_definition = page.rows.iter().find(|row| row.id == row_id).ok_or_else(|| {
-			Error::Resource(format!("{} sheet header indicates row ID {row_id} exists in page {start_id}:{language}, but page header does not define it.", self.sheet).into())
+			Error::Resource(format!("{} sheet header indicates row ID {row_id} exists in page {start_id}:{language}, but page header does not define it.", self.sheet_metadata.name()).into())
 		})?;
 
 		// Read & sanity check the row header
@@ -208,18 +213,16 @@ impl<'r, R: Resource> Sheet<'r, R> {
 		}
 
 		let data = &page.data[offset..offset + length];
+		let row = Row::new(row_definition.id, resource_subrow_id, header, data.to_vec());
 
-		Ok(Row::new(
-			row_definition.id,
-			resource_subrow_id,
-			header,
-			data.to_vec(),
-		))
+		self.sheet_metadata
+			.populate_row(row)
+			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
 	}
 
 	fn header(&self) -> Result<Rc<Header>> {
 		self.header.try_get_or_insert(|| {
-			let mut reader = self.resource.header(&self.sheet)?;
+			let mut reader = self.resource.header(&self.sheet_metadata.name())?;
 			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
 		})
 	}
