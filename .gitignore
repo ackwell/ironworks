@@ -1,6 +1,5 @@
 /target
+/ironworks_sheets
 *.ignore.*
 flamegraph.svg
 perf.data*
-
-gen_test

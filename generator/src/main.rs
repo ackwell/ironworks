@@ -1,10 +1,10 @@
 use std::{
-	env::current_dir,
 	fs,
 	path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use clap::Parser;
 use generate::generate_sheet;
 use ironworks::{
 	excel::Excel,
@@ -28,19 +28,31 @@ struct Src;
 #[folder = "$CARGO_MANIFEST_DIR/template/meta"]
 struct Meta;
 
+#[derive(Debug, Parser)]
+struct Args {
+	#[clap(short)]
+	out_dir: Option<PathBuf>,
+
+	#[clap(short)]
+	game_path: Option<PathBuf>,
+}
+
 fn main() -> Result<()> {
 	env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
 
-	// TODO: output dir should be configurable
-	// TODO: more sanity lmao
+	let args = Args::parse();
+
 	// Clear out and prepare the target directory.
-	let out_dir = current_dir()?.join("gen_test");
+	let out_dir = args.out_dir.unwrap_or_else(|| "./ironworks_sheets".into());
 	fs::remove_dir_all(&out_dir).ok();
 	fs::create_dir_all(&out_dir)?;
 
-	// TODO: configurable lookup dir
 	// We'll need a live Excel DB to generate sheets, set one up.
-	let sqpack = SqPack::new(FsResource::search().unwrap());
+	let fs_resource = match args.game_path {
+		Some(path) => FsResource::at(&path),
+		None => FsResource::search().context("Game path search failed.")?,
+	};
+	let sqpack = SqPack::new(fs_resource);
 	let excel = Excel::new(SqPackResource::new(&sqpack));
 
 	let (provider, version, schemas) = saint_coinach()?;
