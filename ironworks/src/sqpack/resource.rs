@@ -8,6 +8,9 @@ pub trait Resource {
 	/// the path is invalid or does not conform to valid formatting for this resource.
 	fn path_metadata(&self, path: &str) -> Option<(u8, u8)>;
 
+	/// Get the version string for a given repository.
+	fn version(&self, repository: u8) -> Result<String>;
+
 	/// The type of an index resource.
 	type Index: Read + Seek;
 	/// Fetches the specified index resource.

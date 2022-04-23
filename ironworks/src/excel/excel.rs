@@ -39,6 +39,11 @@ impl<R: Resource> Excel<R> {
 		}
 	}
 
+	/// Get the version string of the database.
+	pub fn version(&self) -> Result<String> {
+		self.resource.version()
+	}
+
 	/// Fetch a sheet from the database.
 	pub fn sheet<S: SheetMetadata>(&self, sheet_metadata: S) -> Result<Sheet<S, R>> {
 		let sheet_name = sheet_metadata.name();

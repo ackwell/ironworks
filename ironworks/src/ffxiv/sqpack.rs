@@ -39,6 +39,10 @@ use crate::excel;
 
 #[cfg(feature = "excel")]
 impl<R: sqpack::Resource> excel::Resource for SqPackResource<'_, R> {
+	fn version(&self) -> Result<String> {
+		self.sqpack.version("exd/root.exl")
+	}
+
 	type List = sqpack::File<R::Dat>;
 	fn list(&self) -> Result<Self::List> {
 		self.sqpack.file("exd/root.exl")

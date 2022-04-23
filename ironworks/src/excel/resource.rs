@@ -4,6 +4,9 @@ use crate::error::Result;
 
 /// Resource adapter to fetch data on request for an Excel instance.
 pub trait Resource {
+	/// The version string of the excel resource data.
+	fn version(&self) -> Result<String>;
+
 	/// The type of a sheet list resource.
 	type List: Read + Seek;
 	/// Fetches the sheet list resource.

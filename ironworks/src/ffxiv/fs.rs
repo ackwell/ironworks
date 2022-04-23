@@ -89,13 +89,6 @@ impl FsResource {
 		chunk: u8,
 		extension: &str,
 	) -> Result<PathBuf> {
-		let repository_name = self
-			.repositories
-			.get(usize::from(repository))
-			.ok_or_else(|| {
-				Error::NotFound(ErrorValue::Other(format!("repository {repository}")))
-			})?;
-
 		let platform = match self.platform {
 			Platform::Win32 => "win32",
 			Platform::PS3 => todo!("PS3 platform"),
@@ -104,11 +97,19 @@ impl FsResource {
 
 		let file_name = format!("{category:02x}{repository:02x}{chunk:02x}.{platform}.{extension}");
 
-		let file_path = self
-			.path
-			.join([repository_name, &file_name].iter().collect::<PathBuf>());
+		let file_path = self.path.join(
+			[self.get_repository_name(repository)?, &file_name]
+				.iter()
+				.collect::<PathBuf>(),
+		);
 
 		Ok(file_path)
+	}
+
+	fn get_repository_name(&self, repository: u8) -> Result<&String> {
+		self.repositories
+			.get(usize::from(repository))
+			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("repository {repository}"))))
 	}
 }
 
@@ -136,6 +137,20 @@ impl Resource for FsResource {
 			)),
 			_ => None,
 		}
+	}
+
+	fn version(&self, repository: u8) -> Result<String> {
+		let path = match repository {
+			0 => self.path.join("..").join("ffxivgame.ver"),
+			repo => {
+				let repository_name = self.get_repository_name(repo)?;
+				self.path
+					.join(&repository_name)
+					.join(format!("{repository_name}.ver"))
+			}
+		};
+
+		fs::read_to_string(path).map_err(|error| Error::Resource(error.into()))
 	}
 
 	type Index = io::Cursor<Vec<u8>>;
