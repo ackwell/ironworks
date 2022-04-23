@@ -38,13 +38,13 @@ fn main() -> Result<()> {
 	fs::remove_dir_all(&out_dir).ok();
 	fs::create_dir_all(&out_dir)?;
 
-	let (version, schemas) = saint_coinach()?;
-	let src_dir = build_scaffold(version, &out_dir)?;
-
 	// TODO: configurable lookup dir
 	// We'll need a live Excel DB to generate sheets, set one up.
 	let sqpack = SqPack::new(FsResource::search().unwrap());
 	let excel = Excel::new(SqPackResource::new(&sqpack));
+
+	let (provider, version, schemas) = saint_coinach()?;
+	let src_dir = build_scaffold(provider, version, excel.version()?, &out_dir)?;
 
 	// Build the modules for sheets.
 	let modules = schemas
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
 			// Definitions might exist for sheets that no longer exist - ignore them.
 			Err(ironworks::Error::NotFound(_)) => {
 				log::warn!(
-					"Sheet {} has definition but no does not exist in game data.",
+					"Sheet {} has definition but does not exist in game data.",
 					schema.name
 				);
 				None
@@ -93,8 +93,7 @@ fn main() -> Result<()> {
 	Ok(())
 }
 
-// TODO: Seperate file and all that jazz.
-fn saint_coinach() -> Result<(String, Vec<SchemaSheet>)> {
+fn saint_coinach() -> Result<(String, String, Vec<SchemaSheet>)> {
 	let provider = Provider::new()?;
 
 	// TODO: fetch updates to the provider to make sure it's fresh
@@ -107,17 +106,29 @@ fn saint_coinach() -> Result<(String, Vec<SchemaSheet>)> {
 		.map(|name| Ok(version.sheet(name)?))
 		.collect::<Result<Vec<_>>>()?;
 
-	Ok((format!("stc.{}", version.canonical()), schemas))
+	Ok(("saint-coinach".into(), version.canonical(), schemas))
 }
 
-fn build_scaffold(version: String, out_dir: &Path) -> Result<PathBuf> {
+fn build_scaffold(
+	provider: String,
+	version: String,
+	excel_version: String,
+	out_dir: &Path,
+) -> Result<PathBuf> {
 	// Build and copy across the metadata
 	let cargo_toml = Meta::get("Cargo.toml").unwrap();
 	let mut document = std::str::from_utf8(&cargo_toml.data)?.parse::<Document>()?;
 	if let Some(value) = document["package"]["version"].as_value_mut() {
-		*value = format!("{}-{version}", value.as_str().unwrap()).into()
+		*value = format!("{}-{provider}", value.as_str().unwrap()).into()
 	}
 	fs::write(out_dir.join("Cargo.toml"), document.to_string())?;
+
+	let readme = Meta::get("README.md").unwrap();
+	let mut document = std::str::from_utf8(&readme.data)?.to_owned();
+	document.push_str("||Version|\n|--|--|\n");
+	document.push_str(&format!("|**{provider}**|{version}|\n"));
+	document.push_str(&format!("|**Excel**|{excel_version}|\n"));
+	fs::write(out_dir.join("README.md"), document)?;
 
 	let src_dir = out_dir.join("src");
 	fs::create_dir(&src_dir)?;

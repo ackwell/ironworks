@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "ironworks_sheets"
-version = "0.1.0-stc.69caa7e14fed1caaeb2089fad484c25e491d3c37"
+version = "0.1.0-saint-coinach"
 dependencies = [
  "ironworks",
 ]
