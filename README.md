@@ -49,7 +49,7 @@ fn main() -> Result<(), Error> {
 
 ## Using generated sheets from Excel
 
-In addition to reading individual fields as shown above, it's possible to entire rows at a time into a struct. To faciliate this, generated sheet definitions are available as a git dependency.
+In addition to reading individual fields as shown above, it's possible to read entire rows at a time into a struct. To faciliate this, generated sheet definitions are available as a git dependency.
 
 **Warning:** The data used to generate these structs does not provide any stability guarantees whatsoever. As such, any update to sheet structs should be considered as a semver-major update.
 
