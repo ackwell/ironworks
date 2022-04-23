@@ -6,10 +6,12 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.55"
+env_logger = "0.9.0"
 heck = "0.4.0"
 ironworks = {path = "../ironworks", features = ["excel", "ffxiv", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 lazy_static = "1.4.0"
+log = "0.4.16"
 prettyplease = "0.1.9"
 proc-macro2 = "1.0.37"
 quote = "1.0.18"

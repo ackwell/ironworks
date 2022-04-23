@@ -29,6 +29,8 @@ struct Src;
 struct Meta;
 
 fn main() -> Result<()> {
+	env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
+
 	// TODO: output dir should be configurable
 	// TODO: more sanity lmao
 	// Clear out and prepare the target directory.
@@ -49,11 +51,18 @@ fn main() -> Result<()> {
 		.into_iter()
 		.filter_map(|schema| match excel.sheet(schema.name.clone()) {
 			// Definitions might exist for sheets that no longer exist - ignore them.
-			// TODO: this is a prime target for logging
-			Err(ironworks::Error::NotFound(_)) => None,
+			Err(ironworks::Error::NotFound(_)) => {
+				log::warn!(
+					"Sheet {} has definition but no does not exist in game data.",
+					schema.name
+				);
+				None
+			}
 			Err(error) => Some(Err(error)),
 			Ok(sheet) => {
+				let schema_name = schema.name.clone();
 				let file = generate_sheet(schema, sheet.columns().ok()?);
+				log::info!("Sheet {} generated.", schema_name);
 				Some(Ok(file))
 			}
 		})

@@ -231,10 +231,12 @@ name = "generator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "env_logger",
  "heck",
  "ironworks",
  "ironworks_schema",
  "lazy_static",
+ "log",
  "prettyplease",
  "proc-macro2",
  "quote",

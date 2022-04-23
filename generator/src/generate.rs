@@ -138,6 +138,12 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 		Some(column) => column,
 		None => {
 			// Definitions include columns that do not exist - represent them as impossible options.
+			log::warn!(
+				"Path {} resolves to invalid column {} (Expected 0..{}).",
+				context.path.join("/"),
+				context.column_index,
+				context.columns.len()
+			);
 			context.uses.extend(["std::convert::Infallible"]);
 			return NodeResult {
 				type_: quote! { Option<Infallible> },
@@ -200,7 +206,6 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 		.iter()
 		.map(|(name, node)| {
 			let name_cleaned = sanitize(name.clone());
-			// TODO: ident parse will err on keyword, use that to avoid prefix?
 			let identifier = format_ident!("r#{}", name_cleaned.to_snake_case());
 
 			context.path.push(name_cleaned);
