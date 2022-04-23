@@ -11,7 +11,7 @@ pub trait MetadataAdapter {
 }
 
 /// Retrieve a `SheetMetadata` value for the sheet struct type `S`.
-pub fn metadata<S>() -> SheetType<S> {
+pub fn for_type<S>() -> SheetType<S> {
 	SheetType {
 		_sheet: PhantomData::<S>::default(),
 	}

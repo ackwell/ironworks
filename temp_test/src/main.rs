@@ -1,4 +1,4 @@
-use gen_test::{metadata, sheet::CompanionTransient};
+use gen_test::{for_type, sheet::CompanionTransient};
 use ironworks::{
 	excel::Excel,
 	ffxiv::{FsResource, Language, SqPackResource},
@@ -30,7 +30,7 @@ fn iw_test() -> anyhow::Result<()> {
 	println!("{field:?}");
 
 	// Gen sheet test
-	let companion_transient = excel.sheet(metadata::<CompanionTransient>())?.row(101)?;
+	let companion_transient = excel.sheet(for_type::<CompanionTransient>())?.row(101)?;
 	println!("{companion_transient:#?}");
 
 	let row = sheet.row(102)?;

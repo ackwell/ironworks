@@ -12,4 +12,4 @@ mod utility;
 
 pub mod sheet;
 
-pub use {error::PopulateError, metadata::metadata};
+pub use {error::PopulateError, metadata::for_type};
