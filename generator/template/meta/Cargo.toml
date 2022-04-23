@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ironworks = {version = "0.2.0", path = "../ironworks", features = ["excel"]}
+ironworks = {version = "0.2.0", features = ["excel"]}
