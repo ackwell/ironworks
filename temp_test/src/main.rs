@@ -1,10 +1,10 @@
-use gen_test::{for_type, sheet::CompanionTransient};
 use ironworks::{
 	excel::Excel,
 	ffxiv::{FsResource, Language, SqPackResource},
 	sqpack::SqPack,
 };
 use ironworks_schema::saint_coinach::Provider;
+use ironworks_sheets::{for_type, sheet::CompanionTransient};
 
 fn main() -> anyhow::Result<()> {
 	env_logger::init();

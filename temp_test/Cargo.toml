@@ -9,6 +9,6 @@ publish = false
 [dependencies]
 anyhow = "1.0.55"
 env_logger = "0.9.0"
-gen_test = {path = "../gen_test"}
 ironworks = {path = "../ironworks", features = ["sqpack", "ffxiv", "excel"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
+ironworks_sheets = {path = "../gen_test"}

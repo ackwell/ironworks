@@ -30,6 +30,11 @@ impl<'repo> Version<'repo> {
 		Version { repository, commit }
 	}
 
+	/// Get the canonical name for this version.
+	pub fn canonical(&self) -> String {
+		self.commit.id().to_string()
+	}
+
 	/// Get a list of all sheets supported by this version.
 	pub fn sheet_names(&self) -> Result<Vec<String>> {
 		// Get the tree containing sheet definitions.

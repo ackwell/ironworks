@@ -14,6 +14,7 @@ use ironworks::{
 use ironworks_schema::{saint_coinach::Provider, Sheet as SchemaSheet};
 use quote::{format_ident, quote};
 use rust_embed::RustEmbed;
+use toml_edit::Document;
 use utility::unparse_tokens;
 
 mod generate;
@@ -35,7 +36,8 @@ fn main() -> Result<()> {
 	fs::remove_dir_all(&out_dir).ok();
 	fs::create_dir_all(&out_dir)?;
 
-	let src_dir = build_scaffold(&out_dir)?;
+	let (version, schemas) = saint_coinach()?;
+	let src_dir = build_scaffold(version, &out_dir)?;
 
 	// TODO: configurable lookup dir
 	// We'll need a live Excel DB to generate sheets, set one up.
@@ -43,7 +45,7 @@ fn main() -> Result<()> {
 	let excel = Excel::new(SqPackResource::new(&sqpack));
 
 	// Build the modules for sheets.
-	let modules = saint_coinach()?
+	let modules = schemas
 		.into_iter()
 		.filter_map(|schema| match excel.sheet(schema.name.clone()) {
 			// Definitions might exist for sheets that no longer exist - ignore them.
@@ -83,25 +85,30 @@ fn main() -> Result<()> {
 }
 
 // TODO: Seperate file and all that jazz.
-fn saint_coinach() -> Result<Vec<SchemaSheet>> {
+fn saint_coinach() -> Result<(String, Vec<SchemaSheet>)> {
 	let provider = Provider::new()?;
 
 	// TODO: fetch updates to the provider to make sure it's fresh
 	// TODO: arg for version?
 	let version = provider.version("HEAD")?;
 
-	version
+	let schemas = version
 		.sheet_names()?
 		.iter()
 		.map(|name| Ok(version.sheet(name)?))
-		.collect::<Result<Vec<_>>>()
+		.collect::<Result<Vec<_>>>()?;
+
+	Ok((format!("stc.{}", version.canonical()), schemas))
 }
 
-fn build_scaffold(out_dir: &Path) -> Result<PathBuf> {
+fn build_scaffold(version: String, out_dir: &Path) -> Result<PathBuf> {
 	// Build and copy across the metadata
 	let cargo_toml = Meta::get("Cargo.toml").unwrap();
-	// TODO: edit the name/version/etc
-	fs::write(out_dir.join("Cargo.toml"), cargo_toml.data)?;
+	let mut document = std::str::from_utf8(&cargo_toml.data)?.parse::<Document>()?;
+	if let Some(value) = document["package"]["version"].as_value_mut() {
+		*value = format!("{}-{version}", value.as_str().unwrap()).into()
+	}
+	fs::write(out_dir.join("Cargo.toml"), document.to_string())?;
 
 	let src_dir = out_dir.join("src");
 	fs::create_dir(&src_dir)?;
