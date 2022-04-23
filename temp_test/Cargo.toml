@@ -9,6 +9,6 @@ publish = false
 [dependencies]
 anyhow = "1.0.55"
 env_logger = "0.9.0"
-ironworks = {path = "../ironworks", features = ["sqpack", "ffxiv", "excel"]}
+ironworks = {version = "0.2.0", features = ["sqpack", "ffxiv", "excel"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
-ironworks_sheets = {path = "../ironworks_sheets"}
+ironworks_sheets = {git = "https://github.com/ackwell/ironworks", branch = "sheets/saint-coinach"}
