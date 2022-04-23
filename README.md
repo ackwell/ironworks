@@ -23,7 +23,7 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 
 ```toml
 [dependencies]
-ironworks = {version = "0.1.0", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.2.0", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
 ```rust
@@ -44,5 +44,28 @@ fn main() -> Result<(), Error> {
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())
+}
+```
+
+## Using generated sheets from Excel
+
+In addition to reading individual fields as shown above, it's possible to entire rows at a time into a struct. To faciliate this, generated sheet definitions are available as a git dependency.
+
+**Warning:** The data used to generate these structs does not provide any stability guarantees whatsoever. As such, any update to sheet structs should be considered as a semver-major update.
+
+```toml
+[dependencies]
+# ...
+ironworks_sheets = {git = "https://github.com/ackwell/ironworks", branch = "sheets/saint-coinach"}
+```
+
+```rust
+// ...
+use ironworks_sheets::{for_type, sheet};
+
+fn main() -> Result<(), Error> {
+  // ...
+  let field = excel.sheet(for_type::<sheet::Item>())?.row(37362)?.singular;
+  // ...
 }
 ```
