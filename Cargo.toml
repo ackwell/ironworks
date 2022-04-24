@@ -3,6 +3,4 @@ members = [
 	"generator",
 	"ironworks",
 	"schema",
-
-	"temp_test",
 ]

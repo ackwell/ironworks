@@ -273,7 +273,7 @@ dependencies = [
  "clap",
  "env_logger",
  "heck",
- "ironworks 0.2.0",
+ "ironworks",
  "ironworks_schema",
  "lazy_static",
  "log",
@@ -382,19 +382,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ironworks"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e40df61101c5aceb1a5ac8dd02690db9997e4915004182ce7fc58ef6444973f"
-dependencies = [
- "binrw",
- "enum-as-inner",
- "flate2",
- "num_enum",
- "thiserror",
-]
-
-[[package]]
 name = "ironworks_schema"
 version = "0.1.0"
 dependencies = [
@@ -403,14 +390,6 @@ dependencies = [
  "lazy_static",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "ironworks_sheets"
-version = "0.1.0-saint-coinach"
-source = "git+https://github.com/ackwell/ironworks?branch=sheets/saint-coinach#9cd2e34e9a108af95e43be7dd75ffd9a907bb493"
-dependencies = [
- "ironworks 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -793,17 +772,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "temp_test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env_logger",
- "ironworks 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ironworks_schema",
- "ironworks_sheets",
 ]
 
 [[package]]
