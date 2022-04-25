@@ -1,6 +1,6 @@
 use std::{
 	io::{Cursor, Seek, SeekFrom},
-	rc::Rc,
+	sync::Arc,
 };
 
 use binrw::BinRead;
@@ -220,7 +220,7 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
 	}
 
-	fn header(&self) -> Result<Rc<Header>> {
+	fn header(&self) -> Result<Arc<Header>> {
 		self.header.try_get_or_insert(|| {
 			let mut reader = self.resource.header(&self.sheet_metadata.name())?;
 			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))

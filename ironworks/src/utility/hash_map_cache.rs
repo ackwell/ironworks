@@ -2,17 +2,17 @@ use std::{
 	cell::RefCell,
 	collections::{hash_map::Entry, HashMap},
 	hash::Hash,
-	rc::Rc,
+	sync::Arc,
 };
 
-pub type HashMapCache<K, V> = RefCell<HashMap<K, Rc<V>>>;
+pub type HashMapCache<K, V> = RefCell<HashMap<K, Arc<V>>>;
 
 pub trait HashMapCacheExt<K, V> {
 	fn try_get_or_insert<E>(
 		&self,
 		key: K,
 		build: impl FnOnce() -> Result<V, E>,
-	) -> Result<Rc<V>, E>;
+	) -> Result<Arc<V>, E>;
 }
 
 impl<K, V> HashMapCacheExt<K, V> for HashMapCache<K, V>
@@ -23,7 +23,7 @@ where
 		&self,
 		key: K,
 		build: impl FnOnce() -> Result<V, E>,
-	) -> Result<Rc<V>, E> {
+	) -> Result<Arc<V>, E> {
 		Ok(match self.borrow_mut().entry(key) {
 			Entry::Occupied(entry) => entry.get().clone(),
 			Entry::Vacant(entry) => entry.insert(build()?.into()).clone(),

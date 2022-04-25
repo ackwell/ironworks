@@ -1,13 +1,13 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, sync::Arc};
 
-pub type OptionCache<T> = RefCell<Option<Rc<T>>>;
+pub type OptionCache<T> = RefCell<Option<Arc<T>>>;
 
 pub trait OptionCacheExt<T> {
-	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Rc<T>, E>;
+	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Arc<T>, E>;
 }
 
 impl<T> OptionCacheExt<T> for OptionCache<T> {
-	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Rc<T>, E> {
+	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Arc<T>, E> {
 		Ok(match &mut *self.borrow_mut() {
 			Some(inner) => inner.clone(),
 			option @ None => option.insert(build()?.into()).clone(),

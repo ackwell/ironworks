@@ -1,4 +1,4 @@
-use std::{cell::RefCell, io::Cursor, rc::Rc};
+use std::{cell::RefCell, io::Cursor, sync::Arc};
 
 use binrw::{binread, BinReaderExt, BinResult};
 
@@ -37,12 +37,12 @@ pub struct Row {
 	row_id: u32,
 	subrow_id: u16,
 
-	header: Rc<Header>,
+	header: Arc<Header>,
 	data: RefCell<Cursor<Vec<u8>>>,
 }
 
 impl Row {
-	pub(super) fn new(row_id: u32, subrow_id: u16, header: Rc<Header>, data: Vec<u8>) -> Self {
+	pub(super) fn new(row_id: u32, subrow_id: u16, header: Arc<Header>, data: Vec<u8>) -> Self {
 		Self {
 			row_id,
 			subrow_id,
