@@ -1,17 +1,14 @@
 use std::net::SocketAddr;
 
-use axum::{response::IntoResponse, routing::get, Router, Server};
+use axum::Server;
+use boilmaster::http;
 
 #[tokio::main]
 async fn main() {
-	let app = Router::new().route("/", get(test));
+	let app = http::router();
 
 	Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
 		.serve(app.into_make_service())
 		.await
 		.unwrap()
-}
-
-async fn test() -> impl IntoResponse {
-	"Hello world."
 }
