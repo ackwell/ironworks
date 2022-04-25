@@ -6,4 +6,5 @@ publish = false
 
 [dependencies]
 axum = "0.5.3"
+ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack"]}
 tokio = { version = "1.17.0", features = ["full"] }
