@@ -10,6 +10,7 @@ use tokio::sync::{
 	mpsc::{self, Sender},
 	oneshot,
 };
+use tower_http::trace::TraceLayer;
 
 #[derive(thiserror::Error, Debug)]
 enum Error {
@@ -20,7 +21,7 @@ enum Error {
 impl IntoResponse for Error {
 	fn into_response(self) -> axum::response::Response {
 		match self {
-			Self::Other(ref error) => eprintln!("{error:?}"),
+			Self::Other(ref error) => tracing::error!("{error:?}"),
 		}
 
 		(StatusCode::INTERNAL_SERVER_ERROR, self.to_string()).into_response()
@@ -74,6 +75,7 @@ pub fn router() -> Router {
 	Router::new()
 		.route("/sheets", get(sheets))
 		.layer(Extension(tx))
+		.layer(TraceLayer::new_for_http())
 }
 
 #[debug_handler]
