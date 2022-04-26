@@ -103,6 +103,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63bcb0d395bc5dd286e61aada9fc48201eb70e232f006f9d6c330c9db2f256f5"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "binrw"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -143,8 +155,11 @@ dependencies = [
 name = "boilmaster"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "axum",
+ "axum-macros",
  "ironworks",
+ "thiserror",
  "tokio",
 ]
 
