@@ -1,10 +1,11 @@
-use std::{fs, io::Read};
+use std::sync::Arc;
 
 use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Router};
 use axum_macros::debug_handler;
 use ironworks::{
+	excel::{Excel, List},
 	ffxiv,
-	sqpack::{File, SqPack},
+	sqpack::SqPack,
 };
 use tokio::sync::{
 	mpsc::{self, Sender},
@@ -47,26 +48,28 @@ where
 #[derive(Debug)]
 enum IronworksRequest {
 	SheetList {
-		responder: oneshot::Sender<Result<File<fs::File>, ironworks::Error>>,
+		responder: oneshot::Sender<Result<Arc<List>, ironworks::Error>>,
 	},
 }
 
 pub fn router() -> Router {
 	// IW isn't async, nor send/sync. Boot up a channel so we can serve requests from a single location.
 	// TODO: this seems sane to me but idk maybe iw should be async? idk.
+	// TODO: the above is no longer true. look into shared iw?
 	let (tx, mut rx) = mpsc::channel::<IronworksRequest>(32);
 
 	tokio::spawn(async move {
 		// TODO: this should be a configurable path
 		let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
+		let excel = Excel::new(ffxiv::SqPackResource::new(&sqpack));
 
 		while let Some(request) = rx.recv().await {
 			use IronworksRequest::*;
 			match request {
 				SheetList { responder } => {
 					// TODO probably need something in iw::excel for listing sheet names publicly
-					let file = sqpack.file("exd/root.exl");
-					responder.send(file).ok();
+					let list = excel.list();
+					responder.send(list).ok();
 				}
 			}
 		}
@@ -87,10 +90,7 @@ async fn sheets(
 		.await
 		.anyhow()?;
 
-	let mut response = res_rx.await.anyhow()?.anyhow()?;
+	let response = res_rx.await.anyhow()?.anyhow()?;
 
-	let mut string = String::new();
-	response.read_to_string(&mut string).anyhow()?;
-
-	Ok(string)
+	Ok(format!("{response:?}"))
 }
