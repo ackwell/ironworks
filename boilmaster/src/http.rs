@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Router};
+use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
 use ironworks::{
 	excel::{Excel, List},
@@ -67,9 +67,7 @@ pub fn router() -> Router {
 			use IronworksRequest::*;
 			match request {
 				SheetList { responder } => {
-					// TODO probably need something in iw::excel for listing sheet names publicly
-					let list = excel.list();
-					responder.send(list).ok();
+					responder.send(excel.list()).ok();
 				}
 			}
 		}
@@ -82,15 +80,15 @@ pub fn router() -> Router {
 }
 
 #[debug_handler]
-async fn sheets(
-	Extension(tx): Extension<Sender<IronworksRequest>>,
-) -> anyhow::Result<String, Error> {
+async fn sheets(Extension(tx): Extension<Sender<IronworksRequest>>) -> Result<impl IntoResponse> {
 	let (res_tx, res_rx) = oneshot::channel();
 	tx.send(IronworksRequest::SheetList { responder: res_tx })
 		.await
 		.anyhow()?;
 
-	let response = res_rx.await.anyhow()?.anyhow()?;
+	let list = res_rx.await.anyhow()?.anyhow()?;
+	// This contains quite a lot of quest/ and custom/ - should I filter them out?
+	let names = list.iter().map(|x| x.into_owned()).collect::<Vec<_>>();
 
-	Ok(format!("{response:?}"))
+	Ok(Json(names))
 }
