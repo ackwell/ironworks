@@ -1,6 +1,6 @@
-use std::{cell::RefCell, sync::Arc};
+use std::sync::{Arc, Mutex};
 
-pub type OptionCache<T> = RefCell<Option<Arc<T>>>;
+pub type OptionCache<T> = Mutex<Option<Arc<T>>>;
 
 pub trait OptionCacheExt<T> {
 	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Arc<T>, E>;
@@ -8,7 +8,7 @@ pub trait OptionCacheExt<T> {
 
 impl<T> OptionCacheExt<T> for OptionCache<T> {
 	fn try_get_or_insert<E>(&self, build: impl FnOnce() -> Result<T, E>) -> Result<Arc<T>, E> {
-		Ok(match &mut *self.borrow_mut() {
+		Ok(match &mut *self.lock().unwrap() {
 			Some(inner) => inner.clone(),
 			option @ None => option.insert(build()?.into()).clone(),
 		})
@@ -24,7 +24,7 @@ mod test {
 	#[test]
 	fn default() {
 		let cache: OptionCache<u8> = Default::default();
-		assert_eq!(cache.into_inner(), None)
+		assert_eq!(cache.into_inner().unwrap(), None)
 	}
 
 	#[test]
