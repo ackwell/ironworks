@@ -1,14 +1,15 @@
-use std::{collections::HashSet, io::Read};
+use std::{borrow::Cow, collections::HashSet, io::Read};
 
 use crate::error::{Error, Result};
 
+/// List of known Excel sheets.
 #[derive(Debug)]
 pub struct List {
 	sheets: HashSet<String>,
 }
 
 impl List {
-	pub fn read<R: Read>(mut reader: R) -> Result<Self> {
+	pub(super) fn read<R: Read>(mut reader: R) -> Result<Self> {
 		// The excel list is actually just plaintext, read it in as a string.
 		let mut list = String::new();
 		reader
@@ -35,6 +36,12 @@ impl List {
 		Ok(Self { sheets })
 	}
 
+	/// Iterate over known sheets in arbitrary order.
+	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
+		self.sheets.iter().map(|name| name.into())
+	}
+
+	/// Check if the specified sheet is contained in the list.
 	pub fn has(&self, sheet: &str) -> bool {
 		self.sheets.contains(sheet)
 	}

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
 	error::{Error, ErrorValue, Result},
 	utility::{OptionCache, OptionCacheExt},
@@ -44,13 +46,17 @@ impl<R: Resource> Excel<R> {
 		self.resource.version()
 	}
 
+	/// Fetch the authoratative list of sheets in the database.
+	pub fn list(&self) -> Result<Arc<List>> {
+		self.list
+			.try_get_or_insert(|| List::read(self.resource.list()?))
+	}
+
 	/// Fetch a sheet from the database.
 	pub fn sheet<S: SheetMetadata>(&self, sheet_metadata: S) -> Result<Sheet<S, R>> {
 		let sheet_name = sheet_metadata.name();
 
-		let list = self
-			.list
-			.try_get_or_insert(|| List::read(self.resource.list()?))?;
+		let list = self.list()?;
 		if !list.has(&sheet_name) {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet_name)));
 		}
