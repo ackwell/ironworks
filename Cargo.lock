@@ -575,6 +575,7 @@ name = "ironworks"
 version = "0.2.0"
 dependencies = [
  "binrw",
+ "derivative",
  "enum-as-inner",
  "flate2",
  "num_enum",

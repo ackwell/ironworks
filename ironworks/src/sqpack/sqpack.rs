@@ -1,8 +1,9 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, io::Read};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	utility::{HashMapCache, HashMapCacheExt},
+	Provider,
 };
 
 use super::{file::File, index::Index, resource::Resource};
@@ -62,5 +63,17 @@ impl<R: Resource> SqPack<R> {
 		self.resource
 			.path_metadata(path)
 			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.to_string())))
+	}
+}
+
+// todo make this more integrated i guess? can clean out a bunch of file's trash
+// todo work out the resource story for this because it's gonna get cluttery if im not careful
+impl<R: Resource + 'static> Provider for SqPack<R> {
+	fn file(&self, path: &str) -> Result<Vec<u8>> {
+		let mut file = self.file(path)?;
+		let mut vec = Vec::new();
+		// todo fix the error handling here
+		file.read_to_end(&mut vec).unwrap();
+		Ok(vec)
 	}
 }

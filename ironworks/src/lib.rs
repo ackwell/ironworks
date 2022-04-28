@@ -5,6 +5,7 @@
 #![warn(missing_debug_implementations, missing_docs)]
 
 mod error;
+mod ironworks;
 mod utility;
 
 #[cfg(feature = "excel")]
@@ -15,4 +16,7 @@ pub mod sestring;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
 
-pub use error::{Error, ErrorValue};
+pub use {
+	error::{Error, ErrorValue},
+	ironworks::{Ironworks, Provider},
+};
