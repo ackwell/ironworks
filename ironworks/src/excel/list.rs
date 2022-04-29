@@ -1,6 +1,13 @@
-use std::{borrow::Cow, collections::HashSet, io::Read};
+use std::{
+	borrow::Cow,
+	collections::HashSet,
+	io::{Cursor, Read},
+};
 
-use crate::error::{Error, Result};
+use crate::{
+	error::{Error, Result},
+	File,
+};
 
 /// List of known Excel sheets.
 #[derive(Debug)]
@@ -44,6 +51,13 @@ impl List {
 	/// Check if the specified sheet is contained in the list.
 	pub fn has(&self, sheet: &str) -> bool {
 		self.sheets.contains(sheet)
+	}
+}
+
+// TODO: clean up and integrate properly
+impl File for List {
+	fn read(data: Vec<u8>) -> Self {
+		Self::read(Cursor::new(data)).unwrap()
 	}
 }
 
