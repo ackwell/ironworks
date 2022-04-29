@@ -2,15 +2,7 @@ use std::sync::Arc;
 
 use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks::{
-	excel::{Excel, List},
-	ffxiv,
-	sqpack::SqPack,
-};
-use tokio::sync::{
-	mpsc::{self, Sender},
-	oneshot,
-};
+use ironworks::{excel::Excel, ffxiv, sqpack::SqPack};
 use tower_http::trace::TraceLayer;
 
 #[derive(thiserror::Error, Debug)]
@@ -44,49 +36,23 @@ where
 	}
 }
 
-// todo this shouldn't be in http
-#[derive(Debug)]
-enum IronworksRequest {
-	SheetList {
-		responder: oneshot::Sender<Result<Arc<List>, ironworks::Error>>,
-	},
-}
-
 pub fn router() -> Router {
-	// IW isn't async, nor send/sync. Boot up a channel so we can serve requests from a single location.
-	// TODO: this seems sane to me but idk maybe iw should be async? idk.
-	// TODO: the above is no longer true. look into shared iw?
-	let (tx, mut rx) = mpsc::channel::<IronworksRequest>(32);
-
-	tokio::spawn(async move {
-		// TODO: this should be a configurable path
-		let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
-		let excel = Excel::new(ffxiv::SqPackResource::new(&sqpack));
-
-		while let Some(request) = rx.recv().await {
-			use IronworksRequest::*;
-			match request {
-				SheetList { responder } => {
-					responder.send(excel.list()).ok();
-				}
-			}
-		}
-	});
+	let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
+	let sqpack_ref: &'static _ = Box::leak(Box::new(sqpack));
+	let excel = Excel::new(ffxiv::SqPackResource::new(sqpack_ref));
 
 	Router::new()
 		.route("/sheets", get(sheets))
-		.layer(Extension(tx))
+		.layer(Extension(Arc::new(excel)))
 		.layer(TraceLayer::new_for_http())
 }
 
 #[debug_handler]
-async fn sheets(Extension(tx): Extension<Sender<IronworksRequest>>) -> Result<impl IntoResponse> {
-	let (res_tx, res_rx) = oneshot::channel();
-	tx.send(IronworksRequest::SheetList { responder: res_tx })
-		.await
-		.anyhow()?;
+async fn sheets(
+	Extension(excel): Extension<Arc<Excel<ffxiv::SqPackResource<'static, ffxiv::FsResource>>>>,
+) -> Result<impl IntoResponse> {
+	let list = excel.list().anyhow()?;
 
-	let list = res_rx.await.anyhow()?.anyhow()?;
 	// This contains quite a lot of quest/ and custom/ - should I filter them out?
 	let names = list.iter().map(|x| x.into_owned()).collect::<Vec<_>>();
 
