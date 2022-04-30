@@ -9,12 +9,14 @@ pub trait Provider: 'static {
 
 pub trait File {
 	// might need an error type?
-	fn read(data: Vec<u8>) -> Self;
+	fn read(data: Vec<u8>) -> Result<Self>
+	where
+		Self: Sized;
 }
 
 impl File for Vec<u8> {
-	fn read(data: Vec<u8>) -> Self {
-		data
+	fn read(data: Vec<u8>) -> Result<Self> {
+		Ok(data)
 	}
 }
 
@@ -58,6 +60,6 @@ impl Ironworks {
 			// TODO: this should be a "path" errorvalue and filepath/sqpackpath can probs be removed
 			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Other(path.into()))))?;
 
-		Ok(F::read(data))
+		F::read(data)
 	}
 }

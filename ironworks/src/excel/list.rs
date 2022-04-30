@@ -56,8 +56,8 @@ impl List {
 
 // TODO: clean up and integrate properly
 impl File for List {
-	fn read(data: Vec<u8>) -> Self {
-		Self::read(Cursor::new(data)).unwrap()
+	fn read(data: Vec<u8>) -> Result<Self> {
+		Self::read(Cursor::new(data))
 	}
 }
 
