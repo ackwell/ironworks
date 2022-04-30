@@ -49,7 +49,7 @@ impl Index {
 			});
 
 		match matching_chunk {
-			None => Err(Error::NotFound(ErrorValue::SqpackPath(path.into()))),
+			None => Err(Error::NotFound(ErrorValue::Path(path.into()))),
 			Some(result) => result,
 		}
 	}

@@ -209,7 +209,9 @@ fn read_index(path: PathBuf) -> Result<io::Cursor<Vec<u8>>> {
 	// the full dataset anyway, and working directly on a File causes significant
 	// slowdowns due to IO syscalls.
 	let buffer = fs::read(&path).map_err(|error| match error.kind() {
-		io::ErrorKind::NotFound => Error::NotFound(ErrorValue::FilePath(path)),
+		io::ErrorKind::NotFound => {
+			Error::NotFound(ErrorValue::Other(format!("file path {path:?}")))
+		}
 		_ => Error::Resource(error.into()),
 	})?;
 	Ok(io::Cursor::new(buffer))

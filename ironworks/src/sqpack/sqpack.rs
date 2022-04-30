@@ -63,7 +63,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
 		self.resource
 			.path_metadata(path)
-			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.to_string())))
+			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.to_string())))
 	}
 }
 

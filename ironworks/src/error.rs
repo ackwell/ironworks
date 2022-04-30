@@ -1,4 +1,4 @@
-use std::{fmt, path::PathBuf};
+use std::fmt;
 
 /// An error that occured.
 #[derive(thiserror::Error, Debug)]
@@ -23,12 +23,8 @@ pub enum Error {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ErrorValue {
-	/// A filesystem path.
-	FilePath(PathBuf),
-
-	/// A path within the SqPack package repositories.
-	#[cfg(feature = "sqpack")]
-	SqpackPath(String),
+	/// A path to a file.
+	Path(String),
 
 	/// An Excel sheet.
 	#[cfg(feature = "excel")]
@@ -56,13 +52,10 @@ pub enum ErrorValue {
 impl fmt::Display for ErrorValue {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
-			Self::FilePath(path) => write!(formatter, "file {path:?}"),
-
-			#[cfg(feature = "sqpack")]
-			Self::SqpackPath(path) => write!(formatter, "SqPack path \"{path}\""),
+			Self::Path(path) => write!(formatter, "path {path:?}"),
 
 			#[cfg(feature = "excel")]
-			Self::Sheet(sheet) => write!(formatter, "Excel sheet \"{sheet}\""),
+			Self::Sheet(sheet) => write!(formatter, "Excel sheet {sheet:?}"),
 
 			#[cfg(feature = "excel")]
 			Self::Row { row, subrow, sheet } => write!(formatter, "Excel row {sheet}/{row}:{subrow}"),

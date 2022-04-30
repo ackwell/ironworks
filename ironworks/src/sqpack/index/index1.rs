@@ -52,8 +52,8 @@ impl Index1 {
 			[file, directory] => (directory as u64) << 32 | file as u64,
 			_ => {
 				return Err(Error::Invalid(
-					ErrorValue::SqpackPath(path.into()),
-					"SqPack paths must contain at least two segments".into(),
+					ErrorValue::Path(path.into()),
+					"Paths must contain at least two segments.".into(),
 				))
 			}
 		};
@@ -65,6 +65,6 @@ impl Index1 {
 			.iter()
 			.find(|entry| entry.hash == hash)
 			.map(|entry| entry.file_metadata.clone())
-			.ok_or_else(|| Error::NotFound(ErrorValue::SqpackPath(path.into())))
+			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.into())))
 	}
 }

@@ -55,10 +55,8 @@ impl Ironworks {
 			.iter()
 			.rev()
 			.map(|provider| provider.file(path))
-			// todo check the notfound type?
-			.find(|result| !matches!(result, Err(Error::NotFound(_))))
-			// TODO: this should be a "path" errorvalue and filepath/sqpackpath can probs be removed
-			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Other(path.into()))))?;
+			.find(|result| !matches!(result, Err(Error::NotFound(ErrorValue::Path(_)))))
+			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Path(path.into()))))?;
 
 		F::read(data)
 	}
