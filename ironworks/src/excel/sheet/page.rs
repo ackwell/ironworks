@@ -1,6 +1,11 @@
-use std::io::SeekFrom;
+use std::io::{Cursor, SeekFrom};
 
-use binrw::{binread, until_eof};
+use binrw::{binread, until_eof, BinRead};
+
+use crate::{
+	error::{Error, ErrorValue, Result},
+	File,
+};
 
 #[binread]
 #[derive(Debug)]
@@ -23,6 +28,17 @@ pub struct Page {
     parse_with = until_eof,
   )]
 	pub data: Vec<u8>,
+}
+
+impl File for Page {
+	fn read(data: Vec<u8>) -> Result<Self> {
+		<Self as BinRead>::read(&mut Cursor::new(data)).map_err(|error| {
+			Error::Invalid(
+				ErrorValue::Other("TODO: what goes here".into()),
+				error.to_string(),
+			)
+		})
+	}
 }
 
 #[binread]

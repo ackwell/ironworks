@@ -1,18 +1,14 @@
-use std::marker::PhantomData;
+use crate::Ironworks;
 
-use super::{excel::Excel, resource::Resource};
+use super::excel::Excel;
 
 /// Options for the root Excel database.
-#[derive(Debug)]
-pub struct ExcelOptions<R> {
+#[derive(Debug, Default)]
+pub struct ExcelOptions {
 	pub(super) language: Option<u8>,
-
-	// NOTE: This is used to allow the resource generic type to be inferred when
-	// built via Excel::with.
-	_r: PhantomData<R>,
 }
 
-impl<R: Resource> ExcelOptions<R> {
+impl<'i> ExcelOptions {
 	/// Set the default language of the database
 	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
 		self.language = Some(language.into());
@@ -20,16 +16,7 @@ impl<R: Resource> ExcelOptions<R> {
 	}
 
 	/// Build the configured Excel database.
-	pub fn build(&self, resource: R) -> Excel<R> {
-		Excel::with_options(resource, self)
-	}
-}
-
-impl<R> Default for ExcelOptions<R> {
-	fn default() -> Self {
-		Self {
-			language: None,
-			_r: Default::default(),
-		}
+	pub fn build(&self, ironworks: &'i Ironworks) -> Excel<'i> {
+		Excel::with_options(ironworks, self)
 	}
 }

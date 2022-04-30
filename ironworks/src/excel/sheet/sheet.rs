@@ -7,8 +7,9 @@ use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::{metadata::SheetMetadata, Resource},
+	excel::metadata::SheetMetadata,
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
+	Ironworks,
 };
 
 use super::{
@@ -50,23 +51,23 @@ impl Column {
 // past the lifetime of the parent Excel instance.
 /// A sheet within an Excel database.
 #[derive(Debug)]
-pub struct Sheet<'r, S, R> {
+pub struct Sheet<'i, S> {
 	sheet_metadata: S,
 	default_language: u8,
 
-	resource: &'r R,
+	ironworks: &'i Ironworks,
 
 	header: OptionCache<Header>,
 	pages: HashMapCache<(u32, u8), Page>,
 }
 
-impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
-	pub(crate) fn new(sheet_metadata: S, default_language: u8, resource: &'r R) -> Self {
+impl<'i, S: SheetMetadata> Sheet<'i, S> {
+	pub(crate) fn new(sheet_metadata: S, default_language: u8, ironworks: &'i Ironworks) -> Self {
 		Self {
 			sheet_metadata,
 			default_language,
 
-			resource,
+			ironworks,
 
 			header: Default::default(),
 			pages: Default::default(),
@@ -92,7 +93,7 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 
 	// TODO: name. row_with? "with" refers to construction, sorta.
 	/// Create a row options builder for this sheet.
-	pub fn with(&'r self) -> RowOptions<'r, S, R> {
+	pub fn with(&'i self) -> RowOptions<'i, S> {
 		RowOptions::new(self)
 	}
 
@@ -110,7 +111,7 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 	pub(super) fn row_with_options(
 		&self,
 		row_id: u32,
-		options: &RowOptions<'r, S, R>,
+		options: &RowOptions<'i, S>,
 	) -> Result<S::Row> {
 		self.subrow_with_options(row_id, 0, options)
 	}
@@ -120,7 +121,7 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 		&self,
 		row_id: u32,
 		subrow_id: u16,
-		options: &RowOptions<'r, S, R>,
+		options: &RowOptions<'i, S>,
 	) -> Result<S::Row> {
 		let header = self.header()?;
 
@@ -158,10 +159,17 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 			.start_id;
 
 		let page = self.pages.try_get_or_insert((start_id, language), || {
-			let mut reader = self
-				.resource
-				.page(&self.sheet_metadata.name(), start_id, language)?;
-			Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+			// let mut reader = self
+			// 	.resource
+			// 	.page(&self.sheet_metadata.name(), start_id, language)?;
+			// Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+
+			self.ironworks.file(&format!(
+				"exd/{}_{}_{}.exd",
+				self.sheet_metadata.name(),
+				start_id,
+				/*todo */ "en"
+			))
 		})?;
 
 		// Find the row definition in the page. If it's missing, there's something
@@ -222,8 +230,12 @@ impl<'r, S: SheetMetadata, R: Resource> Sheet<'r, S, R> {
 
 	fn header(&self) -> Result<Arc<Header>> {
 		self.header.try_get_or_insert(|| {
-			let mut reader = self.resource.header(&self.sheet_metadata.name())?;
-			Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+			// let mut reader = self.resource.header(&self.sheet_metadata.name())?;
+			// Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
+
+			// TODO: name mapper
+			self.ironworks
+				.file(&format!("exd/{}.exh", self.sheet_metadata.name()))
 		})
 	}
 }

@@ -1,7 +1,12 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, io::Cursor};
 
-use binrw::binread;
+use binrw::{binread, BinRead};
 use num_enum::IntoPrimitive;
+
+use crate::{
+	error::{Error, ErrorValue, Result},
+	File,
+};
 
 #[binread]
 #[derive(Debug)]
@@ -35,6 +40,17 @@ pub struct Header {
 		map = LanguageDefinition::to_set,
 	)]
 	pub languages: HashSet<u8>,
+}
+
+impl File for Header {
+	fn read(data: Vec<u8>) -> Result<Self> {
+		<Self as BinRead>::read(&mut Cursor::new(data)).map_err(|error| {
+			Error::Invalid(
+				ErrorValue::Other("TODO: what goes here".into()),
+				error.to_string(),
+			)
+		})
+	}
 }
 
 #[binread]

@@ -1,19 +1,16 @@
-use crate::{
-	error::Result,
-	excel::{metadata::SheetMetadata, Resource},
-};
+use crate::{error::Result, excel::metadata::SheetMetadata};
 
 use super::sheet::Sheet;
 
 /// Options used when reading a row from a sheet.
 #[derive(Debug)]
-pub struct RowOptions<'s, S, R> {
-	sheet: Option<&'s Sheet<'s, S, R>>,
+pub struct RowOptions<'s, S> {
+	sheet: Option<&'s Sheet<'s, S>>,
 	pub(super) language: Option<u8>,
 }
 
-impl<'s, S: SheetMetadata, R: Resource> RowOptions<'s, S, R> {
-	pub(super) fn new(sheet: &'s Sheet<S, R>) -> Self {
+impl<'s, S: SheetMetadata> RowOptions<'s, S> {
+	pub(super) fn new(sheet: &'s Sheet<S>) -> Self {
 		Self {
 			sheet: Some(sheet),
 			language: None,
@@ -37,13 +34,13 @@ impl<'s, S: SheetMetadata, R: Resource> RowOptions<'s, S, R> {
 		self.sheet().subrow_with_options(row_id, subrow_id, self)
 	}
 
-	fn sheet(&self) -> &Sheet<'s, S, R> {
+	fn sheet(&self) -> &Sheet<'s, S> {
 		self.sheet
 			.expect("RowOptions created outside a sheet must be passed to a sheet manually.")
 	}
 }
 
-impl<S, R> Default for RowOptions<'_, S, R> {
+impl<S> Default for RowOptions<'_, S> {
 	fn default() -> Self {
 		Self {
 			sheet: None,
