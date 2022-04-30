@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -6,22 +6,32 @@ use crate::{
 	Ironworks,
 };
 
-use super::{excel_options::ExcelOptions, list::List, metadata::SheetMetadata, sheet::Sheet};
+use super::{
+	excel_options::ExcelOptions, list::List, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet,
+};
 
 /// An Excel database.
-#[derive(Debug)]
 pub struct Excel<'i> {
 	default_language: u8,
 
 	ironworks: &'i Ironworks,
+	mapper: Box<dyn Mapper>,
 
 	list: OptionCache<List>,
 }
 
+impl Debug for Excel<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Excel")
+			.field("default_language", &self.default_language)
+			.finish()
+	}
+}
+
 impl<'i> Excel<'i> {
 	/// Build an Excel database.
-	pub fn new(ironworks: &'i Ironworks) -> Self {
-		Self::with().build(ironworks)
+	pub fn new(ironworks: &'i Ironworks, mapper: impl Mapper + 'static) -> Self {
+		Self::with().build(ironworks, mapper)
 	}
 
 	/// Build an Excel database with additional options.
@@ -29,11 +39,16 @@ impl<'i> Excel<'i> {
 		Default::default()
 	}
 
-	pub(super) fn with_options(ironworks: &'i Ironworks, options: &ExcelOptions) -> Self {
+	pub(super) fn with_options(
+		ironworks: &'i Ironworks,
+		mapper: impl Mapper + 'static,
+		options: &ExcelOptions,
+	) -> Self {
 		Self {
 			default_language: options.language.unwrap_or(0),
 
 			ironworks,
+			mapper: Box::new(mapper),
 
 			list: Default::default(),
 		}
@@ -49,7 +64,7 @@ impl<'i> Excel<'i> {
 	pub fn list(&self) -> Result<Arc<List>> {
 		// TODO: name mapping to decouple xiv
 		self.list
-			.try_get_or_insert(|| self.ironworks.file("exd/root.exl"))
+			.try_get_or_insert(|| self.ironworks.file(&self.mapper.exl()))
 	}
 
 	/// Fetch a sheet from the database.
@@ -65,6 +80,7 @@ impl<'i> Excel<'i> {
 			sheet_metadata,
 			self.default_language,
 			self.ironworks,
+			self.mapper.as_ref(),
 		))
 	}
 }

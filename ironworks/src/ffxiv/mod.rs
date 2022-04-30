@@ -2,10 +2,13 @@
 
 mod fs;
 
+mod mapper;
 #[cfg(feature = "sqpack")]
 mod sqpack;
 
-pub use fs::FsResource;
-
 #[cfg(feature = "sqpack")]
-pub use sqpack::{Language, SqPackResource};
+pub use sqpack::SqPackResource;
+pub use {
+	fs::FsResource,
+	mapper::{Language, Mapper},
+};

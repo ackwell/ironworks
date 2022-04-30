@@ -1,6 +1,6 @@
 use crate::Ironworks;
 
-use super::excel::Excel;
+use super::{excel::Excel, mapper::Mapper};
 
 /// Options for the root Excel database.
 #[derive(Debug, Default)]
@@ -16,7 +16,7 @@ impl<'i> ExcelOptions {
 	}
 
 	/// Build the configured Excel database.
-	pub fn build(&self, ironworks: &'i Ironworks) -> Excel<'i> {
-		Excel::with_options(ironworks, self)
+	pub fn build(&self, ironworks: &'i Ironworks, mapper: impl Mapper + 'static) -> Excel<'i> {
+		Excel::with_options(ironworks, mapper, self)
 	}
 }

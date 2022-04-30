@@ -1,4 +1,5 @@
 use std::{
+	fmt::Debug,
 	io::{Cursor, Seek, SeekFrom},
 	sync::Arc,
 };
@@ -7,7 +8,7 @@ use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::metadata::SheetMetadata,
+	excel::{mapper::Mapper, metadata::SheetMetadata},
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
 };
@@ -50,24 +51,39 @@ impl Column {
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
 // past the lifetime of the parent Excel instance.
 /// A sheet within an Excel database.
-#[derive(Debug)]
 pub struct Sheet<'i, S> {
 	sheet_metadata: S,
 	default_language: u8,
 
 	ironworks: &'i Ironworks,
+	mapper: &'i dyn Mapper,
 
 	header: OptionCache<Header>,
 	pages: HashMapCache<(u32, u8), Page>,
 }
 
+impl<S: Debug> Debug for Sheet<'_, S> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Sheet")
+			.field("sheet_metadata", &self.sheet_metadata)
+			.field("default_language", &self.default_language)
+			.finish()
+	}
+}
+
 impl<'i, S: SheetMetadata> Sheet<'i, S> {
-	pub(crate) fn new(sheet_metadata: S, default_language: u8, ironworks: &'i Ironworks) -> Self {
+	pub(crate) fn new(
+		sheet_metadata: S,
+		default_language: u8,
+		ironworks: &'i Ironworks,
+		mapper: &'i dyn Mapper,
+	) -> Self {
 		Self {
 			sheet_metadata,
 			default_language,
 
 			ironworks,
+			mapper,
 
 			header: Default::default(),
 			pages: Default::default(),
@@ -159,17 +175,10 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			.start_id;
 
 		let page = self.pages.try_get_or_insert((start_id, language), || {
-			// let mut reader = self
-			// 	.resource
-			// 	.page(&self.sheet_metadata.name(), start_id, language)?;
-			// Page::read(&mut reader).map_err(|error| Error::Resource(error.into()))
-
-			self.ironworks.file(&format!(
-				"exd/{}_{}_{}.exd",
-				self.sheet_metadata.name(),
-				start_id,
-				/*todo */ "en"
-			))
+			let path = self
+				.mapper
+				.exd(&self.sheet_metadata.name(), start_id, language);
+			self.ironworks.file(&path)
 		})?;
 
 		// Find the row definition in the page. If it's missing, there's something
@@ -230,12 +239,8 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 
 	fn header(&self) -> Result<Arc<Header>> {
 		self.header.try_get_or_insert(|| {
-			// let mut reader = self.resource.header(&self.sheet_metadata.name())?;
-			// Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))
-
-			// TODO: name mapper
-			self.ironworks
-				.file(&format!("exd/{}.exh", self.sheet_metadata.name()))
+			let path = self.mapper.exh(&self.sheet_metadata.name());
+			self.ironworks.file(&path)
 		})
 	}
 }

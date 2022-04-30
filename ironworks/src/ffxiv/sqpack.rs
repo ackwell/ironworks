@@ -1,24 +1,8 @@
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-
 use crate::{
 	error::{Error, ErrorValue, Result},
+	ffxiv::Language,
 	sqpack,
 };
-
-/// Language of strings in Excel files.
-#[allow(missing_docs)]
-#[derive(Debug, IntoPrimitive, TryFromPrimitive)]
-#[repr(u8)]
-pub enum Language {
-	None = 0,
-	Japanese = 1,
-	English = 2,
-	German = 3,
-	French = 4,
-	ChineseSimplified = 5,
-	ChineseTraditional = 6,
-	Korean = 7,
-}
 
 /// Resource adapter pre-configured to read Excel files from a SqPack instance,
 /// laid out in the expected FFXIV format.

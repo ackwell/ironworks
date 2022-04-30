@@ -8,7 +8,7 @@ pub trait Provider: 'static {
 }
 
 pub trait File {
-	// might need an error type?
+	// todo: might need an error type?
 	fn read(data: Vec<u8>) -> Result<Self>
 	where
 		Self: Sized;
