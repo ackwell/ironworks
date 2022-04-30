@@ -9,12 +9,12 @@ use binrw::BinRead;
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::{mapper::Mapper, metadata::SheetMetadata},
+	file,
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
 };
 
 use super::{
-	header::{ColumnKind, Header, SheetKind},
 	page::Page,
 	row::{Row, RowHeader, SubrowHeader},
 	row_options::RowOptions,
@@ -28,7 +28,7 @@ const LANGUAGE_NONE: u8 = 0;
 pub struct Column {
 	index: usize,
 	offset: u16,
-	kind: ColumnKind,
+	kind: file::exh::ColumnKind,
 }
 
 impl Column {
@@ -43,7 +43,7 @@ impl Column {
 	}
 
 	/// Kind of data held in this column.
-	pub fn kind(&self) -> ColumnKind {
+	pub fn kind(&self) -> file::exh::ColumnKind {
 		self.kind
 	}
 }
@@ -58,7 +58,7 @@ pub struct Sheet<'i, S> {
 	ironworks: &'i Ironworks,
 	mapper: &'i dyn Mapper,
 
-	header: OptionCache<Header>,
+	header: OptionCache<file::exh::Exh>,
 	pages: HashMapCache<(u32, u8), Page>,
 }
 
@@ -149,7 +149,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		let row_not_found = || Error::NotFound(row_error_value());
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind != SheetKind::Subrows && subrow_id > 0 {
+		if header.kind != file::exh::SheetKind::Subrows && subrow_id > 0 {
 			return Err(row_not_found());
 		}
 
@@ -200,7 +200,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		// If this is a subrow sheet, jump to the start of the requested subrow and
 		// double check the ID matches.
 		let mut resource_subrow_id = 0u16;
-		if header.kind == SheetKind::Subrows {
+		if header.kind == file::exh::SheetKind::Subrows {
 			cursor
 				.seek(SeekFrom::Current(
 					(subrow_id * (SubrowHeader::SIZE + header.row_size)).into(),
@@ -225,7 +225,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		// Slice the data for the requested (sub) row.
 		let offset: usize = cursor.position().try_into().unwrap();
 		let mut length: usize = header.row_size.try_into().unwrap();
-		if header.kind != SheetKind::Subrows {
+		if header.kind != file::exh::SheetKind::Subrows {
 			length += usize::try_from(row_header.data_size).unwrap();
 		}
 
@@ -237,7 +237,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
 	}
 
-	fn header(&self) -> Result<Arc<Header>> {
+	fn header(&self) -> Result<Arc<file::exh::Exh>> {
 		self.header.try_get_or_insert(|| {
 			let path = self.mapper.exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)

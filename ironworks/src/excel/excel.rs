@@ -16,7 +16,7 @@ pub struct Excel<'i> {
 	ironworks: &'i Ironworks,
 	mapper: Box<dyn Mapper>,
 
-	list: OptionCache<file::Exl>,
+	list: OptionCache<file::exl::Exl>,
 }
 
 impl Debug for Excel<'_> {
@@ -60,7 +60,7 @@ impl<'i> Excel<'i> {
 	}
 
 	/// Fetch the authoritative list of sheets in the database.
-	pub fn list(&self) -> Result<Arc<file::Exl>> {
+	pub fn list(&self) -> Result<Arc<file::exl::Exl>> {
 		// TODO: name mapping to decouple xiv
 		self.list
 			.try_get_or_insert(|| self.ironworks.file(&self.mapper.exl()))

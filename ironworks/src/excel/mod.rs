@@ -10,5 +10,5 @@ pub use {
 	excel::Excel,
 	mapper::Mapper,
 	metadata::SheetMetadata,
-	sheet::{Column, ColumnKind, Field, Row, RowOptions, Sheet},
+	sheet::{Column, Field, Row, RowOptions, Sheet},
 };

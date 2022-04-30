@@ -11,7 +11,7 @@ use crate::{
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
-pub struct Header {
+pub struct Exh {
 	_version: u16,
 	pub row_size: u16,
 	#[br(temp)]
@@ -42,7 +42,7 @@ pub struct Header {
 	pub languages: HashSet<u8>,
 }
 
-impl File for Header {
+impl File for Exh {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		<Self as BinRead>::read(&mut Cursor::new(data)).map_err(|error| {
 			Error::Invalid(

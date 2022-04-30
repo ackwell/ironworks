@@ -4,13 +4,11 @@ use binrw::{binread, BinReaderExt, BinResult};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	file,
 	sestring::SeString,
 };
 
-use super::{
-	field::Field,
-	header::{ColumnDefinition, ColumnKind, Header},
-};
+use super::field::Field;
 
 #[binread]
 #[derive(Debug)]
@@ -37,12 +35,17 @@ pub struct Row {
 	row_id: u32,
 	subrow_id: u16,
 
-	header: Arc<Header>,
+	header: Arc<file::exh::Exh>,
 	data: RefCell<Cursor<Vec<u8>>>,
 }
 
 impl Row {
-	pub(super) fn new(row_id: u32, subrow_id: u16, header: Arc<Header>, data: Vec<u8>) -> Self {
+	pub(super) fn new(
+		row_id: u32,
+		subrow_id: u16,
+		header: Arc<file::exh::Exh>,
+		data: Vec<u8>,
+	) -> Self {
 		Self {
 			row_id,
 			subrow_id,
@@ -73,8 +76,8 @@ impl Row {
 			.map_err(|error| Error::Resource(error.into()))
 	}
 
-	fn read_field(&self, column: &ColumnDefinition) -> BinResult<Field> {
-		use ColumnKind as K;
+	fn read_field(&self, column: &file::exh::ColumnDefinition) -> BinResult<Field> {
+		use file::exh::ColumnKind as K;
 		use Field as F;
 
 		let mut cursor = self.data.borrow_mut();
