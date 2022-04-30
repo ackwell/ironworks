@@ -2,11 +2,12 @@ use std::{fmt::Debug, io::Read};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
-	Provider,
+	Resource,
 };
 
-use super::{file::File, index::Index, resource::Resource};
+use super::{file::File, index::Index};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -16,7 +17,7 @@ pub struct SqPack<R> {
 	indexes: HashMapCache<(u8, u8), Index>,
 }
 
-impl<R: Resource> SqPack<R> {
+impl<R: sqpack::Resource> SqPack<R> {
 	/// Build a representation of SqPack packages. The provided resource will be
 	/// queried for lookups as required to fulfil SqPack requests.
 	pub fn new(resource: R) -> Self {
@@ -68,7 +69,7 @@ impl<R: Resource> SqPack<R> {
 
 // todo make this more integrated i guess? can clean out a bunch of file's trash
 // todo work out the resource story for this because it's gonna get cluttery if im not careful
-impl<R: Resource + 'static> Provider for SqPack<R> {
+impl<R: sqpack::Resource + 'static> Resource for SqPack<R> {
 	fn file(&self, path: &str) -> Result<Vec<u8>> {
 		let mut file = self.file(path)?;
 		let mut vec = Vec::new();

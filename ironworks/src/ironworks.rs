@@ -2,8 +2,8 @@ use derivative::Derivative;
 
 use crate::error::{Error, ErrorValue, Result};
 
-// call this resource? not sure
-pub trait Provider: 'static {
+// TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
+pub trait Resource: 'static {
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
 }
 
@@ -24,7 +24,7 @@ impl File for Vec<u8> {
 #[derivative(Debug)]
 pub struct Ironworks {
 	#[derivative(Debug = "ignore")]
-	providers: Vec<Box<dyn Provider>>,
+	providers: Vec<Box<dyn Resource>>,
 	// todo: does this own the file cache, then?
 }
 
@@ -41,8 +41,8 @@ impl Ironworks {
 		}
 	}
 
-	// todo note about rev
-	pub fn provider_nameme(mut self, provider: impl Provider) -> Self {
+	// todo note about .rev()
+	pub fn resource(mut self, provider: impl Resource) -> Self {
 		self.providers.push(Box::new(provider));
 		self
 	}
