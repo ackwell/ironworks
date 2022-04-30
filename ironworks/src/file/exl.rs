@@ -1,8 +1,4 @@
-use std::{
-	borrow::Cow,
-	collections::HashSet,
-	io::{Cursor, Read},
-};
+use std::{borrow::Cow, collections::HashSet};
 
 use crate::{
 	error::{Error, Result},
@@ -11,17 +7,26 @@ use crate::{
 
 /// List of known Excel sheets.
 #[derive(Debug)]
-pub struct List {
+pub struct Exl {
 	sheets: HashSet<String>,
 }
 
-impl List {
-	pub(super) fn read<R: Read>(mut reader: R) -> Result<Self> {
+impl Exl {
+	/// Iterate over known sheets in arbitrary order.
+	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
+		self.sheets.iter().map(|name| name.into())
+	}
+
+	/// Check if the specified sheet is contained in the list.
+	pub fn has(&self, sheet: &str) -> bool {
+		self.sheets.contains(sheet)
+	}
+}
+
+impl File for Exl {
+	fn read(data: Vec<u8>) -> Result<Self> {
 		// The excel list is actually just plaintext, read it in as a string.
-		let mut list = String::new();
-		reader
-			.read_to_string(&mut list)
-			.map_err(|error| Error::Resource(error.into()))?;
+		let list = String::from_utf8(data).map_err(|error| Error::Resource(error.into()))?;
 
 		let mut lines = list.split("\r\n");
 
@@ -42,56 +47,37 @@ impl List {
 
 		Ok(Self { sheets })
 	}
-
-	/// Iterate over known sheets in arbitrary order.
-	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
-		self.sheets.iter().map(|name| name.into())
-	}
-
-	/// Check if the specified sheet is contained in the list.
-	pub fn has(&self, sheet: &str) -> bool {
-		self.sheets.contains(sheet)
-	}
-}
-
-// TODO: clean up and integrate properly
-impl File for List {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		Self::read(Cursor::new(data))
-	}
 }
 
 #[cfg(test)]
 mod test {
-	use std::io;
+	use crate::{error::Error, File};
 
-	use crate::error::Error;
-
-	use super::List;
+	use super::Exl;
 
 	const TEST_LIST: &[u8] = b"EXLT\r\nsheet1,0\r\nsheet2,0\r\nsheet3,0\r\n";
 
 	#[test]
 	fn empty() {
-		let list = List::read(io::empty());
+		let list = Exl::read(vec![]);
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn missing_magic() {
-		let list = List::read(io::Cursor::new(b"hello\r\nworld"));
+		let list = Exl::read(b"hello\r\nworld".to_vec());
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn has_sheet() {
-		let list = List::read(io::Cursor::new(TEST_LIST)).unwrap();
+		let list = Exl::read(TEST_LIST.to_vec()).unwrap();
 		assert!(list.has("sheet2"));
 	}
 
 	#[test]
 	fn missing_sheet() {
-		let list = List::read(io::Cursor::new(TEST_LIST)).unwrap();
+		let list = Exl::read(TEST_LIST.to_vec()).unwrap();
 		assert!(!list.has("sheet4"));
 	}
 }

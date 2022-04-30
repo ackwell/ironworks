@@ -2,13 +2,12 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	file,
 	utility::{OptionCache, OptionCacheExt},
 	Ironworks,
 };
 
-use super::{
-	excel_options::ExcelOptions, list::List, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet,
-};
+use super::{excel_options::ExcelOptions, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
 
 /// An Excel database.
 pub struct Excel<'i> {
@@ -17,7 +16,7 @@ pub struct Excel<'i> {
 	ironworks: &'i Ironworks,
 	mapper: Box<dyn Mapper>,
 
-	list: OptionCache<List>,
+	list: OptionCache<file::Exl>,
 }
 
 impl Debug for Excel<'_> {
@@ -60,8 +59,8 @@ impl<'i> Excel<'i> {
 		Ok("TODO".into())
 	}
 
-	/// Fetch the authoratative list of sheets in the database.
-	pub fn list(&self) -> Result<Arc<List>> {
+	/// Fetch the authoritative list of sheets in the database.
+	pub fn list(&self) -> Result<Arc<file::Exl>> {
 		// TODO: name mapping to decouple xiv
 		self.list
 			.try_get_or_insert(|| self.ironworks.file(&self.mapper.exl()))
