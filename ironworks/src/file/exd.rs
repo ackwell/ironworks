@@ -10,7 +10,7 @@ use crate::{
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXDF")]
-pub struct Page {
+pub struct Exd {
 	_version: u16,
 	// unknown1: u16,
 	#[br(pad_before = 2, temp)]
@@ -30,7 +30,7 @@ pub struct Page {
 	pub data: Vec<u8>,
 }
 
-impl File for Page {
+impl File for Exd {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		<Self as BinRead>::read(&mut Cursor::new(data)).map_err(|error| {
 			Error::Invalid(

@@ -15,7 +15,6 @@ use crate::{
 };
 
 use super::{
-	page::Page,
 	row::{Row, RowHeader, SubrowHeader},
 	row_options::RowOptions,
 };
@@ -59,7 +58,7 @@ pub struct Sheet<'i, S> {
 	mapper: &'i dyn Mapper,
 
 	header: OptionCache<file::exh::Exh>,
-	pages: HashMapCache<(u32, u8), Page>,
+	pages: HashMapCache<(u32, u8), file::exd::Exd>,
 }
 
 impl<S: Debug> Debug for Sheet<'_, S> {
