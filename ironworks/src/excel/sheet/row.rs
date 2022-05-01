@@ -1,6 +1,6 @@
 use std::{cell::RefCell, io::Cursor, sync::Arc};
 
-use binrw::{binread, BinReaderExt, BinResult};
+use binrw::{BinReaderExt, BinResult};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -9,25 +9,6 @@ use crate::{
 };
 
 use super::field::Field;
-
-#[binread]
-#[derive(Debug)]
-#[br(big)]
-pub struct RowHeader {
-	pub data_size: u32,
-	pub row_count: u16,
-}
-
-#[binread]
-#[derive(Debug)]
-#[br(big)]
-pub struct SubrowHeader {
-	pub id: u16,
-}
-
-impl SubrowHeader {
-	pub const SIZE: u16 = 2;
-}
 
 /// A (sub)row within an Excel sheet.
 #[derive(Debug)]
