@@ -13,31 +13,6 @@ use super::row_options::RowOptions;
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
 
-/// Metadata about a column within a sheet.
-#[derive(Debug)]
-pub struct Column {
-	index: usize,
-	offset: u16,
-	kind: exh::ColumnKind,
-}
-
-impl Column {
-	/// Index of this column within the sheet header.
-	pub fn index(&self) -> usize {
-		self.index
-	}
-
-	/// Offset of this column's data within row binary data.
-	pub fn offset(&self) -> u16 {
-		self.offset
-	}
-
-	/// Kind of data held in this column.
-	pub fn kind(&self) -> exh::ColumnKind {
-		self.kind
-	}
-}
-
 // TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
 // past the lifetime of the parent Excel instance.
 /// A sheet within an Excel database.
@@ -81,20 +56,9 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	}
 
 	/// Fetch metadata for all columns in this sheet.
-	pub fn columns(&self) -> Result<Vec<Column>> {
+	pub fn columns(&self) -> Result<Vec<exh::ColumnDefinition>> {
 		let header = self.header()?;
-		let columns = header
-			.columns
-			.iter()
-			.enumerate()
-			.map(|(index, definition)| Column {
-				index,
-				offset: definition.offset,
-				kind: definition.kind,
-			})
-			.collect::<Vec<_>>();
-
-		Ok(columns)
+		Ok(header.columns.clone())
 	}
 
 	// TODO: name. row_with? "with" refers to construction, sorta.

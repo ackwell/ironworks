@@ -59,7 +59,7 @@ pub enum SheetKind {
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[br(big)]
 pub struct ColumnDefinition {
 	pub kind: ColumnKind,
