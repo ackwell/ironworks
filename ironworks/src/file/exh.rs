@@ -1,6 +1,7 @@
 use std::{collections::HashSet, io::Cursor};
 
 use binrw::{binread, BinRead};
+use getset::{CopyGetters, Getters};
 use num_enum::IntoPrimitive;
 
 use crate::{
@@ -9,11 +10,12 @@ use crate::{
 };
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, Getters, CopyGetters)]
 #[br(big, magic = b"EXHF")]
 pub struct ExcelHeader {
 	_version: u16,
-	pub row_size: u16,
+	#[get_copy = "pub"]
+	row_size: u16,
 	#[br(temp)]
 	column_count: u16,
 	#[br(temp)]
@@ -23,23 +25,30 @@ pub struct ExcelHeader {
 	// unknown1: u16,
 	// unknown2: u8,
 	#[br(pad_before = 3)]
-	pub kind: SheetKind,
+	#[get_copy = "pub"]
+	kind: SheetKind,
 	// unknown3: u16,
 	#[br(pad_before = 2)]
 	_row_count: u32,
+
 	// unknown4: [u32; 2],
 	#[br(
 		pad_before = 8,
 		count = column_count,
 	)]
-	pub columns: Vec<ColumnDefinition>,
+	#[get = "pub"]
+	columns: Vec<ColumnDefinition>,
+
 	#[br(count = page_count)]
-	pub pages: Vec<PageDefinition>,
+	#[get = "pub"]
+	pages: Vec<PageDefinition>,
+
 	#[br(
 		count = language_count,
 		map = LanguageDefinition::to_set,
 	)]
-	pub languages: HashSet<u8>,
+	#[get = "pub"]
+	languages: HashSet<u8>,
 }
 
 impl File for ExcelHeader {
@@ -50,7 +59,7 @@ impl File for ExcelHeader {
 }
 
 #[binread]
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[br(repr = u8)]
 pub enum SheetKind {
 	Unknown = 0,
@@ -59,11 +68,13 @@ pub enum SheetKind {
 }
 
 #[binread]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, CopyGetters)]
 #[br(big)]
 pub struct ColumnDefinition {
-	pub kind: ColumnKind,
-	pub offset: u16,
+	#[get_copy = "pub"]
+	kind: ColumnKind,
+	#[get_copy = "pub"]
+	offset: u16,
 }
 
 /// The kind of data structure stored in a column.
@@ -99,11 +110,13 @@ pub enum ColumnKind {
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
 #[br(big)]
 pub struct PageDefinition {
-	pub start_id: u32,
-	pub row_count: u32,
+	#[get_copy = "pub"]
+	start_id: u32,
+	#[get_copy = "pub"]
+	row_count: u32,
 }
 
 #[binread]

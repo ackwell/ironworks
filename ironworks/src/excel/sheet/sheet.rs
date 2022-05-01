@@ -58,7 +58,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	/// Fetch metadata for all columns in this sheet.
 	pub fn columns(&self) -> Result<Vec<exh::ColumnDefinition>> {
 		let header = self.header()?;
-		Ok(header.columns.clone())
+		Ok(header.columns().clone())
 	}
 
 	// TODO: name. row_with? "with" refers to construction, sorta.
@@ -103,7 +103,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		let row_not_found = || Error::NotFound(row_error_value());
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind != exh::SheetKind::Subrows && subrow_id > 0 {
+		if header.kind() != exh::SheetKind::Subrows && subrow_id > 0 {
 			return Err(row_not_found());
 		}
 
@@ -111,9 +111,9 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		// TODO: Should an explicit language request fail hard on miss?
 		let requested_language = options.language.unwrap_or(self.default_language);
 		let language = *header
-			.languages
+			.languages()
 			.get(&requested_language)
-			.or_else(|| header.languages.get(&LANGUAGE_NONE))
+			.or_else(|| header.languages().get(&LANGUAGE_NONE))
 			// TODO: Should this be Invalid or NotFound?
 			// TODO: Should we have an explicit ErrorValue for language?
 			.ok_or_else(|| {
@@ -122,11 +122,11 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 
 		// Try to read in the page for the requested (sub)row.
 		let start_id = header
-			.pages
+			.pages()
 			.iter()
-			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
+			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
 			.ok_or_else(row_not_found)?
-			.start_id;
+			.start_id();
 
 		let page = self.pages.try_get_or_insert((start_id, language), || {
 			let path = self
@@ -135,7 +135,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			self.ironworks.file(&path)
 		})?;
 
-		let data = match header.kind {
+		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
 			_ => page.row_data(row_id),
 		}?;

@@ -47,7 +47,7 @@ impl Row {
 	// TODO: Perhaps expose this as column: impl IntoColumn so i.e. a coldef can be passed by a theoretical pre-byte-sort'd host
 	/// Read the field at the specified column from this row.
 	pub fn field(&self, column_index: usize) -> Result<Field> {
-		let column = self.header.columns.get(column_index).ok_or_else(|| {
+		let column = self.header.columns().get(column_index).ok_or_else(|| {
 			// TODO: should this have its own value type?
 			Error::NotFound(ErrorValue::Other(format!("Column {column_index}")))
 		})?;
@@ -62,12 +62,12 @@ impl Row {
 
 		let mut cursor = self.data.borrow_mut();
 
-		cursor.set_position(column.offset.into());
+		cursor.set_position(column.offset().into());
 
-		let field = match column.kind {
+		let field = match column.kind() {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
-				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size));
+				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size()));
 				F::String(cursor.read_be::<SeString>()?)
 			}
 
@@ -80,7 +80,7 @@ impl Row {
 			| K::PackedBool5
 			| K::PackedBool6
 			| K::PackedBool7 => {
-				let mask = 1 << (u16::from(column.kind) - u16::from(K::PackedBool0));
+				let mask = 1 << (u16::from(column.kind()) - u16::from(K::PackedBool0));
 				let value = cursor.read_be::<u8>()?;
 				F::Bool((value & mask) == mask)
 			}

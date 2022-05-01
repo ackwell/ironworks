@@ -1,6 +1,7 @@
 use std::io::{Cursor, Read, Seek};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
+use getset::{CopyGetters, Getters};
 
 use crate::{
 	error::{Error, Result},
@@ -8,7 +9,7 @@ use crate::{
 };
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 #[br(big, magic = b"EXDF")]
 pub struct ExcelData {
 	_version: u16,
@@ -20,7 +21,8 @@ pub struct ExcelData {
     pad_before = 20,
     count = index_size / RowDefinition::SIZE,
   )]
-	pub rows: Vec<RowDefinition>,
+	#[get = "pub"]
+	rows: Vec<RowDefinition>,
 
 	#[br(parse_with = current_position)]
 	data_offset: u64,
@@ -94,11 +96,13 @@ impl File for ExcelData {
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
 #[br(big)]
 pub struct RowDefinition {
-	pub id: u32,
-	pub offset: u32,
+	#[get_copy = "pub"]
+	id: u32,
+	#[get_copy = "pub"]
+	offset: u32,
 }
 
 impl RowDefinition {
