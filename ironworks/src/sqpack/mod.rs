@@ -5,4 +5,4 @@ mod index;
 mod resource;
 mod sqpack;
 
-pub use {file::File, resource::Resource, sqpack::SqPack};
+pub use {resource::Resource, sqpack::SqPack};

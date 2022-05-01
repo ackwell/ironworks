@@ -7,68 +7,30 @@ use crate::error::{Error, Result};
 
 const MAX_COMPRESSED_BLOCK_SIZE: u32 = 16_000;
 
-/// A file within a SqPack package.
-#[derive(Debug)]
-pub struct File<R> {
-	reader: R,
-	header: Header,
-	base: u32,
-	cursor: Option<Cursor<Vec<u8>>>,
-}
+pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
+	// Move to the start of the file and read in the header.
+	reader
+		.seek(SeekFrom::Start(offset.into()))
+		.map_err(|error| Error::Resource(error.into()))?;
+	let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
 
-impl<R> File<R>
-where
-	R: Read + Seek,
-{
-	pub(crate) fn new(mut reader: R, offset: u32) -> Result<Self> {
-		// TODO: Make reading the file header lazy too?
-		reader
-			.seek(SeekFrom::Start(offset.into()))
-			.map_err(|error| Error::Resource(error.into()))?;
-		let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
-
-		Ok(Self {
-			reader,
-			base: offset + header.size,
-			header,
-			cursor: None,
-		})
-	}
-
-	fn cursor(&mut self) -> io::Result<&mut Cursor<Vec<u8>>> {
-		// Check if we have a cached cursor - if we do, we can exit early with it
-		let cursor_cache = &mut self.cursor;
-		if let Some(cursor) = cursor_cache {
-			return Ok(cursor);
-		}
-
-		// Read each block into a final byte vector
-		let out_buffer = self.header.blocks.iter().try_fold(
+	// Read each block into a final byte vector.
+	let out_buffer = header
+		.blocks
+		.iter()
+		.try_fold(
 			Vec::<u8>::new(),
 			|mut vec, block_info| -> io::Result<Vec<u8>> {
-				let mut block_reader = read_block(&mut self.reader, block_info, self.base)?;
+				let mut block_reader = read_block(&mut reader, block_info, offset + header.size)?;
 				block_reader.read_to_end(&mut vec)?;
 				Ok(vec)
 			},
-		)?;
+		)
+		.map_err(|error| Error::Resource(error.into()))?;
 
-		// TODO: Check the raw file size here? Is it worth doing with theoretical lazy chunk reading on the horizon?
+	// TODO: Check the raw file size here?
 
-		Ok(cursor_cache.insert(Cursor::new(out_buffer)))
-	}
-}
-
-impl<R: Read + Seek> Read for File<R> {
-	// TODO: Look into making this lazier, i.e. per-block lazy or similar
-	fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-		self.cursor()?.read(buffer)
-	}
-}
-
-impl<R: Read + Seek> Seek for File<R> {
-	fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
-		self.cursor()?.seek(pos)
-	}
+	Ok(out_buffer)
 }
 
 // TODO: move this into a block struct of some kind if we do lazy reading?

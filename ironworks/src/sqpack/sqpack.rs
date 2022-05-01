@@ -1,4 +1,4 @@
-use std::{fmt::Debug, io::Read};
+use std::fmt::Debug;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -7,7 +7,7 @@ use crate::{
 	Resource,
 };
 
-use super::{file::File, index::Index};
+use super::{file::read_file, index::Index};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -35,7 +35,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 
 	/// Read the file at `path` from SqPack.
-	pub fn file(&self, path: &str) -> Result<File<R::Dat>> {
+	pub fn file(&self, path: &str) -> Result<Vec<u8>> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
@@ -54,10 +54,8 @@ impl<R: sqpack::Resource> SqPack<R> {
 			.resource
 			.dat(repository, category, location.chunk, location.data_file)?;
 
-		// TODO: Cache files? Will need to think about ownership and shared cursor
-		// positions if we do that. Maybe an internal structure for dealing with
-		// cached binary data, and then a cloneable "position" structure that isn't cached?
-		File::new(dat, location.offset)
+		// TODO: Cache files? Tempted to say it's the IW struct's responsibility.
+		read_file(dat, location.offset)
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
@@ -67,18 +65,13 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 }
 
-// todo make this more integrated i guess? can clean out a bunch of file's trash
-// todo work out the resource story for this because it's gonna get cluttery if im not careful
+// TODO: work out the resource story for this because it's gonna get cluttery if im not careful
 impl<R: sqpack::Resource + 'static> Resource for SqPack<R> {
 	fn version(&self, path: &str) -> Result<String> {
 		self.version(path)
 	}
 
 	fn file(&self, path: &str) -> Result<Vec<u8>> {
-		let mut file = self.file(path)?;
-		let mut vec = Vec::new();
-		file.read_to_end(&mut vec)
-			.map_err(|error| Error::Resource(error.into()))?;
-		Ok(vec)
+		self.file(path)
 	}
 }
