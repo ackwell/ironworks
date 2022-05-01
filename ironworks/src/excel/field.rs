@@ -2,8 +2,6 @@ use enum_as_inner::EnumAsInner;
 
 use crate::sestring::SeString;
 
-// TODO: This, and row, should be top-level excel concepts rather than grouped with sheet. Try to untangle.
-
 /// A single field from an Excel database.
 #[allow(missing_docs)]
 #[derive(Debug, EnumAsInner)]

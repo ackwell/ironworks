@@ -4,11 +4,10 @@ use binrw::{BinReaderExt, BinResult};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	excel::field::Field,
 	file,
 	sestring::SeString,
 };
-
-use super::field::Field;
 
 /// A (sub)row within an Excel sheet.
 #[derive(Debug)]
