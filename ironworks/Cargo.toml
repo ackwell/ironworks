@@ -12,9 +12,15 @@ license = "MIT"
 all-features = true
 
 [features]
-excel = ["enum-as-inner", "num_enum"]
+# Features
+excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
 ffxiv = []
-sqpack = ["flate2"]
+sqpack = ["dep:flate2"]
+
+# File types
+exd = []
+exh = []
+exl = []
 
 [dependencies]
 binrw = "0.8.4"
