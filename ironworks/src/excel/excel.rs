@@ -7,7 +7,26 @@ use crate::{
 	Ironworks,
 };
 
-use super::{excel_options::ExcelOptions, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
+use super::{mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
+
+/// Options for the root Excel database.
+#[derive(Debug, Default)]
+pub struct ExcelOptions {
+	pub(super) language: Option<u8>,
+}
+
+impl<'i> ExcelOptions {
+	/// Set the default language of the database
+	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
+		self.language = Some(language.into());
+		self
+	}
+
+	/// Build the configured Excel database.
+	pub fn build(&self, ironworks: &'i Ironworks, mapper: impl Mapper + 'static) -> Excel<'i> {
+		Excel::with_options(ironworks, mapper, self)
+	}
+}
 
 /// An Excel database.
 pub struct Excel<'i> {
@@ -38,7 +57,7 @@ impl<'i> Excel<'i> {
 		Default::default()
 	}
 
-	pub(super) fn with_options(
+	fn with_options(
 		ironworks: &'i Ironworks,
 		mapper: impl Mapper + 'static,
 		options: &ExcelOptions,
