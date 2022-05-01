@@ -55,8 +55,7 @@ impl<'i> Excel<'i> {
 
 	/// Get the version string of the database.
 	pub fn version(&self) -> Result<String> {
-		// self.resource.version()
-		Ok("TODO".into())
+		self.ironworks.version(&self.mapper.exl())
 	}
 
 	/// Fetch the authoritative list of sheets in the database.

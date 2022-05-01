@@ -4,6 +4,7 @@ use crate::error::{Error, ErrorValue, Result};
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 pub trait Resource: 'static {
+	fn version(&self, path: &str) -> Result<String>;
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
 }
 
@@ -47,17 +48,24 @@ impl Ironworks {
 		self
 	}
 
-	// todo version?
+	pub fn version(&self, path: &str) -> Result<String> {
+		self.find_first(path, |provider, path| provider.version(path))
+	}
 
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
-		let data = self
-			.providers
+		let data = self.find_first(path, |provider, path| provider.file(path))?;
+		F::read(data)
+	}
+
+	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>
+	where
+		F: Fn(&Box<dyn Resource>, &str) -> Result<O>,
+	{
+		self.providers
 			.iter()
 			.rev()
-			.map(|provider| provider.file(path))
+			.map(|provider| f(provider, path))
 			.find(|result| !matches!(result, Err(Error::NotFound(ErrorValue::Path(_)))))
-			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Path(path.into()))))?;
-
-		F::read(data)
+			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Path(path.into()))))
 	}
 }

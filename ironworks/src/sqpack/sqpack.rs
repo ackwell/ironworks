@@ -70,6 +70,10 @@ impl<R: sqpack::Resource> SqPack<R> {
 // todo make this more integrated i guess? can clean out a bunch of file's trash
 // todo work out the resource story for this because it's gonna get cluttery if im not careful
 impl<R: sqpack::Resource + 'static> Resource for SqPack<R> {
+	fn version(&self, path: &str) -> Result<String> {
+		self.version(path)
+	}
+
 	fn file(&self, path: &str) -> Result<Vec<u8>> {
 		let mut file = self.file(path)?;
 		let mut vec = Vec::new();

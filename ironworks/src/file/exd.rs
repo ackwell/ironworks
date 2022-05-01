@@ -32,12 +32,8 @@ pub struct Exd {
 
 impl File for Exd {
 	fn read(data: Vec<u8>) -> Result<Self> {
-		<Self as BinRead>::read(&mut Cursor::new(data)).map_err(|error| {
-			Error::Invalid(
-				ErrorValue::Other("TODO: what goes here".into()),
-				error.to_string(),
-			)
-		})
+		<Self as BinRead>::read(&mut Cursor::new(data))
+			.map_err(|error| Error::Resource(error.into()))
 	}
 }
 
