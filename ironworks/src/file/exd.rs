@@ -3,14 +3,14 @@ use std::io::{Cursor, SeekFrom};
 use binrw::{binread, until_eof, BinRead};
 
 use crate::{
-	error::{Error, ErrorValue, Result},
+	error::{Error, Result},
 	File,
 };
 
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXDF")]
-pub struct Exd {
+pub struct ExcelData {
 	_version: u16,
 	// unknown1: u16,
 	#[br(pad_before = 2, temp)]
@@ -30,7 +30,7 @@ pub struct Exd {
 	pub data: Vec<u8>,
 }
 
-impl File for Exd {
+impl File for ExcelData {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		<Self as BinRead>::read(&mut Cursor::new(data))
 			.map_err(|error| Error::Resource(error.into()))

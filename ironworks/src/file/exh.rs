@@ -4,14 +4,14 @@ use binrw::{binread, BinRead};
 use num_enum::IntoPrimitive;
 
 use crate::{
-	error::{Error, ErrorValue, Result},
+	error::{Error, Result},
 	File,
 };
 
 #[binread]
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
-pub struct Exh {
+pub struct ExcelHeader {
 	_version: u16,
 	pub row_size: u16,
 	#[br(temp)]
@@ -42,7 +42,7 @@ pub struct Exh {
 	pub languages: HashSet<u8>,
 }
 
-impl File for Exh {
+impl File for ExcelHeader {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		<Self as BinRead>::read(&mut Cursor::new(data))
 			.map_err(|error| Error::Resource(error.into()))

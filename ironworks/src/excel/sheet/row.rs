@@ -35,7 +35,7 @@ pub struct Row {
 	row_id: u32,
 	subrow_id: u16,
 
-	header: Arc<file::exh::Exh>,
+	header: Arc<file::exh::ExcelHeader>,
 	data: RefCell<Cursor<Vec<u8>>>,
 }
 
@@ -43,7 +43,7 @@ impl Row {
 	pub(super) fn new(
 		row_id: u32,
 		subrow_id: u16,
-		header: Arc<file::exh::Exh>,
+		header: Arc<file::exh::ExcelHeader>,
 		data: Vec<u8>,
 	) -> Self {
 		Self {

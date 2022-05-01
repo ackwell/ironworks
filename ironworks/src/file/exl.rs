@@ -7,11 +7,11 @@ use crate::{
 
 /// List of known Excel sheets.
 #[derive(Debug)]
-pub struct Exl {
+pub struct ExcelList {
 	sheets: HashSet<String>,
 }
 
-impl Exl {
+impl ExcelList {
 	/// Iterate over known sheets in arbitrary order.
 	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
 		self.sheets.iter().map(|name| name.into())
@@ -23,7 +23,7 @@ impl Exl {
 	}
 }
 
-impl File for Exl {
+impl File for ExcelList {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		// The excel list is actually just plaintext, read it in as a string.
 		let list = String::from_utf8(data).map_err(|error| Error::Resource(error.into()))?;
@@ -53,31 +53,31 @@ impl File for Exl {
 mod test {
 	use crate::{error::Error, File};
 
-	use super::Exl;
+	use super::ExcelList;
 
 	const TEST_LIST: &[u8] = b"EXLT\r\nsheet1,0\r\nsheet2,0\r\nsheet3,0\r\n";
 
 	#[test]
 	fn empty() {
-		let list = Exl::read(vec![]);
+		let list = ExcelList::read(vec![]);
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn missing_magic() {
-		let list = Exl::read(b"hello\r\nworld".to_vec());
+		let list = ExcelList::read(b"hello\r\nworld".to_vec());
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn has_sheet() {
-		let list = Exl::read(TEST_LIST.to_vec()).unwrap();
+		let list = ExcelList::read(TEST_LIST.to_vec()).unwrap();
 		assert!(list.has("sheet2"));
 	}
 
 	#[test]
 	fn missing_sheet() {
-		let list = Exl::read(TEST_LIST.to_vec()).unwrap();
+		let list = ExcelList::read(TEST_LIST.to_vec()).unwrap();
 		assert!(!list.has("sheet4"));
 	}
 }

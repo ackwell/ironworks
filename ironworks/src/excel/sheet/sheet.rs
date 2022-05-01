@@ -57,8 +57,8 @@ pub struct Sheet<'i, S> {
 	ironworks: &'i Ironworks,
 	mapper: &'i dyn Mapper,
 
-	header: OptionCache<file::exh::Exh>,
-	pages: HashMapCache<(u32, u8), file::exd::Exd>,
+	header: OptionCache<file::exh::ExcelHeader>,
+	pages: HashMapCache<(u32, u8), file::exd::ExcelData>,
 }
 
 impl<S: Debug> Debug for Sheet<'_, S> {
@@ -236,7 +236,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
 	}
 
-	fn header(&self) -> Result<Arc<file::exh::Exh>> {
+	fn header(&self) -> Result<Arc<file::exh::ExcelHeader>> {
 		self.header.try_get_or_insert(|| {
 			let path = self.mapper.exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)

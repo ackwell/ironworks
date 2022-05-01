@@ -8,11 +8,10 @@ pub trait Resource: 'static {
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
 }
 
-pub trait File {
+// TODO: this is basically TryFrom<Vec<u8>> - is it worth keeping?
+pub trait File: Sized {
 	// todo: might need an error type?
-	fn read(data: Vec<u8>) -> Result<Self>
-	where
-		Self: Sized;
+	fn read(data: Vec<u8>) -> Result<Self>;
 }
 
 impl File for Vec<u8> {
