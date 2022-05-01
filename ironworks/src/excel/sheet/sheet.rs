@@ -13,8 +13,6 @@ use super::row_options::RowOptions;
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
 
-// TODO: consider lifetime vs Rc. Will depend if we want to allow sheets to live
-// past the lifetime of the parent Excel instance.
 /// A sheet within an Excel database.
 pub struct Sheet<'i, S> {
 	sheet_metadata: S,
@@ -61,7 +59,6 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		Ok(header.columns().clone())
 	}
 
-	// TODO: name. row_with? "with" refers to construction, sorta.
 	/// Create a row options builder for this sheet.
 	pub fn with(&'i self) -> RowOptions<'i, S> {
 		RowOptions::new(self)

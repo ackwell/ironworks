@@ -77,8 +77,8 @@ impl<R: sqpack::Resource + 'static> Resource for SqPack<R> {
 	fn file(&self, path: &str) -> Result<Vec<u8>> {
 		let mut file = self.file(path)?;
 		let mut vec = Vec::new();
-		// todo fix the error handling here
-		file.read_to_end(&mut vec).unwrap();
+		file.read_to_end(&mut vec)
+			.map_err(|error| Error::Resource(error.into()))?;
 		Ok(vec)
 	}
 }

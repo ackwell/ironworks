@@ -79,7 +79,6 @@ impl<'i> Excel<'i> {
 
 	/// Fetch the authoritative list of sheets in the database.
 	pub fn list(&self) -> Result<Arc<file::exl::ExcelList>> {
-		// TODO: name mapping to decouple xiv
 		self.list
 			.try_get_or_insert(|| self.ironworks.file(&self.mapper.exl()))
 	}
