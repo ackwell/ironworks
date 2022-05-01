@@ -2,13 +2,13 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::{mapper::Mapper, metadata::SheetMetadata},
+	excel::{mapper::Mapper, metadata::SheetMetadata, row::Row},
 	file::{exd, exh},
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
 };
 
-use super::{row::Row, row_options::RowOptions};
+use super::row_options::RowOptions;
 
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;

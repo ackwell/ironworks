@@ -1,6 +1,6 @@
 use std::{convert::Infallible, error::Error};
 
-use super::Row;
+use super::row::Row;
 
 /// Metadata containing how to find and read an Excel sheet.
 pub trait SheetMetadata {

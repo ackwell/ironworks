@@ -4,6 +4,7 @@ mod excel;
 mod field;
 mod mapper;
 mod metadata;
+mod row;
 mod sheet;
 
 pub use {
@@ -11,5 +12,6 @@ pub use {
 	field::Field,
 	mapper::Mapper,
 	metadata::SheetMetadata,
-	sheet::{Column, Row, RowOptions, Sheet},
+	row::Row,
+	sheet::{Column, RowOptions, Sheet},
 };
