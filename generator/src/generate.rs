@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use heck::ToSnakeCase;
-use ironworks::excel::{Column, ColumnKind};
+use ironworks::file::exh;
 use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
@@ -19,7 +19,7 @@ pub struct Module {
 #[derive(Debug)]
 struct Context {
 	path: Vec<String>,
-	columns: Vec<Column>,
+	columns: Vec<(usize, exh::ColumnDefinition)>,
 	column_index: usize,
 	items: Vec<TokenStream>,
 	uses: HashSet<&'static str>,
@@ -32,7 +32,7 @@ struct NodeResult {
 }
 
 /// Generate a rust source code module from a sheet schema definition.
-pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
+pub fn generate_sheet(sheet: Sheet, columns: Vec<exh::ColumnDefinition>) -> Module {
 	if sheet.order == Order::Offset {
 		todo!("Offset column order");
 	}
@@ -42,7 +42,7 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<Column>) -> Module {
 	// Run the recursive generation.
 	let mut context = Context {
 		path: vec![sheet_name.clone()],
-		columns,
+		columns: columns.into_iter().enumerate().collect(),
 		column_index: 0,
 		items: vec![],
 		uses: Default::default(),
@@ -134,7 +134,7 @@ fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> No
 }
 
 fn generate_scalar(context: &mut Context) -> NodeResult {
-	let column = match context.columns.get(context.column_index) {
+	let (field_index, column) = match context.columns.get(context.column_index) {
 		Some(column) => column,
 		None => {
 			// Definitions include columns that do not exist - represent them as impossible options.
@@ -154,9 +154,7 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 
 	context.column_index += 1;
 
-	let field_index = column.index();
-
-	use ColumnKind as K;
+	use exh::ColumnKind as K;
 	let (scalar_type, converter) = match column.kind() {
 		K::String => {
 			context.uses.extend(["ironworks::sestring::SeString"]);
