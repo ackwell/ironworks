@@ -19,5 +19,5 @@ pub mod sqpack;
 
 pub use {
 	error::{Error, ErrorValue},
-	ironworks::{File, Ironworks, Resource},
+	ironworks::{Ironworks, Resource},
 };

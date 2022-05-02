@@ -6,10 +6,9 @@ use binrw::{binread, BinRead};
 use getset::{CopyGetters, Getters};
 use num_enum::IntoPrimitive;
 
-use crate::{
-	error::{Error, Result},
-	File,
-};
+use crate::error::{Error, Result};
+
+use super::File;
 
 /// An Excel header file, containing metadata for all associated .exd Excel data files.
 #[binread]

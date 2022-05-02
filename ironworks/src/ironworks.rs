@@ -1,23 +1,14 @@
 use derivative::Derivative;
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	file::File,
+};
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 pub trait Resource: 'static {
 	fn version(&self, path: &str) -> Result<String>;
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
-}
-
-// TODO: this is basically TryFrom<Vec<u8>> - is it worth keeping?
-pub trait File: Sized {
-	// todo: might need an error type?
-	fn read(data: Vec<u8>) -> Result<Self>;
-}
-
-impl File for Vec<u8> {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		Ok(data)
-	}
 }
 
 #[derive(Derivative)]

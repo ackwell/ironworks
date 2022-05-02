@@ -590,6 +590,7 @@ dependencies = [
  "derivative",
  "enum-as-inner",
  "flate2",
+ "getset",
  "num_enum",
  "thiserror",
 ]

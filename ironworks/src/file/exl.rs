@@ -1,9 +1,10 @@
+//! Structs and utilities for parsing .exl files.
+
 use std::{borrow::Cow, collections::HashSet};
 
-use crate::{
-	error::{Error, Result},
-	File,
-};
+use crate::error::{Error, Result};
+
+use super::File;
 
 /// List of known Excel sheets.
 #[derive(Debug)]
@@ -51,7 +52,7 @@ impl File for ExcelList {
 
 #[cfg(test)]
 mod test {
-	use crate::{error::Error, File};
+	use crate::{error::Error, file::File};
 
 	use super::ExcelList;
 

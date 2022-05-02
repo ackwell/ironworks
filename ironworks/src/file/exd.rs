@@ -4,10 +4,9 @@ use std::io::{Cursor, Read, Seek};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
 
-use crate::{
-	error::{Error, ErrorValue, Result},
-	File,
-};
+use crate::error::{Error, ErrorValue, Result};
+
+use super::file::File;
 
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
