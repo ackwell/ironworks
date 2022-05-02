@@ -24,7 +24,7 @@ pub trait Resource: 'static {
 #[derivative(Debug)]
 pub struct Ironworks {
 	#[derivative(Debug = "ignore")]
-	providers: Vec<Box<dyn Resource>>,
+	resource: Vec<Box<dyn Resource>>,
 	// todo: does this own the file cache, then?
 }
 
@@ -38,15 +38,15 @@ impl Ironworks {
 	/// Build a new instance of ironworks.
 	pub fn new() -> Self {
 		Self {
-			providers: Default::default(),
+			resource: Default::default(),
 		}
 	}
 
 	/// Add a resource to search for files. Resources are searched last-first; the
 	/// last resource added to ironworks that provides a requested path will be
 	/// the resource that is utilised.
-	pub fn resource(mut self, provider: impl Resource) -> Self {
-		self.providers.push(Box::new(provider));
+	pub fn resource(mut self, resource: impl Resource) -> Self {
+		self.resource.push(Box::new(resource));
 		self
 	}
 
@@ -66,7 +66,7 @@ impl Ironworks {
 	where
 		F: Fn(&Box<dyn Resource>, &str) -> Result<O>,
 	{
-		self.providers
+		self.resource
 			.iter()
 			.rev()
 			.map(|provider| f(provider, path))
