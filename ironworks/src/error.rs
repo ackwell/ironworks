@@ -12,13 +12,15 @@ pub enum Error {
 	#[error("The {0} is invalid: {1}.")]
 	Invalid(ErrorValue, String),
 
-	/// An error occured while woring with a resource. This is typically IO-related,
-	/// stemming from an inability to read or parse various expected structures from
-	/// the provided reader.
+	/// An error occured while working with a resource. This is typically IO-related,
+	/// stemming from an inability to read or parse various expected structures.
+	/// In most circumstances, recovery from this error is not possible without
+	/// re-instantiating ironworks and/or the related module.
 	#[error("An error occured while working with the provided resource: {0}")]
 	Resource(Box<dyn std::error::Error + Send + Sync>),
 }
 
+// TODO: this could get pretty cluttered with single-purpose values. Is it worth making errorvalue a trait (and making error generic over it?) and letting each feature/file implement its own values? Generic trait might make it really messy to move errors around in the project due to non-matching bounds but hey maybe box dyn?
 /// A value associated with an error that occured.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -31,14 +33,14 @@ pub enum ErrorValue {
 	Sheet(String),
 
 	/// An Excel row.
-	#[cfg(feature = "excel")]
+	#[cfg(feature = "exd")]
 	Row {
 		/// Row ID.
 		row: u32,
 		/// Sub-row ID.
 		subrow: u16,
-		/// Row's parent sheet.
-		sheet: String,
+		/// Row's parent sheet, if known.
+		sheet: Option<String>,
 	},
 
 	/// A value not represented by other variants.
@@ -57,8 +59,12 @@ impl fmt::Display for ErrorValue {
 			#[cfg(feature = "excel")]
 			Self::Sheet(sheet) => write!(formatter, "Excel sheet {sheet:?}"),
 
-			#[cfg(feature = "excel")]
-			Self::Row { row, subrow, sheet } => write!(formatter, "Excel row {sheet}/{row}:{subrow}"),
+			#[cfg(feature = "exd")]
+			Self::Row { row, subrow, sheet } => write!(
+				formatter,
+				"Excel row {}/{row}:{subrow}",
+				sheet.as_deref().unwrap_or("(none)"),
+			),
 
 			Self::Other(value) => write!(formatter, "{value}"),
 		}

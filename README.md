@@ -4,7 +4,7 @@
 
 Modular FFXIV data toolkit written in rust.
 
-[![Crates.io](https://img.shields.io/crates/v/ironworks?style=flat-square)](https://crates.io/crates/)
+[![Crates.io](https://img.shields.io/crates/v/ironworks?style=flat-square)](https://crates.io/crates/ironworks)
 [![docs.rs](https://img.shields.io/docsrs/ironworks?style=flat-square)](https://docs.rs/ironworks)
 
 ironworks is pre-1.0, and as such its API should be considered unstable. Breaking API changes will be published on new minor versions.

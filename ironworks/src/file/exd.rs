@@ -1,27 +1,30 @@
+//! Structs and utilities for parsing .exd files.
+
 use std::io::{Cursor, Read, Seek};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
-use getset::{CopyGetters, Getters};
 
 use crate::{
-	error::{Error, Result},
+	error::{Error, ErrorValue, Result},
 	File,
 };
 
+/// An Excel data page. One or more pages form the full dataset for an Excel
+/// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
 #[binread]
-#[derive(Debug, Getters)]
+#[derive(Debug)]
 #[br(big, magic = b"EXDF")]
 pub struct ExcelData {
 	_version: u16,
 	// unknown1: u16,
 	#[br(pad_before = 2, temp)]
 	index_size: u32,
+
 	// unknown2: [u16; 10],
 	#[br(
     pad_before = 20,
     count = index_size / RowDefinition::SIZE,
   )]
-	#[get = "pub"]
 	rows: Vec<RowDefinition>,
 
 	#[br(parse_with = current_position)]
@@ -32,6 +35,9 @@ pub struct ExcelData {
 }
 
 impl ExcelData {
+	/// Fetch the slice of data associated with the specified row. If this data
+	/// page is for a sheet with subrows, this will include all child rows of the
+	/// specified row. Otherwise, it will contain the row and any trailing string data.
 	pub fn row_data(&self, row_id: u32) -> Result<&[u8]> {
 		let (row_header, offset) = self.row_meta(row_id)?;
 
@@ -40,8 +46,20 @@ impl ExcelData {
 		Ok(&self.data[offset..offset + length])
 	}
 
+	/// Fetch the slice of data associated with the specified subrow.
 	pub fn subrow_data(&self, row_id: u32, subrow_id: u16) -> Result<&[u8]> {
 		let (row_header, offset) = self.row_meta(row_id)?;
+
+		let error_value = || ErrorValue::Row {
+			row: row_id,
+			subrow: subrow_id,
+			sheet: None,
+		};
+
+		// Double check the requested subrow is within the expected bounds.
+		if subrow_id >= row_header.row_count {
+			return Err(Error::NotFound(error_value()));
+		}
 
 		// Subrows invariably do not support unstructured data (i.e. strings), and
 		// are laid out in subrow order. As such, it's safe to assume that evenly
@@ -57,24 +75,25 @@ impl ExcelData {
 			SubrowHeader::read(&mut cursor).map_err(|error| Error::Resource(error.into()))?;
 
 		if subrow_header.id != subrow_id {
-			return Err(Error::Resource(
-				"TODO, again, should this be notfound?".into(),
+			return Err(Error::Invalid(
+				error_value(),
+				format!("Subrow data reports as unexpected ID {}.", subrow_header.id),
 			));
 		}
 
-		// Get the slice of subrow data
+		// Get the slice of subrow data.
 		Ok(&self.data[offset + SubrowHeader::SIZE..offset + subrow_size])
 	}
 
 	fn row_meta(&self, row_id: u32) -> Result<(RowHeader, usize)> {
 		// Find the row definition for the requested row ID.
-		let row_definition = self
-			.rows
-			.iter()
-			.find(|row| row.id == row_id)
-			.ok_or_else(|| {
-				Error::Resource("TODO error message. not found would make sense but i need to resolve feature ownership of the error values if i do that.".into())
-			})?;
+		let row_definition = self.rows.iter().find(|row| row.id == row_id).ok_or({
+			Error::NotFound(ErrorValue::Row {
+				row: row_id,
+				subrow: 0,
+				sheet: None,
+			})
+		})?;
 
 		// Get a cursor to the start of the row.
 		let mut cursor = Cursor::new(&self.data);
@@ -96,12 +115,10 @@ impl File for ExcelData {
 }
 
 #[binread]
-#[derive(Debug, CopyGetters)]
+#[derive(Debug)]
 #[br(big)]
-pub struct RowDefinition {
-	#[get_copy = "pub"]
+struct RowDefinition {
 	id: u32,
-	#[get_copy = "pub"]
 	offset: u32,
 }
 

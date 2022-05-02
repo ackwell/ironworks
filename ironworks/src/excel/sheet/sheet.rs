@@ -95,7 +95,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		let row_error_value = || ErrorValue::Row {
 			row: row_id,
 			subrow: subrow_id,
-			sheet: self.sheet_metadata.name(),
+			sheet: self.sheet_metadata.name().into(),
 		};
 		let row_not_found = || Error::NotFound(row_error_value());
 
