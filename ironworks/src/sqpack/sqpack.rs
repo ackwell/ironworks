@@ -66,7 +66,10 @@ impl<R: sqpack::Resource> SqPack<R> {
 }
 
 // TODO: work out the resource story for this because it's gonna get cluttery if im not careful
-impl<R: sqpack::Resource + 'static> Resource for SqPack<R> {
+impl<R> Resource for SqPack<R>
+where
+	R: sqpack::Resource + Send + Sync + 'static,
+{
 	fn version(&self, path: &str) -> Result<String> {
 		self.version(path)
 	}

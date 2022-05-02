@@ -1,5 +1,5 @@
 /// Mapper to fetch file paths for excel lookups.
-pub trait Mapper {
+pub trait Mapper: Send + Sync {
 	/// Fetch the path to the excel list file.
 	fn exl(&self) -> String;
 

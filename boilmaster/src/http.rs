@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks::{excel::Excel, ffxiv, sqpack::SqPack};
+use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
 use tower_http::trace::TraceLayer;
 
 #[derive(thiserror::Error, Debug)]
@@ -37,9 +37,9 @@ where
 }
 
 pub fn router() -> Router {
-	let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
-	let sqpack_ref: &'static _ = Box::leak(Box::new(sqpack));
-	let excel = Excel::new(ffxiv::SqPackResource::new(sqpack_ref));
+	let ironworks = Ironworks::new().resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+	let ironworks_ref: &'static _ = Box::leak(Box::new(ironworks));
+	let excel = Excel::new(ironworks_ref, ffxiv::Mapper::new());
 
 	Router::new()
 		.route("/sheets", get(sheets))
@@ -48,9 +48,7 @@ pub fn router() -> Router {
 }
 
 #[debug_handler]
-async fn sheets(
-	Extension(excel): Extension<Arc<Excel<ffxiv::SqPackResource<'static, ffxiv::FsResource>>>>,
-) -> Result<impl IntoResponse> {
+async fn sheets(Extension(excel): Extension<Arc<Excel<'static>>>) -> Result<impl IntoResponse> {
 	let list = excel.list().anyhow()?;
 
 	// This contains quite a lot of quest/ and custom/ - should I filter them out?
