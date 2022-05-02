@@ -7,7 +7,7 @@ use crate::{
 	Ironworks,
 };
 
-use super::{mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
+use super::{borrowed::Borrowed, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
 
 /// Options for the root Excel database.
 #[derive(Debug, Default)]
@@ -23,7 +23,11 @@ impl<'i> ExcelOptions {
 	}
 
 	/// Build the configured Excel database.
-	pub fn build(&self, ironworks: &'i Ironworks, mapper: impl Mapper + 'static) -> Excel<'i> {
+	pub fn build(
+		&self,
+		ironworks: impl Into<Borrowed<'i, Ironworks>>,
+		mapper: impl Mapper + 'static,
+	) -> Excel<'i> {
 		Excel::with_options(ironworks, mapper, self)
 	}
 }
@@ -32,7 +36,7 @@ impl<'i> ExcelOptions {
 pub struct Excel<'i> {
 	default_language: u8,
 
-	ironworks: &'i Ironworks,
+	ironworks: Borrowed<'i, Ironworks>,
 	mapper: Box<dyn Mapper>,
 
 	list: OptionCache<file::exl::ExcelList>,
@@ -48,7 +52,10 @@ impl Debug for Excel<'_> {
 
 impl<'i> Excel<'i> {
 	/// Build an Excel database.
-	pub fn new(ironworks: &'i Ironworks, mapper: impl Mapper + 'static) -> Self {
+	pub fn new(
+		ironworks: impl Into<Borrowed<'i, Ironworks>>,
+		mapper: impl Mapper + 'static,
+	) -> Self {
 		Self::with().build(ironworks, mapper)
 	}
 
@@ -58,14 +65,14 @@ impl<'i> Excel<'i> {
 	}
 
 	fn with_options(
-		ironworks: &'i Ironworks,
+		ironworks: impl Into<Borrowed<'i, Ironworks>>,
 		mapper: impl Mapper + 'static,
 		options: &ExcelOptions,
 	) -> Self {
 		Self {
 			default_language: options.language.unwrap_or(0),
 
-			ironworks,
+			ironworks: ironworks.into(),
 			mapper: Box::new(mapper),
 
 			list: Default::default(),
@@ -95,7 +102,7 @@ impl<'i> Excel<'i> {
 		Ok(Sheet::new(
 			sheet_metadata,
 			self.default_language,
-			self.ironworks,
+			self.ironworks.clone(),
 			self.mapper.as_ref(),
 		))
 	}

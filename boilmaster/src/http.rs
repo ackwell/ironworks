@@ -38,8 +38,7 @@ where
 
 pub fn router() -> Router {
 	let ironworks = Ironworks::new().resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
-	let ironworks_ref: &'static _ = Box::leak(Box::new(ironworks));
-	let excel = Excel::new(ironworks_ref, ffxiv::Mapper::new());
+	let excel = Excel::new(Arc::new(ironworks), ffxiv::Mapper::new());
 
 	Router::new()
 		.route("/sheets", get(sheets))

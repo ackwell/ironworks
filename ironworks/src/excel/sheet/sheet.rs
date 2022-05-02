@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::{mapper::Mapper, metadata::SheetMetadata, row::Row},
+	excel::{borrowed::Borrowed, mapper::Mapper, metadata::SheetMetadata, row::Row},
 	file::{exd, exh},
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
@@ -18,7 +18,7 @@ pub struct Sheet<'i, S> {
 	sheet_metadata: S,
 	default_language: u8,
 
-	ironworks: &'i Ironworks,
+	ironworks: Borrowed<'i, Ironworks>,
 	mapper: &'i dyn Mapper,
 
 	header: OptionCache<exh::ExcelHeader>,
@@ -38,7 +38,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	pub(crate) fn new(
 		sheet_metadata: S,
 		default_language: u8,
-		ironworks: &'i Ironworks,
+		ironworks: Borrowed<'i, Ironworks>,
 		mapper: &'i dyn Mapper,
 	) -> Self {
 		Self {
