@@ -1,11 +1,23 @@
 use std::sync::Arc;
 
 use axum::{
-	extract::Path, http::StatusCode, response::IntoResponse, routing::get, Extension, Json, Router,
+	async_trait,
+	extract::{FromRequest, RequestParts},
+	http::StatusCode,
+	response::IntoResponse,
+	routing::get,
+	Extension, Json, Router,
 };
 use axum_macros::debug_handler;
 use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
+use serde::{de::DeserializeOwned, Serialize};
 use tower_http::trace::TraceLayer;
+
+#[derive(Serialize)]
+struct ErrorResponse {
+	code: u16,
+	message: String,
+}
 
 // TODO Should probably be an "api error"?
 #[derive(thiserror::Error, Debug)]
@@ -40,8 +52,14 @@ impl IntoResponse for Error {
 			Self::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
-		// TODO: json error response
-		(status_code, self.to_string()).into_response()
+		(
+			status_code,
+			Json(ErrorResponse {
+				code: status_code.as_u16(),
+				message: self.to_string(),
+			}),
+		)
+			.into_response()
 	}
 }
 
@@ -57,6 +75,30 @@ where
 {
 	fn anyhow(self) -> Result<T, anyhow::Error> {
 		self.map_err(anyhow::Error::new)
+	}
+}
+
+struct Path<T>(T);
+
+#[async_trait]
+impl<B, T> FromRequest<B> for Path<T>
+where
+	T: DeserializeOwned + Send,
+	B: Send,
+{
+	type Rejection = (StatusCode, Json<ErrorResponse>);
+
+	async fn from_request(req: &mut RequestParts<B>) -> Result<Self, Self::Rejection> {
+		match axum::extract::Path::<T>::from_request(req).await {
+			Ok(value) => Ok(Self(value.0)),
+			Err(rejection) => Err((
+				StatusCode::BAD_REQUEST,
+				Json(ErrorResponse {
+					code: StatusCode::BAD_REQUEST.as_u16(),
+					message: rejection.to_string(),
+				}),
+			)),
+		}
 	}
 }
 
