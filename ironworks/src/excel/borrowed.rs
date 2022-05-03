@@ -12,13 +12,13 @@ impl<'a, T> From<&'a T> for Borrowed<'a, T> {
 	}
 }
 
-impl<T> From<Arc<T>> for Borrowed<'static, T> {
+impl<T> From<Arc<T>> for Borrowed<'_, T> {
 	fn from(value: Arc<T>) -> Self {
 		Self::Arc(value)
 	}
 }
 
-impl<'a, T> Deref for Borrowed<'a, T> {
+impl<T> Deref for Borrowed<'_, T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {

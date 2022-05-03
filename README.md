@@ -23,24 +23,24 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 
 ```toml
 [dependencies]
-ironworks = {version = "0.2.0", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.3.0", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
 ```rust
-use ironworks::{
-  Error,
-  excel::Excel,
-  ffxiv,
-  sqpack::SqPack,
-};
+use ironworks::{excel::Excel, ffxiv, file, sqpack::SqPack, Error, Ironworks};
 
 fn main() -> Result<(), Error> {
-  // Read out files directly.
-  let sqpack = SqPack::new(ffxiv::FsResource::search().unwrap());
-  let file = sqpack.file("exd/root.exl")?;
+  // Build the core ironworks instance. Additional resources can be registered
+  // for more complicated file layouts.
+  let ironworks = Ironworks::new()
+    .resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+
+  // Read out files as raw bytes or structured data.
+  let bytes = ironworks.file::<Vec<u8>>("exd/root.exl")?;
+  let list = ironworks.file::<file::exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
-  let excel = Excel::new(ffxiv::SqPackResource::new(&sqpack));
+	let excel = Excel::new(&ironworks, ffxiv::Mapper::new());
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())
