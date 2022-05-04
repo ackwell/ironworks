@@ -1,4 +1,6 @@
-//! TODO docs
+//! Collection of pre-defined file readers for known file formats.
+//!
+//! Each file type may contain a number of related supporting items, and as such are namespaced seperately.
 
 mod file;
 
