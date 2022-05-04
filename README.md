@@ -27,7 +27,7 @@ ironworks = {version = "0.3.0", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
 ```rust
-use ironworks::{excel::Excel, ffxiv, file, sqpack::SqPack, Error, Ironworks};
+use ironworks::{excel::Excel, ffxiv, file::exl, sqpack::SqPack, Error, Ironworks};
 
 fn main() -> Result<(), Error> {
   // Build the core ironworks instance. Additional resources can be registered
@@ -37,7 +37,7 @@ fn main() -> Result<(), Error> {
 
   // Read out files as raw bytes or structured data.
   let bytes = ironworks.file::<Vec<u8>>("exd/root.exl")?;
-  let list = ironworks.file::<file::exl::ExcelList>("exd/root.exl")?;
+  let list = ironworks.file::<exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
 	let excel = Excel::new(&ironworks, ffxiv::Mapper::new());
