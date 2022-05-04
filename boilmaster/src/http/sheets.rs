@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks::excel::Excel;
+use ironworks::{excel::Excel, file::exh};
 
 use super::{
-	error::{Anyhow, Result},
+	error::{Anyhow, Error, Result},
 	path::Path,
 };
 
@@ -32,10 +32,16 @@ async fn sheets(Extension(excel): Extension<Arc<Excel<'static>>>) -> Result<impl
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
-	excel: Extension<Arc<Excel<'static>>>,
+	Extension(excel): Extension<Arc<Excel<'static>>>,
 ) -> Result<impl IntoResponse> {
-	// TODO: check sheet kind
-	let row = excel.sheet(sheet_name)?.row(row_id)?;
+	let sheet = excel.sheet(&sheet_name)?;
+	if sheet.kind()? == exh::SheetKind::Subrows {
+		return Err(Error::Invalid(format!(
+			"Sheet {sheet_name:?} requires a sub-row ID."
+		)));
+	}
+
+	let row = sheet.row(row_id)?;
 
 	Ok(format!("{:#?}", row.field(0)))
 }
@@ -45,8 +51,14 @@ async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
 	Extension(excel): Extension<Arc<Excel<'static>>>,
 ) -> Result<impl IntoResponse> {
-	// TODO: check sheet kind
-	let row = excel.sheet(sheet_name)?.subrow(row_id, subrow_id)?;
+	let sheet = excel.sheet(&sheet_name)?;
+	if sheet.kind()? != exh::SheetKind::Subrows {
+		return Err(Error::Invalid(format!(
+			"Sheet {sheet_name:?} does not support sub-rows."
+		)));
+	}
+
+	let row = sheet.subrow(row_id, subrow_id)?;
 
 	Ok(format!("{:#?}", row.field(0)))
 }

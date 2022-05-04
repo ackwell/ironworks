@@ -13,6 +13,9 @@ pub enum Error {
 	#[error("Not found: {0}")]
 	NotFound(String),
 
+	#[error("Invalid request: {0}")]
+	Invalid(String),
+
 	#[error("Internal server error.")]
 	Other(#[from] anyhow::Error),
 }
@@ -22,6 +25,7 @@ impl From<ironworks::Error> for Error {
 		use ironworks::Error as IE;
 		match error {
 			IE::NotFound(value) => Self::NotFound(value.to_string()),
+			// TODO: should I map invalid->invalid unconditonally?
 			error => Self::Other(error.into()),
 		}
 	}
@@ -37,6 +41,7 @@ impl IntoResponse for Error {
 		// TODO: INCREDIBLY IMPORTANT: work out how to worm IM_A_TEAPOT into this
 		let status_code = match self {
 			Self::NotFound(_) => StatusCode::NOT_FOUND,
+			Self::Invalid(_) => StatusCode::BAD_REQUEST,
 			Self::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 

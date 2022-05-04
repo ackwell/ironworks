@@ -53,10 +53,16 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		}
 	}
 
+	/// Get the kind of this sheet.
+	pub fn kind(&self) -> Result<exh::SheetKind> {
+		let kind = self.header()?.kind();
+		Ok(kind)
+	}
+
 	/// Fetch metadata for all columns in this sheet.
 	pub fn columns(&self) -> Result<Vec<exh::ColumnDefinition>> {
-		let header = self.header()?;
-		Ok(header.columns().clone())
+		let columns = self.header()?.columns().clone();
+		Ok(columns)
 	}
 
 	/// Create a row options builder for this sheet.
