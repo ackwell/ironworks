@@ -19,6 +19,8 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 | `ffxiv`  | Bindings for using ironworks with FFXIV.                   |
 | `sqpack` | Navigate and extract files from the SqPack package format. |
 
+Additionally, file type readers are opt-in. The feature modules above will automatically enable the file types they need, however if you need additional file types for bespoke purposes, they can be enabled manually. File type features are named by the file's extension, i.e. `exl` for `.exl` files.
+
 ## Getting started
 
 ```toml
