@@ -14,7 +14,8 @@ fn main() {
 		// View
 		.add_startup_system(startup_test)
 		// TEMP: web stuff - plugin?
-		.add_startup_system(startup_xivdir)
+		.add_event::<EventRequestSqpack>()
+		.add_system(system_request_sqpack)
 		// Done
 		.run();
 }
@@ -27,14 +28,23 @@ fn startup_test(mut commands: Commands, asset_server: Res<AssetServer>) {
 	});
 }
 
-fn system_ui(mut egui_context: ResMut<EguiContext>) {
+fn system_ui(
+	mut request_sqpack: EventWriter<EventRequestSqpack>,
+	mut egui_context: ResMut<EguiContext>,
+) {
 	// todo: better id
 	egui::SidePanel::left("main")
 		.resizable(true)
-		.show(egui_context.ctx_mut(), |ui| ui.heading("nero"));
+		.show(egui_context.ctx_mut(), |ui| {
+			ui.heading("nero");
+			if ui.button("sqpack").clicked() {
+				request_sqpack.send(EventRequestSqpack)
+			}
+		});
 }
 
 // web file picker testing
+// TODO: web stuff should be target gated
 // ????
 #[wasm_bindgen]
 extern "C" {
@@ -45,44 +55,50 @@ extern "C" {
 	pub fn webkit_relative_path(this: &File2) -> String;
 }
 
-// TODO: web stuff should be target gated
+// TODO: name
+struct EventRequestSqpack;
+
 // TODO: error handling. should probably put in seperate fn from the main system and unwrap once
 //       - looks like i can "chain" systems with In() and such to make an "error handling system"?
-fn startup_xivdir() {
-	// lets be real the websys shit here should probably be written in js and bound across instead of writing it in js but damn this is dumb
-	let document = web_sys::window().unwrap().document().unwrap();
+fn system_request_sqpack(mut events: EventReader<EventRequestSqpack>) {
+	for _event in events.iter() {
+		request_directory().unwrap();
+	}
+}
 
+// TODO: name
+fn request_directory() -> Result<(), JsValue> {
+	let document = web_sys::window().unwrap().document().unwrap();
 	let input = document
-		.create_element("input")
-		.unwrap()
-		.dyn_into::<HtmlInputElement>()
-		.unwrap();
+		.create_element("input")?
+		.dyn_into::<HtmlInputElement>()?;
 	input.set_type("file");
 	input.set_webkitdirectory(true);
 
-	let closure = Closure::wrap(Box::new(move |event: Event| {
-		info!("CHANGE");
-
-		let files = event
-			.target()
-			.unwrap()
-			.dyn_into::<HtmlInputElement>()
-			.unwrap()
-			.files()
-			.unwrap();
-		for i in 0..files.length() {
-			let f2 = files.get(i).unwrap().dyn_into::<File2>().unwrap();
-			let path = f2.webkit_relative_path();
-			info!("path: {path:?}");
-		}
-	}) as Box<dyn FnMut(_)>);
-	input
-		.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref())
-		.unwrap();
+	// TODO: avoid leaking one of these every time
+	let closure = Closure::wrap(Box::new(on_file_change) as Box<dyn FnMut(_)>);
+	input.add_event_listener_with_callback("change", closure.as_ref().unchecked_ref())?;
 	closure.forget();
 
-	// input.click doesn't work immediately as it needs user interaction - see if it's possible to hook up from in bevy?
-	document.body().unwrap().append_child(&input).unwrap();
+	input.click();
 
-	info!("ran!");
+	Ok(())
+}
+
+// TODO: error handling here - few unwraps here are entirely possible
+fn on_file_change(event: Event) {
+	info!("CHANGE");
+
+	let files = event
+		.target()
+		.unwrap()
+		.dyn_into::<HtmlInputElement>()
+		.unwrap()
+		.files()
+		.unwrap();
+	for i in 0..files.length() {
+		let f2 = files.get(i).unwrap().dyn_into::<File2>().unwrap();
+		let path = f2.webkit_relative_path();
+		info!("path: {path:?}");
+	}
 }
