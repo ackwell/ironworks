@@ -16,9 +16,9 @@ use ironworks::{
 	Error, ErrorValue, Ironworks,
 };
 
-pub struct IronworksPlugin;
+pub struct IronworksAssetIoPlugin;
 
-impl Plugin for IronworksPlugin {
+impl Plugin for IronworksAssetIoPlugin {
 	fn build(&self, app: &mut App) {
 		let task_pool = app
 			.world
@@ -42,8 +42,16 @@ impl Plugin for IronworksPlugin {
 			ironworks,
 		};
 
-		app.insert_resource(AssetServer::new(asset_io, task_pool))
-			.init_asset_loader::<ListAssetLoader>();
+		app.insert_resource(AssetServer::new(asset_io, task_pool));
+	}
+}
+
+pub struct IronworksPlugin;
+
+impl Plugin for IronworksPlugin {
+	fn build(&self, app: &mut App) {
+		app.init_asset_loader::<ListAssetLoader>()
+			.add_asset::<List>();
 	}
 }
 

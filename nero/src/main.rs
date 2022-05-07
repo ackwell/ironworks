@@ -1,14 +1,14 @@
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 
-use crate::ironworks::{IronworksPlugin, List};
+use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, List};
 
 mod ironworks;
 
 fn main() {
 	App::new()
 		.add_plugins_with(DefaultPlugins, |group| {
-			group.add_before::<bevy::asset::AssetPlugin, _>(IronworksPlugin)
+			group.add_before::<bevy::asset::AssetPlugin, _>(IronworksAssetIoPlugin)
 		})
 		// UI
 		.add_plugin(EguiPlugin)
@@ -17,8 +17,7 @@ fn main() {
 		// View
 		.add_startup_system(startup_test)
 		// Ironworks
-		// TODO: This is split across two locations - should make two plugins, one for the loader and one for.... everything else, I guess?
-		.add_asset::<List>()
+		.add_plugin(IronworksPlugin)
 		// Done
 		.run();
 }
