@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 		Some(path) => ffxiv::FsResource::at(&path),
 		None => ffxiv::FsResource::search().context("Game path search failed.")?,
 	};
-	let ironworks = Ironworks::new().resource(SqPack::new(fs_resource));
+	let ironworks = Ironworks::new().with_resource(SqPack::new(fs_resource));
 	let excel = Excel::new(&ironworks, ffxiv::Mapper::new());
 
 	let (provider, version, schemas) = saint_coinach()?;

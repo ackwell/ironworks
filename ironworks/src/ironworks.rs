@@ -45,7 +45,15 @@ impl Ironworks {
 	/// Add a resource to search for files. Resources are searched last-first; the
 	/// last resource added to ironworks that provides a requested path will be
 	/// the resource that is utilised.
-	pub fn resource(mut self, resource: impl Resource) -> Self {
+	pub fn add_resource(&mut self, resource: impl Resource) {
+		self.resource.push(Box::new(resource));
+	}
+
+	/// Add a resource to search for files. Resources are searched last-first; the
+	/// last resource added to ironworks that provides a requested path will be
+	/// the resource that is utilised.
+	#[must_use]
+	pub fn with_resource(mut self, resource: impl Resource) -> Self {
 		self.resource.push(Box::new(resource));
 		self
 	}
