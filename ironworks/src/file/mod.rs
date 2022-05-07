@@ -10,5 +10,7 @@ pub mod exd;
 pub mod exh;
 #[cfg(feature = "exl")]
 pub mod exl;
+#[cfg(feature = "tex")]
+pub mod tex;
 
 pub use file::File;

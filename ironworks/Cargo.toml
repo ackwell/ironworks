@@ -22,6 +22,7 @@ sqpack = ["dep:flate2"]
 exd = []
 exh = []
 exl = []
+tex = []
 
 [dependencies]
 binrw = "0.8.4"
