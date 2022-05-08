@@ -1,4 +1,7 @@
-use std::io::{self, Cursor, Read, Seek, SeekFrom};
+use std::{
+	fmt::Display,
+	io::{self, Cursor, Read, Seek, SeekFrom},
+};
 
 use binrw::{binread, BinRead};
 use flate2::read::DeflateDecoder;
@@ -14,25 +17,45 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 		.map_err(|error| Error::Resource(error.into()))?;
 	let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
 
-	// TODO: Check the raw file size?
+	let expected_file_size = header.raw_file_size;
 
-	match &header.kind {
+	let out_buffer = match &header.kind {
 		FileKind::Standard => read_standard(reader, offset, header),
 		_ => todo!("File kind: {:?}", header.kind),
+	}?;
+
+	match out_buffer.len() == expected_file_size.try_into().unwrap() {
+		true => Ok(out_buffer),
+		false => Err(Error::Resource(
+			read_failed("file", expected_file_size, out_buffer.len()).into(),
+		)),
 	}
 }
 
 fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
+	// Eagerly read the block info.
+	let blocks = (0..header.block_count)
+		.map(|_index| BlockInfo::read(&mut reader))
+		.collect::<Result<Vec<_>, _>>()
+		.map_err(|error| Error::Resource(error.into()))?;
+
 	// Read each block into a final byte vector.
-	let out_buffer = header
-		.blocks
+	let out_buffer = blocks
 		.iter()
 		.try_fold(
 			Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap()),
 			|mut vec, block_info| -> io::Result<Vec<u8>> {
-				let mut block_reader = read_block(&mut reader, block_info, offset + header.size)?;
-				block_reader.read_to_end(&mut vec)?;
-				Ok(vec)
+				let mut block_reader =
+					read_block(&mut reader, offset + header.size + block_info.offset)?;
+				let count = block_reader.read_to_end(&mut vec)?;
+
+				match count == block_info.decompressed_size.into() {
+					true => Ok(vec),
+					false => Err(io::Error::new(
+						io::ErrorKind::Other,
+						read_failed("block", block_info.decompressed_size, count),
+					)),
+				}
 			},
 		)
 		.map_err(|error| Error::Resource(error.into()))?;
@@ -40,35 +63,28 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 	Ok(out_buffer)
 }
 
+fn read_failed(item: impl Display, expected: impl Display, got: impl Display) -> String {
+	format!("Failed to read {item}. Expected {expected} bytes, got {got}.",)
+}
+
 // TODO: move this into a block struct of some kind if we do lazy reading?
-fn read_block(
-	reader: &mut (impl Read + Seek),
-	block_info: &BlockInfo,
-	base: u32,
-) -> io::Result<BlockReader> {
-	// Read the block into memory
-	let mut buffer = vec![0u8; block_info.compressed_size.into()];
-	reader.seek(SeekFrom::Start((base + block_info.offset).into()))?;
+fn read_block(reader: &mut (impl Read + Seek), offset: u32) -> io::Result<BlockReader> {
+	// Seek to the block and read its header so we know how much to expect in the rest of the block.
+	reader.seek(SeekFrom::Start(offset.into()))?;
+	let block_header =
+		BlockHeader::read(reader).map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
+
+	// Read the remainder of the block in.
+	let mut buffer = vec![0u8; block_header.compressed_size.try_into().unwrap()];
 	reader.read_exact(&mut buffer)?;
-	let mut raw_cursor = Cursor::new(buffer);
 
 	// TODO: if type 1 and first 64 == second 64, RSF
 	//       if type 1 and first 64 == [0..], empty
 
-	// Read out the inline block header
-	let block_header = BlockHeader::read(&mut raw_cursor)
-		.map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
-
-	// TODO: Should probably be an Error::Resource
-	assert_eq!(
-		block_header.decompressed_size,
-		block_info.decompressed_size.into(),
-		"Block info and header decompressed size differs."
-	);
-
 	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 
 	// Build a block reader for this block
+	let raw_cursor = Cursor::new(buffer);
 	let block_reader = if block_header.decompressed_size > MAX_COMPRESSED_BLOCK_SIZE {
 		BlockReader::Loose(raw_cursor)
 	} else {
@@ -99,10 +115,10 @@ struct Header {
 	size: u32,
 	kind: FileKind,
 	raw_file_size: u32,
-	#[br(temp, pad_before = 8)]
+	// num_blocks: i32,
+	// block_buffer_size: i32,
+	#[br(pad_before = 8)]
 	block_count: u32,
-	#[br(count = block_count)]
-	blocks: Vec<BlockInfo>,
 }
 
 #[binread]
@@ -120,7 +136,7 @@ enum FileKind {
 #[br(little)]
 struct BlockInfo {
 	offset: u32,
-	compressed_size: u16,
+	_compressed_size: u16,
 	decompressed_size: u16,
 }
 
@@ -131,6 +147,6 @@ struct BlockHeader {
 	_size: u32,
 	// unknown1: u32,
 	#[br(pad_before = 4)]
-	_compressed_size: u32,
+	compressed_size: u32,
 	decompressed_size: u32,
 }
