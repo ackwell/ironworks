@@ -15,7 +15,7 @@ use super::file::File;
 #[derivative(Debug)]
 pub struct Texture {
 	// TODO: enums
-	flags: u32,
+	flags: u32, // attribute?
 	format: u32,
 
 	width: u16,

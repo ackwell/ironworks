@@ -21,6 +21,7 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 
 	let out_buffer = match &header.kind {
 		FileKind::Standard => read_standard(reader, offset, header),
+		FileKind::Texture => read_texture(reader, offset, header),
 		_ => todo!("File kind: {:?}", header.kind),
 	}?;
 
@@ -59,6 +60,67 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 			},
 		)
 		.map_err(|error| Error::Resource(error.into()))?;
+
+	Ok(out_buffer)
+}
+
+fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
+	// Eagerly read the block info.
+	let blocks = (0..header.block_count)
+		.map(|_index| LodBlockInfo::read(&mut reader))
+		.collect::<Result<Vec<_>, _>>()
+		.map_err(|error| Error::Resource(error.into()))?;
+
+	let mut out_basis = Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap());
+
+	// If the first block has an offset, it's likely that there's a .tex header
+	// outside the compressed blocks - read the delta into the buffer as raw bytes.
+	let raw_header_size = blocks[0].compressed_offset;
+	if raw_header_size > 0 {
+		reader
+			.seek(SeekFrom::Start((offset + header.size).into()))
+			.map_err(|error| Error::Resource(error.into()))?;
+		reader
+			.by_ref()
+			.take(raw_header_size.into())
+			.read_to_end(&mut out_basis)
+			.map_err(|error| Error::Resource(error.into()))?;
+	}
+
+	// Read in the block data.
+	let out_buffer = blocks
+		.iter()
+		// Each texture block may have one or more "sub-blocks", flat map them into a single iterator of blocks.
+		.flat_map(|lod_block| {
+			(0..lod_block.block_count)
+				.scan(
+					lod_block.compressed_offset + offset + header.size,
+					|offset, index| {
+						// Move the offset forward for sub-blocks beyond the first
+						if index > 0 {
+							*offset += u32::from(match u16::read(&mut reader) {
+								Err(error) => return Some(Err(Error::Resource(error.into()))),
+								Ok(value) => value,
+							});
+						}
+
+						// Read sub block
+						let block = read_block(&mut reader, *offset)
+							.map_err(|error| Error::Resource(error.into()));
+
+						Some(block)
+					},
+				)
+				.collect::<Vec<_>>()
+		})
+		// Fold the readers onto the basis vector.
+		.try_fold(out_basis, |mut vec, maybe_reader| {
+			maybe_reader?
+				.read_to_end(&mut vec)
+				.map_err(|error| Error::Resource(error.into()))?;
+
+			Ok(vec)
+		})?;
 
 	Ok(out_buffer)
 }
@@ -138,6 +200,17 @@ struct BlockInfo {
 	offset: u32,
 	_compressed_size: u16,
 	decompressed_size: u16,
+}
+
+#[binread]
+#[br(little)]
+#[derive(Debug)]
+struct LodBlockInfo {
+	compressed_offset: u32,
+	_compressed_size: u32,
+	_decompressed_size: u32,
+	_block_offset: u32,
+	block_count: u32,
 }
 
 #[binread]
