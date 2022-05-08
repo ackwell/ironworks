@@ -28,7 +28,7 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 		.blocks
 		.iter()
 		.try_fold(
-			Vec::<u8>::new(),
+			Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap()),
 			|mut vec, block_info| -> io::Result<Vec<u8>> {
 				let mut block_reader = read_block(&mut reader, block_info, offset + header.size)?;
 				block_reader.read_to_end(&mut vec)?;
@@ -98,7 +98,7 @@ impl Read for BlockReader {
 struct Header {
 	size: u32,
 	kind: FileKind,
-	_raw_file_size: u32,
+	raw_file_size: u32,
 	#[br(temp, pad_before = 8)]
 	block_count: u32,
 	#[br(count = block_count)]

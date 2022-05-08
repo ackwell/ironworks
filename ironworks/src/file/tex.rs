@@ -10,6 +10,7 @@ use crate::error::{Error, Result};
 use super::file::File;
 
 #[binread]
+#[br(little)]
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Texture {
