@@ -6,7 +6,7 @@ use binrw::{binread, BinRead};
 use getset::{CopyGetters, Getters};
 use num_enum::IntoPrimitive;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 use super::File;
 
@@ -65,8 +65,7 @@ pub struct ExcelHeader {
 
 impl File for ExcelHeader {
 	fn read(data: Vec<u8>) -> Result<Self> {
-		<Self as BinRead>::read(&mut Cursor::new(data))
-			.map_err(|error| Error::Resource(error.into()))
+		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
 	}
 }
 

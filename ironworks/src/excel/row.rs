@@ -52,8 +52,7 @@ impl Row {
 			Error::NotFound(ErrorValue::Other(format!("Column {column_index}")))
 		})?;
 
-		self.read_field(column)
-			.map_err(|error| Error::Resource(error.into()))
+		Ok(self.read_field(column)?)
 	}
 
 	fn read_field(&self, column: &file::exh::ColumnDefinition) -> BinResult<Field> {

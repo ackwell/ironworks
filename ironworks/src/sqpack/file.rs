@@ -12,10 +12,8 @@ const MAX_COMPRESSED_BLOCK_SIZE: u32 = 16_000;
 
 pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 	// Move to the start of the file and read in the header.
-	reader
-		.seek(SeekFrom::Start(offset.into()))
-		.map_err(|error| Error::Resource(error.into()))?;
-	let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
+	reader.seek(SeekFrom::Start(offset.into()))?;
+	let header = Header::read(&mut reader)?;
 
 	let expected_file_size = header.raw_file_size;
 
@@ -37,29 +35,25 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 	// Eagerly read the block info.
 	let blocks = (0..header.block_count)
 		.map(|_index| BlockInfo::read(&mut reader))
-		.collect::<Result<Vec<_>, _>>()
-		.map_err(|error| Error::Resource(error.into()))?;
+		.collect::<Result<Vec<_>, _>>()?;
 
 	// Read each block into a final byte vector.
-	let out_buffer = blocks
-		.iter()
-		.try_fold(
-			Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap()),
-			|mut vec, block_info| -> io::Result<Vec<u8>> {
-				let mut block_reader =
-					read_block(&mut reader, offset + header.size + block_info.offset)?;
-				let count = block_reader.read_to_end(&mut vec)?;
+	let out_buffer = blocks.iter().try_fold(
+		Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap()),
+		|mut vec, block_info| -> io::Result<Vec<u8>> {
+			let mut block_reader =
+				read_block(&mut reader, offset + header.size + block_info.offset)?;
+			let count = block_reader.read_to_end(&mut vec)?;
 
-				match count == block_info.decompressed_size.into() {
-					true => Ok(vec),
-					false => Err(io::Error::new(
-						io::ErrorKind::Other,
-						read_failed("block", block_info.decompressed_size, count),
-					)),
-				}
-			},
-		)
-		.map_err(|error| Error::Resource(error.into()))?;
+			match count == block_info.decompressed_size.into() {
+				true => Ok(vec),
+				false => Err(io::Error::new(
+					io::ErrorKind::Other,
+					read_failed("block", block_info.decompressed_size, count),
+				)),
+			}
+		},
+	)?;
 
 	Ok(out_buffer)
 }
@@ -68,8 +62,7 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 	// Eagerly read the block info.
 	let blocks = (0..header.block_count)
 		.map(|_index| LodBlockInfo::read(&mut reader))
-		.collect::<Result<Vec<_>, _>>()
-		.map_err(|error| Error::Resource(error.into()))?;
+		.collect::<Result<Vec<_>, _>>()?;
 
 	let mut out_basis = Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap());
 
@@ -77,14 +70,11 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 	// outside the compressed blocks - read the delta into the buffer as raw bytes.
 	let raw_header_size = blocks[0].compressed_offset;
 	if raw_header_size > 0 {
-		reader
-			.seek(SeekFrom::Start((offset + header.size).into()))
-			.map_err(|error| Error::Resource(error.into()))?;
+		reader.seek(SeekFrom::Start((offset + header.size).into()))?;
 		reader
 			.by_ref()
 			.take(raw_header_size.into())
-			.read_to_end(&mut out_basis)
-			.map_err(|error| Error::Resource(error.into()))?;
+			.read_to_end(&mut out_basis)?;
 	}
 
 	// Read in the block data.
@@ -114,11 +104,8 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 				.collect::<Vec<_>>()
 		})
 		// Fold the readers onto the basis vector.
-		.try_fold(out_basis, |mut vec, maybe_reader| {
-			maybe_reader?
-				.read_to_end(&mut vec)
-				.map_err(|error| Error::Resource(error.into()))?;
-
+		.try_fold(out_basis, |mut vec, maybe_reader| -> Result<_> {
+			maybe_reader?.read_to_end(&mut vec)?;
 			Ok(vec)
 		})?;
 

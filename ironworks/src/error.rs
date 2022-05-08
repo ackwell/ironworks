@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, io};
 
 /// An error that occured.
 #[derive(thiserror::Error, Debug)]
@@ -18,6 +18,18 @@ pub enum Error {
 	/// re-instantiating ironworks and/or the related module.
 	#[error("An error occured while working with the provided resource: {0}")]
 	Resource(Box<dyn std::error::Error + Send + Sync>),
+}
+
+// Common From<> impls for Error::Resource. This is intentionally not a catch-all.
+impl From<io::Error> for Error {
+	fn from(error: io::Error) -> Self {
+		Error::Resource(error.into())
+	}
+}
+impl From<binrw::Error> for Error {
+	fn from(error: binrw::Error) -> Self {
+		Error::Resource(error.into())
+	}
 }
 
 // TODO: this could get pretty cluttered with single-purpose values. Is it worth making errorvalue a trait (and making error generic over it?) and letting each feature/file implement its own values? Generic trait might make it really messy to move errors around in the project due to non-matching bounds but hey maybe box dyn?

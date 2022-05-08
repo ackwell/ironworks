@@ -150,7 +150,7 @@ impl Resource for FsResource {
 			}
 		};
 
-		fs::read_to_string(path).map_err(|error| Error::Resource(error.into()))
+		Ok(fs::read_to_string(path)?)
 	}
 
 	type Index = io::Cursor<Vec<u8>>;
@@ -166,7 +166,7 @@ impl Resource for FsResource {
 	type Dat = fs::File;
 	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
 		let path = self.build_file_path(repository, category, chunk, &format!("dat{dat}"))?;
-		fs::File::open(path).map_err(|error| Error::Resource(error.into()))
+		Ok(fs::File::open(path)?)
 	}
 }
 

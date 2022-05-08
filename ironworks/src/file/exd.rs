@@ -70,8 +70,7 @@ impl ExcelData {
 		// Sanity check the subrow header before returning.
 		let mut cursor = Cursor::new(&self.data);
 		cursor.set_position(offset.try_into().unwrap());
-		let subrow_header =
-			SubrowHeader::read(&mut cursor).map_err(|error| Error::Resource(error.into()))?;
+		let subrow_header = SubrowHeader::read(&mut cursor)?;
 
 		if subrow_header.id != subrow_id {
 			return Err(Error::Invalid(
@@ -99,8 +98,7 @@ impl ExcelData {
 		cursor.set_position(u64::from(row_definition.offset) - self.data_offset);
 
 		// Read in the header.
-		let row_header =
-			RowHeader::read(&mut cursor).map_err(|error| Error::Resource(error.into()))?;
+		let row_header = RowHeader::read(&mut cursor)?;
 
 		Ok((row_header, cursor.position().try_into().unwrap()))
 	}
@@ -108,8 +106,7 @@ impl ExcelData {
 
 impl File for ExcelData {
 	fn read(data: Vec<u8>) -> Result<Self> {
-		<Self as BinRead>::read(&mut Cursor::new(data))
-			.map_err(|error| Error::Resource(error.into()))
+		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
 	}
 }
 

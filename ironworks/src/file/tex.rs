@@ -5,7 +5,7 @@ use std::io::Cursor;
 use binrw::{binread, until_eof, BinRead};
 use derivative::Derivative;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 use super::file::File;
 
@@ -33,7 +33,6 @@ pub struct Texture {
 
 impl File for Texture {
 	fn read(data: Vec<u8>) -> Result<Self> {
-		<Self as BinRead>::read(&mut Cursor::new(data))
-			.map_err(|error| Error::Resource(error.into()))
+		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
 	}
 }

@@ -66,16 +66,14 @@ impl IndexChunk {
 		resource
 			.index(repository, category, chunk)
 			.and_then(|mut reader| {
-				let file =
-					Index1::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
+				let file = Index1::read(&mut reader)?;
 				Ok(IndexChunk::Index1(file))
 			})
 			.or_else(|_| {
 				resource
 					.index2(repository, category, chunk)
 					.and_then(|mut reader| {
-						let file = Index2::read(&mut reader)
-							.map_err(|error| Error::Resource(error.into()))?;
+						let file = Index2::read(&mut reader)?;
 						Ok(IndexChunk::Index2(file))
 					})
 			})
