@@ -14,6 +14,15 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 		.map_err(|error| Error::Resource(error.into()))?;
 	let header = Header::read(&mut reader).map_err(|error| Error::Resource(error.into()))?;
 
+	// TODO: Check the raw file size?
+
+	match &header.kind {
+		FileKind::Standard => read_standard(reader, offset, header),
+		_ => todo!("File kind: {:?}", header.kind),
+	}
+}
+
+fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
 	// Read each block into a final byte vector.
 	let out_buffer = header
 		.blocks
@@ -28,16 +37,15 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 		)
 		.map_err(|error| Error::Resource(error.into()))?;
 
-	// TODO: Check the raw file size here?
-
 	Ok(out_buffer)
 }
 
 // TODO: move this into a block struct of some kind if we do lazy reading?
-fn read_block<R>(reader: &mut R, block_info: &BlockInfo, base: u32) -> io::Result<BlockReader>
-where
-	R: Read + Seek,
-{
+fn read_block(
+	reader: &mut (impl Read + Seek),
+	block_info: &BlockInfo,
+	base: u32,
+) -> io::Result<BlockReader> {
 	// Read the block into memory
 	let mut buffer = vec![0u8; block_info.compressed_size.into()];
 	reader.seek(SeekFrom::Start((base + block_info.offset).into()))?;
@@ -89,7 +97,7 @@ impl Read for BlockReader {
 #[br(little)]
 struct Header {
 	size: u32,
-	_kind: FileKind,
+	kind: FileKind,
 	_raw_file_size: u32,
 	#[br(temp, pad_before = 8)]
 	block_count: u32,
