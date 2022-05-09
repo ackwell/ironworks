@@ -1,6 +1,6 @@
 use std::{
 	fmt::Display,
-	io::{self, Cursor, Read, Seek, SeekFrom},
+	io::{self, Read, Seek, SeekFrom},
 };
 
 use binrw::{binread, BinRead, VecArgs};
@@ -33,9 +33,13 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 
 fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
 	// Eagerly read the block info.
-	let blocks = (0..header.block_count)
-		.map(|_index| BlockInfo::read(&mut reader))
-		.collect::<Result<Vec<_>, _>>()?;
+	let blocks = <Vec<BlockInfo>>::read_args(
+		&mut reader,
+		VecArgs {
+			count: header.block_count.try_into().unwrap(),
+			inner: (),
+		},
+	)?;
 
 	// Read each block into a final byte vector.
 	let out_buffer = blocks.iter().try_fold(
@@ -43,15 +47,17 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 		|mut vec, block_info| -> io::Result<Vec<u8>> {
 			let mut block_reader =
 				read_block(&mut reader, offset + header.size + block_info.offset)?;
-			let count = block_reader.read_to_end(&mut vec)?;
 
-			match count == block_info.decompressed_size.into() {
-				true => Ok(vec),
-				false => Err(io::Error::new(
+			// Check we read the expected size.
+			let count = block_reader.read_to_end(&mut vec)?;
+			if count != block_info.decompressed_size.into() {
+				return Err(io::Error::new(
 					io::ErrorKind::Other,
 					read_failed("block", block_info.decompressed_size, count),
-				)),
+				));
 			}
+
+			Ok(vec)
 		},
 	)?;
 
@@ -98,27 +104,22 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 	// Read in the block data.
 	let out_buffer = blocks
 		.iter()
-		// Each texture block may have one or more "sub-blocks", flat map them into a single iterator of blocks.
+		// Scan the LOD sub block info to get the expected offsets
 		.flat_map(|lod_block| {
 			let index_offset = usize::try_from(lod_block.block_offset).unwrap();
-			(index_offset..usize::try_from(lod_block.block_count).unwrap() + index_offset)
-				.scan(
-					lod_block.compressed_offset + offset + header.size,
-					|offset, index| {
-						// Read sub block
-						let block = read_block(&mut reader, *offset)
-							.map_err(|error| Error::Resource(error.into()));
-
-						*offset += u32::from(sub_block_offsets[index]);
-
-						Some(block)
-					},
-				)
-				.collect::<Vec<_>>()
+			(index_offset..usize::try_from(lod_block.block_count).unwrap() + index_offset).scan(
+				lod_block.compressed_offset + offset + header.size,
+				|next, index| {
+					let offset = *next;
+					*next += u32::from(sub_block_offsets[index]);
+					Some(offset)
+				},
+			)
 		})
-		// Fold the readers onto the basis vector.
-		.try_fold(out_basis, |mut vec, maybe_reader| -> Result<_> {
-			maybe_reader?.read_to_end(&mut vec)?;
+		// Read the block data
+		.try_fold(out_basis, |mut vec, offset| -> io::Result<Vec<u8>> {
+			let mut block_reader = read_block(&mut reader, offset)?;
+			block_reader.read_to_end(&mut vec)?;
 			Ok(vec)
 		})?;
 
@@ -130,7 +131,7 @@ fn read_failed(item: impl Display, expected: impl Display, got: impl Display) ->
 }
 
 // TODO: move this into a block struct of some kind if we do lazy reading?
-fn read_block(reader: &mut (impl Read + Seek), offset: u32) -> io::Result<BlockReader> {
+fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<BlockReader<R>> {
 	// Seek to the block and read its header so we know how much to expect in the rest of the block.
 	reader.seek(SeekFrom::Start(offset.into()))?;
 	let block_header =
@@ -141,28 +142,23 @@ fn read_block(reader: &mut (impl Read + Seek), offset: u32) -> io::Result<BlockR
 
 	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 
-	// Build a block reader for this block
-	let block_reader = if block_header.compressed_size > MAX_COMPRESSED_BLOCK_SIZE {
-		let mut buffer = vec![0u8; block_header.decompressed_size.try_into().unwrap()];
-		reader.read_exact(&mut buffer)?;
-		let raw_cursor = Cursor::new(buffer);
-		BlockReader::Loose(raw_cursor)
-	} else {
-		let mut buffer = vec![0u8; block_header.compressed_size.try_into().unwrap()];
-		reader.read_exact(&mut buffer)?;
-		let raw_cursor = Cursor::new(buffer);
-		BlockReader::Compressed(DeflateDecoder::new(raw_cursor))
+	// Build a reader for the block.
+	let reader = match block_header.compressed_size > MAX_COMPRESSED_BLOCK_SIZE {
+		true => BlockReader::Loose(reader.take(block_header.decompressed_size.into())),
+		false => BlockReader::Compressed(DeflateDecoder::new(
+			reader.take(block_header.compressed_size.into()),
+		)),
 	};
 
-	Ok(block_reader)
+	Ok(reader)
 }
 
-enum BlockReader {
-	Loose(Cursor<Vec<u8>>),
-	Compressed(DeflateDecoder<Cursor<Vec<u8>>>),
+enum BlockReader<'a, R> {
+	Loose(io::Take<&'a mut R>),
+	Compressed(DeflateDecoder<io::Take<&'a mut R>>),
 }
 
-impl Read for BlockReader {
+impl<R: Read> Read for BlockReader<'_, R> {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		match self {
 			Self::Loose(reader) => reader.read(buf),
