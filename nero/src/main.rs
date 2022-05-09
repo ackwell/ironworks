@@ -29,7 +29,7 @@ struct TempTestRes {
 fn startup_test(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 	commands.spawn_bundle(SpriteBundle {
-		texture: asset_server.load("iw://ui/icon/000000/000014_hr1.tex"),
+		texture: asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/texture/s1t0_a0_flag1_d.tex"),
 		..default()
 	});
 

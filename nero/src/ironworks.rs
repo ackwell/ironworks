@@ -161,6 +161,7 @@ impl AssetLoader for TexAssetLoader {
 fn convert_tex(tex: tex::Texture) -> Image {
 	match tex.format() {
 		tex::Format::Rgb5a1 => convert_rgb5a1(tex),
+		tex::Format::Dxt1 => convert_dxt1(tex),
 		other => todo!("Texture format: {other:?}"),
 	}
 }
@@ -189,6 +190,26 @@ fn convert_rgb5a1(tex: tex::Texture) -> Image {
 		},
 		TextureDimension::D2,
 		converted,
+		TextureFormat::Rgba8UnormSrgb,
+	)
+}
+
+fn convert_dxt1(tex: tex::Texture) -> Image {
+	let width = tex.width();
+	let height = tex.height();
+
+	let mut decompressed = vec![0u8; 4 * usize::from(width) * usize::from(height)];
+
+	squish::Format::Bc1.decompress(tex.data(), width.into(), height.into(), &mut decompressed);
+
+	Image::new(
+		Extent3d {
+			width: width.into(),
+			height: height.into(),
+			depth_or_array_layers: tex.depth().into(),
+		},
+		TextureDimension::D2,
+		decompressed,
 		TextureFormat::Rgba8UnormSrgb,
 	)
 }
