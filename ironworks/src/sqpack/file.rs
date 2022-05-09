@@ -3,7 +3,7 @@ use std::{
 	io::{self, Cursor, Read, Seek, SeekFrom},
 };
 
-use binrw::{binread, BinRead};
+use binrw::{binread, BinRead, VecArgs};
 use flate2::read::DeflateDecoder;
 
 use crate::error::{Error, Result};
@@ -60,10 +60,28 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 
 fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
 	// Eagerly read the block info.
-	let blocks = (0..header.block_count)
-		.map(|_index| LodBlockInfo::read(&mut reader))
-		.collect::<Result<Vec<_>, _>>()?;
+	let blocks = <Vec<LodBlockInfo>>::read_args(
+		&mut reader,
+		VecArgs {
+			count: header.block_count.try_into().unwrap(),
+			inner: (),
+		},
+	)?;
 
+	// Directly after the block info, texture files have a table of sub-block offsets.
+	let sub_block_count = blocks
+		.iter()
+		.fold(0, |total, block| total + block.block_count);
+
+	let sub_block_offsets = <Vec<u16>>::read_args(
+		&mut reader,
+		VecArgs {
+			count: sub_block_count.try_into().unwrap(),
+			inner: (),
+		},
+	)?;
+
+	// Create a vec with capacity for the full file.
 	let mut out_basis = Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap());
 
 	// If the first block has an offset, it's likely that there's a .tex header
@@ -82,21 +100,16 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 		.iter()
 		// Each texture block may have one or more "sub-blocks", flat map them into a single iterator of blocks.
 		.flat_map(|lod_block| {
-			(0..lod_block.block_count)
+			let index_offset = usize::try_from(lod_block.block_offset).unwrap();
+			(index_offset..usize::try_from(lod_block.block_count).unwrap() + index_offset)
 				.scan(
 					lod_block.compressed_offset + offset + header.size,
 					|offset, index| {
-						// Move the offset forward for sub-blocks beyond the first
-						if index > 0 {
-							*offset += u32::from(match u16::read(&mut reader) {
-								Err(error) => return Some(Err(Error::Resource(error.into()))),
-								Ok(value) => value,
-							});
-						}
-
 						// Read sub block
 						let block = read_block(&mut reader, *offset)
 							.map_err(|error| Error::Resource(error.into()));
+
+						*offset += u32::from(sub_block_offsets[index]);
 
 						Some(block)
 					},
@@ -123,20 +136,21 @@ fn read_block(reader: &mut (impl Read + Seek), offset: u32) -> io::Result<BlockR
 	let block_header =
 		BlockHeader::read(reader).map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
-	// Read the remainder of the block in.
-	let mut buffer = vec![0u8; block_header.compressed_size.try_into().unwrap()];
-	reader.read_exact(&mut buffer)?;
-
 	// TODO: if type 1 and first 64 == second 64, RSF
 	//       if type 1 and first 64 == [0..], empty
 
 	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 
 	// Build a block reader for this block
-	let raw_cursor = Cursor::new(buffer);
-	let block_reader = if block_header.decompressed_size > MAX_COMPRESSED_BLOCK_SIZE {
+	let block_reader = if block_header.compressed_size > MAX_COMPRESSED_BLOCK_SIZE {
+		let mut buffer = vec![0u8; block_header.decompressed_size.try_into().unwrap()];
+		reader.read_exact(&mut buffer)?;
+		let raw_cursor = Cursor::new(buffer);
 		BlockReader::Loose(raw_cursor)
 	} else {
+		let mut buffer = vec![0u8; block_header.compressed_size.try_into().unwrap()];
+		reader.read_exact(&mut buffer)?;
+		let raw_cursor = Cursor::new(buffer);
 		BlockReader::Compressed(DeflateDecoder::new(raw_cursor))
 	};
 
@@ -196,7 +210,7 @@ struct LodBlockInfo {
 	compressed_offset: u32,
 	_compressed_size: u32,
 	_decompressed_size: u32,
-	_block_offset: u32,
+	block_offset: u32,
 	block_count: u32,
 }
 
