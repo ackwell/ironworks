@@ -9,4 +9,4 @@ edition = "2021"
 anyhow = "1.0.55"
 bevy = "0.7"
 bevy_egui = "0.14"
-ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl"]}
+ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl", "tex"]}
