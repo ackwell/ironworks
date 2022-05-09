@@ -147,43 +147,8 @@ impl AssetLoader for TexAssetLoader {
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
 			let tex = tex::Texture::read(bytes.to_vec())?;
-
-			info!("read tex {tex:#?}");
-
-			// this is jank. improve.
-			let data = tex.data();
-			let converted = (0..data.len() / 2)
-				.flat_map(|index| {
-					let value =
-						(u16::from(data[index * 2])) + (u16::from(data[(index * 2) + 1]) << 8);
-
-					let alpha = ((value & 0x8000) >> 15) * 0xFF;
-					let red = (value & 0x7C00) >> 7;
-					let green = (value & 0x03E0) >> 2;
-					let blue = (value & 0x001F) << 3;
-
-					[
-						red.try_into().unwrap(),
-						green.try_into().unwrap(),
-						blue.try_into().unwrap(),
-						alpha.try_into().unwrap(),
-					]
-				})
-				.collect::<Vec<_>>();
-
-			let image = Image::new(
-				Extent3d {
-					width: tex.width().into(),
-					height: tex.height().into(),
-					depth_or_array_layers: tex.depth().into(),
-				},
-				TextureDimension::D2,
-				converted,
-				TextureFormat::Rgba8UnormSrgb,
-			);
-
+			let image = convert_tex(tex);
 			load_context.set_default_asset(LoadedAsset::new(image));
-
 			Ok(())
 		})
 	}
@@ -191,4 +156,39 @@ impl AssetLoader for TexAssetLoader {
 	fn extensions(&self) -> &[&str] {
 		&["tex"]
 	}
+}
+
+fn convert_tex(tex: tex::Texture) -> Image {
+	match tex.format() {
+		tex::Format::Rgb5a1 => convert_rgb5a1(tex),
+		other => todo!("Texture format: {other:?}"),
+	}
+}
+
+fn convert_rgb5a1(tex: tex::Texture) -> Image {
+	// this is jank. improve.
+	let data = tex.data();
+	let converted = (0..data.len() / 2)
+		.flat_map(|index| {
+			let value = u16::from(data[index * 2]) + (u16::from(data[(index * 2) + 1]) << 8);
+
+			[
+				((value & 0x7C00) >> 7).try_into().unwrap(),
+				((value & 0x03E0) >> 2).try_into().unwrap(),
+				((value & 0x001F) << 3).try_into().unwrap(),
+				(((value & 0x8000) >> 15) * 0xFF).try_into().unwrap(),
+			]
+		})
+		.collect::<Vec<_>>();
+
+	Image::new(
+		Extent3d {
+			width: tex.width().into(),
+			height: tex.height().into(),
+			depth_or_array_layers: tex.depth().into(),
+		},
+		TextureDimension::D2,
+		converted,
+		TextureFormat::Rgba8UnormSrgb,
+	)
 }

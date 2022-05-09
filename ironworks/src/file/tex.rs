@@ -18,7 +18,7 @@ pub struct Texture {
 	// TODO: enums
 	flags: u32, // attribute?
 	#[get_copy = "pub"]
-	format: u32,
+	format: Format,
 
 	#[get_copy = "pub"]
 	width: u16,
@@ -42,4 +42,11 @@ impl File for Texture {
 	fn read(data: Vec<u8>) -> Result<Self> {
 		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
 	}
+}
+
+#[binread]
+#[derive(Copy, Clone, Debug)]
+#[br(repr = u32)]
+pub enum Format {
+	Rgb5a1 = 0x1441,
 }
