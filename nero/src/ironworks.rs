@@ -182,6 +182,7 @@ fn convert_rgb5a1(tex: tex::Texture) -> Image {
 		})
 		.collect::<Vec<_>>();
 
+	// TODO: flags in tex might have some extra info for this, like dimension
 	Image::new(
 		Extent3d {
 			width: tex.width().into(),

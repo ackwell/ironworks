@@ -17,9 +17,13 @@ pub fn read_file(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 
 	let expected_file_size = header.raw_file_size;
 
+	// TODO: if type 1 and first 64 == second 64, RSF
+	//       if type 1 and first 64 == [0..], empty
+
+	let file_offset = offset + header.size;
 	let out_buffer = match &header.kind {
-		FileKind::Standard => read_standard(reader, offset, header),
-		FileKind::Texture => read_texture(reader, offset, header),
+		FileKind::Standard => read_standard(reader, file_offset, header),
+		FileKind::Texture => read_texture(reader, file_offset, header),
 		_ => todo!("File kind: {:?}", header.kind),
 	}?;
 
@@ -45,8 +49,7 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 	let out_buffer = blocks.iter().try_fold(
 		Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap()),
 		|mut vec, block_info| -> io::Result<Vec<u8>> {
-			let mut block_reader =
-				read_block(&mut reader, offset + header.size + block_info.offset)?;
+			let mut block_reader = read_block(&mut reader, offset + block_info.offset)?;
 
 			// Check we read the expected size.
 			let count = block_reader.read_to_end(&mut vec)?;
@@ -94,21 +97,20 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 	// outside the compressed blocks - read the delta into the buffer as raw bytes.
 	let raw_header_size = blocks[0].compressed_offset;
 	if raw_header_size > 0 {
-		reader.seek(SeekFrom::Start((offset + header.size).into()))?;
+		reader.seek(SeekFrom::Start(offset.into()))?;
 		reader
 			.by_ref()
 			.take(raw_header_size.into())
 			.read_to_end(&mut out_basis)?;
 	}
 
-	// Read in the block data.
 	let out_buffer = blocks
 		.iter()
-		// Scan the LOD sub block info to get the expected offsets
+		// Scan the LOD sub block info to get the expected offsets.
 		.flat_map(|lod_block| {
 			let index_offset = usize::try_from(lod_block.block_offset).unwrap();
 			(index_offset..usize::try_from(lod_block.block_count).unwrap() + index_offset).scan(
-				lod_block.compressed_offset + offset + header.size,
+				lod_block.compressed_offset + offset,
 				|next, index| {
 					let offset = *next;
 					*next += u32::from(sub_block_offsets[index]);
@@ -116,7 +118,7 @@ fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Re
 				},
 			)
 		})
-		// Read the block data
+		// Read the block data.
 		.try_fold(out_basis, |mut vec, offset| -> io::Result<Vec<u8>> {
 			let mut block_reader = read_block(&mut reader, offset)?;
 			block_reader.read_to_end(&mut vec)?;
@@ -136,9 +138,6 @@ fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<BlockRe
 	reader.seek(SeekFrom::Start(offset.into()))?;
 	let block_header =
 		BlockHeader::read(reader).map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
-
-	// TODO: if type 1 and first 64 == second 64, RSF
-	//       if type 1 and first 64 == [0..], empty
 
 	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 

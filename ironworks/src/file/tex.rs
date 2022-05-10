@@ -16,7 +16,7 @@ use super::file::File;
 #[derive(Derivative, Getters, CopyGetters)]
 #[derivative(Debug)]
 pub struct Texture {
-	// TODO: enums
+	// TODO: handle flags. modular bitfield? some important fields in there.
 	flags: u32, // attribute?
 	#[get_copy = "pub"]
 	format: Format,
