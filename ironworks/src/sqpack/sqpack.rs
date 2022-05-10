@@ -7,7 +7,7 @@ use crate::{
 	Resource,
 };
 
-use super::{file::read_file, index::Index};
+use super::{file, index::Index};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -55,7 +55,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 			.dat(repository, category, location.chunk, location.data_file)?;
 
 		// TODO: Cache files? Tempted to say it's the IW struct's responsibility.
-		read_file(dat, location.offset)
+		file::read(dat, location.offset)
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
