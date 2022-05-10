@@ -6,6 +6,8 @@ use crate::error::Result;
 
 use super::shared::{read_block, Header};
 
+const MAX_LODS: usize = 3;
+
 #[binread]
 #[derive(Debug)]
 #[br(little)]
@@ -23,16 +25,15 @@ struct ModelHeader {
 	_padding: u8,
 }
 
-// todo: the 3s are due to the lod count. abstract?
 #[binread]
 #[derive(Debug)]
 #[br(little)]
 struct SectionInfo<T: BinRead<Args = ()> + 'static> {
 	stack: T,
 	runtime: T,
-	vertex_buffer: [T; 3],
-	edge_geometry_vertex_buffer: [T; 3],
-	index_buffer: [T; 3],
+	vertex_buffer: [T; MAX_LODS],
+	edge_geometry_vertex_buffer: [T; MAX_LODS],
+	index_buffer: [T; MAX_LODS],
 }
 
 pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
@@ -84,13 +85,13 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	)?;
 
 	// LOD level data
-	let mut vertex_data_offsets = [0u32; 3];
-	let mut vertex_buffer_sizes = [0u32; 3];
+	let mut vertex_data_offsets = [0u32; MAX_LODS];
+	let mut vertex_buffer_sizes = [0u32; MAX_LODS];
 
-	let mut index_data_offsets = [0u32; 3];
-	let mut index_buffer_sizes = [0u32; 3];
+	let mut index_data_offsets = [0u32; MAX_LODS];
+	let mut index_buffer_sizes = [0u32; MAX_LODS];
 
-	for lod_index in 0..3 {
+	for lod_index in 0..MAX_LODS {
 		// Vertex buffer
 		let block_count = model_header.block_count.vertex_buffer[lod_index];
 		if block_count != 0 {
