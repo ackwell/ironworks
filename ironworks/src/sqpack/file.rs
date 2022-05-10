@@ -1,6 +1,6 @@
 use std::{
 	fmt::Display,
-	io::{self, Cursor, Read, Seek, SeekFrom},
+	io::{self, Cursor, Read, Seek, SeekFrom, Write},
 };
 
 use binrw::{binread, BinRead, BinWriterExt, VecArgs};
@@ -69,46 +69,15 @@ fn read_standard(mut reader: impl Read + Seek, offset: u32, header: Header) -> R
 }
 
 fn read_model(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
-	// todo we're technically starting halfway through the header here - models seem to have a different header? slightly?
-	// todo naming is copied from lumina rn - fix up and standardise with textures
-	#[binread]
-	#[derive(Debug)]
-	#[br(little)]
-	struct Test {
-		size: TestInner<u32>,
-		compressed_size: TestInner<u32>,
-		offset: TestInner<u32>,
-		block_index: TestInner<u16>,
-		block_num: TestInner<u16>,
-		vertex_declaration_num: u16,
-		material_num: u16,
-		num_lods: u8,
-		index_buffer_streaming_enabled: u8, //bool
-		edge_geometry_enabled: u8,          //bool
-		padding: u8,
-	}
-
-	// todo: the 3s are due to the lod count. abstract?
-	#[binread]
-	#[derive(Debug)]
-	#[br(little)]
-	struct TestInner<T: BinRead<Args = ()> + 'static> {
-		stack: T,
-		runtime: T,
-		vertex_buffer: [T; 3],
-		edge_geometry_vertex_buffer: [T; 3],
-		index_buffer: [T; 3],
-	}
-
-	let test = Test::read(&mut reader)?;
+	let model_header = ModelHeader::read(&mut reader)?;
 
 	// Model header is followed by an array of block sizes.
-	let block_nums = &test.block_num;
-	let total_blocks = block_nums.stack
-		+ block_nums.runtime
-		+ block_nums.vertex_buffer.iter().sum::<u16>()
-		+ block_nums.edge_geometry_vertex_buffer.iter().sum::<u16>()
-		+ block_nums.index_buffer.iter().sum::<u16>();
+	let block_counts = &model_header.block_count;
+	let total_blocks = block_counts.stack
+		+ block_counts.runtime
+		+ block_counts.vertex_buffer.iter().sum::<u16>()
+		+ block_counts.edge_geometry_vertex_buffer.iter().sum::<u16>()
+		+ block_counts.index_buffer.iter().sum::<u16>();
 
 	// TODO: i should probably make an impl for this it's pretty repetetive
 	let block_sizes = <Vec<u16>>::read_args(
@@ -119,37 +88,35 @@ fn read_model(mut reader: impl Read + Seek, offset: u32, header: Header) -> Resu
 		},
 	)?;
 
-	let out_buffer = Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap());
-	let mut out_cursor = Cursor::new(out_buffer);
+	// Build a writer for the output file.
+	let mut writer = Cursor::new(Vec::<u8>::with_capacity(
+		header.raw_file_size.try_into().unwrap(),
+	));
 
 	// First 0x44 is the header, which will be filled at the end
-	out_cursor.seek(SeekFrom::Start(0x44))?;
+	writer.seek(SeekFrom::Start(0x44))?;
 
-	// everything below this point is disgusting and needs to be cleaned up
+	// Stack
+	let stack_size = read_blocks(
+		model_header.block_count.stack,
+		model_header.block_index.stack,
+		offset + model_header.offset.stack,
+		&block_sizes,
+		&mut reader,
+		&mut writer,
+	)?;
 
-	// stack
-	let mut running = 0;
-	let mut stack_size = 0;
-	for index in 0..test.block_num.stack {
-		let mut block_reader = read_block(&mut reader, offset + test.offset.stack + running)?;
-		stack_size += io::copy(&mut block_reader, &mut out_cursor)?;
+	// Runtime
+	let runtime_size = read_blocks(
+		model_header.block_count.runtime,
+		model_header.block_index.runtime,
+		offset + model_header.offset.runtime,
+		&block_sizes,
+		&mut reader,
+		&mut writer,
+	)?;
 
-		let jndex = test.block_index.stack + index;
-		running += u32::from(block_sizes[usize::from(jndex)]);
-	}
-
-	// runtime
-	let mut running = 0;
-	let mut runtime_size = 0;
-	for index in 0..test.block_num.runtime {
-		let mut block_reader = read_block(&mut reader, offset + test.offset.runtime + running)?;
-		runtime_size += io::copy(&mut block_reader, &mut out_cursor)?;
-
-		let jndex = test.block_index.runtime + index;
-		running += u32::from(block_sizes[usize::from(jndex)]);
-	}
-
-	// stuff with lod levels
+	// LOD level data
 	let mut vertex_data_offsets = [0u32; 3];
 	let mut vertex_buffer_sizes = [0u32; 3];
 
@@ -157,80 +124,95 @@ fn read_model(mut reader: impl Read + Seek, offset: u32, header: Header) -> Resu
 	let mut index_buffer_sizes = [0u32; 3];
 
 	for lod_index in 0..3 {
-		if test.block_num.vertex_buffer[lod_index] != 0 {
-			// todo handle storing position for the header
-			let block_num = test.block_num.vertex_buffer[lod_index];
-			if lod_index == 0 || block_num > 0 {
-				vertex_data_offsets[lod_index] = out_cursor.position().try_into().unwrap();
+		// Vertex buffer
+		let block_count = model_header.block_count.vertex_buffer[lod_index];
+		if block_count != 0 {
+			if lod_index == 0 || block_count > 0 {
+				vertex_data_offsets[lod_index] = writer.position().try_into().unwrap();
 			}
 
-			let mut running = 0;
-			for index in 0..block_num {
-				let mut block_reader = read_block(
-					&mut reader,
-					offset + test.offset.vertex_buffer[lod_index] + running,
-				)?;
-				vertex_buffer_sizes[lod_index] +=
-					u32::try_from(io::copy(&mut block_reader, &mut out_cursor)?).unwrap();
-
-				let jndex = test.block_index.vertex_buffer[lod_index] + index;
-				running += u32::from(block_sizes[usize::from(jndex)]);
-			}
+			vertex_buffer_sizes[lod_index] = read_blocks(
+				block_count,
+				model_header.block_index.vertex_buffer[lod_index],
+				offset + model_header.offset.vertex_buffer[lod_index],
+				&block_sizes,
+				&mut reader,
+				&mut writer,
+			)?;
 		}
 
-		if test.block_num.edge_geometry_vertex_buffer[lod_index] != 0 {
-			let mut running = 0;
-			for index in 0..test.block_num.edge_geometry_vertex_buffer[lod_index] {
-				let mut block_reader = read_block(
-					&mut reader,
-					offset + test.offset.edge_geometry_vertex_buffer[lod_index] + running,
-				)?;
-				io::copy(&mut block_reader, &mut out_cursor)?;
-
-				let jndex = test.block_index.edge_geometry_vertex_buffer[lod_index] + index;
-				running += u32::from(block_sizes[usize::from(jndex)]);
-			}
+		// Edge geometry vertex buffer
+		let block_count = model_header.block_count.edge_geometry_vertex_buffer[lod_index];
+		if block_count != 0 {
+			read_blocks(
+				block_count,
+				model_header.block_index.edge_geometry_vertex_buffer[lod_index],
+				offset + model_header.offset.edge_geometry_vertex_buffer[lod_index],
+				&block_sizes,
+				&mut reader,
+				&mut writer,
+			)?;
 		}
 
-		if test.block_num.index_buffer[lod_index] != 0 {
-			// todo handle storing position for the header
-			let block_num = test.block_num.index_buffer[lod_index];
-			if lod_index == 0 || block_num > 0 {
-				index_data_offsets[lod_index] = out_cursor.position().try_into().unwrap();
+		// Index buffer
+		let block_count = model_header.block_count.index_buffer[lod_index];
+		if block_count != 0 {
+			if lod_index == 0 || block_count > 0 {
+				index_data_offsets[lod_index] = writer.position().try_into().unwrap();
 			}
 
-			let mut running = 0;
-			for index in 0..block_num {
-				let mut block_reader = read_block(
-					&mut reader,
-					offset + test.offset.index_buffer[lod_index] + running,
-				)?;
-				index_buffer_sizes[lod_index] +=
-					u32::try_from(io::copy(&mut block_reader, &mut out_cursor)?).unwrap();
-
-				let jndex = test.block_index.index_buffer[lod_index] + index;
-				running += u32::from(block_sizes[usize::from(jndex)]);
-			}
+			index_buffer_sizes[lod_index] = read_blocks(
+				block_count,
+				model_header.block_index.index_buffer[lod_index],
+				offset + model_header.offset.index_buffer[lod_index],
+				&block_sizes,
+				&mut reader,
+				&mut writer,
+			)?;
 		}
 	}
 
-	// header shit
-	out_cursor.seek(SeekFrom::Start(0))?;
-	out_cursor.write_le(&header.block_count)?; // version
-	out_cursor.write_le(&u32::try_from(stack_size).unwrap())?;
-	out_cursor.write_le(&u32::try_from(runtime_size).unwrap())?;
-	out_cursor.write_le(&test.vertex_declaration_num)?;
-	out_cursor.write_le(&test.material_num)?;
-	out_cursor.write_le(&vertex_data_offsets)?;
-	out_cursor.write_le(&index_data_offsets)?;
-	out_cursor.write_le(&vertex_buffer_sizes)?;
-	out_cursor.write_le(&index_buffer_sizes)?;
-	out_cursor.write_le(&test.num_lods)?;
-	out_cursor.write_le(&test.index_buffer_streaming_enabled)?;
-	out_cursor.write_le(&test.edge_geometry_enabled)?;
-	out_cursor.write_le(&0u8)?;
+	// Write out the header now we've collected the info for it.
+	writer.seek(SeekFrom::Start(0))?;
+	writer.write_le(&header.block_count)?; // version
+	writer.write_le(&stack_size)?;
+	writer.write_le(&runtime_size)?;
+	writer.write_le(&model_header.vertex_declaration_count)?;
+	writer.write_le(&model_header.material_count)?;
+	writer.write_le(&vertex_data_offsets)?;
+	writer.write_le(&index_data_offsets)?;
+	writer.write_le(&vertex_buffer_sizes)?;
+	writer.write_le(&index_buffer_sizes)?;
+	writer.write_le(&model_header.lod_count)?;
+	writer.write_le(&model_header.index_buffer_streaming_enabled)?;
+	writer.write_le(&model_header.edge_geometry_enabled)?;
+	writer.write_le(&0u8)?;
 
-	Ok(out_cursor.into_inner())
+	Ok(writer.into_inner())
+}
+
+fn read_blocks(
+	block_count: u16,
+	block_index: u16,
+	section_offset: u32,
+	block_sizes: &[u16],
+	reader: &mut (impl Read + Seek),
+	writer: &mut impl Write,
+) -> Result<u32> {
+	let size = (0..block_count)
+		// Calculate the offsets for the blocks.
+		.scan(section_offset, |offset, index| {
+			let current_offset = *offset;
+			*offset += u32::from(block_sizes[usize::from(block_index + index)]);
+			Some(current_offset)
+		})
+		// Read the blocks into the cursor, recording the read byte count.
+		.try_fold(0u32, |size, offset| -> Result<u32> {
+			let bytes_read = io::copy(&mut read_block(reader, offset)?, writer)?;
+			Ok(size + u32::try_from(bytes_read).unwrap())
+		})?;
+
+	Ok(size)
 }
 
 fn read_texture(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
@@ -373,6 +355,35 @@ struct LodBlockInfo {
 	_decompressed_size: u32,
 	block_offset: u32,
 	block_count: u32,
+}
+
+#[binread]
+#[derive(Debug)]
+#[br(little)]
+struct ModelHeader {
+	_size: SectionInfo<u32>,
+	_compressed_size: SectionInfo<u32>,
+	offset: SectionInfo<u32>,
+	block_index: SectionInfo<u16>,
+	block_count: SectionInfo<u16>,
+	vertex_declaration_count: u16,
+	material_count: u16,
+	lod_count: u8,
+	index_buffer_streaming_enabled: u8, //bool
+	edge_geometry_enabled: u8,          //bool
+	_padding: u8,
+}
+
+// todo: the 3s are due to the lod count. abstract?
+#[binread]
+#[derive(Debug)]
+#[br(little)]
+struct SectionInfo<T: BinRead<Args = ()> + 'static> {
+	stack: T,
+	runtime: T,
+	vertex_buffer: [T; 3],
+	edge_geometry_vertex_buffer: [T; 3],
+	index_buffer: [T; 3],
 }
 
 #[binread]
