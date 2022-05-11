@@ -22,6 +22,7 @@ sqpack = ["dep:flate2"]
 exd = []
 exh = []
 exl = []
+mdl = ["dep:modular-bitfield"]
 tex = ["dep:num_enum"]
 
 [dependencies]
@@ -32,4 +33,5 @@ thiserror = "1.0.30"
 
 enum-as-inner = {version = "0.4.0", optional = true}
 flate2 = {version = "1.0.22", optional = true}
+modular-bitfield = {version = "0.11.2", optional = true}
 num_enum = {version = "0.5.7", optional = true}
