@@ -8,11 +8,14 @@ use bevy::{
 	asset::{AssetIo, AssetIoError, AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
 	reflect::TypeUuid,
-	render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+	render::{
+		mesh::{Indices, PrimitiveTopology},
+		render_resource::{Extent3d, TextureDimension, TextureFormat},
+	},
 };
 use ironworks::{
 	ffxiv,
-	file::{exl, tex, File},
+	file::{exl, mdl, tex, File},
 	sqpack::SqPack,
 	Error, ErrorValue, Ironworks,
 };
@@ -52,6 +55,7 @@ pub struct IronworksPlugin;
 impl Plugin for IronworksPlugin {
 	fn build(&self, app: &mut App) {
 		app.init_asset_loader::<ListAssetLoader>()
+			.init_asset_loader::<MdlAssetLoader>()
 			.init_asset_loader::<TexAssetLoader>()
 			.add_asset::<List>();
 	}
@@ -137,6 +141,58 @@ impl AssetLoader for ListAssetLoader {
 }
 
 #[derive(Default)]
+struct MdlAssetLoader;
+
+impl AssetLoader for MdlAssetLoader {
+	fn load<'a>(
+		&'a self,
+		bytes: &'a [u8],
+		load_context: &'a mut LoadContext,
+	) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
+		Box::pin(async move {
+			let mdl = <mdl::Model as File>::read(bytes.to_vec())?;
+			let mesh = convert_mdl(mdl);
+			load_context.set_default_asset(LoadedAsset::new(mesh));
+			Ok(())
+		})
+	}
+
+	fn extensions(&self) -> &[&str] {
+		&["mdl"]
+	}
+}
+
+// todo: mdls contain more than a single mesh, need to take a page out of i.e. gltf loader for this eventually
+fn convert_mdl(mdl: mdl::Model) -> Mesh {
+	// todo:just pulling a single mesh out for now
+	// todo: should probably go lod -> mesh
+	// todo: don't hardcode shit
+	// let mdlmesh = &mdl.meshes()[0];
+	let (indices, vertices) = mdl.meshes_temp().unwrap();
+
+	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
+	mesh.insert_attribute(
+		Mesh::ATTRIBUTE_POSITION,
+		vertices
+			.into_iter()
+			.map(|[x, y, z, _w]| [x, y, z])
+			.collect::<Vec<_>>(),
+	);
+	// // mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+	mesh.insert_attribute(
+		Mesh::ATTRIBUTE_UV_0,
+		(0..657).map(|_| [0., 0.]).collect::<Vec<_>>(),
+	);
+
+	mesh.set_indices(Some(Indices::U16(indices)));
+
+	mesh.duplicate_vertices();
+	mesh.compute_flat_normals();
+
+	mesh
+}
+
+#[derive(Default)]
 struct TexAssetLoader;
 
 impl AssetLoader for TexAssetLoader {
@@ -146,7 +202,7 @@ impl AssetLoader for TexAssetLoader {
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
-			let tex = tex::Texture::read(bytes.to_vec())?;
+			let tex = <tex::Texture as File>::read(bytes.to_vec())?;
 			let image = convert_tex(tex);
 			load_context.set_default_asset(LoadedAsset::new(image));
 			Ok(())
