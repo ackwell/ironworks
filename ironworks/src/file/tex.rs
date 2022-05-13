@@ -1,5 +1,7 @@
 //! Structs and utilities for parsing .tex files.
 
+#![allow(dead_code, missing_docs, clippy::identity_op)]
+
 use std::io::Cursor;
 
 use binrw::{binread, until_eof, BinRead};

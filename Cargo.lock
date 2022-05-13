@@ -2024,6 +2024,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "half"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
+
+[[package]]
 name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2246,6 +2252,7 @@ dependencies = [
  "enum-as-inner",
  "flate2",
  "getset",
+ "half",
  "modular-bitfield",
  "num_enum",
  "thiserror",
