@@ -150,7 +150,7 @@ impl AssetLoader for MdlAssetLoader {
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
 		Box::pin(async move {
-			let mdl = <mdl::Model as File>::read(bytes.to_vec())?;
+			let mdl = <mdl::ModelContainer as File>::read(bytes.to_vec())?;
 			let mesh = convert_mdl(mdl);
 			load_context.set_default_asset(LoadedAsset::new(mesh));
 			Ok(())
@@ -163,7 +163,7 @@ impl AssetLoader for MdlAssetLoader {
 }
 
 // todo: mdls contain more than a single mesh, need to take a page out of i.e. gltf loader for this eventually
-fn convert_mdl(mdl: mdl::Model) -> Mesh {
+fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	// todo:just pulling a single mesh out for now
 	// todo: should probably go lod -> mesh
 	// todo: don't hardcode shit
