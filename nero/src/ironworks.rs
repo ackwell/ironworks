@@ -168,7 +168,8 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	// todo: should probably go lod -> mesh
 	// todo: don't hardcode shit
 	// let mdlmesh = &mdl.meshes()[0];
-	let (indices, vertices) = mdl.meshes_temp().unwrap();
+	let (_indices, vertices) = mdl.meshes_temp().unwrap();
+	let indices = mdl.lod(mdl::Lod::High).mesh(0).indices().unwrap();
 
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 	mesh.insert_attribute(
