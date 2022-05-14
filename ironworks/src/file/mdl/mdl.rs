@@ -9,7 +9,7 @@ use num_enum::IntoPrimitive;
 
 use crate::{error::Result, file::File};
 
-use super::structs;
+use super::structs::{self, VertexKind, VertexUsage};
 
 #[derive(Debug)]
 pub struct ModelContainer {
@@ -189,7 +189,7 @@ impl Mesh {
 		// TODO: remove this. just forcing to positions only temporarily
 		let pos_el = ordered_elements
 			.into_iter()
-			.find(|el| el.usage == 0)
+			.find(|el| matches!(el.usage, VertexUsage::Position))
 			.unwrap();
 
 		// Read in the vertices
@@ -198,16 +198,16 @@ impl Mesh {
 				let cursor = &mut cursors[usize::from(pos_el.stream)];
 				// TODO: Usage
 				// TODO: Other reader types
-				match pos_el.type_ {
+				match &pos_el.kind {
 					// TODO: might be able to use half::slice to read in u16s first and convert in batch.
 					// TODO: error handling
-					14 => [
+					VertexKind::Half4 => [
 						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
 						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
 						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
 						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
 					],
-					other => todo!("{other}"),
+					other => todo!("{other:?}"),
 				}
 			})
 			.collect::<Vec<_>>()
