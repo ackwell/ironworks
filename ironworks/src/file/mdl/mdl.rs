@@ -1,5 +1,3 @@
-//! Structs and utilities for parsing .mdl files.
-
 // TODO: REMOVE
 #![allow(dead_code, missing_docs, clippy::identity_op)]
 
@@ -10,9 +8,7 @@ use derivative::Derivative;
 use getset::Getters;
 use modular_bitfield::bitfield;
 
-use crate::error::Result;
-
-use super::file::File;
+use crate::{error::Result, file::File};
 
 const MAX_LODS: usize = 3;
 
@@ -490,7 +486,7 @@ fn read_extra_lods(
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-pub struct Mesh {
+struct Mesh {
 	vertex_count: u16,
 	//padding:u16,
 	#[br(pad_before = 2)]
