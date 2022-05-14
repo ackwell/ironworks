@@ -4,6 +4,7 @@
 use std::{io::Cursor, sync::Arc};
 
 use binrw::{BinRead, VecArgs};
+use half::f16;
 use num_enum::IntoPrimitive;
 
 use crate::{error::Result, file::File};
@@ -93,103 +94,7 @@ impl ModelContainer {
 			.map(|(index, types)| (&self.file.meshes[index], index, types))
 			.collect::<Vec<_>>();
 
-		// todo: this really should not be here
-		let (mesh, mesh_index, _types) = &lod_meshes[0];
-		// todo bone table
-		// todo submeshes
-		// indexes first because it looks easier kill me
-		let mut cursor = Cursor::new(&self.file.data);
-		// what's the *2 for? i'm guessing that it treats the index buffer as a single block of indexes, and it's the start index of the index within that buffer, hence *2 for u16?
-		// todo this can use the lod index offset probably
-		cursor.set_position(
-			u64::from(self.file.index_offset[lod_level] + mesh.start_index * 2)
-				- self.file.data_offset,
-		);
-		let indicies = <Vec<u16>>::read_args(
-			&mut cursor,
-			VecArgs {
-				count: mesh.index_count.try_into().unwrap(),
-				inner: (),
-			},
-		)?;
-		// println!("{:?}", indicies);
-
-		// verticies
-		let decl = &self.file.vertex_declarations[*mesh_index];
-
-		// sort the vertex elements in the decl so we can read in-order from the cursor
-		let mut ordecl = decl.0.iter().collect::<Vec<_>>();
-		ordecl.sort_unstable_by_key(|element| element.offset);
-		// println!("{mesh:#?} {:#?}", ordecl);
-
-		// yikes
-		let posel = *ordecl.iter().find(|el| el.usage == 0).unwrap();
-
-		let mut cursors = (0..usize::from(mesh.vertex_stream_count))
-			.map(|stream_index| {
-				let mut cursor = Cursor::new(&self.file.data);
-				cursor.set_position(
-					// todo this can use the lod index offset probably
-					u64::from(
-						self.file.vertex_offset[lod_level]
-							+ mesh.vertex_buffer_offset[stream_index],
-					) - self.file.data_offset,
-				);
-				cursor
-			})
-			.collect::<Vec<_>>();
-
-		// ok so the idea is that we loop through 0..vertex count
-		// and then, for each vertex, read in data once for each element
-		// reading the first 10 just to... _see_ something
-		let verticies = (0..mesh.vertex_count)
-			// let verticies = (0..10)
-			.map(|vertex_index| {
-				// ordecl
-				// 	.iter()
-				// 	.map(|el| {
-				// 		// todo properly with enums and all that jazz
-				// 		// type, usage
-				// 		let cursor = &mut cursors[usize::from(el.stream)];
-				// 		match el.type_ {
-				// 			8 => [
-				// 				f32::from(u8::read(cursor).unwrap()) / 255f32,
-				// 				f32::from(u8::read(cursor).unwrap()) / 255f32,
-				// 				f32::from(u8::read(cursor).unwrap()) / 255f32,
-				// 				f32::from(u8::read(cursor).unwrap()) / 255f32,
-				// 			],
-				// 			// 13 => 1,
-				// 			// 14 => 1,
-				// 			_ => todo!(),
-				// 		}
-				// 	})
-				// 	.collect::<Vec<_>>()
-
-				let cursor = &mut cursors[usize::from(posel.stream)];
-				match posel.type_ {
-					// 8 => [
-					// 	f32::from(u8::read(cursor).unwrap()) / 255f32,
-					// 	f32::from(u8::read(cursor).unwrap()) / 255f32,
-					// 	f32::from(u8::read(cursor).unwrap()) / 255f32,
-					// 	f32::from(u8::read(cursor).unwrap()) / 255f32,
-					// ],
-					// 13 => 1,
-					// ??? i have no idea if this will work. at all.
-					14 => [
-						// should i expose these as f32 or half?
-						half::f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						half::f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						half::f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						half::f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-					],
-					_ => todo!("{}", posel.type_),
-				}
-			})
-			.collect::<Vec<_>>();
-		// println!("{verticies:#?}");
-
-		// foo
-		Ok((indicies, verticies))
+		Ok((vec![], vec![]))
 	}
 }
 
@@ -258,5 +163,53 @@ impl Mesh {
 	}
 
 	// TODO: how do we handle the kind of vertex in this api?
-	pub fn vertices(&self) {}
+	pub fn vertices(&self) -> Vec<[f32; 4]> {
+		let mesh = &self.file.meshes[self.mesh_index];
+
+		// Get the elements for this mesh's vertices and sort them by their offset
+		// - we'll be relying on that sort order to ensure reading picks them up in
+		// the right order.
+		let elements = &self.file.vertex_declarations[self.mesh_index].0;
+
+		// TODO: is it possible to avoid the vec clone?
+		let mut ordered_elements = elements.iter().collect::<Vec<_>>();
+		ordered_elements.sort_unstable_by_key(|element| element.offset);
+
+		// Vertices are stored across multipe streams of data - set up a cursor for each.
+		let mut cursors = (0..usize::from(mesh.vertex_stream_count))
+			.map(|index| {
+				let offset = self.file.vertex_offset[usize::from(self.level)]
+					+ mesh.vertex_buffer_offset[index];
+				let mut cursor = Cursor::new(&self.file.data);
+				cursor.set_position(u64::from(offset) - self.file.data_offset);
+				cursor
+			})
+			.collect::<Vec<_>>();
+
+		// TODO: remove this. just forcing to positions only temporarily
+		let pos_el = ordered_elements
+			.into_iter()
+			.find(|el| el.usage == 0)
+			.unwrap();
+
+		// Read in the vertices
+		(0..mesh.vertex_count)
+			.map(|_index| {
+				let cursor = &mut cursors[usize::from(pos_el.stream)];
+				// TODO: Usage
+				// TODO: Other reader types
+				match pos_el.type_ {
+					// TODO: might be able to use half::slice to read in u16s first and convert in batch.
+					// TODO: error handling
+					14 => [
+						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+					],
+					other => todo!("{other}"),
+				}
+			})
+			.collect::<Vec<_>>()
+	}
 }
