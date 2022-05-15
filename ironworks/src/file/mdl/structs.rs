@@ -207,8 +207,8 @@ pub struct VertexElement {
 	// todo names
 	pub stream: u8,
 	pub offset: u8,
-	pub kind: VertexKind,
-	pub usage: VertexUsage,
+	pub format: VertexFormat,
+	pub attribute: VertexAttributeKind,
 	#[br(pad_after = 3)]
 	usage_index: u8,
 }
@@ -216,7 +216,7 @@ pub struct VertexElement {
 #[binread]
 #[br(repr = u8)]
 #[derive(Debug)]
-pub enum VertexKind {
+pub enum VertexFormat {
 	None = 0,
 	Single3 = 2,
 	Single4 = 3,
@@ -228,8 +228,8 @@ pub enum VertexKind {
 
 #[binread]
 #[br(repr = u8)]
-#[derive(Debug)]
-pub enum VertexUsage {
+#[derive(Clone, Copy, Debug)]
+pub enum VertexAttributeKind {
 	Position = 0,
 	BlendWeights = 1,
 	BlendIndices = 2,

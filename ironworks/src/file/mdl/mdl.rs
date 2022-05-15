@@ -2,7 +2,7 @@
 #![allow(missing_docs)]
 
 use std::{
-	io::{Cursor, Read, Seek},
+	io::{Cursor, Read, Seek, SeekFrom},
 	sync::Arc,
 };
 
@@ -12,7 +12,7 @@ use num_enum::IntoPrimitive;
 
 use crate::{error::Result, file::File};
 
-use super::structs::{self, VertexKind, VertexUsage};
+use super::structs::{self, VertexAttributeKind, VertexFormat};
 
 #[derive(Debug)]
 pub struct ModelContainer {
@@ -165,7 +165,7 @@ impl Mesh {
 	}
 
 	// TODO: how do we handle the kind of vertex in this api?
-	pub fn vertices(&self) -> Result<Vec<VertexValues>> {
+	pub fn vertices(&self) -> Result<Vec<VertexAttribute>> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
 		// Get the elements for this mesh's vertices.
@@ -181,58 +181,115 @@ impl Mesh {
 			})
 			.collect::<Vec<_>>();
 
-		// TODO: remove this. just forcing to positions only temporarily
-		let pos_el = elements
-			.iter()
-			.find(|el| matches!(el.usage, VertexUsage::Position))
-			.unwrap();
-
 		// Read in the vertices
-		// TODO: other els
 		// TODO: keep an eye on perf here - could thrash cache a bit if llvm doesn't magic it enough
-		// TODO: return type should probably be a struct of {usage,data}
-		let elements = std::iter::once(pos_el)
+		elements
+			.iter()
 			.map(|element| -> Result<_> {
 				let stream = usize::from(element.stream);
 				let (ref mut cursor, base_offset) = streams[stream];
-				let stride = mesh.vertex_buffer_stride[stream];
+				let stride = u64::from(mesh.vertex_buffer_stride[stream]);
 
-				let range = 0..mesh.vertex_count;
-				let values = match &element.kind {
-					VertexKind::Half4 => VertexValues::F32x4(
-						range
-							.scan(base_offset, |offset, _index| {
-								cursor.set_position(*offset);
-								*offset += u64::from(stride);
+				let offsets = (0..mesh.vertex_count).scan(base_offset, |offset, _index| {
+					let current = *offset;
+					*offset += stride;
+					Some(current)
+				});
 
-								let value = read_f32x4(cursor);
-								Some(value)
-							})
-							.collect::<Result<Vec<_>>>()?,
-					),
+				use VertexFormat as K;
+				use VertexValues as V;
+				let values = match &element.format {
+					K::Single3 => V::Vector3(read_values(offsets, cursor, single3)?),
+					K::Single4 => V::Vector4(read_values(offsets, cursor, single4)?),
+					K::Uint => V::Uint(read_values(offsets, cursor, uint)?),
+					K::ByteFloat4 => V::Vector4(read_values(offsets, cursor, bfloat4)?),
+					K::Half2 => V::Vector2(read_values(offsets, cursor, half2)?),
+					K::Half4 => V::Vector4(read_values(offsets, cursor, half4)?),
 					other => todo!("Vertex kind: {other:?}"),
 				};
-				Ok(values)
-			})
-			.collect::<Result<Vec<_>>>();
 
-		elements
+				Ok(VertexAttribute {
+					kind: element.attribute,
+					values,
+				})
+			})
+			.collect::<Result<Vec<_>>>()
 	}
 }
 
-// TODO: this isn't crash hot - work out a cleaner way to abstract. maybe impl on vertexvalues?
-fn read_f32x4(cursor: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
-	let value = [
-		f16::from_bits(u16::read(cursor)?).to_f32(),
-		f16::from_bits(u16::read(cursor)?).to_f32(),
-		f16::from_bits(u16::read(cursor)?).to_f32(),
-		f16::from_bits(u16::read(cursor)?).to_f32(),
-	];
-	Ok(value)
+fn read_values<R, F, O>(
+	offsets: impl Iterator<Item = u64>,
+	reader: &mut R,
+	map_fn: F,
+) -> Result<Vec<O>>
+where
+	R: Read + Seek,
+	F: Fn(&mut R) -> Result<O>,
+{
+	offsets
+		.map(|offset| {
+			reader.seek(SeekFrom::Start(offset))?;
+			map_fn(reader)
+		})
+		.collect::<Result<Vec<_>>>()
+}
+
+fn single3(reader: &mut (impl Read + Seek)) -> Result<[f32; 3]> {
+	Ok([f32::read(reader)?, f32::read(reader)?, f32::read(reader)?])
+}
+
+fn single4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
+	Ok([
+		f32::read(reader)?,
+		f32::read(reader)?,
+		f32::read(reader)?,
+		f32::read(reader)?,
+	])
+}
+
+fn uint(reader: &mut (impl Read + Seek)) -> Result<u32> {
+	Ok(u32::read(reader)?)
+}
+
+fn bfloat4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
+	Ok([
+		f32::from(u8::read(reader)?) / 255.,
+		f32::from(u8::read(reader)?) / 255.,
+		f32::from(u8::read(reader)?) / 255.,
+		f32::from(u8::read(reader)?) / 255.,
+	])
+}
+
+fn half2(reader: &mut (impl Read + Seek)) -> Result<[f32; 2]> {
+	Ok([
+		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read(reader)?).to_f32(),
+	])
+}
+
+fn half4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
+	Ok([
+		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read(reader)?).to_f32(),
+	])
+}
+
+// todo: public contents?
+#[derive(Debug)]
+pub struct VertexAttribute {
+	// todo i'm really not convinced on the name here
+	pub kind: VertexAttributeKind,
+	pub values: VertexValues,
 }
 
 // TODO: Flesh this out - it's intended to be the public exported interface
+// game doesn't seem to use f64 at all - should it just be vec2/3/4 and we translate the esoteric types to f32 internally?
 #[derive(Debug)]
 pub enum VertexValues {
-	F32x4(Vec<[f32; 4]>),
+	Uint(Vec<u32>),
+	Vector2(Vec<[f32; 2]>),
+	Vector3(Vec<[f32; 3]>),
+	Vector4(Vec<[f32; 4]>),
 }

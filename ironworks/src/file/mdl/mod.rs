@@ -4,3 +4,4 @@ mod mdl;
 mod structs;
 
 pub use mdl::*;
+pub use structs::VertexAttributeKind;

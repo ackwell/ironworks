@@ -172,17 +172,21 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	let vertices = mesh.vertices().unwrap();
 
 	// TODO: temp
-	let pos_verts = vertices.into_iter().next().unwrap();
+	let pos_verts = vertices
+		.into_iter()
+		.find(|attribute| matches!(attribute.kind, mdl::VertexAttributeKind::Position))
+		.unwrap();
 
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 	mesh.insert_attribute(
 		Mesh::ATTRIBUTE_POSITION,
 		// TODO: this should probably use a general purpose "to vec3" handler
-		match pos_verts {
-			mdl::VertexValues::F32x4(data) => data
+		match pos_verts.values {
+			mdl::VertexValues::Vector4(data) => data
 				.into_iter()
 				.map(|[x, y, z, _w]| [x, y, z])
 				.collect::<Vec<_>>(),
+			other => todo!("Vertex values {other:?}"),
 		},
 	);
 	// // mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
