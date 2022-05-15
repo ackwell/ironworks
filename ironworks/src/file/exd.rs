@@ -1,6 +1,9 @@
 //! Structs and utilities for parsing .exd files.
 
-use std::io::{Cursor, Read, Seek};
+use std::{
+	borrow::Cow,
+	io::{Cursor, Read, Seek},
+};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
 
@@ -105,8 +108,9 @@ impl ExcelData {
 }
 
 impl File for ExcelData {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
+	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+		let cow: Cow<[u8]> = data.into();
+		Ok(<Self as BinRead>::read(&mut Cursor::new(cow.as_ref()))?)
 	}
 }
 
