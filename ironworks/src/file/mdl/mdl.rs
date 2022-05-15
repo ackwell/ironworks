@@ -118,16 +118,19 @@ pub struct Model {
 }
 
 impl Model {
-	// TODO: Consider the api here, there's >1 type of mesh for any given model, and consumers might want to query for a particular type.
-	//       Are they going to want a single .mesh at all?
-	//       ... the index param is a total copout for now. fix.
-	pub fn mesh(&self, mesh_index: usize) -> Mesh {
-		Mesh {
-			file: self.file.clone(),
+	// TODO: Expose mesh types
+	// TODO: Maybe mesh filter?
+	// TODO: iterator?
+	pub fn meshes(&self) -> Vec<Mesh> {
+		// TODO: THIS IS CURRENTLY IGNORING LOD AND FETCHING EVERY MESH IN THE MODEL
+		(0..self.file.meshes.len())
+			.map(|mesh_index| Mesh {
+				file: self.file.clone(),
 
-			level: self.level,
-			mesh_index,
-		}
+				level: self.level,
+				mesh_index,
+			})
+			.collect()
 	}
 }
 
@@ -143,6 +146,7 @@ impl Mesh {
 	// TODO: bones
 	// TODO: submeshes
 
+	// TODO: iterator?
 	pub fn indices(&self) -> Result<Vec<u16>> {
 		// Get the offset of the indices within the file. The `start_index` on `mesh`
 		// is representative of an already-ready array of u16, ergo *2.
@@ -164,9 +168,9 @@ impl Mesh {
 		Ok(indices)
 	}
 
-	// TODO: rename this? it's more "attributes" or "vertex attributes" now
 	// TODO: fn to get a specific attr?
-	pub fn vertices(&self) -> Result<Vec<VertexAttribute>> {
+	// TODO: iterator?
+	pub fn attributes(&self) -> Result<Vec<VertexAttribute>> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
 		// Get the elements for this mesh's vertices.
@@ -285,8 +289,6 @@ pub struct VertexAttribute {
 	pub values: VertexValues,
 }
 
-// TODO: Flesh this out - it's intended to be the public exported interface
-// game doesn't seem to use f64 at all - should it just be vec2/3/4 and we translate the esoteric types to f32 internally?
 #[derive(Debug)]
 pub enum VertexValues {
 	Uint(Vec<u32>),

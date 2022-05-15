@@ -5,7 +5,7 @@ use std::{
 };
 
 use bevy::{
-	asset::{AssetIo, AssetIoError, AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
+	asset::{AssetIo, AssetIoError, AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
 	reflect::TypeUuid,
 	render::{
@@ -149,12 +149,7 @@ impl AssetLoader for MdlAssetLoader {
 		bytes: &'a [u8],
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
-		Box::pin(async move {
-			let mdl = <mdl::ModelContainer as File>::read(bytes.to_vec())?;
-			let mesh = convert_mdl(mdl);
-			load_context.set_default_asset(LoadedAsset::new(mesh));
-			Ok(())
-		})
+		Box::pin(async move { Ok(load_mdl(bytes, load_context)?) })
 	}
 
 	fn extensions(&self) -> &[&str] {
@@ -163,11 +158,48 @@ impl AssetLoader for MdlAssetLoader {
 }
 
 // todo: mdls contain more than a single mesh, need to take a page out of i.e. gltf loader for this eventually
-fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
-	// todo:just pulling a single mesh out for now
-	let mesh = mdl.lod(mdl::Lod::High).mesh(0);
-	let indices = mesh.indices().unwrap();
-	let vertex_attributes = mesh.vertices().unwrap();
+fn load_mdl<'a>(
+	bytes: &'a [u8],
+	load_context: &'a mut LoadContext,
+) -> Result<(), ironworks::Error> {
+	let mut world = World::default();
+
+	let mdl = <mdl::ModelContainer as File>::read(bytes.to_vec())?;
+	let model = mdl.lod(mdl::Lod::High);
+	let meshes = model.meshes().into_iter().map(load_mesh);
+
+	// TODO: mtrl
+	load_context.set_labeled_asset(
+		"TEMPMATERIAL",
+		LoadedAsset::new(StandardMaterial::from(Color::rgb(1., 1., 1.))),
+	);
+
+	for (index, mesh) in meshes.enumerate() {
+		// TODO: not super happy about the delayed result handling on this
+		let key = &format!("Mesh{}", index);
+		load_context.set_labeled_asset(key, LoadedAsset::new(mesh?));
+
+		// TODO: might want own bundle type for this?
+		world.spawn().insert_bundle(PbrBundle {
+			mesh: load_context.get_handle(AssetPath::new_ref(load_context.path(), Some(key))),
+			material: load_context.get_handle(AssetPath::new_ref(
+				load_context.path(),
+				Some("TEMPMATERIAL"),
+			)),
+			..Default::default()
+		});
+	}
+
+	let scene = Scene::new(world);
+
+	load_context.set_default_asset(LoadedAsset::new(scene));
+
+	Ok(())
+}
+
+fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<Mesh, ironworks::Error> {
+	let indices = mdl_mesh.indices()?;
+	let vertex_attributes = mdl_mesh.attributes()?;
 
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
@@ -183,10 +215,7 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 
 	mesh.set_indices(Some(Indices::U16(indices)));
 
-	mesh.duplicate_vertices();
-	mesh.compute_flat_normals();
-
-	mesh
+	Ok(mesh)
 }
 
 fn to_f32x2(values: mdl::VertexValues) -> Vec<[f32; 2]> {
