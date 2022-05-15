@@ -36,7 +36,7 @@ impl AssetLoader for ListAssetLoader {
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
 			// TODO: this is pretty wasteful - none of the readers except vecu8 need an owned copy. that said, i'm not sure how best to handle the vec case - do i blindly copy and lose the passthrough benefit for other consumers? am i able to abuse asref or into<cow to allow [u8]|vecu80>vecu8?
-			let list = exl::ExcelList::read(bytes.to_vec())?;
+			let list = exl::ExcelList::read(bytes)?;
 
 			load_context.set_default_asset(LoadedAsset::new(List(list)));
 

@@ -1,8 +1,8 @@
 //! Structs and utilities for parsing .tex files.
-
+//!
 #![allow(dead_code, missing_docs, clippy::identity_op)]
 
-use std::io::Cursor;
+use std::{borrow::Cow, io::Cursor};
 
 use binrw::{binread, until_eof, BinRead};
 use derivative::Derivative;
@@ -42,8 +42,8 @@ pub struct Texture {
 }
 
 impl File for Texture {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
+	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
 	}
 }
 

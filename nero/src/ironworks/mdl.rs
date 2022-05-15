@@ -29,7 +29,7 @@ fn load_mdl<'a>(
 ) -> Result<(), ironworks::Error> {
 	let mut world = World::default();
 
-	let container = <mdl::ModelContainer as File>::read(bytes.to_vec())?;
+	let container = <mdl::ModelContainer as File>::read(bytes)?;
 	// TODO: load all 3 as seperate scenes?
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);

@@ -1,4 +1,4 @@
-use std::{io::Cursor, sync::Arc};
+use std::{borrow::Cow, io::Cursor, sync::Arc};
 
 use binrw::BinRead;
 
@@ -15,9 +15,8 @@ pub struct ModelContainer {
 }
 
 impl File for ModelContainer {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		let file = structs::File::read(&mut Cursor::new(data))?;
-
+	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+		let file = structs::File::read(&mut Cursor::new(data.into()))?;
 		Ok(ModelContainer { file: file.into() })
 	}
 }

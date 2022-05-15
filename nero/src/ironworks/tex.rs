@@ -15,7 +15,7 @@ impl AssetLoader for TexAssetLoader {
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
-			let tex = <tex::Texture as File>::read(bytes.to_vec())?;
+			let tex = <tex::Texture as File>::read(bytes)?;
 			let image = convert_tex(tex);
 			load_context.set_default_asset(LoadedAsset::new(image));
 			Ok(())

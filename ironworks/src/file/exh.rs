@@ -1,6 +1,6 @@
 //! Structs and utilities for parsing .exh files.
 
-use std::{collections::HashSet, io::Cursor};
+use std::{borrow::Cow, collections::HashSet, io::Cursor};
 
 use binrw::{binread, BinRead};
 use getset::{CopyGetters, Getters};
@@ -64,8 +64,8 @@ pub struct ExcelHeader {
 }
 
 impl File for ExcelHeader {
-	fn read(data: Vec<u8>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data))?)
+	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
 	}
 }
 

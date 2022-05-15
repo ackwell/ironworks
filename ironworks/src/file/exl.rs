@@ -25,9 +25,12 @@ impl ExcelList {
 }
 
 impl File for ExcelList {
-	fn read(data: Vec<u8>) -> Result<Self> {
+	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
+		let cow: Cow<[u8]> = data.into();
+
 		// The excel list is actually just plaintext, read it in as a string.
-		let list = String::from_utf8(data).map_err(|error| Error::Resource(error.into()))?;
+		let list =
+			String::from_utf8(cow.into_owned()).map_err(|error| Error::Resource(error.into()))?;
 
 		let mut lines = list.split("\r\n");
 
