@@ -105,10 +105,7 @@ pub struct File {
 	element_ids: Vec<ElementId>,
 
 	pub lods: [Lod; MAX_LODS],
-	#[br(
-		parse_with = read_extra_lods,
-    args(flags2.extra_lod_enabled()),
-  )]
+	#[br(if(flags2.extra_lod_enabled()))]
 	pub extra_lods: Option<[ExtraLod; MAX_LODS]>,
 
 	#[br(count = mesh_count)]
@@ -331,17 +328,6 @@ pub struct ExtraLod {
 	unknown10: u16,
 	unknown11: u16,
 	unknown12: u16,
-}
-
-fn read_extra_lods(
-	reader: &mut (impl Read + Seek),
-	options: &ReadOptions,
-	(enable,): (bool,),
-) -> BinResult<Option<[ExtraLod; MAX_LODS]>> {
-	Ok(match enable {
-		false => None,
-		true => Some(<[ExtraLod; MAX_LODS]>::read_options(reader, options, ())?),
-	})
 }
 
 #[binread]

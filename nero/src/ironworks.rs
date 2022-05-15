@@ -165,7 +165,7 @@ fn load_mdl<'a>(
 	let mut world = World::default();
 
 	let mdl = <mdl::ModelContainer as File>::read(bytes.to_vec())?;
-	let model = mdl.lod(mdl::Lod::High);
+	let model = mdl.lod(mdl::Lod::Medium);
 	let meshes = model.meshes().into_iter().map(load_mesh);
 
 	// TODO: mtrl

@@ -36,69 +36,6 @@ impl ModelContainer {
 			level,
 		}
 	}
-
-	pub fn meshes_temp(&self) -> Result<(Vec<u16>, Vec<[f32; 4]>)> {
-		// temp
-		let lod_level = 0;
-
-		let current_lod = &self.file.lods[lod_level];
-		// println!("{curlod:?}");
-		let mut ranges = vec![
-			(current_lod.mesh_index, current_lod.mesh_count),
-			(current_lod.water_mesh_index, current_lod.water_mesh_count),
-			(current_lod.shadow_mesh_index, current_lod.shadow_mesh_count),
-			(
-				current_lod.terrain_shadow_mesh_index,
-				current_lod.terrain_shadow_mesh_count,
-			),
-			(
-				current_lod.vertical_fog_mesh_index,
-				current_lod.vertical_fog_mesh_count,
-			),
-		];
-
-		if let Some(ref extra_lods) = self.file.extra_lods {
-			let extra_lod = &extra_lods[lod_level];
-			ranges.append(&mut vec![
-				(
-					extra_lod.light_shaft_mesh_index,
-					extra_lod.light_shaft_mesh_count,
-				),
-				(extra_lod.glass_mesh_index, extra_lod.glass_mesh_count),
-				(
-					extra_lod.material_change_mesh_index,
-					extra_lod.material_change_mesh_count,
-				),
-				(
-					extra_lod.crest_change_mesh_index,
-					extra_lod.crest_change_mesh_count,
-				),
-			])
-		}
-
-		// TODO: i can simplify most of this with some nice arrays and a primitive enum with index=name for the types
-		// that'd be so much cleaner than whatever the fuck the above trash is doing
-
-		// let fsda = self.meshes.iter().enumerate().map(|(index, mesh)| {});
-		// loomina precalculates all the mesh shit but handles it per-lod at a model level?
-		let lod_meshes = (0..self.file.meshes.len())
-			.map(|index| {
-				let u16_index = u16::try_from(index).unwrap();
-				// todo: enumerate here is just so i get the range index - need to change when i'm actually doing this properly
-				let types = ranges
-					.iter()
-					.enumerate()
-					.filter(|(_, (start, count))| u16_index >= *start && u16_index < start + count)
-					.map(|(range_index, _)| range_index)
-					.collect::<Vec<_>>();
-				(index, types)
-			})
-			.filter(|(_index, types)| !types.is_empty())
-			.map(|(index, types)| (&self.file.meshes[index], index, types))
-			.collect::<Vec<_>>();
-
-		Ok((vec![], vec![]))
-	}
 }
 
 // TODO: consider if it makes sense to keep Lod around as it's enum repr for anything beyond user facing api
@@ -118,13 +55,28 @@ pub struct Model {
 }
 
 impl Model {
-	// TODO: Expose mesh types
+	// TODO: Expose mesh kinds
 	// TODO: Maybe mesh filter?
 	// TODO: iterator?
 	pub fn meshes(&self) -> Vec<Mesh> {
-		// TODO: THIS IS CURRENTLY IGNORING LOD AND FETCHING EVERY MESH IN THE MODEL
+		let ranges = self.get_ranges();
+
 		(0..self.file.meshes.len())
-			.map(|mesh_index| Mesh {
+			// Get a vector of the kinds of each map at this lod, filtering any with none.
+			.map(|index| {
+				let u16_index = u16::try_from(index).unwrap();
+
+				let kinds = ranges
+					.iter()
+					.filter(|(_, start, count)| u16_index >= *start && u16_index < start + count)
+					.map(|(kind, _, _)| *kind)
+					.collect::<Vec<_>>();
+
+				(index, kinds)
+			})
+			.filter(|(_, kinds)| !kinds.is_empty())
+			// Build the final mesh structs.
+			.map(|(mesh_index, _kinds)| Mesh {
 				file: self.file.clone(),
 
 				level: self.level,
@@ -132,6 +84,80 @@ impl Model {
 			})
 			.collect()
 	}
+
+	fn get_ranges(&self) -> Vec<(MeshKind, u16, u16)> {
+		let level = usize::from(self.level);
+		let current_lod = &self.file.lods[level];
+
+		let mut ranges = vec![
+			(
+				MeshKind::Standard,
+				current_lod.mesh_index,
+				current_lod.mesh_count,
+			),
+			(
+				MeshKind::Water,
+				current_lod.water_mesh_index,
+				current_lod.water_mesh_count,
+			),
+			(
+				MeshKind::Shadow,
+				current_lod.shadow_mesh_index,
+				current_lod.shadow_mesh_count,
+			),
+			(
+				MeshKind::Terrain,
+				current_lod.terrain_shadow_mesh_index,
+				current_lod.terrain_shadow_mesh_count,
+			),
+			(
+				MeshKind::VerticalFog,
+				current_lod.vertical_fog_mesh_index,
+				current_lod.vertical_fog_mesh_count,
+			),
+		];
+
+		if let Some(ref extra_lods) = self.file.extra_lods {
+			let extra_lod = &extra_lods[level];
+			ranges.append(&mut vec![
+				(
+					MeshKind::LightShaft,
+					extra_lod.light_shaft_mesh_index,
+					extra_lod.light_shaft_mesh_count,
+				),
+				(
+					MeshKind::Glass,
+					extra_lod.glass_mesh_index,
+					extra_lod.glass_mesh_count,
+				),
+				(
+					MeshKind::MaterialChange,
+					extra_lod.material_change_mesh_index,
+					extra_lod.material_change_mesh_count,
+				),
+				(
+					MeshKind::CrestChange,
+					extra_lod.crest_change_mesh_index,
+					extra_lod.crest_change_mesh_count,
+				),
+			])
+		}
+
+		ranges
+	}
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum MeshKind {
+	Standard,
+	Water,
+	Shadow,
+	Terrain,
+	VerticalFog,
+	LightShaft,
+	Glass,
+	MaterialChange,
+	CrestChange,
 }
 
 #[derive(Debug)]
