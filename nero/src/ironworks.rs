@@ -165,35 +165,21 @@ impl AssetLoader for MdlAssetLoader {
 // todo: mdls contain more than a single mesh, need to take a page out of i.e. gltf loader for this eventually
 fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	// todo:just pulling a single mesh out for now
-	// todo: should probably go lod -> mesh
-	// todo: don't hardcode shit
 	let mesh = mdl.lod(mdl::Lod::High).mesh(0);
 	let indices = mesh.indices().unwrap();
-	let vertices = mesh.vertices().unwrap();
-
-	// TODO: temp
-	let pos_verts = vertices
-		.into_iter()
-		.find(|attribute| matches!(attribute.kind, mdl::VertexAttributeKind::Position))
-		.unwrap();
+	let vertex_attributes = mesh.vertices().unwrap();
 
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
-	mesh.insert_attribute(
-		Mesh::ATTRIBUTE_POSITION,
-		// TODO: this should probably use a general purpose "to vec3" handler
-		match pos_verts.values {
-			mdl::VertexValues::Vector4(data) => data
-				.into_iter()
-				.map(|[x, y, z, _w]| [x, y, z])
-				.collect::<Vec<_>>(),
-			other => todo!("Vertex values {other:?}"),
-		},
-	);
-	// // mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-	mesh.insert_attribute(
-		Mesh::ATTRIBUTE_UV_0,
-		(0..657).map(|_| [0., 0.]).collect::<Vec<_>>(),
-	);
+
+	for mdl::VertexAttribute { kind, values } in vertex_attributes {
+		use mdl::VertexAttributeKind as K;
+		match kind {
+			K::Position => mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, to_f32x3(values)),
+			K::Normal => mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, to_f32x3(values)),
+			K::Uv => mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, to_f32x2(values)),
+			other => info!("TODO: {other:?}"),
+		};
+	}
 
 	mesh.set_indices(Some(Indices::U16(indices)));
 
@@ -201,6 +187,26 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	mesh.compute_flat_normals();
 
 	mesh
+}
+
+fn to_f32x2(values: mdl::VertexValues) -> Vec<[f32; 2]> {
+	use mdl::VertexValues as V;
+	match values {
+		V::Vector2(vec) => vec,
+		V::Vector3(vec) => vec.into_iter().map(|[x, y, _z]| [x, y]).collect(),
+		V::Vector4(vec) => vec.into_iter().map(|[x, y, _z, _w]| [x, y]).collect(),
+		other => panic!("Cannot convert {other:?} to f32x3."),
+	}
+}
+
+fn to_f32x3(values: mdl::VertexValues) -> Vec<[f32; 3]> {
+	use mdl::VertexValues as V;
+	match values {
+		V::Vector2(vec) => vec.into_iter().map(|[x, y]| [x, y, 0.]).collect(),
+		V::Vector3(vec) => vec,
+		V::Vector4(vec) => vec.into_iter().map(|[x, y, z, _w]| [x, y, z]).collect(),
+		other => panic!("Cannot convert {other:?} to f32x3."),
+	}
 }
 
 #[derive(Default)]

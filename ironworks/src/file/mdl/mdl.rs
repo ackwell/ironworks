@@ -164,7 +164,8 @@ impl Mesh {
 		Ok(indices)
 	}
 
-	// TODO: how do we handle the kind of vertex in this api?
+	// TODO: rename this? it's more "attributes" or "vertex attributes" now
+	// TODO: fn to get a specific attr?
 	pub fn vertices(&self) -> Result<Vec<VertexAttribute>> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
