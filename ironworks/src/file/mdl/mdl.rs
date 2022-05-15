@@ -132,7 +132,6 @@ impl Model {
 pub struct Mesh {
 	file: Arc<structs::File>,
 
-	// TODO: can probably abstract lod level out of the mesh level, as it's only being used for the index/vertex offset info, which is also available on the Lod struct (it needs a better name)
 	level: Lod,
 	mesh_index: usize,
 }
@@ -163,53 +162,68 @@ impl Mesh {
 	}
 
 	// TODO: how do we handle the kind of vertex in this api?
-	pub fn vertices(&self) -> Vec<[f32; 4]> {
+	pub fn vertices(&self) -> Vec<VertexValues> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
-		// Get the elements for this mesh's vertices and sort them by their offset
-		// - we'll be relying on that sort order to ensure reading picks them up in
-		// the right order.
+		// Get the elements for this mesh's vertices.
 		let elements = &self.file.vertex_declarations[self.mesh_index].0;
 
-		// TODO: is it possible to avoid the vec clone?
-		let mut ordered_elements = elements.iter().collect::<Vec<_>>();
-		ordered_elements.sort_unstable_by_key(|element| element.offset);
-
 		// Vertices are stored across multipe streams of data - set up a cursor for each.
-		let mut cursors = (0..usize::from(mesh.vertex_stream_count))
+		let mut streams = (0..usize::from(mesh.vertex_stream_count))
 			.map(|index| {
+				let cursor = Cursor::new(&self.file.data);
 				let offset = self.file.vertex_offset[usize::from(self.level)]
 					+ mesh.vertex_buffer_offset[index];
-				let mut cursor = Cursor::new(&self.file.data);
-				cursor.set_position(u64::from(offset) - self.file.data_offset);
-				cursor
+				(cursor, u64::from(offset) - self.file.data_offset)
 			})
 			.collect::<Vec<_>>();
 
 		// TODO: remove this. just forcing to positions only temporarily
-		let pos_el = ordered_elements
-			.into_iter()
+		let pos_el = elements
+			.iter()
 			.find(|el| matches!(el.usage, VertexUsage::Position))
 			.unwrap();
 
 		// Read in the vertices
-		(0..mesh.vertex_count)
-			.map(|_index| {
-				let cursor = &mut cursors[usize::from(pos_el.stream)];
-				// TODO: Usage
-				// TODO: Other reader types
-				match &pos_el.kind {
-					// TODO: might be able to use half::slice to read in u16s first and convert in batch.
-					// TODO: error handling
-					VertexKind::Half4 => [
-						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-						f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-					],
-					other => todo!("{other:?}"),
+		// TODO: other els
+		// TODO: keep an eye on perf here - could thrash cache a bit if llvm doesn't magic it enough
+		// TODO: return type should probably be a struct of {usage,data}
+		let elements = std::iter::once(pos_el)
+			.map(|element| {
+				let stream = usize::from(element.stream);
+				let (ref mut cursor, base_offset) = streams[stream];
+				let stride = mesh.vertex_buffer_stride[stream];
+
+				let range = 0..mesh.vertex_count;
+				match &element.kind {
+					VertexKind::Half4 => VertexValues::F32x4(
+						range
+							.scan(base_offset, |offset, _index| {
+								cursor.set_position(*offset);
+								*offset += u64::from(stride);
+
+								let value = [
+									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
+								];
+
+								Some(value)
+							})
+							.collect::<Vec<_>>(),
+					),
+					other => todo!("Vertex kind: {other:?}"),
 				}
 			})
-			.collect::<Vec<_>>()
+			.collect::<Vec<_>>();
+
+		elements
 	}
+}
+
+// TODO: Flesh this out - it's intended to be the public exported interface
+#[derive(Debug)]
+pub enum VertexValues {
+	F32x4(Vec<[f32; 4]>),
 }

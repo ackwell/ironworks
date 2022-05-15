@@ -280,6 +280,7 @@ struct ElementId {
 }
 
 // TODO: index/count pattern is super repetetive - abstract?
+//       ...it's not contiguous, and spread across two structs - could be fiddly. maybe a parse=skip or something that post-processes it into a vec or w/e?
 #[binread]
 #[br(little)]
 #[derive(Debug)]
@@ -356,9 +357,9 @@ pub struct Mesh {
 	sub_mesh_count: u16,
 	bone_table_index: u16,
 	pub start_index: u32,
-	// These 3s seem to be a cap of 3 within lods, and not lods unto themselves
+	// TODO: the 3 here is the no. of streams
 	pub vertex_buffer_offset: [u32; 3],
-	vertex_buffer_stride: [u8; 3],
+	pub vertex_buffer_stride: [u8; 3],
 	pub vertex_stream_count: u8,
 }
 

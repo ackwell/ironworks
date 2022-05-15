@@ -167,18 +167,23 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	// todo:just pulling a single mesh out for now
 	// todo: should probably go lod -> mesh
 	// todo: don't hardcode shit
-	// let mdlmesh = &mdl.meshes()[0];
 	let mesh = mdl.lod(mdl::Lod::High).mesh(0);
 	let indices = mesh.indices().unwrap();
 	let vertices = mesh.vertices();
 
+	// TODO: temp
+	let pos_verts = vertices.into_iter().next().unwrap();
+
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 	mesh.insert_attribute(
 		Mesh::ATTRIBUTE_POSITION,
-		vertices
-			.into_iter()
-			.map(|[x, y, z, _w]| [x, y, z])
-			.collect::<Vec<_>>(),
+		// TODO: this should probably use a general purpose "to vec3" handler
+		match pos_verts {
+			mdl::VertexValues::F32x4(data) => data
+				.into_iter()
+				.map(|[x, y, z, _w]| [x, y, z])
+				.collect::<Vec<_>>(),
+		},
 	);
 	// // mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
 	mesh.insert_attribute(
