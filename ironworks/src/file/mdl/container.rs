@@ -23,8 +23,8 @@ impl File for ModelContainer {
 }
 
 impl ModelContainer {
-	// TODO: name? do we call it "lod" because it fetches a lod model, or "model" because it fetches a model of a lod?
-	pub fn lod(&self, level: Lod) -> Model {
+	// TODO: consider how variants will work
+	pub fn model(&self, level: Lod) -> Model {
 		Model {
 			file: self.file.clone(),
 
