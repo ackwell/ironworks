@@ -1,7 +1,10 @@
 // TODO: REMOVE
 #![allow(missing_docs)]
 
-use std::{io::Cursor, sync::Arc};
+use std::{
+	io::{Cursor, Read, Seek},
+	sync::Arc,
+};
 
 use binrw::{BinRead, VecArgs};
 use half::f16;
@@ -162,7 +165,7 @@ impl Mesh {
 	}
 
 	// TODO: how do we handle the kind of vertex in this api?
-	pub fn vertices(&self) -> Vec<VertexValues> {
+	pub fn vertices(&self) -> Result<Vec<VertexValues>> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
 		// Get the elements for this mesh's vertices.
@@ -189,37 +192,43 @@ impl Mesh {
 		// TODO: keep an eye on perf here - could thrash cache a bit if llvm doesn't magic it enough
 		// TODO: return type should probably be a struct of {usage,data}
 		let elements = std::iter::once(pos_el)
-			.map(|element| {
+			.map(|element| -> Result<_> {
 				let stream = usize::from(element.stream);
 				let (ref mut cursor, base_offset) = streams[stream];
 				let stride = mesh.vertex_buffer_stride[stream];
 
 				let range = 0..mesh.vertex_count;
-				match &element.kind {
+				let values = match &element.kind {
 					VertexKind::Half4 => VertexValues::F32x4(
 						range
 							.scan(base_offset, |offset, _index| {
 								cursor.set_position(*offset);
 								*offset += u64::from(stride);
 
-								let value = [
-									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-									f16::from_bits(u16::read(cursor).unwrap()).to_f32(),
-								];
-
+								let value = read_f32x4(cursor);
 								Some(value)
 							})
-							.collect::<Vec<_>>(),
+							.collect::<Result<Vec<_>>>()?,
 					),
 					other => todo!("Vertex kind: {other:?}"),
-				}
+				};
+				Ok(values)
 			})
-			.collect::<Vec<_>>();
+			.collect::<Result<Vec<_>>>();
 
 		elements
 	}
+}
+
+// TODO: this isn't crash hot - work out a cleaner way to abstract. maybe impl on vertexvalues?
+fn read_f32x4(cursor: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
+	let value = [
+		f16::from_bits(u16::read(cursor)?).to_f32(),
+		f16::from_bits(u16::read(cursor)?).to_f32(),
+		f16::from_bits(u16::read(cursor)?).to_f32(),
+		f16::from_bits(u16::read(cursor)?).to_f32(),
+	];
+	Ok(value)
 }
 
 // TODO: Flesh this out - it's intended to be the public exported interface

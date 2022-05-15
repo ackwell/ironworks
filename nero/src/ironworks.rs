@@ -169,7 +169,7 @@ fn convert_mdl(mdl: mdl::ModelContainer) -> Mesh {
 	// todo: don't hardcode shit
 	let mesh = mdl.lod(mdl::Lod::High).mesh(0);
 	let indices = mesh.indices().unwrap();
-	let vertices = mesh.vertices();
+	let vertices = mesh.vertices().unwrap();
 
 	// TODO: temp
 	let pos_verts = vertices.into_iter().next().unwrap();
