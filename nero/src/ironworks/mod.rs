@@ -4,6 +4,6 @@ mod plugin;
 mod tex;
 
 pub use {
-	asset_io::{IronworksAssetIoPlugin, IronworksRequestResourceEvent, IronworksState},
+	asset_io::{IronworksAssetIoPlugin, IronworksState},
 	plugin::{IronworksPlugin, List},
 };

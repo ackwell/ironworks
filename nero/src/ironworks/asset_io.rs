@@ -31,8 +31,7 @@ impl Plugin for IronworksAssetIoPlugin {
 		app.add_loopless_state(state);
 
 		// Set up infrastructure for adding resources.
-		app.add_event::<IronworksRequestResourceEvent>()
-			.add_system(request_resource.run_on_event::<IronworksRequestResourceEvent>())
+		app.add_enter_system(IronworksState::ResourceRequested, request_resource)
 			.add_system(poll_path_selection);
 
 		// Build up the AssetIo implementation and insert it.
@@ -52,16 +51,13 @@ impl Plugin for IronworksAssetIoPlugin {
 	}
 }
 
+// TODO: provide utility methods on this to somehow avoid people needing to manually set next state?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IronworksState {
 	ResourceRequired,
 	ResourceRequested,
 	Ready,
 }
-
-// TODO: should this just be an enter edge on resource requested? that _does_ imply letting the consumer transition the state, though.
-#[derive(Debug, Default)]
-pub struct IronworksRequestResourceEvent;
 
 #[derive(Component)]
 struct PathSelection(Task<Option<FileHandle>>);
@@ -70,7 +66,6 @@ fn request_resource(mut commands: Commands, task_pool: Res<AsyncComputeTaskPool>
 	let future = AsyncFileDialog::new().pick_folder();
 	let task = task_pool.spawn(future);
 	commands.spawn().insert(PathSelection(task));
-	commands.insert_resource(NextState(IronworksState::ResourceRequested));
 }
 
 fn poll_path_selection(mut commands: Commands, mut tasks: Query<(Entity, &mut PathSelection)>) {

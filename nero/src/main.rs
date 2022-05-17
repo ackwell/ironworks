@@ -2,9 +2,7 @@ use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
 
-use crate::ironworks::{
-	IronworksAssetIoPlugin, IronworksPlugin, IronworksRequestResourceEvent, IronworksState, List,
-};
+use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, IronworksState, List};
 
 mod ironworks;
 
@@ -34,7 +32,7 @@ fn asset_test(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	// mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
+	// mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
 	// // 2D texture test
 	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -79,9 +77,9 @@ fn asset_test(
 }
 
 fn ui_need_ironworks_resource(
+	mut commands: Commands,
 	mut egui_context: ResMut<EguiContext>,
 	ironworks_state: Res<CurrentState<IronworksState>>,
-	mut event_request_resource: EventWriter<IronworksRequestResourceEvent>,
 ) {
 	let pending = *ironworks_state == CurrentState(IronworksState::ResourceRequested);
 
@@ -91,7 +89,7 @@ fn ui_need_ironworks_resource(
 			.add_enabled(!pending, egui::Button::new("gimme path"))
 			.clicked()
 		{
-			event_request_resource.send_default();
+			commands.insert_resource(NextState(IronworksState::ResourceRequested));
 		}
 	});
 }
