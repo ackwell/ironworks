@@ -1,6 +1,7 @@
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
+use rfd::AsyncFileDialog;
 
 use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, IronworksState, List};
 
@@ -76,9 +77,17 @@ fn asset_test(
 	})
 }
 
-fn ui_need_ironworks_resource(mut egui_context: ResMut<EguiContext>) {
+fn ui_need_ironworks_resource(mut egui_context: ResMut<EguiContext>, mut pending: Local<bool>) {
 	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
 		ui.heading("i need resources pls");
+		if ui
+			.add_enabled(!*pending, egui::Button::new("gimme path"))
+			.clicked()
+		{
+			*pending = true;
+			// TODO: this should probably farm off to iw assetio to handle it?
+			let _ = AsyncFileDialog::new().pick_folder();
+		}
 	});
 }
 
