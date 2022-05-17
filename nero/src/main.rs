@@ -84,13 +84,19 @@ fn ui_need_ironworks_resource(
 	let pending = *ironworks_state == CurrentState(IronworksState::ResourceRequested);
 
 	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
-		ui.heading(format!("i need resources pls {ironworks_state:?}"));
-		if ui
-			.add_enabled(!pending, egui::Button::new("gimme path"))
-			.clicked()
-		{
-			commands.insert_resource(NextState(IronworksState::ResourceRequested));
-		}
+		ui.vertical_centered(|ui| {
+			ui.heading("nero");
+
+			// TODO: Work out how to show errors from path validation.
+			ui.label("Could not find game installation path.");
+
+			if ui
+				.add_enabled(!pending, egui::Button::new("Select game folder"))
+				.clicked()
+			{
+				commands.insert_resource(NextState(IronworksState::ResourceRequested));
+			}
+		})
 	});
 }
 
