@@ -1,23 +1,25 @@
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+use iyes_loopless::prelude::*;
 
-use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, List};
+use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, IronworksState, List};
 
 mod ironworks;
 
 fn main() {
 	App::new()
+		// Ironworks
 		.add_plugins_with(DefaultPlugins, |group| {
 			group.add_before::<bevy::asset::AssetPlugin, _>(IronworksAssetIoPlugin)
 		})
+		.add_plugin(IronworksPlugin)
 		// UI
 		.add_plugin(EguiPlugin)
 		.insert_resource(WinitSettings::desktop_app())
-		.add_system(system_ui)
-		// View
-		.add_startup_system(startup_test)
-		// Ironworks
-		.add_plugin(IronworksPlugin)
+		.add_system(ui_need_ironworks_resource.run_in_state(IronworksState::NeedsResource))
+		.add_system(ui_main.run_in_state(IronworksState::Ready))
+		// Asset test stuff
+		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
 }
@@ -26,7 +28,7 @@ struct TempTestRes {
 	handle: Handle<List>,
 }
 
-fn startup_test(
+fn asset_test(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	// mut meshes: ResMut<Assets<Mesh>>,
@@ -74,7 +76,13 @@ fn startup_test(
 	})
 }
 
-fn system_ui(
+fn ui_need_ironworks_resource(mut egui_context: ResMut<EguiContext>) {
+	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
+		ui.heading("i need resources pls");
+	});
+}
+
+fn ui_main(
 	mut egui_context: ResMut<EguiContext>,
 	temp_test: Res<TempTestRes>,
 	lists: Res<Assets<List>>,

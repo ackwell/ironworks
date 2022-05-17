@@ -9,6 +9,7 @@ use bevy::{
 	prelude::*,
 };
 use ironworks::{ffxiv, sqpack::SqPack, ErrorValue, Ironworks};
+use iyes_loopless::prelude::*;
 
 pub struct IronworksAssetIoPlugin;
 
@@ -25,11 +26,14 @@ impl Plugin for IronworksAssetIoPlugin {
 
 		let ironworks = Arc::new(RwLock::new(Ironworks::new()));
 
-		// TODO: Try this eagerly with search and otherwise defer to adding resource later with explicit path?
-		ironworks
-			.write()
-			.unwrap()
-			.add_resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+		let state = match /* ffxiv::FsResource::search() */None::<ffxiv::FsResource> {
+			Some(res) => {
+				ironworks.write().unwrap().add_resource(SqPack::new(res));
+				IronworksState::Ready
+			}
+			None => IronworksState::NeedsResource,
+		};
+		app.add_loopless_state(state);
 
 		let asset_io = IronworksAssetIo {
 			default_io,
@@ -38,6 +42,12 @@ impl Plugin for IronworksAssetIoPlugin {
 
 		app.insert_resource(AssetServer::new(asset_io, task_pool));
 	}
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum IronworksState {
+	NeedsResource,
+	Ready,
 }
 
 struct IronworksAssetIo {

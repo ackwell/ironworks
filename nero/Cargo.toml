@@ -10,4 +10,5 @@ anyhow = "1.0.55"
 bevy = "0.7"
 bevy_egui = "0.14"
 ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl", "mdl", "tex"]}
+iyes_loopless = "0.5.1"
 squish = "2.0.0-beta1"
