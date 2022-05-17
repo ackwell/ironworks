@@ -1,9 +1,10 @@
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
-use rfd::AsyncFileDialog;
 
-use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, IronworksState, List};
+use crate::ironworks::{
+	IronworksAssetIoPlugin, IronworksPlugin, IronworksRequestResourceEvent, IronworksState, List,
+};
 
 mod ironworks;
 
@@ -77,16 +78,20 @@ fn asset_test(
 	})
 }
 
-fn ui_need_ironworks_resource(mut egui_context: ResMut<EguiContext>, mut pending: Local<bool>) {
+fn ui_need_ironworks_resource(
+	mut egui_context: ResMut<EguiContext>,
+	mut pending: Local<bool>,
+	mut event_request_resource: EventWriter<IronworksRequestResourceEvent>,
+) {
 	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
 		ui.heading("i need resources pls");
 		if ui
 			.add_enabled(!*pending, egui::Button::new("gimme path"))
 			.clicked()
 		{
+			// TODO: Work out how this should reset, especially in cases where the implementation is dismissed without a successful result.
 			*pending = true;
-			// TODO: this should probably farm off to iw assetio to handle it?
-			let _ = AsyncFileDialog::new().pick_folder();
+			event_request_resource.send_default();
 		}
 	});
 }

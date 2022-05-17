@@ -5,27 +5,22 @@ use std::{
 };
 
 use bevy::{
-	asset::{AssetIo, AssetIoError, BoxedFuture},
+	asset::{create_platform_default_asset_io, AssetIo, AssetIoError, BoxedFuture},
 	prelude::*,
+	tasks::{AsyncComputeTaskPool, IoTaskPool, Task},
 };
+use futures_lite::future;
 use ironworks::{ffxiv, sqpack::SqPack, ErrorValue, Ironworks};
 use iyes_loopless::prelude::*;
+use rfd::{AsyncFileDialog, FileHandle};
 
 pub struct IronworksAssetIoPlugin;
 
 impl Plugin for IronworksAssetIoPlugin {
 	fn build(&self, app: &mut App) {
-		let task_pool = app
-			.world
-			.get_resource::<bevy::tasks::IoTaskPool>()
-			.expect("IoTaskPool resource not found")
-			.0
-			.clone();
-
-		let default_io = bevy::asset::create_platform_default_asset_io(app);
-
 		let ironworks = Arc::new(RwLock::new(Ironworks::new()));
 
+		// Try to find a game install, skipping straight to ready if one was found.
 		let state = match /* ffxiv::FsResource::search() */None::<ffxiv::FsResource> {
 			Some(res) => {
 				ironworks.write().unwrap().add_resource(SqPack::new(res));
@@ -35,10 +30,23 @@ impl Plugin for IronworksAssetIoPlugin {
 		};
 		app.add_loopless_state(state);
 
+		// Set up infrastructure for adding resources.
+		app.add_event::<IronworksRequestResourceEvent>()
+			.add_system(request_resource.run_on_event::<IronworksRequestResourceEvent>())
+			.add_system(poll_path_selection);
+
+		// Build up the AssetIo implementation and insert it.
 		let asset_io = IronworksAssetIo {
-			default_io,
+			default_io: create_platform_default_asset_io(app),
 			ironworks,
 		};
+
+		let task_pool = app
+			.world
+			.get_resource::<IoTaskPool>()
+			.expect("IoTaskPool resource not found")
+			.0
+			.clone();
 
 		app.insert_resource(AssetServer::new(asset_io, task_pool));
 	}
@@ -48,6 +56,30 @@ impl Plugin for IronworksAssetIoPlugin {
 pub enum IronworksState {
 	NeedsResource,
 	Ready,
+}
+
+#[derive(Debug, Default)]
+pub struct IronworksRequestResourceEvent;
+
+#[derive(Component)]
+struct PathSelection(Task<Option<FileHandle>>);
+
+fn request_resource(mut commands: Commands, task_pool: Res<AsyncComputeTaskPool>) {
+	let future = AsyncFileDialog::new().pick_folder();
+	let task = task_pool.spawn(future);
+	commands.spawn().insert(PathSelection(task));
+}
+
+fn poll_path_selection(mut commands: Commands, mut tasks: Query<(Entity, &mut PathSelection)>) {
+	for (entity, mut task) in tasks.iter_mut() {
+		// Poll the task once to check if there's a response from the dialog.
+		if let Some(response) = future::block_on(future::poll_once(&mut task.0)) {
+			info!("GOT:{response:?}");
+
+			// The task was completed, remove the marker entity.
+			commands.entity(entity).despawn();
+		}
+	}
 }
 
 struct IronworksAssetIo {

@@ -2892,6 +2892,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy_egui",
+ "futures-lite",
  "ironworks",
  "iyes_loopless",
  "rfd",
