@@ -18,7 +18,7 @@ fn main() {
 		// UI
 		.add_plugin(EguiPlugin)
 		.insert_resource(WinitSettings::desktop_app())
-		.add_system(ui_need_ironworks_resource.run_in_state(IronworksState::NeedsResource))
+		.add_system(ui_need_ironworks_resource.run_not_in_state(IronworksState::Ready))
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
@@ -80,17 +80,17 @@ fn asset_test(
 
 fn ui_need_ironworks_resource(
 	mut egui_context: ResMut<EguiContext>,
-	mut pending: Local<bool>,
+	ironworks_state: Res<CurrentState<IronworksState>>,
 	mut event_request_resource: EventWriter<IronworksRequestResourceEvent>,
 ) {
+	let pending = *ironworks_state == CurrentState(IronworksState::ResourceRequested);
+
 	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
-		ui.heading("i need resources pls");
+		ui.heading(format!("i need resources pls {ironworks_state:?}"));
 		if ui
-			.add_enabled(!*pending, egui::Button::new("gimme path"))
+			.add_enabled(!pending, egui::Button::new("gimme path"))
 			.clicked()
 		{
-			// TODO: Work out how this should reset, especially in cases where the implementation is dismissed without a successful result.
-			*pending = true;
 			event_request_resource.send_default();
 		}
 	});

@@ -26,7 +26,7 @@ impl Plugin for IronworksAssetIoPlugin {
 				ironworks.write().unwrap().add_resource(SqPack::new(res));
 				IronworksState::Ready
 			}
-			None => IronworksState::NeedsResource,
+			None => IronworksState::ResourceRequired,
 		};
 		app.add_loopless_state(state);
 
@@ -54,10 +54,12 @@ impl Plugin for IronworksAssetIoPlugin {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum IronworksState {
-	NeedsResource,
+	ResourceRequired,
+	ResourceRequested,
 	Ready,
 }
 
+// TODO: should this just be an enter edge on resource requested? that _does_ imply letting the consumer transition the state, though.
 #[derive(Debug, Default)]
 pub struct IronworksRequestResourceEvent;
 
@@ -68,6 +70,7 @@ fn request_resource(mut commands: Commands, task_pool: Res<AsyncComputeTaskPool>
 	let future = AsyncFileDialog::new().pick_folder();
 	let task = task_pool.spawn(future);
 	commands.spawn().insert(PathSelection(task));
+	commands.insert_resource(NextState(IronworksState::ResourceRequested));
 }
 
 fn poll_path_selection(mut commands: Commands, mut tasks: Query<(Entity, &mut PathSelection)>) {
@@ -75,6 +78,9 @@ fn poll_path_selection(mut commands: Commands, mut tasks: Query<(Entity, &mut Pa
 		// Poll the task once to check if there's a response from the dialog.
 		if let Some(response) = future::block_on(future::poll_once(&mut task.0)) {
 			info!("GOT:{response:?}");
+
+			// TODO: actually do something
+			commands.insert_resource(NextState(IronworksState::ResourceRequired));
 
 			// The task was completed, remove the marker entity.
 			commands.entity(entity).despawn();
