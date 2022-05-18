@@ -1,12 +1,13 @@
 #![allow(clippy::module_inception)]
 
+mod asset_io;
+mod asset_loaders;
+
+use asset_io::{IronworksAssetIoPlugin, IronworksState};
+use asset_loaders::{IronworksPlugin, List};
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
-
-use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, IronworksState, List};
-
-mod ironworks;
 
 fn main() {
 	App::new()
