@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use bevy::{asset::create_platform_default_asset_io, prelude::*, tasks::IoTaskPool};
 use ironworks::Ironworks;
 
-use super::{asset_io::IronworksAssetIo, native::NativeIronworksPlugin};
+use super::asset_io::IronworksAssetIo;
 
 // TODO: provide utility methods on this to somehow avoid people needing to manually set next state?
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -23,7 +23,10 @@ impl Plugin for IronworksAssetIoPlugin {
 		let ironworks = Arc::new(RwLock::new(Ironworks::new()));
 		app.insert_resource(ironworks.clone());
 
-		app.add_plugin(NativeIronworksPlugin);
+		#[cfg(not(target_arch = "wasm32"))]
+		app.add_plugin(super::native::NativeIronworksPlugin);
+		#[cfg(target_arch = "wasm32")]
+		app.add_plugin(super::wasm::WasmIronworksPlugin);
 
 		// Build up the AssetIo implementation and insert it.
 		let asset_io = IronworksAssetIo {
