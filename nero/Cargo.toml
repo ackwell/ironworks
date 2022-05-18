@@ -9,5 +9,8 @@ edition = "2021"
 anyhow = "1.0.55"
 bevy = "0.7"
 bevy_egui = "0.14"
+futures-lite = "1.12.0"
 ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl", "mdl", "tex"]}
+iyes_loopless = "0.5.1"
+rfd = "0.8.2"
 squish = "2.0.0-beta1"

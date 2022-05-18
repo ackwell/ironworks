@@ -1,49 +1,17 @@
 use std::{
 	io,
 	path::{Path, PathBuf},
-	sync::{Arc, RwLock},
 };
 
-use bevy::{
-	asset::{AssetIo, AssetIoError, BoxedFuture},
-	prelude::*,
-};
-use ironworks::{ffxiv, sqpack::SqPack, ErrorValue, Ironworks};
+use bevy::asset::{AssetIo, AssetIoError, BoxedFuture};
+use ironworks::ErrorValue;
 
-pub struct IronworksAssetIoPlugin;
+use super::plugin::IronworksResource;
 
-impl Plugin for IronworksAssetIoPlugin {
-	fn build(&self, app: &mut App) {
-		let task_pool = app
-			.world
-			.get_resource::<bevy::tasks::IoTaskPool>()
-			.expect("IoTaskPool resource not found")
-			.0
-			.clone();
+pub struct IronworksAssetIo {
+	pub default_io: Box<dyn AssetIo>,
 
-		let default_io = bevy::asset::create_platform_default_asset_io(app);
-
-		let ironworks = Arc::new(RwLock::new(Ironworks::new()));
-
-		// TODO: Try this eagerly with search and otherwise defer to adding resource later with explicit path?
-		ironworks
-			.write()
-			.unwrap()
-			.add_resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
-
-		let asset_io = IronworksAssetIo {
-			default_io,
-			ironworks,
-		};
-
-		app.insert_resource(AssetServer::new(asset_io, task_pool));
-	}
-}
-
-struct IronworksAssetIo {
-	default_io: Box<dyn AssetIo>,
-
-	ironworks: Arc<RwLock<Ironworks>>,
+	pub ironworks: IronworksResource,
 }
 
 impl AssetIo for IronworksAssetIo {

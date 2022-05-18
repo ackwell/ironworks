@@ -1,23 +1,28 @@
+#![allow(clippy::module_inception)]
+
+mod asset_io;
+mod asset_loaders;
+
+use asset_io::{IronworksAssetIoPlugin, IronworksState};
+use asset_loaders::{IronworksPlugin, List};
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
-
-use crate::ironworks::{IronworksAssetIoPlugin, IronworksPlugin, List};
-
-mod ironworks;
+use iyes_loopless::prelude::*;
 
 fn main() {
 	App::new()
+		// Ironworks
 		.add_plugins_with(DefaultPlugins, |group| {
 			group.add_before::<bevy::asset::AssetPlugin, _>(IronworksAssetIoPlugin)
 		})
+		.add_plugin(IronworksPlugin)
 		// UI
 		.add_plugin(EguiPlugin)
 		.insert_resource(WinitSettings::desktop_app())
-		.add_system(system_ui)
-		// View
-		.add_startup_system(startup_test)
-		// Ironworks
-		.add_plugin(IronworksPlugin)
+		.add_system(ui_need_ironworks_resource.run_not_in_state(IronworksState::Ready))
+		.add_system(ui_main.run_in_state(IronworksState::Ready))
+		// Asset test stuff
+		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
 }
@@ -26,11 +31,11 @@ struct TempTestRes {
 	handle: Handle<List>,
 }
 
-fn startup_test(
+fn asset_test(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	// mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
+	// mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
 	// // 2D texture test
 	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
@@ -74,7 +79,31 @@ fn startup_test(
 	})
 }
 
-fn system_ui(
+fn ui_need_ironworks_resource(
+	mut commands: Commands,
+	mut egui_context: ResMut<EguiContext>,
+	ironworks_state: Res<CurrentState<IronworksState>>,
+) {
+	let pending = *ironworks_state == CurrentState(IronworksState::ResourceRequested);
+
+	egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
+		ui.vertical_centered(|ui| {
+			ui.heading("nero");
+
+			// TODO: Work out how to show errors from path validation.
+			ui.label("Could not find game installation path.");
+
+			if ui
+				.add_enabled(!pending, egui::Button::new("Select game folder"))
+				.clicked()
+			{
+				commands.insert_resource(NextState(IronworksState::ResourceRequested));
+			}
+		})
+	});
+}
+
+fn ui_main(
 	mut egui_context: ResMut<EguiContext>,
 	temp_test: Res<TempTestRes>,
 	lists: Res<Assets<List>>,
