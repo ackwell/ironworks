@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
