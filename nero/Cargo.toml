@@ -14,5 +14,8 @@ ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl", "mdl",
 iyes_loopless = "0.5.1"
 squish = "2.0.0-beta1"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.80"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rfd = "0.8.2"
