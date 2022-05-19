@@ -6,15 +6,26 @@ use super::IronworksState;
 
 #[wasm_bindgen(module = "/src/asset_io/wasm.js")]
 extern "C" {
-	fn pick_folder();
+	async fn pick_folder() -> JsValue;
 }
 
 pub struct WasmIronworksPlugin;
 
 impl Plugin for WasmIronworksPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_loopless_state(IronworksState::ResourceRequired);
-
-		pick_folder();
+		app.add_loopless_state(IronworksState::ResourceRequired)
+			.add_enter_system(IronworksState::ResourceRequested, request_resource);
 	}
+}
+
+fn request_resource() {
+	// TODO: This seems close to impossible to move out of this system.
+	//       Tempted to say the approach should be reconsidered a little, and approached from an assetio reference. If wasm provides its own assetio impl, it would be able to natively await in load file calls - ergo it would be able to handle picking the folder and getting the array, and only tossing the slice into a fake "resource" just before it's needed.
+	//       Not sure how this works with a split between the folder picker and the byte reading, though - storing the JsValue anywhere makes it !Send.
+	let future = async move {
+		let something = pick_folder().await;
+		info!("{:?}, trying command", something);
+	};
+
+	wasm_bindgen_futures::spawn_local(future);
 }

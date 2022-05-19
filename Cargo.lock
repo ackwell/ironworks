@@ -2895,9 +2895,11 @@ dependencies = [
  "futures-lite",
  "ironworks",
  "iyes_loopless",
+ "js-sys",
  "rfd",
  "squish",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
