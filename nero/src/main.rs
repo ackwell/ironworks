@@ -51,8 +51,10 @@ fn asset_test(
 	// 	transform: Transform::from_xyz(0.0, 0.5, 0.0),
 	// 	..default()
 	// });
+	// commands
+	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
 	commands
-		.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
+		.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"));
 	// commands.spawn_bundle(PbrBundle {
 	// 	// mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
 	// 	mesh: asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"),
@@ -69,7 +71,8 @@ fn asset_test(
 		..default()
 	});
 	commands.spawn_bundle(PerspectiveCameraBundle {
-		transform: Transform::from_xyz(2.0, 0., 8.0).looking_at(Vec3::new(0., 3., 0.), Vec3::Y),
+		// transform: Transform::from_xyz(2.0, 0., 8.0).looking_at(Vec3::new(0., 3., 0.), Vec3::Y),
+		transform: Transform::from_xyz(-1.0, 1.5, 3.0).looking_at(Vec3::ZERO, Vec3::Y),
 		..default()
 	});
 

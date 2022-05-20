@@ -14,7 +14,7 @@ impl AssetLoader for MdlAssetLoader {
 		bytes: &'a [u8],
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, anyhow::Result<(), anyhow::Error>> {
-		Box::pin(async move { Ok(load_mdl(bytes, load_context)?) })
+		Box::pin(async move { load_mdl(bytes, load_context) })
 	}
 
 	fn extensions(&self) -> &[&str] {
@@ -22,11 +22,10 @@ impl AssetLoader for MdlAssetLoader {
 	}
 }
 
-// todo: mdls contain more than a single mesh, need to take a page out of i.e. gltf loader for this eventually
 fn load_mdl<'a>(
 	bytes: &'a [u8],
-	load_context: &'a mut LoadContext,
-) -> Result<(), ironworks::Error> {
+	load_context: &'a mut LoadContext<'_>,
+) -> Result<(), anyhow::Error> {
 	let mut world = World::default();
 
 	let container = <mdl::ModelContainer as File>::read(bytes)?;
@@ -35,9 +34,18 @@ fn load_mdl<'a>(
 	let meshes = model.meshes().into_iter().map(load_mesh);
 
 	// TODO: mtrl
-	load_context.set_labeled_asset(
+	// TEMP: hardcoded loading the texture for the chair
+	// TODO: this looks really bad lmao
+	let temptexpath = "iw://bg/ffxiv/sea_s1/twn/s1ta/texture/s1ta_g0_g0002_d.tex";
+	let material = load_context.set_labeled_asset(
 		"TEMPMATERIAL",
-		LoadedAsset::new(StandardMaterial::from(Color::rgb(1., 1., 1.))),
+		// LoadedAsset::new(StandardMaterial::from(Color::rgb(1., 1., 1.))),
+		LoadedAsset::new(StandardMaterial {
+			// base_color: Color::rgb(1., 1., 1.),
+			base_color_texture: Some(load_context.get_handle(temptexpath)),
+			unlit: true,
+			..Default::default()
+		}),
 	);
 
 	for (index, mesh) in meshes.enumerate() {
@@ -48,17 +56,14 @@ fn load_mdl<'a>(
 		// TODO: might want own bundle type for this?
 		world.spawn().insert_bundle(PbrBundle {
 			mesh: load_context.get_handle(AssetPath::new_ref(load_context.path(), Some(key))),
-			material: load_context.get_handle(AssetPath::new_ref(
-				load_context.path(),
-				Some("TEMPMATERIAL"),
-			)),
+			material: material.clone(),
 			..Default::default()
 		});
 	}
 
 	let scene = Scene::new(world);
 
-	load_context.set_default_asset(LoadedAsset::new(scene));
+	load_context.set_default_asset(LoadedAsset::new(scene).with_dependency(temptexpath.into()));
 
 	Ok(())
 }
