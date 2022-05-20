@@ -23,6 +23,7 @@ exd = []
 exh = []
 exl = []
 mdl = ["dep:half", "dep:modular-bitfield", "dep:num_enum"]
+mtrl = []
 tex = ["dep:num_enum"]
 
 [dependencies]

@@ -1,6 +1,7 @@
 //! Structs and utilities for parsing .tex files.
-//!
-#![allow(dead_code, missing_docs, clippy::identity_op)]
+
+// TODO: remove
+#![allow(missing_docs)]
 
 use std::{borrow::Cow, io::Cursor};
 
