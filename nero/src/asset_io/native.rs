@@ -30,7 +30,7 @@ impl Plugin for NativeIronworksPlugin {
 
 		// Set up infrastructure for adding resources.
 		app.add_enter_system(IronworksState::ResourceRequested, request_resource)
-			.add_system(poll_path_selection);
+			.add_system(poll_path_selection.run_in_state(IronworksState::ResourceRequested));
 	}
 }
 
