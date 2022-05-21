@@ -5,6 +5,8 @@ use bevy::{
 };
 use ironworks::file::{mdl, File};
 
+use crate::material::BgMaterial;
+
 #[derive(Default)]
 pub struct MdlAssetLoader;
 
@@ -40,12 +42,13 @@ fn load_mdl<'a>(
 	let material = load_context.set_labeled_asset(
 		"TEMPMATERIAL",
 		// LoadedAsset::new(StandardMaterial::from(Color::rgb(1., 1., 1.))),
-		LoadedAsset::new(StandardMaterial {
-			// base_color: Color::rgb(1., 1., 1.),
-			base_color_texture: Some(load_context.get_handle(temptexpath)),
-			unlit: true,
-			..Default::default()
-		}),
+		// LoadedAsset::new(StandardMaterial {
+		// 	// base_color: Color::rgb(1., 1., 1.),
+		// 	base_color_texture: Some(load_context.get_handle(temptexpath)),
+		// 	unlit: true,
+		// 	..Default::default()
+		// }),
+		LoadedAsset::new(BgMaterial {}),
 	);
 
 	for (index, mesh) in meshes.enumerate() {
@@ -54,7 +57,7 @@ fn load_mdl<'a>(
 		load_context.set_labeled_asset(key, LoadedAsset::new(mesh?));
 
 		// TODO: might want own bundle type for this?
-		world.spawn().insert_bundle(PbrBundle {
+		world.spawn().insert_bundle(MaterialMeshBundle {
 			mesh: load_context.get_handle(AssetPath::new_ref(load_context.path(), Some(key))),
 			material: material.clone(),
 			..Default::default()

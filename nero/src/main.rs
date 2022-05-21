@@ -2,12 +2,14 @@
 
 mod asset_io;
 mod asset_loaders;
+mod material;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
 use asset_loaders::{IronworksPlugin, List};
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
+use material::NeroMaterialPlugin;
 
 fn main() {
 	App::new()
@@ -23,6 +25,8 @@ fn main() {
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
+		// Material tests
+		.add_plugin(NeroMaterialPlugin)
 		// Done
 		.run();
 }
