@@ -24,8 +24,8 @@ pub struct BgMaterial {
 	pub diffuse: Handle<Image>,
 }
 
-#[derive(AsStd140)]
-struct BgMaterialUniformData {}
+// #[derive(AsStd140)]
+// struct BgMaterialUniformData {}
 
 pub struct GpuBgMaterial {
 	bind_group: BindGroup,
@@ -48,13 +48,13 @@ impl RenderAsset for BgMaterial {
 		extracted_asset: Self::ExtractedAsset,
 		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
-		let uniform_data = BgMaterialUniformData {};
+		// let uniform_data = BgMaterialUniformData {};
 
-		let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
-			label: None,
-			contents: uniform_data.as_std140().as_bytes(),
-			usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-		});
+		// let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+		// 	label: None,
+		// 	contents: uniform_data.as_std140().as_bytes(),
+		// 	usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+		// });
 
 		let (diffuse_view, diffuse_sampler) = if let Some(result) = pipeline
 			.mesh_pipeline
@@ -69,10 +69,10 @@ impl RenderAsset for BgMaterial {
 			label: None,
 			layout: &pipeline.material_layout,
 			entries: &[
-				BindGroupEntry {
-					binding: 0,
-					resource: buffer.as_entire_binding(),
-				},
+				// BindGroupEntry {
+				// 	binding: 0,
+				// 	resource: buffer.as_entire_binding(),
+				// },
 				BindGroupEntry {
 					binding: 1,
 					resource: BindingResource::TextureView(diffuse_view),
@@ -96,18 +96,18 @@ impl Material for BgMaterial {
 		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: None,
 			entries: &[
-				BindGroupLayoutEntry {
-					binding: 0,
-					visibility: ShaderStages::FRAGMENT,
-					ty: BindingType::Buffer {
-						ty: BufferBindingType::Uniform,
-						has_dynamic_offset: false,
-						min_binding_size: BufferSize::new(
-							u64::try_from(BgMaterialUniformData::std140_size_static()).unwrap(),
-						),
-					},
-					count: None,
-				},
+				// BindGroupLayoutEntry {
+				// 	binding: 0,
+				// 	visibility: ShaderStages::FRAGMENT,
+				// 	ty: BindingType::Buffer {
+				// 		ty: BufferBindingType::Uniform,
+				// 		has_dynamic_offset: false,
+				// 		min_binding_size: BufferSize::new(
+				// 			u64::try_from(BgMaterialUniformData::std140_size_static()).unwrap(),
+				// 		),
+				// 	},
+				// 	count: None,
+				// },
 				BindGroupLayoutEntry {
 					binding: 1,
 					visibility: ShaderStages::FRAGMENT,
