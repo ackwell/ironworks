@@ -1,6 +1,7 @@
 use bevy::{
 	ecs::system::{lifetimeless::SRes, SystemParamItem},
 	pbr::{Material, MaterialPipeline},
+	prelude::*,
 	reflect::TypeUuid,
 	render::{
 		render_asset::{PrepareAssetError, RenderAsset},
@@ -10,6 +11,8 @@ use bevy::{
 		renderer::RenderDevice,
 	},
 };
+
+use super::plugin::BG_SHADER_HANDLE;
 
 #[derive(Clone, TypeUuid)]
 #[uuid = "5f115bbc-7755-4a10-9f29-b078a84dbb10"]
@@ -51,5 +54,9 @@ impl Material for BgMaterial {
 			label: None,
 			entries: &[],
 		})
+	}
+
+	fn fragment_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
+		Some(BG_SHADER_HANDLE.typed())
 	}
 }
