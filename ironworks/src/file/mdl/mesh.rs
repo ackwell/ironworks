@@ -71,11 +71,14 @@ impl Mesh {
 				let (ref mut cursor, base_offset) = streams[stream];
 				let stride = u64::from(mesh.vertex_buffer_stride[stream]);
 
-				let offsets = (0..mesh.vertex_count).scan(base_offset, |offset, _index| {
-					let current = *offset;
-					*offset += stride;
-					Some(current)
-				});
+				let offsets = (0..mesh.vertex_count).scan(
+					base_offset + u64::from(element.offset),
+					|offset, _index| {
+						let current = *offset;
+						*offset += stride;
+						Some(current)
+					},
+				);
 
 				use structs::VertexFormat as K;
 				use VertexValues as V;
