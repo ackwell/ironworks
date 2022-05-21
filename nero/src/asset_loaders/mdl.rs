@@ -48,7 +48,9 @@ fn load_mdl<'a>(
 		// 	unlit: true,
 		// 	..Default::default()
 		// }),
-		LoadedAsset::new(BgMaterial {}),
+		LoadedAsset::new(BgMaterial {
+			diffuse: load_context.get_handle(temptexpath),
+		}),
 	);
 
 	for (index, mesh) in meshes.enumerate() {
