@@ -5,7 +5,7 @@
 
 use std::{borrow::Cow, io::Cursor};
 
-use binrw::{binread, BinRead};
+use binrw::{binread, BinRead, NullString};
 
 use crate::error::Result;
 
@@ -83,10 +83,44 @@ pub struct Material {
 	shader_values: Vec<f32>,
 }
 
+impl Material {
+	// TODO: iterator?
+	pub fn samplers(&self) -> Result<Vec<OutSampler>> {
+		let mut cursor = Cursor::new(&self.string_data);
+
+		self.samplers
+			.iter()
+			.map(|sampler| {
+				let offset = &self.texture_offsets[usize::from(sampler.texture_index)];
+				cursor.set_position(offset.offset.into());
+				let texture = NullString::read(&mut cursor)?.into_string();
+
+				Ok(OutSampler {
+					id: sampler.id,
+					state: sampler.state,
+					texture,
+				})
+			})
+			.collect()
+	}
+}
+
 impl File for Material {
 	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
 		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
 	}
+}
+
+// todo: name
+// todo: should i move structs into a seperate file?
+// todo: can i do this eagerly?
+#[derive(Debug)]
+pub struct OutSampler {
+	id: u32,
+	// TODO: bitfield
+	state: u32,
+
+	texture: String,
 }
 
 #[binread]
@@ -120,16 +154,16 @@ struct ShaderKey {
 struct Constant {
 	constant_id: u32,
 	value_offset: u16,
-	value_sizze: u16,
+	value_size: u16,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
 struct Sampler {
-	sampler_id: u32,
-	// TODO: Unknown bitfield
-	flags: u32,
+	id: u32,
+	// TODO: bitfield
+	state: u32,
 	#[br(pad_after = 3)]
 	texture_index: u8,
 	// padding: [u8; 3].
