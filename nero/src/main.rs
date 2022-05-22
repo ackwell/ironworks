@@ -34,11 +34,25 @@ fn main() {
 		// 3D
 		.add_plugin(LookTransformPlugin)
 		.add_plugin(OrbitCameraPlugin::new(true))
+		.add_startup_system(spawn_camera)
 		.add_system(camera_controls)
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
+}
+
+fn spawn_camera(mut commands: Commands) {
+	commands.spawn_bundle(OrbitCameraBundle::new(
+		OrbitCameraController {
+			// Smoothing the camera does _not_ mesh with desktop update tick.
+			smoothing_weight: 0.0,
+			..Default::default()
+		},
+		PerspectiveCameraBundle::default(),
+		Vec3::new(2.0, 0.0, 8.0),
+		Vec3::ZERO,
+	));
 }
 
 // Slightly tweaked copy of the default controls from the library because I didn't like the control scheme.
@@ -132,17 +146,6 @@ fn asset_test(
 		transform: Transform::from_xyz(4.0, 8.0, 4.0),
 		..default()
 	});
-
-	commands.spawn_bundle(OrbitCameraBundle::new(
-		OrbitCameraController {
-			// Smoothing the camera does _not_ mesh with desktop update tick.
-			smoothing_weight: 0.0,
-			..Default::default()
-		},
-		PerspectiveCameraBundle::default(),
-		Vec3::new(2.0, 0.0, 8.0),
-		Vec3::ZERO,
-	));
 
 	// TODO: realistically this shouldn't be here. just using to test. should it be an entity?
 	commands.insert_resource(TempTestRes {
