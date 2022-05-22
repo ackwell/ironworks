@@ -2,12 +2,14 @@
 
 mod asset_io;
 mod asset_loaders;
+mod camera;
 mod material;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
 use asset_loaders::{IronworksPlugin, List};
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
+use camera::CameraPlugin;
 use iyes_loopless::prelude::*;
 use material::NeroMaterialPlugin;
 
@@ -23,6 +25,8 @@ fn main() {
 		.insert_resource(WinitSettings::desktop_app())
 		.add_system(ui_need_ironworks_resource.run_not_in_state(IronworksState::Ready))
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
+		// 3D
+		.add_plugin(CameraPlugin)
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
 		// Material tests
@@ -72,11 +76,6 @@ fn asset_test(
 			..default()
 		},
 		transform: Transform::from_xyz(4.0, 8.0, 4.0),
-		..default()
-	});
-	commands.spawn_bundle(PerspectiveCameraBundle {
-		// transform: Transform::from_xyz(2.0, 0., 8.0).looking_at(Vec3::new(0., 3., 0.), Vec3::Y),
-		transform: Transform::from_xyz(-1.0, 1.5, 3.0).looking_at(Vec3::ZERO, Vec3::Y),
 		..default()
 	});
 
