@@ -4,6 +4,7 @@
 use std::{borrow::Cow, io::Cursor};
 
 use binrw::{BinRead, NullString};
+use getset::{CopyGetters, Getters};
 
 use crate::{error::Result, file::File};
 
@@ -46,11 +47,14 @@ impl File for Material {
 }
 
 // todo: can i do this eagerly?
-#[derive(Debug)]
+#[derive(Debug, Getters, CopyGetters)]
 pub struct Sampler {
+	#[get_copy = "pub"]
 	id: u32,
 	// TODO: bitfield
 	state: u32,
 
+	// TODO: this exposes &String which is a bit ick.
+	#[get = "pub"]
 	texture: String,
 }

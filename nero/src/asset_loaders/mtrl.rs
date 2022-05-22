@@ -1,7 +1,12 @@
+use std::{collections::HashSet, path::PathBuf};
+
 use bevy::{
-	asset::{AssetLoader, BoxedFuture, LoadContext},
+	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
 };
+use ironworks::file::{mtrl, File};
+
+use crate::material::BgMaterial;
 
 #[derive(Default)]
 pub struct MtrlAssetLoader;
@@ -24,5 +29,33 @@ fn load_mtrl<'a>(
 	bytes: &'a [u8],
 	load_context: &'a mut LoadContext<'_>,
 ) -> Result<(), anyhow::Error> {
+	// TODO: this pattern will probably crop up a bunch. abstract it and the handle logic as a helper?
+	let mut dependencies = HashSet::<String>::new();
+
+	let material = <mtrl::Material>::read(bytes)?;
+	let samplers = material.samplers()?;
+
+	// todo: handle the other texture types
+	//       also this is atrocious, improve.
+	let diffuse_sampler = samplers
+		.into_iter()
+		// TODO: Getting SamplerColorMap0 because The Chair:tm: uses it, this will need a lot of work to work in the general sense.
+		.find(|sampler| sampler.id() == 0x1E6FEF9C)
+		.unwrap();
+	// TODO: ick;
+	let iw_path = format!("iw://{}", diffuse_sampler.texture());
+	let diffuse_handle = load_context.get_handle::<_, Image>(&iw_path);
+	dependencies.insert(iw_path);
+
+	let material = BgMaterial {
+		diffuse: diffuse_handle,
+	};
+
+	let dependency_array = dependencies
+		.into_iter()
+		.map(|path| AssetPath::from(PathBuf::from(path)))
+		.collect::<Vec<_>>();
+	load_context.set_default_asset(LoadedAsset::new(material).with_dependencies(dependency_array));
+
 	Ok(())
 }
