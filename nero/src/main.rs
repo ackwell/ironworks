@@ -5,11 +5,17 @@ mod asset_loaders;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
 use asset_loaders::{IronworksPlugin, List};
-use bevy::{prelude::*, winit::WinitSettings};
+use bevy::{
+	input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
+	prelude::*,
+	winit::WinitSettings,
+};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use iyes_loopless::prelude::*;
 use smooth_bevy_cameras::{
-	controllers::orbit::{OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin},
+	controllers::orbit::{
+		ControlEvent, OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
+	},
 	LookTransformPlugin,
 };
 
@@ -27,11 +33,62 @@ fn main() {
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
 		// 3D
 		.add_plugin(LookTransformPlugin)
-		.add_plugin(OrbitCameraPlugin::default())
+		.add_plugin(OrbitCameraPlugin::new(true))
+		.add_system(camera_controls)
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
+}
+
+// Slightly tweaked copy of the default controls from the library because I didn't like the control scheme.
+fn camera_controls(
+	mut control_events: EventWriter<ControlEvent>,
+	mut mouse_wheel_reader: EventReader<MouseWheel>,
+	mut mouse_motion_events: EventReader<MouseMotion>,
+	mouse_buttons: Res<Input<MouseButton>>,
+	controllers: Query<&OrbitCameraController>,
+) {
+	// Get the controller for the camera.
+	let controller = match controllers.iter().find(|controller| controller.enabled) {
+		Some(controller) => controller,
+		_ => return,
+	};
+
+	let OrbitCameraController {
+		mouse_rotate_sensitivity,
+		mouse_translate_sensitivity,
+		mouse_wheel_zoom_sensitivity,
+		pixels_per_line,
+		..
+	} = *controller;
+
+	// Build the full mouse movement delta.
+	let cursor_delta = mouse_motion_events
+		.iter()
+		.fold(Vec2::ZERO, |total, event| total + event.delta);
+
+	// LMB translates on current plane.
+	if mouse_buttons.pressed(MouseButton::Left) {
+		control_events.send(ControlEvent::TranslateTarget(
+			mouse_translate_sensitivity * cursor_delta,
+		));
+	}
+
+	// RMB orbits current target.
+	if mouse_buttons.pressed(MouseButton::Right) {
+		control_events.send(ControlEvent::Orbit(mouse_rotate_sensitivity * cursor_delta));
+	}
+
+	// Mouse wheel zooms current target.
+	let zoom = mouse_wheel_reader.iter().fold(1.0, |total, event| {
+		let amount = match event.unit {
+			MouseScrollUnit::Line => event.y,
+			MouseScrollUnit::Pixel => event.y * pixels_per_line,
+		};
+		total * (1.0 - amount * mouse_wheel_zoom_sensitivity)
+	});
+	control_events.send(ControlEvent::Zoom(zoom));
 }
 
 struct TempTestRes {
