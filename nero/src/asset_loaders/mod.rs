@@ -1,4 +1,5 @@
 mod mdl;
+mod mtrl;
 mod plugin;
 mod tex;
 

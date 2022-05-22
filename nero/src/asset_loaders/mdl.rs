@@ -1,3 +1,5 @@
+use std::{collections::HashSet, path::PathBuf};
+
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
@@ -35,45 +37,40 @@ fn load_mdl<'a>(
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);
 
-	// TODO: mtrl
-	// TEMP: hardcoded loading the texture for the chair
-	// TODO: this looks really bad lmao
-	let temptexpath = "iw://bg/ffxiv/sea_s1/twn/s1ta/texture/s1ta_g0_g0002_d.tex";
-	let material = load_context.set_labeled_asset(
-		"TEMPMATERIAL",
-		// LoadedAsset::new(StandardMaterial::from(Color::rgb(1., 1., 1.))),
-		// LoadedAsset::new(StandardMaterial {
-		// 	// base_color: Color::rgb(1., 1., 1.),
-		// 	base_color_texture: Some(load_context.get_handle(temptexpath)),
-		// 	unlit: true,
-		// 	..Default::default()
-		// }),
-		LoadedAsset::new(BgMaterial {
-			diffuse: load_context.get_handle(temptexpath),
-		}),
-	);
+	let mut dependencies = HashSet::<String>::new();
 
-	for (index, mesh) in meshes.enumerate() {
+	for (index, result) in meshes.enumerate() {
 		// TODO: not super happy about the delayed result handling on this
-		let key = &format!("Mesh{}", index);
-		load_context.set_labeled_asset(key, LoadedAsset::new(mesh?));
+		let (mesh, mtrl_path) = result?;
+
+		let mesh_handle =
+			load_context.set_labeled_asset(&format!("Mesh{index}"), LoadedAsset::new(mesh));
+
+		// TODO: There's >1 material type that i'll need to use eod - i guess make them an enum, or something? that or focus on reading xiv shpk next.
+		let material = load_context.get_handle::<_, BgMaterial>(&mtrl_path);
+		dependencies.insert(mtrl_path);
 
 		// TODO: might want own bundle type for this?
 		world.spawn().insert_bundle(MaterialMeshBundle {
-			mesh: load_context.get_handle(AssetPath::new_ref(load_context.path(), Some(key))),
-			material: material.clone(),
+			mesh: mesh_handle,
+			material,
 			..Default::default()
 		});
 	}
 
 	let scene = Scene::new(world);
 
-	load_context.set_default_asset(LoadedAsset::new(scene).with_dependency(temptexpath.into()));
+	let dependency_array = dependencies
+		.into_iter()
+		.map(|path| AssetPath::from(PathBuf::from(path)))
+		.collect::<Vec<_>>();
+	load_context.set_default_asset(LoadedAsset::new(scene).with_dependencies(dependency_array));
 
 	Ok(())
 }
 
-fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<Mesh, ironworks::Error> {
+// todo: use a struct for the return type if it's anything more than whats there
+fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 	let indices = mdl_mesh.indices()?;
 	let vertex_attributes = mdl_mesh.attributes()?;
 
@@ -91,7 +88,8 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<Mesh, ironworks::Error> {
 
 	mesh.set_indices(Some(Indices::U16(indices)));
 
-	Ok(mesh)
+	// TODO: is this the "right" place for the iw prefix?
+	Ok((mesh, format!("iw://{}", mdl_mesh.material()?)))
 }
 
 fn to_f32x2(values: mdl::VertexValues) -> Vec<[f32; 2]> {

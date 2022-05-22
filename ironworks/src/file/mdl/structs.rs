@@ -3,7 +3,7 @@
 
 use std::io::{Read, Seek};
 
-use binrw::{binread, until_eof, BinRead, BinResult, NullString, ReadOptions};
+use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
 use derivative::Derivative;
 use modular_bitfield::bitfield;
 
