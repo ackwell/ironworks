@@ -48,11 +48,9 @@ pub struct File {
 	// padding: u16,
 	#[br(pad_before = 2, temp)]
 	string_size: u32,
-	#[br(
-	  count = string_count,
-    pad_size_to = string_size,
-	)]
-	strings: Vec<NullString>,
+	// TODO: lumina eagerly builds a map of offset -> string. worth doing?
+	#[br(count = string_size)]
+	pub string_buffer: Vec<u8>,
 
 	// Model header
 	// TODO: this has name conflicts with the file header - they seem to always be equiv, either skip one of them or break up the struct
@@ -124,7 +122,7 @@ pub struct File {
 	terrain_shadow_submeshes: Vec<TerrainShadowSubmesh>,
 
 	#[br(count = material_count_2)]
-	material_name_offsets: Vec<u32>,
+	pub material_name_offsets: Vec<u32>,
 
 	#[br(count = bone_count)]
 	bone_name_offsets: Vec<u32>,
@@ -338,7 +336,7 @@ pub struct Mesh {
 	//padding:u16,
 	#[br(pad_before = 2)]
 	pub index_count: u32,
-	material_index: u16,
+	pub material_index: u16,
 	sub_mesh_index: u16,
 	sub_mesh_count: u16,
 	bone_table_index: u16,

@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 
-use binrw::{BinRead, VecArgs};
+use binrw::{BinRead, NullString, VecArgs};
 use half::f16;
 
 use crate::error::Result;
@@ -21,6 +21,19 @@ pub struct Mesh {
 impl Mesh {
 	// TODO: bones
 	// TODO: submeshes
+
+	// TODO: i'm not sure this should be specific to mesh - the list of materials on the model might be useful in some cases. should i use a ref to the parent model and read off that, rather than the arc of a file?
+	pub fn material(&self) -> Result<String> {
+		let mesh = &self.file.meshes[self.mesh_index];
+		let name_offset = self.file.material_name_offsets[usize::from(mesh.material_index)];
+
+		// todo: this logic should probably be abstracted in the structs impl, and the buffer hidden?
+		let mut cursor = Cursor::new(&self.file.string_buffer);
+		cursor.set_position(name_offset.into());
+
+		let name = NullString::read(&mut cursor)?.into_string();
+		Ok(name)
+	}
 
 	// TODO: iterator?
 	pub fn indices(&self) -> Result<Vec<u16>> {
