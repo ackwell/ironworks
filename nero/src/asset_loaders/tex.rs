@@ -1,7 +1,7 @@
 use bevy::{
 	asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
-	render::render_resource::{Extent3d, TextureDimension, TextureFormat},
+	render::render_resource::{Extent3d, FilterMode, TextureDimension, TextureFormat},
 };
 use ironworks::file::{tex, File};
 
@@ -16,7 +16,11 @@ impl AssetLoader for TexAssetLoader {
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
 			let tex = <tex::Texture as File>::read(bytes)?;
-			let image = convert_tex(tex);
+			let mut image = convert_tex(tex);
+
+			// TODO: xiv textures don't bundle sampler info, work out how to derive this
+			image.sampler_descriptor.mag_filter = FilterMode::Linear;
+
 			load_context.set_default_asset(LoadedAsset::new(image));
 			Ok(())
 		})
