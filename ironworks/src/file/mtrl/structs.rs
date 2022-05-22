@@ -1,17 +1,7 @@
-//! Structs and utilities for parsing .mtrl files.
-
 // TODO: remove
-#![allow(missing_docs)]
+#![allow(dead_code)]
 
-use std::{borrow::Cow, io::Cursor};
-
-use binrw::{binread, BinRead, NullString};
-
-use crate::error::Result;
-
-use super::file::File;
-
-// TODO: .mtrl files are a container-esque format too, consider if should be handling that akin to .mdl
+use binrw::binread;
 
 #[binread]
 #[br(little)]
@@ -35,7 +25,7 @@ pub struct Material {
 	additional_data_size: u8,
 
 	#[br(count = texture_count)]
-	texture_offsets: Vec<TextureOffset>,
+	pub texture_offsets: Vec<TextureOffset>,
 
 	#[br(count = uv_set_count)]
 	uv_color_sets: Vec<UvColorSet>,
@@ -50,7 +40,7 @@ pub struct Material {
 	  // TODO: unknown, seems to be a struct of some kind
     pad_after = additional_data_size,
   )]
-	string_data: Vec<u8>,
+	pub string_data: Vec<u8>,
 
 	// TODO: Check this info, stems from TT
 	#[br(if(data_set_size > 0))]
@@ -77,57 +67,17 @@ pub struct Material {
 	constants: Vec<Constant>,
 
 	#[br(count = sampler_count)]
-	samplers: Vec<Sampler>,
+	pub samplers: Vec<Sampler>,
 
 	#[br(count = shader_value_list_size / 4)]
 	shader_values: Vec<f32>,
 }
 
-impl Material {
-	// TODO: iterator?
-	pub fn samplers(&self) -> Result<Vec<OutSampler>> {
-		let mut cursor = Cursor::new(&self.string_data);
-
-		self.samplers
-			.iter()
-			.map(|sampler| {
-				let offset = &self.texture_offsets[usize::from(sampler.texture_index)];
-				cursor.set_position(offset.offset.into());
-				let texture = NullString::read(&mut cursor)?.into_string();
-
-				Ok(OutSampler {
-					id: sampler.id,
-					state: sampler.state,
-					texture,
-				})
-			})
-			.collect()
-	}
-}
-
-impl File for Material {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
-	}
-}
-
-// todo: name
-// todo: should i move structs into a seperate file?
-// todo: can i do this eagerly?
-#[derive(Debug)]
-pub struct OutSampler {
-	id: u32,
-	// TODO: bitfield
-	state: u32,
-
-	texture: String,
-}
-
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct TextureOffset {
-	offset: u16,
+pub struct TextureOffset {
+	pub offset: u16,
 	// TODO: Unknown if actually flags.
 	flags: u16,
 }
@@ -160,11 +110,11 @@ struct Constant {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct Sampler {
-	id: u32,
+pub struct Sampler {
+	pub id: u32,
 	// TODO: bitfield
-	state: u32,
+	pub state: u32,
 	#[br(pad_after = 3)]
-	texture_index: u8,
+	pub texture_index: u8,
 	// padding: [u8; 3].
 }
