@@ -134,7 +134,11 @@ fn asset_test(
 	});
 
 	commands.spawn_bundle(OrbitCameraBundle::new(
-		OrbitCameraController::default(),
+		OrbitCameraController {
+			// Smoothing the camera does _not_ mesh with desktop update tick.
+			smoothing_weight: 0.0,
+			..Default::default()
+		},
 		PerspectiveCameraBundle::default(),
 		Vec3::new(2.0, 0.0, 8.0),
 		Vec3::ZERO,
