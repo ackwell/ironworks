@@ -4,13 +4,16 @@ use bevy::{
 	prelude::*,
 	reflect::TypeUuid,
 	render::{
+		mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
 		render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
 		render_resource::{
 			std140::{AsStd140, Std140},
 			BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
 			BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
-			BufferBindingType, BufferInitDescriptor, BufferSize, BufferUsages, SamplerBindingType,
-			ShaderStages, TextureSampleType, TextureViewDimension,
+			BufferBindingType, BufferInitDescriptor, BufferSize, BufferUsages,
+			RawRenderPipelineDescriptor, RenderPipelineDescriptor, SamplerBindingType,
+			ShaderStages, SpecializedMeshPipelineError, TextureSampleType, TextureViewDimension,
+			VertexFormat,
 		},
 		renderer::RenderDevice,
 	},
@@ -128,7 +131,48 @@ impl Material for BgMaterial {
 		})
 	}
 
+	fn vertex_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
+		Some(asset_server.load("bg.wgsl"))
+		// Some(BG_SHADER_HANDLE.typed())
+	}
+
 	fn fragment_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
-		Some(BG_SHADER_HANDLE.typed())
+		Some(asset_server.load("bg.wgsl"))
+		// Some(BG_SHADER_HANDLE.typed())
+	}
+
+	fn specialize(
+		pipeline: &MaterialPipeline<Self>,
+		descriptor: &mut RenderPipelineDescriptor,
+		layout: &MeshVertexBufferLayout,
+	) -> Result<(), SpecializedMeshPipelineError> {
+		// let layout = &descriptor.vertex.buffers;
+		// info!("test {:#?}", layout);
+
+		const MEME: MeshVertexAttribute =
+			MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
+
+		let mut vertex_attributes = vec![
+			Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
+			Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
+			Mesh::ATTRIBUTE_UV_0.at_shader_location(2),
+			// MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4)
+			// 	.at_shader_location(3),
+			MEME.at_shader_location(3),
+		];
+
+		// let mut shader_defs = vec![];
+
+		// if layout.contains(MEME) {
+		// 	vertex_attributes.push(MEME.at_shader_location(3));
+		// 	shader_defs.push(String::from("VERTEX_COLOR"))
+		// }
+
+		let vertex_layout = layout.get_layout(&vertex_attributes)?;
+
+		descriptor.vertex.buffers = vec![vertex_layout];
+		// descriptor.vertex.shader_defs.append(&mut shader_defs);
+
+		Ok(())
 	}
 }
