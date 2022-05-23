@@ -21,6 +21,6 @@ var diffuse_sampler: sampler;
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
   var output_color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-  output_color = output_color * textureSample(diffuse_texture, diffuse_sampler, input.uv);
+  output_color = output_color * textureSample(diffuse_texture, diffuse_sampler, abs(input.uv) % 1.0);
   return output_color;
 }
