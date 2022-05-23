@@ -37,7 +37,10 @@ fn spawn_camera(mut commands: Commands) {
 fn camera_controls(
 	mut control_events: EventWriter<ControlEvent>,
 	mut mouse_wheel_reader: EventReader<MouseWheel>,
-	mut mouse_motion_events: EventReader<MouseMotion>,
+
+	mut last_cursor_position: Local<Vec2>,
+	mut cursor_moved: EventReader<CursorMoved>,
+
 	mouse_buttons: Res<Input<MouseButton>>,
 	controllers: Query<&OrbitCameraController>,
 ) {
@@ -56,9 +59,15 @@ fn camera_controls(
 	} = *controller;
 
 	// Build the full mouse movement delta.
-	let cursor_delta = mouse_motion_events
+	// Avoiding MouseMotion for this, as it reports bad values over a WSL/X11 setup.
+	let new_pos = cursor_moved
 		.iter()
-		.fold(Vec2::ZERO, |total, event| total + event.delta);
+		.next_back()
+		.map(|event| event.position * Vec2::new(1.0, -1.0))
+		.unwrap_or(*last_cursor_position);
+
+	let cursor_delta = new_pos - *last_cursor_position;
+	*last_cursor_position = new_pos;
 
 	// LMB translates on current plane.
 	if mouse_buttons.pressed(MouseButton::Left) {
