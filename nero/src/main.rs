@@ -59,8 +59,8 @@ fn asset_test(
 	// 	transform: Transform::from_xyz(0.0, 0.5, 0.0),
 	// 	..default()
 	// });
-	// commands
-	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
+	commands
+		.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
 	// commands
 	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"));
 	// commands

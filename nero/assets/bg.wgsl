@@ -111,6 +111,10 @@ fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
 // 	// output_color = normalize(output_color);
 
 	let output_color = mix(diffuse1, diffuse2, input.color.w);
+	// TODO: can this be done at a material level?
+	if (output_color.w <= 0.5) {
+		discard;
+	}
 
 	return output_color;
 // #else
