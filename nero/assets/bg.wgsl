@@ -46,9 +46,13 @@ struct BgMaterial {};
 // [[group(1), binding(0)]]
 // var<uniform> uniform_data: BgMaterial;
 [[group(1), binding(1)]]
-var diffuse_texture: texture_2d<f32>;
+var diffuse1_texture: texture_2d<f32>;
 [[group(1), binding(2)]]
-var diffuse_sampler: sampler;
+var diffuse1_sampler: sampler;
+[[group(1), binding(3)]]
+var diffuse2_texture: texture_2d<f32>;
+[[group(1), binding(4)]]
+var diffuse2_sampler: sampler;
 
 [[stage(vertex)]]
 fn vertex(vertex: Vertex) -> VertexOutput {
@@ -91,15 +95,22 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
-	var output_color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-  // output_color = output_color * textureSample(diffuse_texture, diffuse_sampler, abs(input.uv.xy) % 1.0);
+	let diffuse1 = textureSample(diffuse1_texture, diffuse1_sampler, abs(input.uv.xy) % 1.0);
+	let diffuse2 = textureSample(diffuse2_texture, diffuse2_sampler, abs(input.uv.zw) % 1.0);
+
+	// var output_color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
+  // output_color = output_color * textureSample(diffuse1_texture, diffuse1_sampler, abs(input.uv.xy) % 1.0);
 //   var output_color =   vec4<f32>(abs(input.uv.xy) % 1.0, 0.0, 1.0);
 	
 	
+	// todo: check if the image is the dummy file?
+
 // #ifdef VERTEX_COLOR
 //   var output_color =   vec4<f32>(abs(input.uv.xy) % 1.0, 0.0, 1.0);
-	var output_color = output_color * input.color.wwww;
+	// var output_color = output_color * input.color.wwww;
 // 	// output_color = normalize(output_color);
+
+	let output_color = mix(diffuse1, diffuse2, input.color.w);
 
 	return output_color;
 // #else

@@ -24,7 +24,8 @@ use super::plugin::BG_SHADER_HANDLE;
 #[derive(Clone, TypeUuid)]
 #[uuid = "5f115bbc-7755-4a10-9f29-b078a84dbb10"]
 pub struct BgMaterial {
-	pub diffuse: Handle<Image>,
+	pub diffuse1: Option<Handle<Image>>,
+	pub diffuse2: Option<Handle<Image>>,
 }
 
 // #[derive(AsStd140)]
@@ -59,9 +60,18 @@ impl RenderAsset for BgMaterial {
 		// 	usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
 		// });
 
-		let (diffuse_view, diffuse_sampler) = if let Some(result) = pipeline
+		let (diffuse1_view, diffuse1_sampler) = if let Some(result) = pipeline
 			.mesh_pipeline
-			.get_image_texture(images, &Some(extracted_asset.diffuse.clone()))
+			.get_image_texture(images, &extracted_asset.diffuse1)
+		{
+			result
+		} else {
+			return Err(PrepareAssetError::RetryNextUpdate(extracted_asset));
+		};
+
+		let (diffuse2_view, diffuse2_sampler) = if let Some(result) = pipeline
+			.mesh_pipeline
+			.get_image_texture(images, &extracted_asset.diffuse2)
 		{
 			result
 		} else {
@@ -78,11 +88,19 @@ impl RenderAsset for BgMaterial {
 				// },
 				BindGroupEntry {
 					binding: 1,
-					resource: BindingResource::TextureView(diffuse_view),
+					resource: BindingResource::TextureView(diffuse1_view),
 				},
 				BindGroupEntry {
 					binding: 2,
-					resource: BindingResource::Sampler(diffuse_sampler),
+					resource: BindingResource::Sampler(diffuse1_sampler),
+				},
+				BindGroupEntry {
+					binding: 3,
+					resource: BindingResource::TextureView(diffuse2_view),
+				},
+				BindGroupEntry {
+					binding: 4,
+					resource: BindingResource::Sampler(diffuse2_sampler),
 				},
 			],
 		});
@@ -111,6 +129,7 @@ impl Material for BgMaterial {
 				// 	},
 				// 	count: None,
 				// },
+				// TODO: can i array this? at all? how do arrays work?
 				BindGroupLayoutEntry {
 					binding: 1,
 					visibility: ShaderStages::FRAGMENT,
@@ -123,6 +142,22 @@ impl Material for BgMaterial {
 				},
 				BindGroupLayoutEntry {
 					binding: 2,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 3,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 4,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,
