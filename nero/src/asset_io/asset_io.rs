@@ -14,10 +14,16 @@ pub struct IronworksAssetIo {
 	pub ironworks: IronworksResource,
 }
 
+impl IronworksAssetIo {
+	fn get_ironworks_path<'a>(&self, path: &'a Path) -> Option<&'a Path> {
+		path.strip_prefix("iw://").ok()
+	}
+}
+
 impl AssetIo for IronworksAssetIo {
 	fn load_path<'a>(&'a self, path: &'a Path) -> BoxedFuture<'a, Result<Vec<u8>, AssetIoError>> {
-		if let Ok(ironworks_path) = path.strip_prefix("iw://") {
-			Box::pin(async move {
+		match self.get_ironworks_path(path) {
+			Some(ironworks_path) => Box::pin(async move {
 				self.ironworks
 					.read()
 					.unwrap()
@@ -28,9 +34,8 @@ impl AssetIo for IronworksAssetIo {
 						}
 						other => AssetIoError::Io(io::Error::new(io::ErrorKind::Other, other)),
 					})
-			})
-		} else {
-			self.default_io.load_path(path)
+			}),
+			None => self.default_io.load_path(path),
 		}
 	}
 
