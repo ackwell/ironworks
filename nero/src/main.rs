@@ -6,7 +6,7 @@ mod camera;
 mod material;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
-use asset_loader::{IronworksPlugin, List};
+use asset_loader::IronworksPlugin;
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use camera::CameraPlugin;
@@ -32,10 +32,6 @@ fn main() {
 		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
-}
-
-struct TempTestRes {
-	handle: Handle<List>,
 }
 
 fn asset_test(
@@ -69,11 +65,6 @@ fn asset_test(
 		transform: Transform::from_xyz(4.0, 8.0, 4.0),
 		..default()
 	});
-
-	// TODO: realistically this shouldn't be here. just using to test. should it be an entity?
-	commands.insert_resource(TempTestRes {
-		handle: asset_server.load("iw://exd/root.exl"),
-	})
 }
 
 fn ui_need_ironworks_resource(
@@ -100,25 +91,11 @@ fn ui_need_ironworks_resource(
 	});
 }
 
-fn ui_main(
-	mut egui_context: ResMut<EguiContext>,
-	temp_test: Res<TempTestRes>,
-	lists: Res<Assets<List>>,
-) {
+fn ui_main(mut egui_context: ResMut<EguiContext>) {
 	// todo: better id
 	egui::SidePanel::left("main")
 		.resizable(true)
 		.show(egui_context.ctx_mut(), |ui| {
 			ui.heading("nero");
-
-			if let Some(List(list)) = lists.get(&temp_test.handle) {
-				let text = list.iter().fold(String::new(), |mut acc, cur| {
-					acc.reserve(cur.len() + 1);
-					acc.push_str(&cur);
-					acc.push('\n');
-					acc
-				});
-				ui.label(text);
-			}
 		});
 }

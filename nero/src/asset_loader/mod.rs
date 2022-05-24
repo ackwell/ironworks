@@ -3,4 +3,4 @@ mod mtrl;
 mod plugin;
 mod tex;
 
-pub use plugin::{IronworksPlugin, List};
+pub use plugin::IronworksPlugin;
