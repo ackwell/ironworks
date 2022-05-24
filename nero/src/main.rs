@@ -27,10 +27,9 @@ fn main() {
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
 		// 3D
 		.add_plugin(CameraPlugin)
+		.add_plugin(NeroMaterialPlugin)
 		// Asset test stuff
 		.add_enter_system(IronworksState::Ready, asset_test)
-		// Material tests
-		.add_plugin(NeroMaterialPlugin)
 		// Done
 		.run();
 }
@@ -45,7 +44,7 @@ fn asset_test(
 	// mut meshes: ResMut<Assets<Mesh>>,
 	// mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-	// // 2D texture test
+	// 2D texture test
 	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 	// commands.spawn_bundle(SpriteBundle {
 	// 	texture: asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/texture/s1t0_a0_flag1_d.tex"),
@@ -53,26 +52,14 @@ fn asset_test(
 	// });
 
 	// 3D model test
-	// commands.spawn_bundle(PbrBundle {
-	// 	mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-	// 	material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-	// 	transform: Transform::from_xyz(0.0, 0.5, 0.0),
-	// 	..default()
-	// });
-	commands
-		.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
+	// commands
+	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
 	// commands
 	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"));
 	// commands
 	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_flr2.mdl"));
 	commands
 		.spawn_scene(asset_server.load("iw://bg/ffxiv/wil_w1/dun/w1d5/bgparts/w1d5_q1_bre4b.mdl"));
-	// commands.spawn_bundle(PbrBundle {
-	// 	// mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-	// 	mesh: asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"),
-	// 	material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
-	// 	..default()
-	// });
 	commands.spawn_bundle(PointLightBundle {
 		point_light: PointLight {
 			intensity: 1500.0,
