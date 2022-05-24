@@ -37,26 +37,30 @@ fn load_mtrl<'a>(
 
 	// todo: handle the other texture types
 	//       also this is atrocious, improve.
-	let diffuse1_sampler = samplers
+	let diffuse1_handle = samplers
 		.iter()
 		// TODO: Getting SamplerColorMap0 because The Chair:tm: uses it, this will need a lot of work to work in the general sense.
 		.find(|sampler| sampler.id() == 0x1E6FEF9C)
-		.unwrap();
-	let iw_path = format!("iw://{}", diffuse1_sampler.texture());
-	let diffuse1_handle = load_context.get_handle::<_, Image>(&iw_path);
-	dependencies.insert(iw_path);
+		.map(|sampler| {
+			let iw_path = format!("iw://{}", sampler.texture());
+			let handle = load_context.get_handle::<_, Image>(&iw_path);
+			dependencies.insert(iw_path);
+			handle
+		});
 
-	let diffuse2_sampler = samplers
+	let diffuse2_handle = samplers
 		.iter()
 		.find(|sampler| sampler.id() == 0x6968DF0A)
-		.unwrap();
-	let iw_path = format!("iw://{}", diffuse2_sampler.texture());
-	let diffuse2_handle = load_context.get_handle::<_, Image>(&iw_path);
-	dependencies.insert(iw_path);
+		.map(|sampler| {
+			let iw_path = format!("iw://{}", sampler.texture());
+			let handle = load_context.get_handle::<_, Image>(&iw_path);
+			dependencies.insert(iw_path);
+			handle
+		});
 
 	let material = BgMaterial {
-		diffuse1: Some(diffuse1_handle),
-		diffuse2: Some(diffuse2_handle),
+		diffuse1: diffuse1_handle,
+		diffuse2: diffuse2_handle,
 	};
 
 	let dependency_array = dependencies
