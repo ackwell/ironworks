@@ -1,12 +1,12 @@
 #![allow(clippy::module_inception)]
 
 mod asset_io;
-mod asset_loaders;
+mod asset_loader;
 mod camera;
 mod material;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
-use asset_loaders::{IronworksPlugin, List};
+use asset_loader::{IronworksPlugin, List};
 use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use camera::CameraPlugin;
