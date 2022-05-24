@@ -10,7 +10,7 @@ use bevy::{
 };
 use ironworks::file::{mdl, File};
 
-use crate::material::BgMaterial;
+use crate::material::{BgMaterial, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
 
 #[derive(Default)]
 pub struct MdlAssetLoader;
@@ -88,12 +88,8 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 		match kind {
 			K::Position => mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, to_f32x3(values)),
 			K::Normal => mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, to_f32x3(values)),
-			K::Uv => mesh.insert_attribute(
-				// this should probably be a completely custom id
-				MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4),
-				to_f32x4(values),
-			),
-			K::Color => mesh.insert_attribute(MEME, to_f32x4(values)),
+			K::Uv => mesh.insert_attribute(ATTRIBUTE_UV_4, to_f32x4(values)),
+			K::Color => mesh.insert_attribute(ATTRIBUTE_COLOR, to_f32x4(values)),
 			other => info!("TODO: {other:?}"),
 		};
 	}

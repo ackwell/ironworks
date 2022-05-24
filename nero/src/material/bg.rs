@@ -16,6 +16,15 @@ use bevy::{
 	},
 };
 
+// HACK: This is overriding the pbr uv attribute's ID with a different vertex
+// format, which is... jank, to say the least. This is done purely to avoid
+// needing to reimplement the mesh pipeline to change the uv attribute handling.
+// If/when updating to a custom pipeline, revisit this.
+pub const ATTRIBUTE_UV_4: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4);
+pub const ATTRIBUTE_COLOR: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
+
 #[derive(Clone, TypeUuid)]
 #[uuid = "5f115bbc-7755-4a10-9f29-b078a84dbb10"]
 pub struct BgMaterial {
@@ -147,14 +156,11 @@ impl Material for BgMaterial {
 		descriptor: &mut RenderPipelineDescriptor,
 		layout: &MeshVertexBufferLayout,
 	) -> Result<(), SpecializedMeshPipelineError> {
-		const MEME: MeshVertexAttribute =
-			MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
-
 		let vertex_attributes = vec![
 			Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
 			Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
-			Mesh::ATTRIBUTE_UV_0.at_shader_location(2),
-			MEME.at_shader_location(3),
+			ATTRIBUTE_UV_4.at_shader_location(2),
+			ATTRIBUTE_COLOR.at_shader_location(3),
 		];
 
 		let vertex_layout = layout.get_layout(&vertex_attributes)?;
