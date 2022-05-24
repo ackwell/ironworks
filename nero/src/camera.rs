@@ -1,5 +1,5 @@
 use bevy::{
-	input::mouse::{MouseMotion, MouseScrollUnit, MouseWheel},
+	input::mouse::{MouseScrollUnit, MouseWheel},
 	prelude::*,
 };
 use smooth_bevy_cameras::{

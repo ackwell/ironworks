@@ -36,11 +36,9 @@ fn load_mdl<'a>(
 	let mut world = World::default();
 
 	let container = <mdl::ModelContainer as File>::read(bytes)?;
-	// TODO: load all 3 as seperate scenes?
+	// TODO: load all 3 LOD as seperate scenes?
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);
-	// let meshes = model.meshes().into_iter().map(load_mesh).next().unwrap();
-	// let meshes = std::iter::once(meshes);
 
 	let mut dependencies = HashSet::<String>::new();
 
@@ -90,19 +88,12 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 		match kind {
 			K::Position => mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, to_f32x3(values)),
 			K::Normal => mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, to_f32x3(values)),
-			// K::Uv => mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, to_f32x2(values)),
 			K::Uv => mesh.insert_attribute(
 				// this should probably be a completely custom id
 				MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4),
 				to_f32x4(values),
 			),
-			K::Color => {
-				// info!(
-				// 	"color {:?}",
-				// 	to_f32x4(values).iter().map(|x| x[3]).collect::<Vec<_>>()
-				// );
-				mesh.insert_attribute(MEME, to_f32x4(values))
-			}
+			K::Color => mesh.insert_attribute(MEME, to_f32x4(values)),
 			other => info!("TODO: {other:?}"),
 		};
 	}
@@ -117,16 +108,6 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 
 	// TODO: is this the "right" place for the iw prefix?
 	Ok((mesh, format!("iw://{}", mdl_mesh.material()?)))
-}
-
-fn to_f32x2(values: mdl::VertexValues) -> Vec<[f32; 2]> {
-	use mdl::VertexValues as V;
-	match values {
-		V::Vector2(vec) => vec,
-		V::Vector3(vec) => vec.into_iter().map(|[x, y, _z]| [x, y]).collect(),
-		V::Vector4(vec) => vec.into_iter().map(|[x, y, _z, _w]| [x, y]).collect(),
-		other => panic!("Cannot convert {other:?} to f32x3."),
-	}
 }
 
 fn to_f32x3(values: mdl::VertexValues) -> Vec<[f32; 3]> {
