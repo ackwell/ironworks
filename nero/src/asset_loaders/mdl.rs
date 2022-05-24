@@ -3,11 +3,14 @@ use std::{collections::HashSet, path::PathBuf};
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
-	render::mesh::{Indices, PrimitiveTopology},
+	render::{
+		mesh::{Indices, MeshVertexAttribute, PrimitiveTopology},
+		render_resource::VertexFormat,
+	},
 };
 use ironworks::file::{mdl, File};
 
-use crate::material::BgMaterial;
+use crate::material::{BgMaterial, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
 
 #[derive(Default)]
 pub struct MdlAssetLoader;
@@ -33,7 +36,7 @@ fn load_mdl<'a>(
 	let mut world = World::default();
 
 	let container = <mdl::ModelContainer as File>::read(bytes)?;
-	// TODO: load all 3 as seperate scenes?
+	// TODO: load all 3 LOD as seperate scenes?
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);
 
@@ -76,30 +79,31 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 
 	let mut mesh = Mesh::new(PrimitiveTopology::TriangleList);
 
+	// TODO: work out where this should go
+	const MEME: MeshVertexAttribute =
+		MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
+
 	for mdl::VertexAttribute { kind, values } in vertex_attributes {
 		use mdl::VertexAttributeKind as K;
 		match kind {
 			K::Position => mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, to_f32x3(values)),
 			K::Normal => mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, to_f32x3(values)),
-			K::Uv => mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, to_f32x2(values)),
+			K::Uv => mesh.insert_attribute(ATTRIBUTE_UV_4, to_f32x4(values)),
+			K::Color => mesh.insert_attribute(ATTRIBUTE_COLOR, to_f32x4(values)),
 			other => info!("TODO: {other:?}"),
 		};
+	}
+
+	// If the mesh doesn't define color, fill it in with a default.
+	// TODO: This is a bit silly, but saves needing to reimplement the mesh pipeline to add shader definitions to enable the color handling per-mesh. When shader requirements scale up and that's on the table, revisit this.
+	if !mesh.contains_attribute(MEME) {
+		mesh.insert_attribute(MEME, vec![[1.0, 1.0, 1.0, 0.0]; mesh.count_vertices()]);
 	}
 
 	mesh.set_indices(Some(Indices::U16(indices)));
 
 	// TODO: is this the "right" place for the iw prefix?
 	Ok((mesh, format!("iw://{}", mdl_mesh.material()?)))
-}
-
-fn to_f32x2(values: mdl::VertexValues) -> Vec<[f32; 2]> {
-	use mdl::VertexValues as V;
-	match values {
-		V::Vector2(vec) => vec,
-		V::Vector3(vec) => vec.into_iter().map(|[x, y, _z]| [x, y]).collect(),
-		V::Vector4(vec) => vec.into_iter().map(|[x, y, _z, _w]| [x, y]).collect(),
-		other => panic!("Cannot convert {other:?} to f32x3."),
-	}
 }
 
 fn to_f32x3(values: mdl::VertexValues) -> Vec<[f32; 3]> {
@@ -109,5 +113,15 @@ fn to_f32x3(values: mdl::VertexValues) -> Vec<[f32; 3]> {
 		V::Vector3(vec) => vec,
 		V::Vector4(vec) => vec.into_iter().map(|[x, y, z, _w]| [x, y, z]).collect(),
 		other => panic!("Cannot convert {other:?} to f32x3."),
+	}
+}
+
+fn to_f32x4(values: mdl::VertexValues) -> Vec<[f32; 4]> {
+	use mdl::VertexValues as V;
+	match values {
+		V::Vector2(vec) => vec.into_iter().map(|[x, y]| [x, y, 0., 0.]).collect(),
+		V::Vector3(vec) => vec.into_iter().map(|[x, y, z]| [x, y, z, 0.]).collect(),
+		V::Vector4(vec) => vec,
+		other => panic!("Cannot convert {other:?} to f32x4."),
 	}
 }

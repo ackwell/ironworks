@@ -4,28 +4,33 @@ use bevy::{
 	prelude::*,
 	reflect::TypeUuid,
 	render::{
+		mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
 		render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
 		render_resource::{
-			std140::{AsStd140, Std140},
 			BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
 			BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
-			BufferBindingType, BufferInitDescriptor, BufferSize, BufferUsages, SamplerBindingType,
-			ShaderStages, TextureSampleType, TextureViewDimension,
+			RenderPipelineDescriptor, SamplerBindingType, ShaderStages,
+			SpecializedMeshPipelineError, TextureSampleType, TextureViewDimension, VertexFormat,
 		},
 		renderer::RenderDevice,
 	},
 };
 
-use super::plugin::BG_SHADER_HANDLE;
+// HACK: This is overriding the pbr uv attribute's ID with a different vertex
+// format, which is... jank, to say the least. This is done purely to avoid
+// needing to reimplement the mesh pipeline to change the uv attribute handling.
+// If/when updating to a custom pipeline, revisit this.
+pub const ATTRIBUTE_UV_4: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4);
+pub const ATTRIBUTE_COLOR: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
 
 #[derive(Clone, TypeUuid)]
 #[uuid = "5f115bbc-7755-4a10-9f29-b078a84dbb10"]
 pub struct BgMaterial {
-	pub diffuse: Handle<Image>,
+	pub diffuse1: Option<Handle<Image>>,
+	pub diffuse2: Option<Handle<Image>>,
 }
-
-// #[derive(AsStd140)]
-// struct BgMaterialUniformData {}
 
 pub struct GpuBgMaterial {
 	bind_group: BindGroup,
@@ -48,17 +53,18 @@ impl RenderAsset for BgMaterial {
 		extracted_asset: Self::ExtractedAsset,
 		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
-		// let uniform_data = BgMaterialUniformData {};
-
-		// let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
-		// 	label: None,
-		// 	contents: uniform_data.as_std140().as_bytes(),
-		// 	usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-		// });
-
-		let (diffuse_view, diffuse_sampler) = if let Some(result) = pipeline
+		let (diffuse1_view, diffuse1_sampler) = if let Some(result) = pipeline
 			.mesh_pipeline
-			.get_image_texture(images, &Some(extracted_asset.diffuse.clone()))
+			.get_image_texture(images, &extracted_asset.diffuse1)
+		{
+			result
+		} else {
+			return Err(PrepareAssetError::RetryNextUpdate(extracted_asset));
+		};
+
+		let (diffuse2_view, diffuse2_sampler) = if let Some(result) = pipeline
+			.mesh_pipeline
+			.get_image_texture(images, &extracted_asset.diffuse2)
 		{
 			result
 		} else {
@@ -69,17 +75,21 @@ impl RenderAsset for BgMaterial {
 			label: None,
 			layout: &pipeline.material_layout,
 			entries: &[
-				// BindGroupEntry {
-				// 	binding: 0,
-				// 	resource: buffer.as_entire_binding(),
-				// },
+				BindGroupEntry {
+					binding: 0,
+					resource: BindingResource::TextureView(diffuse1_view),
+				},
 				BindGroupEntry {
 					binding: 1,
-					resource: BindingResource::TextureView(diffuse_view),
+					resource: BindingResource::Sampler(diffuse1_sampler),
 				},
 				BindGroupEntry {
 					binding: 2,
-					resource: BindingResource::Sampler(diffuse_sampler),
+					resource: BindingResource::TextureView(diffuse2_view),
+				},
+				BindGroupEntry {
+					binding: 3,
+					resource: BindingResource::Sampler(diffuse2_sampler),
 				},
 			],
 		});
@@ -96,20 +106,9 @@ impl Material for BgMaterial {
 		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: None,
 			entries: &[
-				// BindGroupLayoutEntry {
-				// 	binding: 0,
-				// 	visibility: ShaderStages::FRAGMENT,
-				// 	ty: BindingType::Buffer {
-				// 		ty: BufferBindingType::Uniform,
-				// 		has_dynamic_offset: false,
-				// 		min_binding_size: BufferSize::new(
-				// 			u64::try_from(BgMaterialUniformData::std140_size_static()).unwrap(),
-				// 		),
-				// 	},
-				// 	count: None,
-				// },
+				// TODO: can i array this? at all? how do arrays work?
 				BindGroupLayoutEntry {
-					binding: 1,
+					binding: 0,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Texture {
 						sample_type: TextureSampleType::Float { filterable: true },
@@ -119,7 +118,23 @@ impl Material for BgMaterial {
 					count: None,
 				},
 				BindGroupLayoutEntry {
+					binding: 1,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
 					binding: 2,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 3,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,
@@ -128,7 +143,30 @@ impl Material for BgMaterial {
 		})
 	}
 
+	fn vertex_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
+		Some(asset_server.load("bg.wgsl"))
+	}
+
 	fn fragment_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
-		Some(BG_SHADER_HANDLE.typed())
+		Some(asset_server.load("bg.wgsl"))
+	}
+
+	fn specialize(
+		_pipeline: &MaterialPipeline<Self>,
+		descriptor: &mut RenderPipelineDescriptor,
+		layout: &MeshVertexBufferLayout,
+	) -> Result<(), SpecializedMeshPipelineError> {
+		let vertex_attributes = vec![
+			Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
+			Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
+			ATTRIBUTE_UV_4.at_shader_location(2),
+			ATTRIBUTE_COLOR.at_shader_location(3),
+		];
+
+		let vertex_layout = layout.get_layout(&vertex_attributes)?;
+
+		descriptor.vertex.buffers = vec![vertex_layout];
+
+		Ok(())
 	}
 }

@@ -73,6 +73,7 @@ pub struct Material {
 	shader_values: Vec<f32>,
 }
 
+// todo: actually u32?
 #[binread]
 #[br(little)]
 #[derive(Debug)]
