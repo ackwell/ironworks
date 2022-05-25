@@ -2,6 +2,7 @@ use bevy::{
 	input::mouse::{MouseScrollUnit, MouseWheel},
 	prelude::*,
 };
+use bevy_egui::EguiContext;
 use smooth_bevy_cameras::{
 	controllers::orbit::{
 		ControlEvent, OrbitCameraBundle, OrbitCameraController, OrbitCameraPlugin,
@@ -34,6 +35,7 @@ fn spawn_camera(mut commands: Commands) {
 }
 
 // Slightly tweaked copy of the default controls from the library because I didn't like the control scheme.
+#[allow(clippy::too_many_arguments)]
 fn camera_controls(
 	mut control_events: EventWriter<ControlEvent>,
 	mut mouse_wheel_reader: EventReader<MouseWheel>,
@@ -43,7 +45,29 @@ fn camera_controls(
 
 	mouse_buttons: Res<Input<MouseButton>>,
 	controllers: Query<&OrbitCameraController>,
+
+	mut egui_context: ResMut<EguiContext>,
+	mut egui_owns_pointer: Local<bool>,
 ) {
+	// If egui wants the pointer, prevent the camera from also reacting to the input.
+	// NOTE: this isn't using wants_pointer_input, as it returns false during drag operations that stem inside egui.
+	let ctx = egui_context.ctx_mut();
+	if ctx.is_pointer_over_area()
+		&& mouse_buttons.any_just_pressed([
+			MouseButton::Left,
+			MouseButton::Middle,
+			MouseButton::Right,
+		]) {
+		*egui_owns_pointer = true;
+	}
+	if mouse_buttons.get_pressed().len() == 0 {
+		*egui_owns_pointer = false;
+	}
+
+	if *egui_owns_pointer {
+		return;
+	}
+
 	// Get the controller for the camera.
 	let controller = match controllers.iter().find(|controller| controller.enabled) {
 		Some(controller) => controller,

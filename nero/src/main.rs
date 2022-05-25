@@ -21,8 +21,8 @@ fn main() {
 		})
 		.add_plugin(IronworksPlugin)
 		// UI
-		.add_plugin(EguiPlugin)
 		.insert_resource(WinitSettings::desktop_app())
+		.add_plugin(EguiPlugin)
 		.add_system(ui_need_ironworks_resource.run_not_in_state(IronworksState::Ready))
 		.add_system(ui_main.run_in_state(IronworksState::Ready))
 		// 3D
@@ -91,11 +91,46 @@ fn ui_need_ironworks_resource(
 	});
 }
 
-fn ui_main(mut egui_context: ResMut<EguiContext>) {
-	// todo: better id
-	egui::SidePanel::left("main")
+struct TempImages {
+	logo: Handle<Image>,
+}
+
+impl FromWorld for TempImages {
+	fn from_world(world: &mut World) -> Self {
+		let asset_server = world.get_resource_mut::<AssetServer>().unwrap();
+		Self {
+			logo: asset_server.load("logo.png"),
+		}
+	}
+}
+
+fn ui_main(
+	mut egui_context: ResMut<EguiContext>,
+	mut temp_logo: Local<egui::TextureId>,
+	mut temp_init: Local<bool>,
+	temp_images: Local<TempImages>,
+) {
+	if !*temp_init {
+		*temp_init = true;
+		*temp_logo = egui_context.add_image(temp_images.logo.clone_weak());
+	}
+
+	let ctx = egui_context.ctx_mut();
+
+	// TODO: this would probably be managed by a controller or something
+	egui::SidePanel::left("tabs")
+		.width_range(20.0..=20.0)
+		.resizable(false)
+		.frame(egui::Frame::default().fill(ctx.style().visuals.window_fill()))
+		.show(ctx, |ui| {
+			let button = egui::Button::image_and_text(*temp_logo, [34.0, 50.0], "");
+			ui.add(button);
+		});
+
+	// TODO: anything beyond the initial tabs should be a concern of the active tab. traits?
+	egui::SidePanel::left("explorer")
 		.resizable(true)
-		.show(egui_context.ctx_mut(), |ui| {
-			ui.heading("nero");
+		.show(ctx, |ui| {
+			ui.heading("explorer");
 		});
 }
