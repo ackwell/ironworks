@@ -45,15 +45,24 @@ impl AssetIo for IronworksAssetIo {
 		&self,
 		path: &std::path::Path,
 	) -> Result<Box<dyn Iterator<Item = PathBuf>>, AssetIoError> {
-		self.default_io.read_directory(path)
+		match self.get_ironworks_path(path) {
+			Some(_) => Ok(Box::new(std::iter::empty())),
+			None => self.default_io.read_directory(path),
+		}
 	}
 
 	fn is_directory(&self, path: &Path) -> bool {
-		self.default_io.is_directory(path)
+		match self.get_ironworks_path(path) {
+			Some(_) => false,
+			None => self.default_io.is_directory(path),
+		}
 	}
 
 	fn watch_path_for_changes(&self, path: &Path) -> Result<(), AssetIoError> {
-		self.default_io.watch_path_for_changes(path)
+		match self.get_ironworks_path(path) {
+			Some(_) => Ok(()),
+			None => self.default_io.watch_path_for_changes(path),
+		}
 	}
 
 	fn watch_for_changes(&self) -> Result<(), AssetIoError> {
