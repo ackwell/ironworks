@@ -17,7 +17,7 @@ impl Plugin for CameraPlugin {
 		app.add_plugin(LookTransformPlugin)
 			.add_plugin(OrbitCameraPlugin::new(true))
 			.add_startup_system(spawn_camera)
-			.add_system(camera_controls);
+			.add_system(camera_controls.after("ui"));
 	}
 }
 
@@ -52,12 +52,7 @@ fn camera_controls(
 	// If egui wants the pointer, prevent the camera from also reacting to the input.
 	// NOTE: this isn't using wants_pointer_input, as it returns false during drag operations that stem inside egui.
 	let ctx = egui_context.ctx_mut();
-	if ctx.is_pointer_over_area()
-		&& mouse_buttons.any_just_pressed([
-			MouseButton::Left,
-			MouseButton::Middle,
-			MouseButton::Right,
-		]) {
+	if ctx.is_pointer_over_area() && mouse_buttons.get_just_pressed().len() > 0 {
 		*egui_owns_pointer = true;
 	}
 	if mouse_buttons.get_pressed().len() == 0 {

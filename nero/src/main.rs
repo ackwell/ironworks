@@ -24,7 +24,8 @@ fn main() {
 		.insert_resource(WinitSettings::desktop_app())
 		.add_plugin(EguiPlugin)
 		.add_system(ui_need_ironworks_resource.run_not_in_state(IronworksState::Ready))
-		.add_system(ui_main.run_in_state(IronworksState::Ready))
+		// TODO: the label here should probably be a const somewhere sensible
+		.add_system(ui_main.run_in_state(IronworksState::Ready).label("ui"))
 		// 3D
 		.add_plugin(CameraPlugin)
 		.add_plugin(NeroMaterialPlugin)
