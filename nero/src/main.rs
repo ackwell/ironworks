@@ -77,6 +77,7 @@ fn ui_toolbox(
 	mut egui_context: ResMut<EguiContext>,
 	mut tool_state: Local<ToolState>,
 	asset_server: Res<AssetServer>,
+	current_tool: Res<CurrentState<Option<Tool>>>,
 ) {
 	// Get the icons for tools, creating them if they don't exist yet.
 	let tool_icons = tool_state.icons.get_or_insert_with(|| {
@@ -98,12 +99,68 @@ fn ui_toolbox(
 		.frame(egui::Frame::default().fill(ctx.style().visuals.window_fill()))
 		.show(ctx, |ui| {
 			for (index, tool) in Tool::iter().enumerate() {
-				let button = egui::ImageButton::new(tool_icons[index].1, [24.0, 24.0])
-					.tint(ui.style().visuals.text_color());
-				let response = ui.add(button).on_hover_text_at_pointer(tool.name());
+				let selected = matches!(&*current_tool, CurrentState(Some(t)) if t == &tool);
+				let response = ui.add(ToolTab::new(tool_icons[index].1).selected(selected));
 				if response.clicked() {
 					commands.insert_resource(NextState(Some(tool)))
 				}
 			}
 		});
+}
+
+struct ToolTab {
+	image: egui::Image,
+	selected: bool,
+}
+
+impl ToolTab {
+	fn new(texture_id: impl Into<egui::TextureId>) -> Self {
+		Self {
+			image: egui::Image::new(texture_id, [24.0, 24.0]),
+			selected: false,
+		}
+	}
+
+	pub fn selected(mut self, selected: bool) -> Self {
+		self.selected = selected;
+		self
+	}
+}
+
+impl egui::Widget for ToolTab {
+	fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+		let Self { image, selected } = self;
+
+		let padding = egui::Vec2::splat(ui.spacing().button_padding.x);
+		let size = image.size() + padding * 2.0;
+
+		let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+
+		if ui.is_rect_visible(rect) {
+			let (text, background) = match selected {
+				// TODO: better color for bg
+				true => (egui::Color32::WHITE, ui.visuals().widgets.hovered.bg_fill),
+				false => {
+					(
+						match response.hovered() {
+							true => egui::Color32::WHITE,
+							// todo: better color for text
+							false => ui.style().visuals.text_color(),
+						},
+						egui::Color32::TRANSPARENT,
+					)
+				}
+			};
+
+			ui.painter()
+				.rect_filled(rect, egui::Rounding::none(), background);
+
+			let image_rect = ui
+				.layout()
+				.align_size_within_rect(image.size(), rect.shrink2(padding));
+			image.tint(text).paint_at(ui, image_rect)
+		}
+
+		response
+	}
 }
