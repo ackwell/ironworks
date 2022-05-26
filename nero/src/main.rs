@@ -23,6 +23,7 @@ fn main() {
 			group.add_before::<bevy::asset::AssetPlugin, _>(IronworksAssetIoPlugin)
 		})
 		.add_plugin(IronworksPlugin)
+		.add_enter_system(IronworksState::Ready, ironworks_ready)
 		// UI
 		.insert_resource(WinitSettings::desktop_app())
 		.add_plugin(EguiPlugin)
@@ -34,43 +35,12 @@ fn main() {
 		// 3D
 		.add_plugin(CameraPlugin)
 		.add_plugin(NeroMaterialPlugin)
-		// Asset test stuff
-		.add_enter_system(IronworksState::Ready, asset_test)
 		// Done
 		.run();
 }
 
-fn asset_test(
-	mut commands: Commands,
-	asset_server: Res<AssetServer>,
-	// mut meshes: ResMut<Assets<Mesh>>,
-	// mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-	// 2D texture test
-	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
-	// commands.spawn_bundle(SpriteBundle {
-	// 	texture: asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/texture/s1t0_a0_flag1_d.tex"),
-	// 	..default()
-	// });
-
-	// 3D model test
-	// commands
-	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/bgparts/s1t0_z0_flg3.mdl"));
-	// commands
-	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_char1.mdl"));
-	// commands
-	// 	.spawn_scene(asset_server.load("iw://bg/ffxiv/sea_s1/twn/s1ta/bgparts/s1ta_ga_flr2.mdl"));
-	commands
-		.spawn_scene(asset_server.load("iw://bg/ffxiv/wil_w1/dun/w1d5/bgparts/w1d5_q1_bre4b.mdl"));
-	commands.spawn_bundle(PointLightBundle {
-		point_light: PointLight {
-			intensity: 1500.0,
-			shadows_enabled: true,
-			..default()
-		},
-		transform: Transform::from_xyz(4.0, 8.0, 4.0),
-		..default()
-	});
+fn ironworks_ready(mut commands: Commands) {
+	commands.insert_resource(NextState(Some(Tool::iter().next().unwrap())));
 }
 
 fn ui_need_ironworks_resource(
@@ -132,7 +102,7 @@ fn ui_toolbox(
 					.tint(ui.style().visuals.text_color());
 				let response = ui.add(button).on_hover_text_at_pointer(tool.name());
 				if response.clicked() {
-					commands.insert_resource(NextState(tool))
+					commands.insert_resource(NextState(Some(tool)))
 				}
 			}
 		});

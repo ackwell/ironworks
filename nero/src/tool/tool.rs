@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use iyes_loopless::prelude::AppLooplessStateExt;
-use strum::{EnumIter, IntoEnumIterator};
+use strum::EnumIter;
 
 use super::{dev::DevTool, explorer::ExplorerTool};
 
@@ -30,7 +30,7 @@ impl Tool {
 pub struct ToolPlugins;
 impl Plugin for ToolPlugins {
 	fn build(&self, app: &mut App) {
-		app.add_loopless_state(Tool::iter().next().unwrap())
+		app.add_loopless_state(None::<Tool>)
 			.add_plugin(DevTool)
 			.add_plugin(ExplorerTool);
 	}

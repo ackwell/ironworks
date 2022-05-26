@@ -7,7 +7,7 @@ use super::Tool;
 pub struct ExplorerTool;
 impl Plugin for ExplorerTool {
 	fn build(&self, app: &mut App) {
-		app.add_system(ui.run_in_state(Tool::Explorer).label("ui"));
+		app.add_system(ui.run_in_state(Some(Tool::Explorer)).label("ui"));
 	}
 }
 
