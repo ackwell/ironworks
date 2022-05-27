@@ -1,4 +1,4 @@
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 use binrw::{binread, BinRead, VecArgs};
 
@@ -15,6 +15,21 @@ struct LodBlockInfo {
 	_decompressed_size: u32,
 	block_offset: u32,
 	block_count: u32,
+}
+
+#[binread]
+#[br(little)]
+#[derive(Debug)]
+struct TexHeader {
+	// attribute: u32,
+	// format: u32,
+	// width: u16,
+	// height: u16,
+	// depth: u16,
+	// mip_levels: u16,
+	// lod_offsets: [u32; 3],
+	#[br(pad_before = 28)]
+	surface_offset: [u32; 13],
 }
 
 pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
@@ -40,40 +55,44 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		},
 	)?;
 
-	// Create a vec with capacity for the full file.
-	let mut out_basis = Vec::<u8>::with_capacity(header.raw_file_size.try_into().unwrap());
+	// Create a writer with capacity for the full file.
+	let mut writer = Cursor::new(Vec::<u8>::with_capacity(
+		header.raw_file_size.try_into().unwrap(),
+	));
 
 	// If the first block has an offset, it's likely that there's a .tex header
-	// outside the compressed blocks - read the delta into the buffer as raw bytes.
+	// outside the compressed blocks - read it in for further info, and pass it
+	// over into the writer.
+	let mut texture_header = None::<TexHeader>;
 	let raw_header_size = blocks[0].compressed_offset;
 	if raw_header_size > 0 {
 		reader.seek(SeekFrom::Start(offset.into()))?;
-		reader
-			.by_ref()
-			.take(raw_header_size.into())
-			.read_to_end(&mut out_basis)?;
+		texture_header = Some(TexHeader::read(&mut reader)?);
+
+		reader.seek(SeekFrom::Start(offset.into()))?;
+		io::copy(
+			&mut reader.by_ref().take(raw_header_size.into()),
+			&mut writer,
+		)?;
 	}
 
-	let out_buffer = blocks
-		.iter()
-		// Scan the LOD sub block info to get the expected offsets.
-		.flat_map(|lod_block| {
-			let index_offset = usize::try_from(lod_block.block_offset).unwrap();
-			(index_offset..usize::try_from(lod_block.block_count).unwrap() + index_offset).scan(
-				lod_block.compressed_offset + offset,
-				|next, index| {
-					let offset = *next;
-					*next += u32::from(sub_block_offsets[index]);
-					Some(offset)
-				},
-			)
-		})
-		// Read the block data.
-		.try_fold(out_basis, |mut vec, offset| -> io::Result<Vec<u8>> {
-			let mut block_reader = read_block(&mut reader, offset)?;
-			block_reader.read_to_end(&mut vec)?;
-			Ok(vec)
-		})?;
+	for (index, block) in blocks.iter().enumerate() {
+		// Move to the expected start position of the block.
+		if let Some(ref header) = texture_header {
+			writer.set_position(header.surface_offset[index].into());
+		}
 
-	Ok(out_buffer)
+		// Read each sub-block into the writer.
+		let mut data_offset = block.compressed_offset + offset;
+		for sub_block_offset in sub_block_offsets
+			.iter()
+			.skip(usize::try_from(block.block_offset).unwrap())
+			.take(usize::try_from(block.block_count).unwrap())
+		{
+			io::copy(&mut read_block(&mut reader, data_offset)?, &mut writer)?;
+			data_offset += u32::from(*sub_block_offset);
+		}
+	}
+
+	Ok(writer.into_inner())
 }
