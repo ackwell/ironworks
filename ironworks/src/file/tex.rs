@@ -1,8 +1,5 @@
 //! Structs and utilities for parsing .tex files.
 
-// TODO: remove
-#![allow(missing_docs)]
-
 use std::{borrow::Cow, io::Cursor};
 
 use binrw::{binread, until_eof, BinRead};
@@ -15,34 +12,43 @@ use crate::error::Result;
 
 use super::file::File;
 
+/// A texture and associated metadata.
 #[binread]
 #[br(little)]
 #[derive(Derivative, Getters, CopyGetters)]
 #[derivative(Debug)]
 pub struct Texture {
 	attributes: bitfield::Attributes,
+	/// Pixel data format.
 	#[get_copy = "pub"]
 	format: Format,
 
+	/// Width in pixels.
 	#[get_copy = "pub"]
 	width: u16,
+	/// Height in pixels.
 	#[get_copy = "pub"]
 	height: u16,
+	/// Depth. Unknown interpretation.
 	#[get_copy = "pub"]
 	depth: u16,
+	/// Mipmap level count.
+	#[get_copy = "pub"]
 	mip_levels: u16,
 
-	lod_offsets: [u32; 3],
-	surface_offset: [u32; 13],
+	// TODO: work out how these should be exposed.
+	lod_surfaces: [u32; 3],
+	surface_offsets: [u32; 13],
 
+	/// Byte array of pixel data.
 	#[br(parse_with = until_eof)]
 	#[derivative(Debug = "ignore")]
-	// TODO: probably shouldn't expose this directly, there's a bunch of stuff around lod/mipmap to consider. check -caustics.tex.
 	#[get = "pub"]
 	data: Vec<u8>,
 }
 
 impl Texture {
+	/// Dimension kind.
 	pub fn dimension(&self) -> Dimension {
 		self.attributes.dimension()
 	}
@@ -102,6 +108,8 @@ mod bitfield {
 	}
 }
 
+/// The dimension kind of a texture.
+#[allow(missing_docs)]
 #[derive(BitfieldSpecifier, Debug)]
 #[bits = 4]
 pub enum Dimension {
@@ -111,7 +119,7 @@ pub enum Dimension {
 	Cube = 8,
 }
 
-/// TODO: docs
+/// Pixel format of a texture.
 #[allow(missing_docs)]
 #[binread]
 #[derive(Copy, Clone, Debug, IntoPrimitive)]
@@ -148,20 +156,23 @@ pub enum Format {
 }
 
 impl Format {
+	/// Texture format kind.
 	pub fn kind(&self) -> FormatKind {
 		FormatKind::try_from(u32::from(*self) & 0xF000).unwrap()
 	}
 
+	/// Channel or component count.
 	pub fn components(&self) -> u8 {
 		u8::try_from((u32::from(*self) & 0x0F00) >> 8).unwrap()
 	}
 
+	/// Bits per pixel.
 	pub fn bits_per_pixel(&self) -> u8 {
 		1 << ((u32::from(*self) & 0x00F0) >> 4)
 	}
 }
 
-/// TODO: docs
+/// The overarching kind of a texture format.
 #[allow(missing_docs)]
 #[derive(Debug, TryFromPrimitive)]
 #[repr(u32)]
