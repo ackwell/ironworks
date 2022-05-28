@@ -55,8 +55,10 @@ struct FragmentInput {
 
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
+	// TODO: clamping of the uv can likely be done at a texture level.
 	let diffuse1 = textureSample(diffuse1_texture, diffuse1_sampler, abs(input.uv.xy) % 1.0);
 	let diffuse2 = textureSample(diffuse2_texture, diffuse2_sampler, abs(input.uv.zw) % 1.0);
+	// TODO: There seems to be some alpha on diffuse2 that causes holes in solid materials - should this be additive rather than mixing?
 	let diffuse = mix(diffuse1, diffuse2, input.color.w);
 
 	// TODO: can this be done at a material level?

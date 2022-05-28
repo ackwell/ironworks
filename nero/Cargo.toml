@@ -14,5 +14,4 @@ ironworks = {path = "../ironworks", features = ["ffxiv", "sqpack", "exl", "mdl",
 iyes_loopless = "0.5.1"
 rfd = "0.8.2"
 smooth-bevy-cameras = "0.4.0"
-squish = "2.0.0-beta1"
 strum = {version = "0.24", features = ["derive"]}

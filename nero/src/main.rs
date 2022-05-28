@@ -100,7 +100,9 @@ fn ui_toolbox(
 		.show(ctx, |ui| {
 			for (index, tool) in Tool::iter().enumerate() {
 				let selected = matches!(&*current_tool, CurrentState(Some(t)) if t == &tool);
-				let response = ui.add(ToolTab::new(tool_icons[index].1).selected(selected));
+				let response = ui
+					.add(ToolTab::new(tool_icons[index].1).selected(selected))
+					.on_hover_text_at_pointer(tool.name());
 				if response.clicked() {
 					commands.insert_resource(NextState(Some(tool)))
 				}

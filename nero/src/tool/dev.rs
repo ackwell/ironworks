@@ -24,7 +24,8 @@ fn asset_test(
 	// 2D texture test
 	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
 	// commands.spawn_bundle(SpriteBundle {
-	// 	texture: asset_server.load("iw://bg/ffxiv/sea_s1/twn/common/texture/s1t0_a0_flag1_d.tex"),
+	// 	texture: asset_server
+	// 		.load("iw://chara/human/c0201/obj/face/f0002/texture/--c0201f0002_iri_n.tex"),
 	// 	..default()
 	// });
 

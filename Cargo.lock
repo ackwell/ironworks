@@ -2552,12 +2552,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fc7aa29613bd6a620df431842069224d8bc9011086b1db4c0e0cd47fa03ec9a"
 
 [[package]]
-name = "libm"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33a33a362ce288760ec6a508b94caaec573ae7d3bbbd91b87aa0bad4456839db"
-
-[[package]]
 name = "libssh2-sys"
 version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2906,7 +2900,6 @@ dependencies = [
  "iyes_loopless",
  "rfd",
  "smooth-bevy-cameras",
- "squish",
  "strum",
 ]
 
@@ -3823,15 +3816,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "squish"
-version = "2.0.0-beta1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4e07ffb43857ea50d8f5646c779a5a75a9f322e5625fd2b8b14236147198498"
-dependencies = [
- "libm 0.2.2",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3907,7 +3891,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b0dc6d20ce137f302edf90f9cd3d278866fd7fb139efca6f246161222ad6d87"
 dependencies = [
  "lazy_static",
- "libm 0.1.4",
+ "libm",
 ]
 
 [[package]]

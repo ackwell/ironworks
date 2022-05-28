@@ -1,7 +1,9 @@
 use bevy::{
 	asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
-	render::render_resource::{Extent3d, FilterMode, TextureDimension, TextureFormat},
+	render::render_resource::{
+		Extent3d, FilterMode, SamplerDescriptor, TextureDescriptor, TextureDimension, TextureFormat,
+	},
 };
 use ironworks::file::{tex, File};
 
@@ -16,10 +18,7 @@ impl AssetLoader for TexAssetLoader {
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
 			let tex = <tex::Texture as File>::read(bytes)?;
-			let mut image = convert_tex(tex);
-
-			// TODO: xiv textures don't bundle sampler info, work out how to derive this
-			image.sampler_descriptor.mag_filter = FilterMode::Linear;
+			let image = convert_tex(tex);
 
 			load_context.set_default_asset(LoadedAsset::new(image));
 			Ok(())
@@ -32,15 +31,47 @@ impl AssetLoader for TexAssetLoader {
 }
 
 fn convert_tex(tex: tex::Texture) -> Image {
-	match tex.format() {
-		tex::Format::Rgb5a1 => convert_rgb5a1(tex),
-		tex::Format::Dxt1 => convert_dxt1(tex),
+	let (format, data) = match tex.format() {
+		tex::Format::Rgb5a1 => convert_rgb5a1(&tex),
+		tex::Format::Argb8 => convert_argb8(&tex),
+		tex::Format::Dxt1 => convert_dxt1(&tex),
 		other => todo!("Texture format: {other:?}"),
-	}
+	};
+
+	let mut image = Image::default();
+	image.data = data;
+
+	image.texture_descriptor = TextureDescriptor {
+		size: Extent3d {
+			width: tex.width().into(),
+			height: tex.height().into(),
+			depth_or_array_layers: tex.depth().into(),
+		},
+		mip_level_count: tex.mip_levels().into(),
+		format,
+		dimension: match tex.dimension() {
+			tex::Dimension::D1 => TextureDimension::D1,
+			tex::Dimension::D2 => TextureDimension::D2,
+			tex::Dimension::D3 => TextureDimension::D3,
+			other => todo!("Texture dimension: {other:?}"),
+		},
+		..image.texture_descriptor
+	};
+
+	// TODO: xiv textures don't bundle sampler info, work out how to derive this
+	// TODO: work out how to configure mipmap usage, this gets really blurry really quickly
+	image.sampler_descriptor = SamplerDescriptor {
+		mag_filter: FilterMode::Linear,
+		min_filter: FilterMode::Linear,
+		mipmap_filter: FilterMode::Linear,
+		..image.sampler_descriptor
+	};
+
+	image
 }
 
-fn convert_rgb5a1(tex: tex::Texture) -> Image {
-	// this is jank. improve.
+fn convert_rgb5a1(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
+	// TODO: this is jank. improve.
 	let data = tex.data();
 	let converted = (0..data.len() / 2)
 		.flat_map(|index| {
@@ -55,35 +86,22 @@ fn convert_rgb5a1(tex: tex::Texture) -> Image {
 		})
 		.collect::<Vec<_>>();
 
-	// TODO: flags in tex might have some extra info for this, like dimension
-	Image::new(
-		Extent3d {
-			width: tex.width().into(),
-			height: tex.height().into(),
-			depth_or_array_layers: tex.depth().into(),
-		},
-		TextureDimension::D2,
-		converted,
-		TextureFormat::Rgba8UnormSrgb,
-	)
+	(TextureFormat::Rgba8UnormSrgb, converted)
 }
 
-fn convert_dxt1(tex: tex::Texture) -> Image {
-	let width = tex.width();
-	let height = tex.height();
+fn convert_argb8(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
+	let data = tex
+		.data()
+		.chunks_exact(4)
+		.flat_map(|chunk| {
+			let (a, r, g, b) = (chunk[0], chunk[1], chunk[2], chunk[3]);
+			[r, g, b, a]
+		})
+		.collect::<Vec<_>>();
 
-	let mut decompressed = vec![0u8; 4 * usize::from(width) * usize::from(height)];
+	(TextureFormat::Rgba8UnormSrgb, data)
+}
 
-	squish::Format::Bc1.decompress(tex.data(), width.into(), height.into(), &mut decompressed);
-
-	Image::new(
-		Extent3d {
-			width: width.into(),
-			height: height.into(),
-			depth_or_array_layers: tex.depth().into(),
-		},
-		TextureDimension::D2,
-		decompressed,
-		TextureFormat::Rgba8UnormSrgb,
-	)
+fn convert_dxt1(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
+	(TextureFormat::Bc1RgbaUnormSrgb, tex.data().to_vec())
 }

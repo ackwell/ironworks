@@ -1,5 +1,5 @@
 // TODO: REMOVE
-#![allow(dead_code, missing_docs, clippy::identity_op)]
+#![allow(dead_code, clippy::identity_op)]
 
 use std::io::{Read, Seek};
 
