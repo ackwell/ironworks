@@ -33,7 +33,7 @@ fn load_mtrl<'a>(
 	let mut dependencies = HashSet::<String>::new();
 
 	let material = <mtrl::Material>::read(bytes)?;
-	let samplers = material.samplers()?;
+	let samplers = material.samplers();
 
 	// todo: handle the other texture types
 	//       also this is atrocious, improve.

@@ -12,14 +12,16 @@ use super::structs;
 #[derive(Debug)]
 pub struct Material {
 	file: structs::Material,
+	samplers: Vec<Sampler>,
 }
 
 impl Material {
-	// TODO: Possibly do this eagerly?
 	/// Texture samplers used by the material.
-	pub fn samplers(&self) -> Result<Vec<Sampler>> {
-		let file = &self.file;
+	pub fn samplers(&self) -> &Vec<Sampler> {
+		&self.samplers
+	}
 
+	fn read_samplers(file: &structs::Material) -> Result<Vec<Sampler>> {
 		let mut cursor = Cursor::new(&file.string_data);
 
 		file.samplers
@@ -42,7 +44,8 @@ impl Material {
 impl File for Material {
 	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
 		let file = structs::Material::read(&mut Cursor::new(data.into()))?;
-		Ok(Material { file })
+		let samplers = Material::read_samplers(&file)?;
+		Ok(Material { file, samplers })
 	}
 }
 
