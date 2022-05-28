@@ -1,8 +1,5 @@
 //! Structs and utilities for parsing .mdl files.
 
-// TODO: REMOVE
-#![allow(missing_docs)]
-
 mod container;
 mod mesh;
 mod model;

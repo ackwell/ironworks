@@ -221,6 +221,8 @@ pub enum VertexFormat {
 	Half4 = 14,
 }
 
+/// The kind of data represented by a vertex attribute.
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = u8)]
 #[derive(Clone, Copy, Debug)]

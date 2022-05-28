@@ -5,6 +5,8 @@ use num_enum::IntoPrimitive;
 use super::{mesh::Mesh, structs};
 
 // TODO: consider if it makes sense to keep Lod around as it's enum repr for anything beyond user facing api
+/// Level of detail.
+#[allow(missing_docs)]
 #[derive(Clone, Copy, Debug, IntoPrimitive)]
 #[repr(usize)]
 pub enum Lod {
@@ -13,6 +15,7 @@ pub enum Lod {
 	Low = 2,
 }
 
+/// A single model, consisting of one or more seperate meshes.
 #[derive(Debug)]
 pub struct Model {
 	pub(super) file: Arc<structs::File>,
@@ -24,6 +27,7 @@ impl Model {
 	// TODO: Expose mesh kinds
 	// TODO: Maybe mesh filter?
 	// TODO: iterator?
+	/// Get a vector of all meshes within this model.
 	pub fn meshes(&self) -> Vec<Mesh> {
 		let ranges = self.get_ranges();
 

@@ -10,6 +10,8 @@ use crate::error::Result;
 
 use super::{model::Lod, structs};
 
+// TODO: improve the debug output of these things
+/// A single mesh within a model.
 #[derive(Debug)]
 pub struct Mesh {
 	pub(super) file: Arc<structs::File>,
@@ -23,6 +25,7 @@ impl Mesh {
 	// TODO: submeshes
 
 	// TODO: i'm not sure this should be specific to mesh - the list of materials on the model might be useful in some cases. should i use a ref to the parent model and read off that, rather than the arc of a file?
+	/// Path to the material associated with this mesh.
 	pub fn material(&self) -> Result<String> {
 		let mesh = &self.file.meshes[self.mesh_index];
 		let name_offset = self.file.material_name_offsets[usize::from(mesh.material_index)];
@@ -36,6 +39,7 @@ impl Mesh {
 	}
 
 	// TODO: iterator?
+	/// Indices of vertices within the mesh. Vertices are laid out in a triangle list topology.
 	pub fn indices(&self) -> Result<Vec<u16>> {
 		// Get the offset of the indices within the file. The `start_index` on `mesh`
 		// is representative of an already-ready array of u16, ergo *2.
@@ -59,6 +63,7 @@ impl Mesh {
 
 	// TODO: fn to get a specific attr?
 	// TODO: iterator?
+	/// Get the vertex attributes for all vertices in the mesh.
 	pub fn attributes(&self) -> Result<Vec<VertexAttribute>> {
 		let mesh = &self.file.meshes[self.mesh_index];
 
@@ -173,14 +178,19 @@ fn half4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
 	])
 }
 
-// todo: public contents?
+// todo: public contents? - i mean, it makes sense to an extent.
+/// A vertex attribute of a mesh.
 #[derive(Debug)]
 pub struct VertexAttribute {
 	// todo i'm really not convinced on the name here
+	/// The kind of data represented by this attribute.
 	pub kind: structs::VertexAttributeKind,
+	/// Attribute data values.
 	pub values: VertexValues,
 }
 
+/// Values of a vertex attribute.
+#[allow(missing_docs)]
 #[derive(Debug)]
 pub enum VertexValues {
 	Uint(Vec<u32>),
