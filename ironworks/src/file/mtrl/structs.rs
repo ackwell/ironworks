@@ -113,7 +113,7 @@ struct Constant {
 #[derive(Debug)]
 pub struct Sampler {
 	pub id: u32,
-	// TODO: bitfield
+	// TODO: bitfield, unknown fields.
 	pub state: u32,
 	#[br(pad_after = 3)]
 	pub texture_index: u8,

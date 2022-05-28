@@ -1,6 +1,3 @@
-// TODO: remove
-#![allow(missing_docs, dead_code)]
-
 use std::{borrow::Cow, io::Cursor};
 
 use binrw::{BinRead, NullString};
@@ -10,13 +7,16 @@ use crate::{error::Result, file::File};
 
 use super::structs;
 
+/// A material. Contains metadata to be used by shaders, and references to the
+/// shader and requisite assets used by the material.
 #[derive(Debug)]
 pub struct Material {
 	file: structs::Material,
 }
 
 impl Material {
-	// TODO: iterator?
+	// TODO: Possibly do this eagerly?
+	/// Texture samplers used by the material.
 	pub fn samplers(&self) -> Result<Vec<Sampler>> {
 		let file = &self.file;
 
@@ -31,7 +31,7 @@ impl Material {
 
 				Ok(Sampler {
 					id: sampler.id,
-					state: sampler.state,
+					// state: sampler.state,
 					texture,
 				})
 			})
@@ -46,15 +46,19 @@ impl File for Material {
 	}
 }
 
-// todo: can i do this eagerly?
+/// Texture sampler for a material.
 #[derive(Debug, Getters, CopyGetters)]
 pub struct Sampler {
+	/// Sampler ID.
 	#[get_copy = "pub"]
 	id: u32,
-	// TODO: bitfield
-	state: u32,
-
-	// TODO: this exposes &String which is a bit ick.
-	#[get = "pub"]
+	// state: u32,
 	texture: String,
+}
+
+impl Sampler {
+	/// Path to the texture used by this sampler. Path is not guaranteed to be absolute.
+	pub fn texture(&self) -> String {
+		self.texture.clone()
+	}
 }

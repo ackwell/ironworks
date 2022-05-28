@@ -3,4 +3,4 @@
 mod material;
 mod structs;
 
-pub use material::Material;
+pub use material::{Material, Sampler};
