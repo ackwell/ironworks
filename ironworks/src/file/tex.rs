@@ -8,6 +8,7 @@ use std::{borrow::Cow, io::Cursor};
 use binrw::{binread, until_eof, BinRead};
 use derivative::Derivative;
 use getset::{CopyGetters, Getters};
+use modular_bitfield::BitfieldSpecifier;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::error::Result;
@@ -19,8 +20,7 @@ use super::file::File;
 #[derive(Derivative, Getters, CopyGetters)]
 #[derivative(Debug)]
 pub struct Texture {
-	// TODO: handle flags. modular bitfield? some important fields in there.
-	flags: u32, // attribute?
+	attributes: bitfield::Attributes,
 	#[get_copy = "pub"]
 	format: Format,
 
@@ -42,10 +42,73 @@ pub struct Texture {
 	data: Vec<u8>,
 }
 
+impl Texture {
+	pub fn dimension(&self) -> Dimension {
+		self.attributes.dimension()
+	}
+}
+
 impl File for Texture {
 	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
 		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
 	}
+}
+
+// Isolating bitfield in a module so modular_bitfield lint disables don't pollute the entire file.
+#[allow(dead_code, clippy::identity_op)]
+mod bitfield {
+	use binrw::binread;
+	use modular_bitfield::prelude::*;
+
+	use super::Dimension;
+
+	#[bitfield]
+	#[binread]
+	#[derive(Debug)]
+	pub struct Attributes {
+		discard_per_frame: bool,
+		discard_per_map: bool,
+		managed: bool,
+		user_managed: bool,
+		cpu_read: bool,
+		location_main: bool,
+		no_gpu_read: bool,
+		aligned_size: bool,
+		edge_culling: bool,
+		location_onion: bool,
+		read_write: bool,
+		immutable: bool,
+		// 0x1000,
+		// 0x2000,
+		// 0x4000,
+		// 0x8000,
+		// 0x10000,
+		// 0x20000,
+		// 0x40000,
+		// 0x80000,
+		#[skip]
+		unknown1: B8,
+		texture_render_target: bool,
+		texture_depth_stencil: bool,
+		pub dimension: Dimension,
+		texture_swizzle: bool,
+		texture_no_tiled: bool,
+		// 0x10000000
+		// 0x20000000
+		// 0x40000000
+		#[skip]
+		unknown2: B3,
+		texture_no_swizzle: bool,
+	}
+}
+
+#[derive(BitfieldSpecifier, Debug)]
+#[bits = 4]
+pub enum Dimension {
+	D1 = 1,
+	D2 = 2,
+	D3 = 4,
+	Cube = 8,
 }
 
 /// TODO: docs

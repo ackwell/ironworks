@@ -24,7 +24,7 @@ exh = []
 exl = []
 mdl = ["dep:half", "dep:modular-bitfield", "dep:num_enum"]
 mtrl = []
-tex = ["dep:num_enum"]
+tex = ["dep:modular-bitfield", "dep:num_enum"]
 
 [dependencies]
 binrw = "0.8.4"

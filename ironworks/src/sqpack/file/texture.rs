@@ -9,7 +9,7 @@ use super::shared::{read_block, Header};
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct LodBlockInfo {
+struct SurfaceBlockInfo {
 	compressed_offset: u32,
 	_compressed_size: u32,
 	_decompressed_size: u32,
@@ -29,12 +29,12 @@ struct TexHeader {
 	// mip_levels: u16,
 	// lod_offsets: [u32; 3],
 	#[br(pad_before = 28)]
-	surface_offset: [u32; 13],
+	surface_offsets: [u32; 13],
 }
 
 pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
 	// Eagerly read the block info.
-	let blocks = <Vec<LodBlockInfo>>::read_args(
+	let blocks = <Vec<SurfaceBlockInfo>>::read_args(
 		&mut reader,
 		VecArgs {
 			count: header.block_count.try_into().unwrap(),
@@ -79,7 +79,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	for (index, block) in blocks.iter().enumerate() {
 		// Move to the expected start position of the block.
 		if let Some(ref header) = texture_header {
-			writer.set_position(header.surface_offset[index].into());
+			writer.set_position(header.surface_offsets[index].into());
 		}
 
 		// Read each sub-block into the writer.
