@@ -24,7 +24,7 @@ pub trait Resource: Send + Sync + 'static {
 #[derivative(Debug)]
 pub struct Ironworks {
 	#[derivative(Debug = "ignore")]
-	resource: Vec<Box<dyn Resource>>,
+	resources: Vec<Box<dyn Resource>>,
 	// todo: does this own the file cache, then?
 }
 
@@ -38,7 +38,7 @@ impl Ironworks {
 	/// Build a new instance of ironworks.
 	pub fn new() -> Self {
 		Self {
-			resource: Default::default(),
+			resources: Default::default(),
 		}
 	}
 
@@ -46,7 +46,7 @@ impl Ironworks {
 	/// last resource added to ironworks that provides a requested path will be
 	/// the resource that is utilised.
 	pub fn add_resource(&mut self, resource: impl Resource) {
-		self.resource.push(Box::new(resource));
+		self.resources.push(Box::new(resource));
 	}
 
 	/// Add a resource to search for files. Resources are searched last-first; the
@@ -54,30 +54,30 @@ impl Ironworks {
 	/// the resource that is utilised.
 	#[must_use]
 	pub fn with_resource(mut self, resource: impl Resource) -> Self {
-		self.resource.push(Box::new(resource));
+		self.resources.push(Box::new(resource));
 		self
 	}
 
 	/// Get the version string for the file at `path`.
 	pub fn version(&self, path: &str) -> Result<String> {
-		self.find_first(path, |provider, path| provider.version(path))
+		self.find_first(path, |resource| resource.version(path))
 	}
 
 	/// Read the file at `path`, using file type F to parse. To retrieve the file
 	/// as raw bytes, pass `Vec<u8>` to F.
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
-		let data = self.find_first(path, |provider, path| provider.file(path))?;
+		let data = self.find_first(path, |resource| resource.file(path))?;
 		F::read(data)
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>
 	where
-		F: Fn(&Box<dyn Resource>, &str) -> Result<O>,
+		F: Fn(&Box<dyn Resource>) -> Result<O>,
 	{
-		self.resource
+		self.resources
 			.iter()
 			.rev()
-			.map(|provider| f(provider, path))
+			.map(f)
 			.find(|result| !matches!(result, Err(Error::NotFound(ErrorValue::Path(_)))))
 			.unwrap_or_else(|| Err(Error::NotFound(ErrorValue::Path(path.into()))))
 	}
