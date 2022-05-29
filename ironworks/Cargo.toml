@@ -1,6 +1,6 @@
 [package]
 name = "ironworks"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["ackwell <saxon@ackwell.com.au>"]
 edition = "2021"
 description = "Modular FFXIV data toolkit written in rust."
@@ -15,7 +15,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 # Features
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
-ffxiv = []
+ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
 
 # File types

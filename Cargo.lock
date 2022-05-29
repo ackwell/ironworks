@@ -585,7 +585,7 @@ dependencies = [
 
 [[package]]
 name = "ironworks"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "binrw",
  "derivative",
