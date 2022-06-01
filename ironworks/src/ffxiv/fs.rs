@@ -118,7 +118,10 @@ use crate::sqpack::Resource;
 
 #[cfg(feature = "sqpack")]
 impl Resource for FsResource {
-	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
+	// (repository, category)
+	type PathMetadata = (u8, u8);
+
+	fn path_metadata(&self, path: &str) -> Option<Self::PathMetadata> {
 		let split = path.split('/').take(2).collect::<Vec<_>>();
 
 		match split[..] {
@@ -139,11 +142,11 @@ impl Resource for FsResource {
 		}
 	}
 
-	fn version(&self, repository: u8) -> Result<String> {
+	fn version(&self, (repository, _): &Self::PathMetadata) -> Result<String> {
 		let path = match repository {
 			0 => self.path.join("..").join("ffxivgame.ver"),
 			repo => {
-				let repository_name = self.get_repository_name(repo)?;
+				let repository_name = self.get_repository_name(*repo)?;
 				self.path
 					.join(&repository_name)
 					.join(format!("{repository_name}.ver"))
@@ -154,18 +157,27 @@ impl Resource for FsResource {
 	}
 
 	type Index = io::Cursor<Vec<u8>>;
-	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
-		read_index(self.build_file_path(repository, category, chunk, "index")?)
+	fn index(&self, (repository, category): &Self::PathMetadata, chunk: u8) -> Result<Self::Index> {
+		read_index(self.build_file_path(*repository, *category, chunk, "index")?)
 	}
 
 	type Index2 = io::Cursor<Vec<u8>>;
-	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
-		read_index(self.build_file_path(repository, category, chunk, "index2")?)
+	fn index2(
+		&self,
+		(repository, category): &Self::PathMetadata,
+		chunk: u8,
+	) -> Result<Self::Index2> {
+		read_index(self.build_file_path(*repository, *category, chunk, "index2")?)
 	}
 
 	type Dat = fs::File;
-	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
-		let path = self.build_file_path(repository, category, chunk, &format!("dat{dat}"))?;
+	fn dat(
+		&self,
+		(repository, category): &Self::PathMetadata,
+		chunk: u8,
+		dat: u8,
+	) -> Result<Self::Dat> {
+		let path = self.build_file_path(*repository, *category, chunk, &format!("dat{dat}"))?;
 		Ok(fs::File::open(path)?)
 	}
 }

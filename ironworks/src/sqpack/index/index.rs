@@ -20,10 +20,10 @@ pub struct Index {
 }
 
 impl Index {
-	pub fn new<R: Resource>(repository: u8, category: u8, resource: &R) -> Result<Self> {
+	pub fn new<R: Resource>(path_metadata: &R::PathMetadata, resource: &R) -> Result<Self> {
 		let chunks = (0u8..=255)
 			.map_while(
-				|chunk_id| match IndexChunk::new(repository, category, chunk_id, resource) {
+				|chunk_id| match IndexChunk::new(path_metadata, chunk_id, resource) {
 					Err(Error::NotFound(_)) => None,
 					other => Some(other),
 				},
@@ -62,16 +62,16 @@ enum IndexChunk {
 }
 
 impl IndexChunk {
-	fn new<R: Resource>(repository: u8, category: u8, chunk: u8, resource: &R) -> Result<Self> {
+	fn new<R: Resource>(path_metadata: &R::PathMetadata, chunk: u8, resource: &R) -> Result<Self> {
 		resource
-			.index(repository, category, chunk)
+			.index(path_metadata, chunk)
 			.and_then(|mut reader| {
 				let file = Index1::read(&mut reader)?;
 				Ok(IndexChunk::Index1(file))
 			})
 			.or_else(|_| {
 				resource
-					.index2(repository, category, chunk)
+					.index2(path_metadata, chunk)
 					.and_then(|mut reader| {
 						let file = Index2::read(&mut reader)?;
 						Ok(IndexChunk::Index2(file))
