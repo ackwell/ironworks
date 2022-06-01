@@ -1,9 +1,27 @@
 use derivative::Derivative;
+use itertools::Itertools;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::File,
 };
+
+/// An entry in a file list.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ListEntry {
+	/// Kind of this entry.
+	pub kind: EntryKind,
+	/// Relative path of this entry within the parent.
+	pub path: String,
+}
+
+/// Kind of entry in a list.
+#[allow(missing_docs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum EntryKind {
+	File,
+	Directory,
+}
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 /// Resource layer that can provide data to an ironworks instance.
@@ -17,6 +35,9 @@ pub trait Resource: Send + Sync + 'static {
 	/// `Err(Error::NotFound(ErrorValue::Path(_)))` will result in lookups
 	/// continuing to the next resource.
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
+
+	/// List the contents of the specified `path`.
+	fn list(&self, path: &str) -> Box<dyn Iterator<Item = ListEntry>>;
 }
 
 /// Core ironworks struct. Add one or more resources to query files.
@@ -68,6 +89,15 @@ impl Ironworks {
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
 		let data = self.find_first(path, |resource| resource.file(path))?;
 		F::read(data)
+	}
+
+	/// List the content of the specified `path`.
+	pub fn list<'a>(&'a self, path: &'a str) -> impl Iterator<Item = ListEntry> + 'a {
+		self.resources
+			.iter()
+			.rev()
+			.flat_map(|resource| resource.list(path))
+			.unique()
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

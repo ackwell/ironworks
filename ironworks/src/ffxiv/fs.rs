@@ -114,10 +114,10 @@ impl FsResource {
 }
 
 #[cfg(feature = "sqpack")]
-use crate::sqpack::Resource;
+use crate::sqpack;
 
 #[cfg(feature = "sqpack")]
-impl Resource for FsResource {
+impl sqpack::Resource for FsResource {
 	// (repository, category)
 	type PathMetadata = (u8, u8);
 
@@ -140,6 +140,37 @@ impl Resource for FsResource {
 			)),
 			_ => None,
 		}
+	}
+
+	fn hierarchy(&self) -> Vec<sqpack::Hierarchy<Self::PathMetadata>> {
+		// TODO: this should check that the path exists on disk first so it doesn't clutter up with repo/cat combos that don't actually exist
+		let repositories = |category: u8| {
+			self.repositories
+				.iter()
+				.enumerate()
+				.map(|(index, repository)| match repository.as_str() {
+					// The default repository has no folder representation
+					"ffxiv" => sqpack::Hierarchy::Item((0, category)),
+					expansion => sqpack::Hierarchy::Group(
+						expansion.into(),
+						vec![sqpack::Hierarchy::Item((
+							u8::try_from(index).unwrap(),
+							category,
+						))],
+					),
+				})
+				.collect::<Vec<_>>()
+		};
+
+		CATEGORIES
+			.iter()
+			.enumerate()
+			.filter_map(|(index, category)| {
+				(*category).map(|name| {
+					sqpack::Hierarchy::Group(name.into(), repositories(index.try_into().unwrap()))
+				})
+			})
+			.collect::<Vec<_>>()
 	}
 
 	fn version(&self, (repository, _): &Self::PathMetadata) -> Result<String> {

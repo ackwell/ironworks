@@ -2,12 +2,12 @@ use std::fmt::Debug;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	ironworks::{EntryKind, ListEntry, Resource},
 	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
-	Resource,
 };
 
-use super::{file, index::Index};
+use super::{file, index::Index, Hierarchy};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -58,6 +58,43 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 		file::read(dat, location.offset)
 	}
 
+	/// List the contents of the specified `path`.
+	pub fn list(&self, path: &str) -> impl Iterator<Item = ListEntry> {
+		// TODO: do this eagerly?
+		let mut hierarchy = self.resource.hierarchy();
+
+		// TODO: this isn't... nice. what's the best way to represent this?
+		// If there's a requested path, drill into the hierarchy to the appropriate location.
+		if !path.is_empty() {
+			for segment in path.split('/') {
+				hierarchy = hierarchy
+					.into_iter()
+					.filter_map(|node| match node {
+						Hierarchy::Group(name, children) if name == segment => Some(children),
+						_ => None,
+					})
+					.flatten()
+					.collect::<Vec<_>>();
+
+				if hierarchy.is_empty() {
+					break;
+				}
+			}
+		}
+
+		hierarchy.into_iter().map(|node| match node {
+			Hierarchy::Item(_) => ListEntry {
+				kind: EntryKind::File,
+				// TODO: list out the hashes in the path meta at this point.
+				path: "#TODO".into(),
+			},
+			Hierarchy::Group(name, _) => ListEntry {
+				kind: EntryKind::Directory,
+				path: name,
+			},
+		})
+	}
+
 	fn path_metadata(&self, path: &str) -> Result<R::PathMetadata> {
 		self.resource
 			.path_metadata(path)
@@ -77,5 +114,9 @@ where
 
 	fn file(&self, path: &str) -> Result<Vec<u8>> {
 		self.file(path)
+	}
+
+	fn list(&self, path: &str) -> Box<dyn Iterator<Item = ListEntry>> {
+		Box::new(self.list(path))
 	}
 }

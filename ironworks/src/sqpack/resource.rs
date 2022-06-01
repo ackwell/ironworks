@@ -5,6 +5,15 @@ use std::{
 
 use crate::error::Result;
 
+/// A heirachy of data, with named groups.
+#[derive(Debug)]
+pub enum Hierarchy<T> {
+	/// An individual item.
+	Item(T),
+	/// A named group of potentially nested data.
+	Group(String, Vec<Hierarchy<T>>),
+}
+
 /// Resource adapter to fetch information and data on request for a SqPack instance.
 pub trait Resource {
 	/// Metadata associated with a SqPack path that can be used to identify archive
@@ -14,6 +23,9 @@ pub trait Resource {
 	/// Retrieve the `PathMetadata` for a given SqPack path, or `None` if the path
 	/// is invalid or does not conform to valid formatting for this resource.
 	fn path_metadata(&self, path: &str) -> Option<Self::PathMetadata>;
+
+	/// Get the heirachy of `PathMetadata` available from this resource.
+	fn hierarchy(&self) -> Vec<Hierarchy<Self::PathMetadata>>;
 
 	/// Get the version string for a given repository.
 	fn version(&self, path_metadata: &Self::PathMetadata) -> Result<String>;

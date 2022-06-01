@@ -30,6 +30,7 @@ tex = ["dep:modular-bitfield", "dep:num_enum"]
 binrw = "0.8.4"
 derivative = "2.2.0"
 getset = "0.1.2"
+itertools = "0.10.3"
 thiserror = "1.0.30"
 
 enum-as-inner = {version = "0.4.0", optional = true}

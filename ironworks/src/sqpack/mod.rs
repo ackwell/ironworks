@@ -5,4 +5,7 @@ mod index;
 mod resource;
 mod sqpack;
 
-pub use {resource::Resource, sqpack::SqPack};
+pub use {
+	resource::{Hierarchy, Resource},
+	sqpack::SqPack,
+};

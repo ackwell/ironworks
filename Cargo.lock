@@ -2375,6 +2375,7 @@ dependencies = [
  "flate2",
  "getset",
  "half",
+ "itertools",
  "modular-bitfield",
  "num_enum",
  "thiserror",
