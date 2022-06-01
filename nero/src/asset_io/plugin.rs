@@ -13,6 +13,7 @@ pub enum IronworksState {
 	Ready,
 }
 
+// TODO: given this is used outside asset logic, should IW setup be seperated from iw's use in asset io?
 pub type IronworksResource = Arc<RwLock<Ironworks>>;
 
 pub struct IronworksAssetIoPlugin;
