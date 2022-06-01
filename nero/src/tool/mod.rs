@@ -1,3 +1,4 @@
+mod character;
 mod dev;
 mod explorer;
 mod tool;

@@ -2,12 +2,13 @@ use bevy::prelude::*;
 use iyes_loopless::prelude::AppLooplessStateExt;
 use strum::EnumIter;
 
-use super::{dev::DevTool, explorer::ExplorerTool};
+use super::{character::CharacterTool, dev::DevTool, explorer::ExplorerTool};
 
 #[derive(Clone, Debug, EnumIter, PartialEq, Eq, Hash)]
 pub enum Tool {
 	Dev,
 	Explorer,
+	Character,
 }
 
 // TODO: work out how to move this metadata into the tools themselves?
@@ -23,6 +24,7 @@ impl Tool {
 		match self {
 			Self::Dev => "icon-code.png",
 			Self::Explorer => "icon-folder-tree.png",
+			Self::Character => "icon-person.png",
 		}
 	}
 }
@@ -32,6 +34,7 @@ impl Plugin for ToolPlugins {
 	fn build(&self, app: &mut App) {
 		app.add_loopless_state(None::<Tool>)
 			.add_plugin(DevTool)
-			.add_plugin(ExplorerTool);
+			.add_plugin(ExplorerTool)
+			.add_plugin(CharacterTool);
 	}
 }
