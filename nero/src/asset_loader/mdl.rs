@@ -10,7 +10,10 @@ use bevy::{
 };
 use ironworks::file::{mdl, File};
 
-use crate::material::{BgMaterial, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
+use crate::{
+	material::{BgMaterial, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4},
+	render::MeshBundle,
+};
 
 #[derive(Default)]
 pub struct MdlAssetLoader;
@@ -54,9 +57,13 @@ fn load_mdl<'a>(
 		dependencies.insert(mtrl_path);
 
 		// TODO: might want own bundle type for this?
-		world.spawn().insert_bundle(MaterialMeshBundle {
+		// world.spawn().insert_bundle(MaterialMeshBundle {
+		// 	mesh: mesh_handle,
+		// 	material,
+		// 	..Default::default()
+		// });
+		world.spawn().insert_bundle(MeshBundle {
 			mesh: mesh_handle,
-			material,
 			..Default::default()
 		});
 	}

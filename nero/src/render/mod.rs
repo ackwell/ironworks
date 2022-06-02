@@ -1,3 +1,3 @@
 mod plugin;
 
-pub use plugin::RenderPlugin;
+pub use plugin::{MeshBundle, RenderPlugin};
