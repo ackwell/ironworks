@@ -4,6 +4,7 @@ mod asset_io;
 mod asset_loader;
 mod camera;
 mod material;
+mod render;
 mod tool;
 
 use asset_io::{IronworksAssetIoPlugin, IronworksState};
@@ -13,6 +14,7 @@ use bevy_egui::{egui, EguiContext, EguiPlugin};
 use camera::CameraPlugin;
 use iyes_loopless::prelude::*;
 use material::NeroMaterialPlugin;
+use render::RenderPlugin;
 use strum::IntoEnumIterator;
 use tool::{Tool, ToolPlugins};
 
@@ -34,6 +36,7 @@ fn main() {
 		.add_plugin(ToolPlugins)
 		// 3D
 		.add_plugin(CameraPlugin)
+		.add_plugin(RenderPlugin)
 		.add_plugin(NeroMaterialPlugin)
 		// Done
 		.run();
