@@ -40,12 +40,15 @@ fn asset_test(
 	// 	asset_server.load("iw://bg/ffxiv/wil_w1/dun/w1d5/bgparts/w1d5_q1_bre4b.mdl");
 	let scene_handle: Handle<Scene> =
 		asset_server.load("iw://bg/ffxiv/wil_w1/dun/w1d5/bgparts/w1d5_q1_bre4b.mdl");
+	let scene_handle2: Handle<Scene> =
+		asset_server.load("iw://chara/equipment/e0308/model/c0201e0308_top.mdl");
 
 	commands
 		.spawn()
 		.insert(TransientMarker)
 		.with_children(|children| {
 			children.spawn_scene(scene_handle);
+			children.spawn_scene(scene_handle2);
 		});
 
 	// commands.spawn_bundle(PointLightBundle {

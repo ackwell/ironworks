@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{borrow::Cow, collections::HashSet, path::PathBuf};
 
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
@@ -103,7 +103,10 @@ fn load_mesh(mdl_mesh: mdl::Mesh) -> Result<(Mesh, String), ironworks::Error> {
 	mesh.set_indices(Some(Indices::U16(indices)));
 
 	// TODO: is this the "right" place for the iw prefix?
-	Ok((mesh, format!("iw://{}", mdl_mesh.material()?)))
+	Ok((
+		mesh,
+		format!("iw://{}", resolve_material(&mdl_mesh.material()?)),
+	))
 }
 
 fn to_f32x3(values: mdl::VertexValues) -> Vec<[f32; 3]> {
@@ -124,4 +127,26 @@ fn to_f32x4(values: mdl::VertexValues) -> Vec<[f32; 4]> {
 		V::Vector4(vec) => vec,
 		other => panic!("Cannot convert {other:?} to f32x4."),
 	}
+}
+
+fn resolve_material(path: &str) -> Cow<str> {
+	// TODO: this is common logic across all xiv related stuff - it should probably be part of some IW feature/module
+
+	if !path.starts_with('/') {
+		return path.into();
+	}
+
+	// TODO: work out how to wire variant.
+	let variant = 1;
+	let value1 = &path[5..9];
+	let value2 = &path[10..14];
+
+	match (&path[4..5], &path[9..10]) {
+		("c", "b") => {
+			format!("chara/human/c{value1}/obj/body/b{value2}/material/v{variant:04}{path}")
+		}
+		("c", "e") => format!("chara/equipment/e{value2}/material/v{variant:04}{path}"),
+		other => todo!("Unknown pair {other:?} in path {path}."),
+	}
+	.into()
 }
