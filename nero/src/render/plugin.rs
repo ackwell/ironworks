@@ -20,6 +20,9 @@ use bevy::{
 	},
 };
 
+// TODO: should this be opaque in the long run?
+type RenderMode = Opaque3d;
+
 pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
@@ -27,8 +30,7 @@ impl Plugin for RenderPlugin {
 		app.add_plugin(ExtractComponentPlugin::<TempShaderMarker>::default());
 		app.register_type::<TempShaderMarker>();
 		app.sub_app_mut(RenderApp)
-			// TODO: should this be opaque in the long run?
-			.add_render_command::<Opaque3d, Draw>()
+			.add_render_command::<RenderMode, Draw>()
 			.init_resource::<Pipeline>()
 			.init_resource::<SpecializedMeshPipelines<Pipeline>>()
 			.add_system_to_stage(RenderStage::Queue, queue);
@@ -113,14 +115,14 @@ impl SpecializedMeshPipeline for Pipeline {
 
 #[allow(clippy::too_many_arguments)]
 fn queue(
-	draw_functions: Res<DrawFunctions<Opaque3d>>,
+	draw_functions: Res<DrawFunctions<RenderMode>>,
 	render_meshes: Res<RenderAssets<Mesh>>,
 	pipeline: Res<Pipeline>,
 	msaa: Res<Msaa>,
 	mut pipelines: ResMut<SpecializedMeshPipelines<Pipeline>>,
 	mut pipeline_cache: ResMut<PipelineCache>,
 	material_meshes: Query<(Entity, &Handle<Mesh>, &MeshUniform, &TempShaderMarker)>,
-	mut views: Query<(&ExtractedView, &mut RenderPhase<Opaque3d>)>,
+	mut views: Query<(&ExtractedView, &mut RenderPhase<RenderMode>)>,
 ) {
 	let draw = draw_functions.read().get_id::<Draw>().unwrap();
 	let msaa_key = MeshPipelineKey::from_msaa_samples(msaa.samples);
@@ -136,7 +138,7 @@ fn queue(
 					.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
 					.unwrap();
 
-				phase.add(Opaque3d {
+				phase.add(RenderMode {
 					distance: view_row_2.dot(mesh_uniform.transform.col(3)),
 					// fix naming on this so it's thingy
 					pipeline: specialized_pipeline,
