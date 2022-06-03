@@ -1,3 +1,8 @@
+mod material;
+mod pipeline;
 mod plugin;
 
-pub use plugin::{Material, MeshBundle, RenderPlugin};
+pub use {
+	material::{Material, MeshBundle},
+	plugin::RenderPlugin,
+};
