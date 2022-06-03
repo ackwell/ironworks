@@ -50,12 +50,15 @@ impl Plugin for RenderPlugin {
 	}
 }
 
-// todo lmao
 #[derive(Clone, TypeUuid)]
 #[uuid = "317a2fbb-6fb4-4bbd-b480-1d5942345cc0"]
 pub struct Material {
 	// TODO: the rest. if ending up with shaders from the game files, this will need revisiting.
 	pub color_map_0: Option<Handle<Image>>,
+}
+
+pub struct GpuMaterial {
+	bind_group: BindGroup,
 }
 
 impl RenderAsset for Material {
@@ -76,19 +79,16 @@ impl RenderAsset for Material {
 		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
 		// TODO: Dedupe this pattern
-		// TODO: match?
-		let (color_map_0_view, color_map_0_sampler) = if let Some(result) = pipeline
+		let (color_map_0_view, color_map_0_sampler) = match pipeline
 			.mesh_pipeline
 			.get_image_texture(images, &extracted_asset.color_map_0)
 		{
-			result
-		} else {
-			return Err(PrepareAssetError::RetryNextUpdate(extracted_asset));
+			Some(result) => result,
+			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
 		};
 
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
-			// TODO label
-			label: None,
+			label: Some("material_bind_group"),
 			layout: &pipeline.material_layout,
 			entries: &[
 				BindGroupEntry {
@@ -106,8 +106,31 @@ impl RenderAsset for Material {
 	}
 }
 
-pub struct GpuMaterial {
-	bind_group: BindGroup,
+impl Material {
+	fn bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
+		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+			label: Some("material_layout"),
+			entries: &[
+				BindGroupLayoutEntry {
+					binding: 0,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					// TODO: can we bind texures as an array to be fancy or is it not worth it?
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 1,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+			],
+		})
+	}
 }
 
 // TODO: name
@@ -161,31 +184,8 @@ pub struct Pipeline {
 
 impl FromWorld for Pipeline {
 	fn from_world(world: &mut World) -> Self {
-		// TODO: colocate this with the material
 		let render_device = world.resource::<RenderDevice>();
-		let material_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-			// TODO label
-			label: None,
-			entries: &[
-				BindGroupLayoutEntry {
-					binding: 0,
-					visibility: ShaderStages::FRAGMENT,
-					ty: BindingType::Texture {
-						sample_type: TextureSampleType::Float { filterable: true },
-						view_dimension: TextureViewDimension::D2,
-						multisampled: false,
-					},
-					// TODO: can we bind texures as an array to be fancy or is it not worth it?
-					count: None,
-				},
-				BindGroupLayoutEntry {
-					binding: 1,
-					visibility: ShaderStages::FRAGMENT,
-					ty: BindingType::Sampler(SamplerBindingType::Filtering),
-					count: None,
-				},
-			],
-		});
+		let material_layout = Material::bind_group_layout(render_device);
 
 		let mesh_pipeline = world.resource::<MeshPipeline>();
 		let asset_server = world.resource::<AssetServer>();
@@ -246,25 +246,29 @@ fn queue(
 		let view_row_2 = view_matrix.row(2);
 
 		for (entity, mesh_handle, mesh_uniform, material_handle) in material_meshes.iter() {
-			// TODO: there's gotta be a clean way to get these without indenting everything like come on
 			// TODO: just checking for material existence for now - should probably use it to key the pipeline specialisation.
-			if let Some(_material) = render_materials.get(material_handle) {
-				if let Some(mesh) = render_meshes.get(mesh_handle) {
-					let key = msaa_key
-						| MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
-					let specialized_pipeline = pipelines
-						.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
-						.unwrap();
+			let _material = match render_materials.get(material_handle) {
+				Some(material) => material,
+				None => continue,
+			};
 
-					phase.add(RenderMode {
-						distance: view_row_2.dot(mesh_uniform.transform.col(3)),
-						// fix naming on this so it's thingy
-						pipeline: specialized_pipeline,
-						entity,
-						draw_function: draw,
-					})
-				}
-			}
+			let mesh = match render_meshes.get(mesh_handle) {
+				Some(mesh) => mesh,
+				None => continue,
+			};
+
+			let key = msaa_key | MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
+			let specialized_pipeline = pipelines
+				.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
+				.unwrap();
+
+			phase.add(RenderMode {
+				distance: view_row_2.dot(mesh_uniform.transform.col(3)),
+				// fix naming on this so it's thingy
+				pipeline: specialized_pipeline,
+				entity,
+				draw_function: draw,
+			})
 		}
 	}
 }
