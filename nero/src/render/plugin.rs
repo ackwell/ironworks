@@ -1,6 +1,9 @@
 use bevy::{
 	core_pipeline::Opaque3d,
-	ecs::system::SystemParamItem,
+	ecs::system::{
+		lifetimeless::{Read, SQuery, SRes},
+		SystemParamItem,
+	},
 	pbr::{
 		DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
 		SetMeshViewBindGroup,
@@ -11,11 +14,18 @@ use bevy::{
 		mesh::MeshVertexBufferLayout,
 		render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets},
 		render_component::ExtractComponentPlugin,
-		render_phase::{AddRenderCommand, DrawFunctions, RenderPhase, SetItemPipeline},
-		render_resource::{
-			PipelineCache, RenderPipelineDescriptor, SpecializedMeshPipeline,
-			SpecializedMeshPipelineError, SpecializedMeshPipelines,
+		render_phase::{
+			AddRenderCommand, DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase,
+			SetItemPipeline, TrackedRenderPass,
 		},
+		render_resource::{
+			BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+			BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
+			PipelineCache, RenderPipelineDescriptor, SamplerBindingType, ShaderStages,
+			SpecializedMeshPipeline, SpecializedMeshPipelineError, SpecializedMeshPipelines,
+			TextureSampleType, TextureViewDimension,
+		},
+		renderer::RenderDevice,
 		view::ExtractedView,
 		RenderApp, RenderStage,
 	},
@@ -41,14 +51,21 @@ impl Plugin for RenderPlugin {
 }
 
 // todo lmao
-#[derive(Clone, Default, TypeUuid)]
+#[derive(Clone, TypeUuid)]
 #[uuid = "317a2fbb-6fb4-4bbd-b480-1d5942345cc0"]
-pub struct Material;
+pub struct Material {
+	// TODO: the rest. if ending up with shaders from the game files, this will need revisiting.
+	pub color_map_0: Option<Handle<Image>>,
+}
 
 impl RenderAsset for Material {
 	type ExtractedAsset = Self;
-	type PreparedAsset = Self;
-	type Param = ();
+	type PreparedAsset = GpuMaterial;
+	type Param = (
+		SRes<RenderDevice>,
+		SRes<Pipeline>,
+		SRes<RenderAssets<Image>>,
+	);
 
 	fn extract_asset(&self) -> Self::ExtractedAsset {
 		self.clone()
@@ -56,10 +73,41 @@ impl RenderAsset for Material {
 
 	fn prepare_asset(
 		extracted_asset: Self::ExtractedAsset,
-		_param: &mut SystemParamItem<Self::Param>,
+		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
-		Ok(extracted_asset)
+		// TODO: Dedupe this pattern
+		// TODO: match?
+		let (color_map_0_view, color_map_0_sampler) = if let Some(result) = pipeline
+			.mesh_pipeline
+			.get_image_texture(images, &extracted_asset.color_map_0)
+		{
+			result
+		} else {
+			return Err(PrepareAssetError::RetryNextUpdate(extracted_asset));
+		};
+
+		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
+			// TODO label
+			label: None,
+			layout: &pipeline.material_layout,
+			entries: &[
+				BindGroupEntry {
+					binding: 0,
+					resource: BindingResource::TextureView(color_map_0_view),
+				},
+				BindGroupEntry {
+					binding: 1,
+					resource: BindingResource::Sampler(color_map_0_sampler),
+				},
+			],
+		});
+
+		Ok(GpuMaterial { bind_group })
 	}
+}
+
+pub struct GpuMaterial {
+	bind_group: BindGroup,
 }
 
 // TODO: name
@@ -67,8 +115,10 @@ impl RenderAsset for Material {
 pub struct MeshBundle {
 	pub mesh: Handle<Mesh>,
 	pub material: Handle<Material>,
+
 	pub transform: Transform,
 	pub global_transform: GlobalTransform,
+
 	pub visibility: Visibility,
 	pub computed_visibility: ComputedVisibility,
 }
@@ -76,24 +126,74 @@ pub struct MeshBundle {
 type Draw = (
 	SetItemPipeline,
 	SetMeshViewBindGroup<0>,
-	// 	SetMaterialBindGroup<M, 1>,
 	SetMeshBindGroup<1>,
+	SetMaterialBindGroup<2>,
 	DrawMesh,
 );
 
+struct SetMaterialBindGroup<const I: usize>;
+impl<const I: usize> EntityRenderCommand for SetMaterialBindGroup<I> {
+	type Param = (SRes<RenderAssets<Material>>, SQuery<Read<Handle<Material>>>);
+
+	fn render<'w>(
+		_view: Entity,
+		item: Entity,
+		(materials, query): SystemParamItem<'w, '_, Self::Param>,
+		pass: &mut TrackedRenderPass<'w>,
+	) -> RenderCommandResult {
+		// Get the material on the rendering entity item.
+		let material_handle = query.get(item).unwrap();
+		let material = materials.into_inner().get(material_handle).unwrap();
+
+		pass.set_bind_group(I, &material.bind_group, &[]);
+
+		RenderCommandResult::Success
+	}
+}
+
 // TODO: seperate file
-struct Pipeline {
+pub struct Pipeline {
 	mesh_pipeline: MeshPipeline,
+	material_layout: BindGroupLayout,
 	vertex_shader: Handle<Shader>,
 	fragment_shader: Handle<Shader>,
 }
 
 impl FromWorld for Pipeline {
 	fn from_world(world: &mut World) -> Self {
-		let asset_server = world.resource::<AssetServer>();
+		// TODO: colocate this with the material
+		let render_device = world.resource::<RenderDevice>();
+		let material_layout = render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+			// TODO label
+			label: None,
+			entries: &[
+				BindGroupLayoutEntry {
+					binding: 0,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					// TODO: can we bind texures as an array to be fancy or is it not worth it?
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 1,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+			],
+		});
+
 		let mesh_pipeline = world.resource::<MeshPipeline>();
+		let asset_server = world.resource::<AssetServer>();
+
 		Pipeline {
 			mesh_pipeline: mesh_pipeline.clone(),
+			material_layout,
+
 			// TODO: at least the fragment shader should probably be from the material
 			vertex_shader: asset_server.load("shader/mesh.wgsl"),
 			fragment_shader: asset_server.load("shader/test.wgsl"),
@@ -119,6 +219,7 @@ impl SpecializedMeshPipeline for Pipeline {
 		descriptor.layout = Some(vec![
 			self.mesh_pipeline.view_layout.clone(),
 			self.mesh_pipeline.mesh_layout.clone(),
+			self.material_layout.clone(),
 		]);
 
 		Ok(descriptor)
@@ -129,6 +230,7 @@ impl SpecializedMeshPipeline for Pipeline {
 fn queue(
 	draw_functions: Res<DrawFunctions<RenderMode>>,
 	render_meshes: Res<RenderAssets<Mesh>>,
+	render_materials: Res<RenderAssets<Material>>,
 	pipeline: Res<Pipeline>,
 	msaa: Res<Msaa>,
 	mut pipelines: ResMut<SpecializedMeshPipelines<Pipeline>>,
@@ -143,23 +245,25 @@ fn queue(
 		let view_matrix = view.transform.compute_matrix();
 		let view_row_2 = view_matrix.row(2);
 
-		for (entity, mesh_handle, mesh_uniform, _material) in material_meshes.iter() {
-			// TODO: handle material
+		for (entity, mesh_handle, mesh_uniform, material_handle) in material_meshes.iter() {
 			// TODO: there's gotta be a clean way to get these without indenting everything like come on
-			if let Some(mesh) = render_meshes.get(mesh_handle) {
-				let key =
-					msaa_key | MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
-				let specialized_pipeline = pipelines
-					.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
-					.unwrap();
+			// TODO: just checking for material existence for now - should probably use it to key the pipeline specialisation.
+			if let Some(_material) = render_materials.get(material_handle) {
+				if let Some(mesh) = render_meshes.get(mesh_handle) {
+					let key = msaa_key
+						| MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
+					let specialized_pipeline = pipelines
+						.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
+						.unwrap();
 
-				phase.add(RenderMode {
-					distance: view_row_2.dot(mesh_uniform.transform.col(3)),
-					// fix naming on this so it's thingy
-					pipeline: specialized_pipeline,
-					entity,
-					draw_function: draw,
-				})
+					phase.add(RenderMode {
+						distance: view_row_2.dot(mesh_uniform.transform.col(3)),
+						// fix naming on this so it's thingy
+						pipeline: specialized_pipeline,
+						entity,
+						draw_function: draw,
+					})
+				}
 			}
 		}
 	}

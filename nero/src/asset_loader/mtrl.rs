@@ -64,7 +64,9 @@ fn load_mtrl<'a>(
 	// };
 
 	// TODO: get the above hooked up again
-	let material = Material;
+	let material = Material {
+		color_map_0: diffuse1_handle,
+	};
 
 	let dependency_array = dependencies
 		.into_iter()
