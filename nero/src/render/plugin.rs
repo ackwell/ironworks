@@ -1,15 +1,16 @@
 use bevy::{
 	core_pipeline::Opaque3d,
-	ecs::query::QueryItem,
+	ecs::system::SystemParamItem,
 	pbr::{
 		DrawMesh, MeshPipeline, MeshPipelineKey, MeshUniform, SetMeshBindGroup,
 		SetMeshViewBindGroup,
 	},
 	prelude::*,
+	reflect::TypeUuid,
 	render::{
 		mesh::MeshVertexBufferLayout,
-		render_asset::RenderAssets,
-		render_component::{ExtractComponent, ExtractComponentPlugin},
+		render_asset::{PrepareAssetError, RenderAsset, RenderAssetPlugin, RenderAssets},
+		render_component::ExtractComponentPlugin,
 		render_phase::{AddRenderCommand, DrawFunctions, RenderPhase, SetItemPipeline},
 		render_resource::{
 			PipelineCache, RenderPipelineDescriptor, SpecializedMeshPipeline,
@@ -27,8 +28,10 @@ pub struct RenderPlugin;
 
 impl Plugin for RenderPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_plugin(ExtractComponentPlugin::<TempShaderMarker>::default());
-		app.register_type::<TempShaderMarker>();
+		app.add_asset::<Material>()
+			.add_plugin(ExtractComponentPlugin::<Handle<Material>>::default())
+			.add_plugin(RenderAssetPlugin::<Material>::default());
+
 		app.sub_app_mut(RenderApp)
 			.add_render_command::<RenderMode, Draw>()
 			.init_resource::<Pipeline>()
@@ -38,27 +41,33 @@ impl Plugin for RenderPlugin {
 }
 
 // todo lmao
-#[derive(Clone, Copy, Component, Default, Reflect)]
-#[reflect(Component)]
-pub struct TempShaderMarker;
+#[derive(Clone, Default, TypeUuid)]
+#[uuid = "317a2fbb-6fb4-4bbd-b480-1d5942345cc0"]
+pub struct Material;
 
-impl ExtractComponent for TempShaderMarker {
-	type Query = &'static TempShaderMarker;
+impl RenderAsset for Material {
+	type ExtractedAsset = Self;
+	type PreparedAsset = Self;
+	type Param = ();
 
-	type Filter = ();
+	fn extract_asset(&self) -> Self::ExtractedAsset {
+		self.clone()
+	}
 
-	fn extract_component(item: QueryItem<Self::Query>) -> Self {
-		*item
+	fn prepare_asset(
+		extracted_asset: Self::ExtractedAsset,
+		_param: &mut SystemParamItem<Self::Param>,
+	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
+		Ok(extracted_asset)
 	}
 }
 
 // TODO: name
 #[derive(Bundle, Default)]
 pub struct MeshBundle {
-	pub marker: TempShaderMarker,
-
 	pub mesh: Handle<Mesh>,
-	pub trasform: Transform,
+	pub material: Handle<Material>,
+	pub transform: Transform,
 	pub global_transform: GlobalTransform,
 	pub visibility: Visibility,
 	pub computed_visibility: ComputedVisibility,
@@ -124,16 +133,19 @@ fn queue(
 	msaa: Res<Msaa>,
 	mut pipelines: ResMut<SpecializedMeshPipelines<Pipeline>>,
 	mut pipeline_cache: ResMut<PipelineCache>,
-	material_meshes: Query<(Entity, &Handle<Mesh>, &MeshUniform, &TempShaderMarker)>,
+	material_meshes: Query<(Entity, &Handle<Mesh>, &MeshUniform, &Handle<Material>)>,
 	mut views: Query<(&ExtractedView, &mut RenderPhase<RenderMode>)>,
 ) {
 	let draw = draw_functions.read().get_id::<Draw>().unwrap();
 	let msaa_key = MeshPipelineKey::from_msaa_samples(msaa.samples);
+	// TODO: xref this impl with pbr's material, it looks like it's using the view to handle the entities
 	for (view, mut phase) in views.iter_mut() {
 		let view_matrix = view.transform.compute_matrix();
 		let view_row_2 = view_matrix.row(2);
 
-		for (entity, mesh_handle, mesh_uniform, _marker) in material_meshes.iter() {
+		for (entity, mesh_handle, mesh_uniform, _material) in material_meshes.iter() {
+			// TODO: handle material
+			// TODO: there's gotta be a clean way to get these without indenting everything like come on
 			if let Some(mesh) = render_meshes.get(mesh_handle) {
 				let key =
 					msaa_key | MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
