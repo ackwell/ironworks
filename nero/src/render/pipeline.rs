@@ -25,7 +25,7 @@ use bevy::{
 	},
 };
 
-use super::material::Material;
+use super::material::{Material, MaterialKind};
 
 pub type RenderMode = Opaque3d;
 
@@ -33,7 +33,9 @@ pub struct Pipeline {
 	pub mesh_pipeline: MeshPipeline,
 	pub material_layout: BindGroupLayout,
 	pub vertex_shader: Handle<Shader>,
-	pub fragment_shader: Handle<Shader>,
+	// pub fragment_shader: Handle<Shader>,
+	// TODO: is this... a good idea?
+	asset_server: AssetServer,
 }
 
 impl FromWorld for Pipeline {
@@ -51,25 +53,33 @@ impl FromWorld for Pipeline {
 			// TODO: at least the fragment shader should probably be from the material
 			//       given that this is just a handle and it needs to wait for the shader anyway, might be able to include the relevant data for picking a shader in the pipeline key, influenced by the material itself, which would let me specialise to a specific shader asset?
 			vertex_shader: asset_server.load("shader/mesh.wgsl"),
-			fragment_shader: asset_server.load("shader/test.wgsl"),
+			// fragment_shader: asset_server.load("shader/bg.wgsl"),
+			// NOTE: cloning the asset server just clones an internal Arc, so this should be fine... right? Keep an eye on it?
+			asset_server: asset_server.clone(),
 		}
 	}
 }
 
 impl SpecializedMeshPipeline for Pipeline {
-	type Key = MeshPipelineKey;
+	// TODO: make a struct for the material side of the key if this grows
+	type Key = (MeshPipelineKey, MaterialKind);
 
 	fn specialize(
 		&self,
-		key: Self::Key,
+		(pbr_key, material_kind): Self::Key,
 		layout: &MeshVertexBufferLayout,
 	) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
-		let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
+		let mut descriptor = self.mesh_pipeline.specialize(pbr_key, layout)?;
 
 		descriptor.vertex.shader = self.vertex_shader.clone();
 
 		let fragment = descriptor.fragment.as_mut().unwrap();
-		fragment.shader = self.fragment_shader.clone();
+		// fragment.shader = self.fragment_shader.clone();
+		// TODO: this mapping should probably exist on the material side
+		fragment.shader = match material_kind {
+			MaterialKind::Bg => self.asset_server.load("shader/bg.wgsl"),
+			MaterialKind::Other => self.asset_server.load("shader/test.wgsl"),
+		};
 
 		descriptor.layout = Some(vec![
 			self.mesh_pipeline.view_layout.clone(),
@@ -130,7 +140,7 @@ pub fn queue(
 
 		for (entity, mesh_handle, mesh_uniform, material_handle) in material_meshes.iter() {
 			// TODO: just checking for material existence for now - should probably use it to key the pipeline specialisation.
-			let _material = match render_materials.get(material_handle) {
+			let material = match render_materials.get(material_handle) {
 				Some(material) => material,
 				None => continue,
 			};
@@ -140,9 +150,15 @@ pub fn queue(
 				None => continue,
 			};
 
-			let key = msaa_key | MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
+			let pbr_key =
+				msaa_key | MeshPipelineKey::from_primitive_topology(mesh.primitive_topology);
 			let specialized_pipeline = pipelines
-				.specialize(&mut pipeline_cache, &pipeline, key, &mesh.layout)
+				.specialize(
+					&mut pipeline_cache,
+					&pipeline,
+					(pbr_key, material.kind.clone()),
+					&mesh.layout,
+				)
 				.unwrap();
 
 			phase.add(RenderMode {

@@ -3,6 +3,6 @@ mod pipeline;
 mod plugin;
 
 pub use {
-	material::{Material, MeshBundle},
+	material::{Material, MaterialKind, MeshBundle},
 	plugin::RenderPlugin,
 };

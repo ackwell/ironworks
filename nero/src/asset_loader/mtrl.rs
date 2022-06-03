@@ -6,7 +6,7 @@ use bevy::{
 };
 use ironworks::file::{mtrl, File};
 
-use crate::render::Material;
+use crate::render::{Material, MaterialKind};
 
 #[derive(Default)]
 pub struct MtrlAssetLoader;
@@ -65,6 +65,7 @@ fn load_mtrl<'a>(
 
 	// TODO: get the above hooked up again
 	let material = Material {
+		kind: MaterialKind::Bg,
 		color_map_0: diffuse1_handle,
 	};
 

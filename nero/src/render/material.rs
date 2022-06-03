@@ -29,14 +29,25 @@ pub struct MeshBundle {
 	pub computed_visibility: ComputedVisibility,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub enum MaterialKind {
+	Bg,
+	// TODO: this is purely testing cruft - will need to be replaced by the rest of the real shaders
+	Other,
+}
+
 #[derive(Clone, TypeUuid)]
 #[uuid = "317a2fbb-6fb4-4bbd-b480-1d5942345cc0"]
 pub struct Material {
+	pub kind: MaterialKind,
+
 	// TODO: the rest. if ending up with shaders from the game files, this will need revisiting.
+	//       ... even if not using shaders from game files, this might be best represented by a map, perhaps - given the game uses unique keys already.
 	pub color_map_0: Option<Handle<Image>>,
 }
 
 pub struct GpuMaterial {
+	pub kind: MaterialKind,
 	pub bind_group: BindGroup,
 }
 
@@ -81,7 +92,10 @@ impl RenderAsset for Material {
 			],
 		});
 
-		Ok(GpuMaterial { bind_group })
+		Ok(GpuMaterial {
+			kind: extracted_asset.kind,
+			bind_group,
+		})
 	}
 }
 
