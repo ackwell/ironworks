@@ -6,7 +6,7 @@ use bevy::{
 };
 use ironworks::file::{mtrl, File};
 
-use crate::material::BgMaterial;
+use crate::render::Material;
 
 #[derive(Default)]
 pub struct MtrlAssetLoader;
@@ -58,10 +58,13 @@ fn load_mtrl<'a>(
 			handle
 		});
 
-	let material = BgMaterial {
-		diffuse1: diffuse1_handle,
-		diffuse2: diffuse2_handle,
-	};
+	// let material = BgMaterial {
+	// 	diffuse1: diffuse1_handle,
+	// 	diffuse2: diffuse2_handle,
+	// };
+
+	// TODO: get the above hooked up again
+	let material = Material;
 
 	let dependency_array = dependencies
 		.into_iter()

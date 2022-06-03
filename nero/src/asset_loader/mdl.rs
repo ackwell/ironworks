@@ -11,8 +11,8 @@ use bevy::{
 use ironworks::file::{mdl, File};
 
 use crate::{
-	material::{BgMaterial, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4},
-	render::MeshBundle,
+	material::{ATTRIBUTE_COLOR, ATTRIBUTE_UV_4},
+	render::{Material, MeshBundle},
 };
 
 #[derive(Default)]
@@ -53,17 +53,12 @@ fn load_mdl<'a>(
 			load_context.set_labeled_asset(&format!("Mesh{index}"), LoadedAsset::new(mesh));
 
 		// TODO: There's >1 material type that i'll need to use eod - i guess make them an enum, or something? that or focus on reading xiv shpk next.
-		let material = load_context.get_handle::<_, BgMaterial>(&mtrl_path);
+		let material = load_context.get_handle::<_, Material>(&mtrl_path);
 		dependencies.insert(mtrl_path);
 
-		// TODO: might want own bundle type for this?
-		// world.spawn().insert_bundle(MaterialMeshBundle {
-		// 	mesh: mesh_handle,
-		// 	material,
-		// 	..Default::default()
-		// });
 		world.spawn().insert_bundle(MeshBundle {
 			mesh: mesh_handle,
+			material,
 			..Default::default()
 		});
 	}
