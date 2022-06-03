@@ -75,7 +75,8 @@ type Draw = (
 // TODO: seperate file
 struct Pipeline {
 	mesh_pipeline: MeshPipeline,
-	shader: Handle<Shader>,
+	vertex_shader: Handle<Shader>,
+	fragment_shader: Handle<Shader>,
 }
 
 impl FromWorld for Pipeline {
@@ -84,7 +85,9 @@ impl FromWorld for Pipeline {
 		let mesh_pipeline = world.resource::<MeshPipeline>();
 		Pipeline {
 			mesh_pipeline: mesh_pipeline.clone(),
-			shader: asset_server.load("test.wgsl"),
+			// TODO: at least the fragment shader should probably be from the material
+			vertex_shader: asset_server.load("shader/mesh.wgsl"),
+			fragment_shader: asset_server.load("shader/test.wgsl"),
 		}
 	}
 }
@@ -99,10 +102,10 @@ impl SpecializedMeshPipeline for Pipeline {
 	) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
 		let mut descriptor = self.mesh_pipeline.specialize(key, layout)?;
 
-		descriptor.vertex.shader = self.shader.clone();
+		descriptor.vertex.shader = self.vertex_shader.clone();
 
 		let fragment = descriptor.fragment.as_mut().unwrap();
-		fragment.shader = self.shader.clone();
+		fragment.shader = self.fragment_shader.clone();
 
 		descriptor.layout = Some(vec![
 			self.mesh_pipeline.view_layout.clone(),
