@@ -77,6 +77,14 @@ impl RenderAsset for Material {
 			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
 		};
 
+		let (color_map_1_view, color_map_1_sampler) = match pipeline
+			.mesh_pipeline
+			.get_image_texture(images, &extracted_asset.samplers.get(&0x6968DF0A).cloned())
+		{
+			Some(result) => result,
+			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
+		};
+
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
 			label: Some("material_bind_group"),
 			layout: &pipeline.material_layout,
@@ -88,6 +96,14 @@ impl RenderAsset for Material {
 				BindGroupEntry {
 					binding: 1,
 					resource: BindingResource::Sampler(color_map_0_sampler),
+				},
+				BindGroupEntry {
+					binding: 2,
+					resource: BindingResource::TextureView(color_map_1_view),
+				},
+				BindGroupEntry {
+					binding: 3,
+					resource: BindingResource::Sampler(color_map_1_sampler),
 				},
 			],
 		});
@@ -134,6 +150,22 @@ impl Material {
 				},
 				BindGroupLayoutEntry {
 					binding: 1,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 2,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 3,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,
