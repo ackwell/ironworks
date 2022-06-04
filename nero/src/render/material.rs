@@ -84,7 +84,9 @@ impl RenderAsset for Material {
 		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
 		let (color_map_0_view, color_map_0_sampler) = get_texture!(&0x1E6FEF9C);
 		let (color_map_1_view, color_map_1_sampler) = get_texture!(&0x6968DF0A);
+		let (normal_view, normal_sampler) = get_texture!(&0x0C5EC1F1);
 
+		// TODO: work out how to generate the bind group + layout because this is getting dumb
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
 			label: Some("material_bind_group"),
 			layout: &pipeline.material_layout,
@@ -104,6 +106,14 @@ impl RenderAsset for Material {
 				BindGroupEntry {
 					binding: 3,
 					resource: BindingResource::Sampler(color_map_1_sampler),
+				},
+				BindGroupEntry {
+					binding: 4,
+					resource: BindingResource::TextureView(normal_view),
+				},
+				BindGroupEntry {
+					binding: 5,
+					resource: BindingResource::Sampler(normal_sampler),
 				},
 			],
 		});
@@ -172,6 +182,22 @@ impl Material {
 				},
 				BindGroupLayoutEntry {
 					binding: 3,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 4,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 5,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,
