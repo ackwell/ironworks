@@ -25,6 +25,9 @@ use bevy::{
 	},
 };
 
+// TODO: move these in here
+use crate::material::{ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
+
 use super::material::{Material, MaterialKey};
 
 pub type RenderMode = Opaque3d;
@@ -68,6 +71,14 @@ impl SpecializedMeshPipeline for Pipeline {
 	) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
 		let mut descriptor = self.mesh_pipeline.specialize(pbr_key, layout)?;
 
+		// Override the default vertex layout to include our attributes.
+		let vertex_layout = layout.get_layout(&[
+			Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
+			Mesh::ATTRIBUTE_NORMAL.at_shader_location(1),
+			ATTRIBUTE_UV_4.at_shader_location(2),
+			ATTRIBUTE_COLOR.at_shader_location(3),
+		])?;
+		descriptor.vertex.buffers = vec![vertex_layout];
 		descriptor.vertex.shader = self.vertex_shader.clone();
 
 		let fragment = descriptor.fragment.as_mut().unwrap();

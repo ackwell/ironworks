@@ -8,7 +8,7 @@ struct Vertex {
 	[[location(0)]] position: vec3<f32>;
 	[[location(1)]] normal: vec3<f32>;
 	[[location(2)]] uv: vec4<f32>;
-	// [[location(3)]] color: vec4<f32>;
+	[[location(3)]] color: vec4<f32>;
 };
 
 struct VertexOutput {
@@ -16,7 +16,7 @@ struct VertexOutput {
 	[[location(0)]] world_position: vec4<f32>;
 	[[location(1)]] world_normal: vec3<f32>;
 	[[location(2)]] uv: vec4<f32>;
-	// [[location(3)]] color: vec4<f32>;
+	[[location(3)]] color: vec4<f32>;
 };
 
 [[stage(vertex)]]
@@ -31,7 +31,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
 	out.uv = vertex.uv;
 	out.clip_position = view.view_proj * out.world_position;
-	// out.color = vertex.color;
+	out.color = vertex.color;
 
 	return out;
 }
