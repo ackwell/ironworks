@@ -33,8 +33,6 @@ pub struct MeshBundle {
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum MaterialKind {
 	Bg,
-	// TODO: this is purely testing cruft - will need to be replaced by the rest of the real shaders
-	Other,
 }
 
 #[derive(Clone, TypeUuid)]
