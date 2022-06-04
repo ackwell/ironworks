@@ -31,6 +31,12 @@ impl Material {
 		&self.shader
 	}
 
+	// ??????
+	// todo what should this be called
+	pub fn color_set(&self) -> Option<&[u8; 512]> {
+		self.file.color_set_texture.as_ref()
+	}
+
 	/// Texture samplers used by the material.
 	pub fn samplers(&self) -> &[Sampler] {
 		&self.samplers

@@ -43,6 +43,9 @@ pub enum MaterialKind {
 pub struct Material {
 	pub kind: MaterialKind,
 
+	// ??
+	pub color_set: Option<Handle<Image>>,
+
 	pub samplers: HashMap<u32, Handle<Image>>,
 }
 
@@ -70,11 +73,8 @@ impl RenderAsset for Material {
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
 		// Helper macro to make texture reading less painful. This is a macro rather than a closure to make returning simpler.
 		macro_rules! get_texture {
-			($id:expr) => {
-				match pipeline
-					.mesh_pipeline
-					.get_image_texture(images, &extracted_asset.samplers.get($id).cloned())
-				{
+			($handle:expr) => {
+				match pipeline.mesh_pipeline.get_image_texture(images, $handle) {
 					Some(result) => result,
 					None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
 				}
@@ -82,9 +82,15 @@ impl RenderAsset for Material {
 		}
 
 		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
-		let (color_map_0_view, color_map_0_sampler) = get_texture!(&0x1E6FEF9C);
-		let (color_map_1_view, color_map_1_sampler) = get_texture!(&0x6968DF0A);
-		let (normal_view, normal_sampler) = get_texture!(&0x0C5EC1F1);
+		let (color_map_0_view, color_map_0_sampler) =
+			get_texture!(&extracted_asset.samplers.get(&0x1E6FEF9C).cloned());
+		let (color_map_1_view, color_map_1_sampler) =
+			get_texture!(&extracted_asset.samplers.get(&0x6968DF0A).cloned());
+		let (normal_view, normal_sampler) =
+			get_texture!(&extracted_asset.samplers.get(&0x0C5EC1F1).cloned());
+		// TODO: not convinced by this being a texture - might make more sense as uniform data?
+		// ... i mean i can't find anything in the game shaders at all for it so maybe it's precomputed into a diffuse + specular + emissive + ... before hitting the gpu?
+		let (color_set_view, color_set_sampler) = get_texture!(&extracted_asset.color_set);
 
 		// TODO: work out how to generate the bind group + layout because this is getting dumb
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -114,6 +120,14 @@ impl RenderAsset for Material {
 				BindGroupEntry {
 					binding: 5,
 					resource: BindingResource::Sampler(normal_sampler),
+				},
+				BindGroupEntry {
+					binding: 6,
+					resource: BindingResource::TextureView(color_set_view),
+				},
+				BindGroupEntry {
+					binding: 7,
+					resource: BindingResource::Sampler(color_set_sampler),
 				},
 			],
 		});
@@ -198,6 +212,22 @@ impl Material {
 				},
 				BindGroupLayoutEntry {
 					binding: 5,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 6,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 7,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,

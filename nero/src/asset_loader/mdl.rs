@@ -135,7 +135,7 @@ fn resolve_material(path: &str) -> Cow<str> {
 		return path.into();
 	}
 
-	// TODO: work out how to wire variant.
+	// TODO: work out how to wire variant - this'll be pretty important lmao. Data in .imc?
 	let variant = 1;
 	let value1 = &path[5..9];
 	let value2 = &path[10..14];

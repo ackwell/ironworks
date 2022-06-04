@@ -40,8 +40,9 @@ pub struct Material {
 	pub string_data: Vec<u8>,
 
 	// TODO: Check this info, stems from TT
+	// RgbaF16
 	#[br(if(data_set_size > 0))]
-	_color_set_info: Option<[u16; 256]>,
+	pub color_set_texture: Option<[u8; 512]>,
 	#[br(if(data_set_size > 512))]
 	_color_set_dye_info: Option<[u16; 16]>,
 

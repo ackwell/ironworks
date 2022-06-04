@@ -3,6 +3,7 @@ use std::{collections::HashSet, path::PathBuf};
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
+	render::render_resource::{Extent3d, TextureDimension, TextureFormat},
 	utils::HashMap,
 };
 use ironworks::file::{mtrl, File};
@@ -35,6 +36,30 @@ fn load_mtrl<'a>(
 
 	let material = <mtrl::Material>::read(bytes)?;
 
+	let kind = match material.shader() {
+		"bg.shpk" => MaterialKind::Bg,
+		"character.shpk" => MaterialKind::Character,
+		other => {
+			warn!("Unhandled shader: {other}");
+			MaterialKind::Unknown
+		}
+	};
+
+	let color_set = material.color_set().map(|bytes| {
+		let image = Image::new(
+			Extent3d {
+				width: 4,
+				height: 16,
+				depth_or_array_layers: 1,
+			},
+			TextureDimension::D2,
+			bytes.to_vec(),
+			TextureFormat::Rgba16Float,
+		);
+
+		load_context.set_labeled_asset("colorset", LoadedAsset::new(image))
+	});
+
 	let samplers = material
 		.samplers()
 		.iter()
@@ -49,14 +74,8 @@ fn load_mtrl<'a>(
 
 	// TODO: get the above hooked up again
 	let material = Material {
-		kind: match material.shader() {
-			"bg.shpk" => MaterialKind::Bg,
-			"character.shpk" => MaterialKind::Character,
-			other => {
-				warn!("Unhandled shader: {other}");
-				MaterialKind::Unknown
-			}
-		},
+		kind,
+		color_set,
 		samplers,
 	};
 
