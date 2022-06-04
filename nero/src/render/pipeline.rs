@@ -25,7 +25,7 @@ use bevy::{
 	},
 };
 
-use super::material::{Material, MaterialKind};
+use super::material::{Material, MaterialKey};
 
 pub type RenderMode = Opaque3d;
 
@@ -50,10 +50,7 @@ impl FromWorld for Pipeline {
 			mesh_pipeline: mesh_pipeline.clone(),
 			material_layout,
 
-			// TODO: at least the fragment shader should probably be from the material
-			//       given that this is just a handle and it needs to wait for the shader anyway, might be able to include the relevant data for picking a shader in the pipeline key, influenced by the material itself, which would let me specialise to a specific shader asset?
 			vertex_shader: asset_server.load("shader/mesh.wgsl"),
-			// fragment_shader: asset_server.load("shader/bg.wgsl"),
 			// NOTE: cloning the asset server just clones an internal Arc, so this should be fine... right? Keep an eye on it?
 			asset_server: asset_server.clone(),
 		}
@@ -62,11 +59,11 @@ impl FromWorld for Pipeline {
 
 impl SpecializedMeshPipeline for Pipeline {
 	// TODO: make a struct for the material side of the key if this grows
-	type Key = (MeshPipelineKey, MaterialKind);
+	type Key = (MeshPipelineKey, MaterialKey);
 
 	fn specialize(
 		&self,
-		(pbr_key, material_kind): Self::Key,
+		(pbr_key, material_key): Self::Key,
 		layout: &MeshVertexBufferLayout,
 	) -> Result<RenderPipelineDescriptor, SpecializedMeshPipelineError> {
 		let mut descriptor = self.mesh_pipeline.specialize(pbr_key, layout)?;
@@ -74,12 +71,9 @@ impl SpecializedMeshPipeline for Pipeline {
 		descriptor.vertex.shader = self.vertex_shader.clone();
 
 		let fragment = descriptor.fragment.as_mut().unwrap();
-		// fragment.shader = self.fragment_shader.clone();
-		// TODO: this mapping should probably exist on the material side
-		fragment.shader = match material_kind {
-			MaterialKind::Bg => self.asset_server.load("shader/bg.wgsl"),
-			MaterialKind::Other => self.asset_server.load("shader/test.wgsl"),
-		};
+		fragment.shader = self
+			.asset_server
+			.load(Material::fragment_shader(material_key));
 
 		descriptor.layout = Some(vec![
 			self.mesh_pipeline.view_layout.clone(),
@@ -156,7 +150,7 @@ pub fn queue(
 				.specialize(
 					&mut pipeline_cache,
 					&pipeline,
-					(pbr_key, material.kind.clone()),
+					(pbr_key, Material::key(material)),
 					&mesh.layout,
 				)
 				.unwrap();

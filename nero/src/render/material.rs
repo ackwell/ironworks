@@ -99,7 +99,23 @@ impl RenderAsset for Material {
 	}
 }
 
+// TODO: maybe move this stuff into a material trait so i can really _really_ just be a copypasta of bevy's impl lmao
+pub type MaterialKey = MaterialKind;
+
 impl Material {
+	// TODO: would the fq trait be avoidable if mtrl was a trait?
+	pub fn key(prepared: &<Self as RenderAsset>::PreparedAsset) -> MaterialKey {
+		prepared.kind.clone()
+	}
+
+	// TODO: should this recieve the asset server or nah?
+	pub fn fragment_shader(key: MaterialKey) -> &'static str {
+		match key {
+			MaterialKind::Bg => "shader/bg.wgsl",
+			MaterialKind::Other => "shader/test.wgsl",
+		}
+	}
+
 	pub fn bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
 		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: Some("material_layout"),
