@@ -10,10 +10,7 @@ use bevy::{
 };
 use ironworks::file::{mdl, File};
 
-use crate::{
-	material::{ATTRIBUTE_COLOR, ATTRIBUTE_UV_4},
-	render::{Material, MeshBundle},
-};
+use crate::render::{Material, MeshBundle, ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
 
 #[derive(Default)]
 pub struct MdlAssetLoader;

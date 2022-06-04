@@ -10,7 +10,7 @@ use bevy::{
 	},
 	prelude::*,
 	render::{
-		mesh::MeshVertexBufferLayout,
+		mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
 		render_asset::RenderAssets,
 		render_phase::{
 			DrawFunctions, EntityRenderCommand, RenderCommandResult, RenderPhase, SetItemPipeline,
@@ -18,17 +18,23 @@ use bevy::{
 		},
 		render_resource::{
 			BindGroupLayout, PipelineCache, RenderPipelineDescriptor, SpecializedMeshPipeline,
-			SpecializedMeshPipelineError, SpecializedMeshPipelines,
+			SpecializedMeshPipelineError, SpecializedMeshPipelines, VertexFormat,
 		},
 		renderer::RenderDevice,
 		view::ExtractedView,
 	},
 };
 
-// TODO: move these in here
-use crate::material::{ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
-
 use super::material::{Material, MaterialKey};
+
+// HACK: This is overriding the pbr uv attribute's ID with a different vertex
+// format, which is... jank, to say the least. This is done purely to avoid
+// needing to reimplement the mesh pipeline to change the uv attribute handling.
+// If/when updating to a custom pipeline, revisit this.
+pub const ATTRIBUTE_UV_4: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4);
+pub const ATTRIBUTE_COLOR: MeshVertexAttribute =
+	MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
 
 pub type RenderMode = Opaque3d;
 

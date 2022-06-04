@@ -4,26 +4,19 @@ use bevy::{
 	prelude::*,
 	reflect::TypeUuid,
 	render::{
-		mesh::{MeshVertexAttribute, MeshVertexBufferLayout},
+		mesh::MeshVertexBufferLayout,
 		render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
 		render_resource::{
 			BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
 			BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
 			RenderPipelineDescriptor, SamplerBindingType, ShaderStages,
-			SpecializedMeshPipelineError, TextureSampleType, TextureViewDimension, VertexFormat,
+			SpecializedMeshPipelineError, TextureSampleType, TextureViewDimension,
 		},
 		renderer::RenderDevice,
 	},
 };
 
-// HACK: This is overriding the pbr uv attribute's ID with a different vertex
-// format, which is... jank, to say the least. This is done purely to avoid
-// needing to reimplement the mesh pipeline to change the uv attribute handling.
-// If/when updating to a custom pipeline, revisit this.
-pub const ATTRIBUTE_UV_4: MeshVertexAttribute =
-	MeshVertexAttribute::new("Vertex_Uv_4", 2, VertexFormat::Float32x4);
-pub const ATTRIBUTE_COLOR: MeshVertexAttribute =
-	MeshVertexAttribute::new("Vertex_Color", 100, VertexFormat::Float32x4);
+use crate::render::{ATTRIBUTE_COLOR, ATTRIBUTE_UV_4};
 
 #[derive(Clone, TypeUuid)]
 #[uuid = "5f115bbc-7755-4a10-9f29-b078a84dbb10"]
