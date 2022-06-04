@@ -35,6 +35,8 @@ fn convert_tex(tex: tex::Texture) -> Image {
 		tex::Format::Rgb5a1 => convert_rgb5a1(&tex),
 		tex::Format::Argb8 => convert_argb8(&tex),
 		tex::Format::Dxt1 => convert_dxt1(&tex),
+		tex::Format::Dxt3 => convert_dxt3(&tex),
+		tex::Format::Dxt5 => convert_dxt5(&tex),
 		other => todo!("Texture format: {other:?}"),
 	};
 
@@ -104,4 +106,12 @@ fn convert_argb8(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
 
 fn convert_dxt1(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
 	(TextureFormat::Bc1RgbaUnormSrgb, tex.data().to_vec())
+}
+
+fn convert_dxt3(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
+	(TextureFormat::Bc2RgbaUnormSrgb, tex.data().to_vec())
+}
+
+fn convert_dxt5(tex: &tex::Texture) -> (TextureFormat, Vec<u8>) {
+	(TextureFormat::Bc3RgbaUnormSrgb, tex.data().to_vec())
 }

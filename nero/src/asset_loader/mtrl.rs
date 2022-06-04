@@ -3,10 +3,11 @@ use std::{collections::HashSet, path::PathBuf};
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
+	utils::HashMap,
 };
 use ironworks::file::{mtrl, File};
 
-use crate::material::BgMaterial;
+use crate::render::{Material, MaterialKind};
 
 #[derive(Default)]
 pub struct MtrlAssetLoader;
@@ -33,34 +34,23 @@ fn load_mtrl<'a>(
 	let mut dependencies = HashSet::<String>::new();
 
 	let material = <mtrl::Material>::read(bytes)?;
-	let samplers = material.samplers();
 
-	// todo: handle the other texture types
-	//       also this is atrocious, improve.
-	let diffuse1_handle = samplers
+	let samplers = material
+		.samplers()
 		.iter()
-		// TODO: Getting SamplerColorMap0 because The Chair:tm: uses it, this will need a lot of work to work in the general sense.
-		.find(|sampler| sampler.id() == 0x1E6FEF9C)
 		.map(|sampler| {
 			let iw_path = format!("iw://{}", sampler.texture());
 			let handle = load_context.get_handle::<_, Image>(&iw_path);
+			// TODO: Not a fan of mutating in a map
 			dependencies.insert(iw_path);
-			handle
-		});
+			(sampler.id(), handle)
+		})
+		.collect::<HashMap<_, _>>();
 
-	let diffuse2_handle = samplers
-		.iter()
-		.find(|sampler| sampler.id() == 0x6968DF0A)
-		.map(|sampler| {
-			let iw_path = format!("iw://{}", sampler.texture());
-			let handle = load_context.get_handle::<_, Image>(&iw_path);
-			dependencies.insert(iw_path);
-			handle
-		});
-
-	let material = BgMaterial {
-		diffuse1: diffuse1_handle,
-		diffuse2: diffuse2_handle,
+	// TODO: get the above hooked up again
+	let material = Material {
+		kind: MaterialKind::Bg,
+		samplers,
 	};
 
 	let dependency_array = dependencies
