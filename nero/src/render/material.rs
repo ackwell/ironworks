@@ -68,23 +68,22 @@ impl RenderAsset for Material {
 		extracted_asset: Self::ExtractedAsset,
 		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
-		// TODO: Dedupe this pattern
-		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
-		let (color_map_0_view, color_map_0_sampler) = match pipeline
-			.mesh_pipeline
-			.get_image_texture(images, &extracted_asset.samplers.get(&0x1E6FEF9C).cloned())
-		{
-			Some(result) => result,
-			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
-		};
+		// Helper macro to make texture reading less painful. This is a macro rather than a closure to make returning simpler.
+		macro_rules! get_texture {
+			($id:expr) => {
+				match pipeline
+					.mesh_pipeline
+					.get_image_texture(images, &extracted_asset.samplers.get($id).cloned())
+				{
+					Some(result) => result,
+					None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
+				}
+			};
+		}
 
-		let (color_map_1_view, color_map_1_sampler) = match pipeline
-			.mesh_pipeline
-			.get_image_texture(images, &extracted_asset.samplers.get(&0x6968DF0A).cloned())
-		{
-			Some(result) => result,
-			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
-		};
+		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
+		let (color_map_0_view, color_map_0_sampler) = get_texture!(&0x1E6FEF9C);
+		let (color_map_1_view, color_map_1_sampler) = get_texture!(&0x6968DF0A);
 
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
 			label: Some("material_bind_group"),
