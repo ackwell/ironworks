@@ -17,13 +17,11 @@ struct FragmentInput {
 
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
-	// TODO: clamping of the uv can likely be done at a texture level.
-	let color_map_0 = textureSample(color_map_0_texture, color_map_0_sampler, abs(input.uv.xy) % 1.0);
-	let color_map_1 = textureSample(color_map_1_texture, color_map_1_sampler, abs(input.uv.zw) % 1.0);
+	let color_map_0 = textureSample(color_map_0_texture, color_map_0_sampler, input.uv.xy);
+	let color_map_1 = textureSample(color_map_1_texture, color_map_1_sampler, input.uv.zw);
 
 	let color_map = mix(color_map_0, color_map_1, input.color.w);
 	
-	// TODO: can this be done at a material level? Maybe with alpha mask?
 	if (color_map.w <= 0.5) {
 		discard;
 	}

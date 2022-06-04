@@ -15,8 +15,7 @@ struct FragmentInput {
 
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
-	// TODO: clamping of the uv can likely be done at a texture level.
-	let normal = textureSample(normal_texture, normal_sampler, abs(input.uv.xy) % 1.0);
+	let normal = textureSample(normal_texture, normal_sampler, input.uv.xy);
 
 	// Normal B is alpha
 	if (normal.b <= 0.5) {
