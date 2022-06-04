@@ -49,7 +49,14 @@ fn load_mtrl<'a>(
 
 	// TODO: get the above hooked up again
 	let material = Material {
-		kind: MaterialKind::Bg,
+		kind: match material.shader() {
+			"bg.shpk" => MaterialKind::Bg,
+			"character.shpk" => MaterialKind::Character,
+			other => {
+				warn!("Unhandled shader: {other}");
+				MaterialKind::Unknown
+			}
+		},
 		samplers,
 	};
 

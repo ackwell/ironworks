@@ -30,9 +30,12 @@ pub struct MeshBundle {
 	pub computed_visibility: ComputedVisibility,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MaterialKind {
+	Unknown,
+
 	Bg,
+	Character,
 }
 
 #[derive(Clone, TypeUuid)]
@@ -125,8 +128,14 @@ impl Material {
 	// TODO: should this recieve the asset server or nah?
 	pub fn fragment_shader(key: MaterialKey) -> &'static str {
 		match key {
+			MaterialKind::Unknown => "shader/placeholder.wgsl",
 			MaterialKind::Bg => "shader/bg.wgsl",
-			_ => "shader/placeholder.wgsl",
+			MaterialKind::Character => "shader/character.wgsl",
+			#[allow(unreachable_patterns)]
+			other => {
+				warn!("Unhandled material kind: {other:?}");
+				"shader/placeholder.wgsl"
+			}
 		}
 	}
 
