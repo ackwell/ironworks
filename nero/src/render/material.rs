@@ -11,6 +11,7 @@ use bevy::{
 		},
 		renderer::RenderDevice,
 	},
+	utils::HashMap,
 };
 
 use super::pipeline::Pipeline;
@@ -41,9 +42,7 @@ pub enum MaterialKind {
 pub struct Material {
 	pub kind: MaterialKind,
 
-	// TODO: the rest. if ending up with shaders from the game files, this will need revisiting.
-	//       ... even if not using shaders from game files, this might be best represented by a map, perhaps - given the game uses unique keys already.
-	pub color_map_0: Option<Handle<Image>>,
+	pub samplers: HashMap<u32, Handle<Image>>,
 }
 
 pub struct GpuMaterial {
@@ -69,9 +68,10 @@ impl RenderAsset for Material {
 		(render_device, pipeline, images): &mut SystemParamItem<Self::Param>,
 	) -> Result<Self::PreparedAsset, PrepareAssetError<Self::ExtractedAsset>> {
 		// TODO: Dedupe this pattern
+		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
 		let (color_map_0_view, color_map_0_sampler) = match pipeline
 			.mesh_pipeline
-			.get_image_texture(images, &extracted_asset.color_map_0)
+			.get_image_texture(images, &extracted_asset.samplers.get(&0x1E6FEF9C).cloned())
 		{
 			Some(result) => result,
 			None => return Err(PrepareAssetError::RetryNextUpdate(extracted_asset)),
@@ -116,6 +116,7 @@ impl Material {
 		}
 	}
 
+	// TODO: if this needs access to the key, it'll need to be moved to the specialise step in the pipeline. that could be a bit fiddly, as the layout is required to build the bind group, which is currently done in prepare - which needs to execute before specialisation. building the layout can probably be moved to a prepare step, but will need to be cached to prevent it being generated every frame.
 	pub fn bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
 		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: Some("material_layout"),
