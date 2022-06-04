@@ -3,7 +3,6 @@
 mod asset_io;
 mod asset_loader;
 mod camera;
-mod material;
 mod render;
 mod tool;
 
@@ -13,7 +12,6 @@ use bevy::{prelude::*, winit::WinitSettings};
 use bevy_egui::{egui, EguiContext, EguiPlugin};
 use camera::CameraPlugin;
 use iyes_loopless::prelude::*;
-use material::NeroMaterialPlugin;
 use render::RenderPlugin;
 use strum::IntoEnumIterator;
 use tool::{Tool, ToolPlugins};
@@ -37,7 +35,6 @@ fn main() {
 		// 3D
 		.add_plugin(CameraPlugin)
 		.add_plugin(RenderPlugin)
-		.add_plugin(NeroMaterialPlugin)
 		// Done
 		.run();
 }
