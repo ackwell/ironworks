@@ -128,7 +128,7 @@ impl Material {
 	pub fn fragment_shader(key: MaterialKey) -> &'static str {
 		match key {
 			MaterialKind::Bg => "shader/bg.wgsl",
-			MaterialKind::Other => "shader/test.wgsl",
+			_ => "shader/placeholder.wgsl",
 		}
 	}
 
