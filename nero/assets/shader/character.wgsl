@@ -6,6 +6,8 @@ var normal_sampler: sampler;
 var color_set_texture: texture_2d<f32>;
 [[group(2), binding(7)]]
 var color_set_sampler: sampler;
+[[group(2), binding(8)]]
+var index_sampler: sampler;
 
 // TODO: also uses SamplerNormal, which i _believe_ has colorset on W
 
@@ -20,10 +22,11 @@ struct FragmentInput {
 [[stage(fragment)]]
 fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
 	let normal = textureSample(normal_texture, normal_sampler, input.uv.xy);
+	let index = textureSample(normal_texture, index_sampler, input.uv.xy);
 	
 	// Normal W is colorset
 	// TODO: W channel of colorset is metadata for each of the fields
-	let color_set = textureSample(color_set_texture, color_set_sampler, vec2<f32>(0.125, normal.w));
+	let color_set = textureSample(color_set_texture, color_set_sampler, vec2<f32>(0.125, index.w));
 
 	// Normal B is alpha
 	if (normal.b <= 0.5) {

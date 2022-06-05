@@ -88,9 +88,11 @@ impl RenderAsset for Material {
 			get_texture!(&extracted_asset.samplers.get(&0x6968DF0A).cloned());
 		let (normal_view, normal_sampler) =
 			get_texture!(&extracted_asset.samplers.get(&0x0C5EC1F1).cloned());
-		// TODO: not convinced by this being a texture - might make more sense as uniform data?
-		// ... i mean i can't find anything in the game shaders at all for it so maybe it's precomputed into a diffuse + specular + emissive + ... before hitting the gpu?
+
+		// Colorset stuff
 		let (color_set_view, color_set_sampler) = get_texture!(&extracted_asset.color_set);
+		// TODO: this is incredibly janky. building a custom sampler here for non-blurry lookup in the normal. realistically, the game shaders actually bind the normal texture twice, once as "Normal", once as "Index", with the latter having the seperate sampler. This is relying on the default sampler using nearest filtering.
+		let index_sampler = &render_device.create_sampler(&Default::default());
 
 		// TODO: work out how to generate the bind group + layout because this is getting dumb
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -128,6 +130,10 @@ impl RenderAsset for Material {
 				BindGroupEntry {
 					binding: 7,
 					resource: BindingResource::Sampler(color_set_sampler),
+				},
+				BindGroupEntry {
+					binding: 8,
+					resource: BindingResource::Sampler(index_sampler),
 				},
 			],
 		});
@@ -228,6 +234,12 @@ impl Material {
 				},
 				BindGroupLayoutEntry {
 					binding: 7,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 8,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,
