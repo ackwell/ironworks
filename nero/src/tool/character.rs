@@ -8,11 +8,18 @@ use super::Tool;
 pub struct CharacterTool;
 impl Plugin for CharacterTool {
 	fn build(&self, app: &mut App) {
-		app.add_event::<SlotChanged>()
+		app.init_resource::<State>()
+			.add_event::<SlotChanged>()
+			.add_enter_system(Some(Tool::Character), enter)
 			.add_system(update_slot.run_in_state(Some(Tool::Character)))
 			.add_system(ui.run_in_state(Some(Tool::Character)).label("ui"))
 			.add_exit_system(Some(Tool::Character), exit);
 	}
+}
+
+#[derive(Default)]
+struct State {
+	slots: HashMap<Slot, Specifier>,
 }
 
 struct SlotChanged(Slot, Specifier);
@@ -40,6 +47,16 @@ enum Slot {
 	Feet,
 }
 
+fn enter(state: Res<State>, mut slots_changed: EventWriter<SlotChanged>) {
+	// On enter, re-initialise entities for all slots
+	slots_changed.send_batch(
+		state
+			.slots
+			.iter()
+			.map(|(slot, specifier)| SlotChanged(*slot, specifier.clone())),
+	);
+}
+
 fn update_slot(
 	mut commands: Commands,
 	mut slots_changed: EventReader<SlotChanged>,
@@ -47,6 +64,7 @@ fn update_slot(
 	asset_server: Res<AssetServer>,
 ) {
 	for SlotChanged(slot, specifier) in slots_changed.iter() {
+		// Remove the previous entity in this slot, if any.
 		if let Some(entity) = entities.remove(slot) {
 			// NOTE: using .add manually rather than the typical .entity, as the entities map will contain stale entities when swapping back to the tool after leaving.
 			// TODO: cleaner solution?
@@ -70,14 +88,9 @@ fn update_slot(
 	}
 }
 
-#[derive(Default)]
-struct State {
-	slots: HashMap<Slot, Specifier>,
-}
-
 fn ui(
 	mut egui_context: ResMut<EguiContext>,
-	mut state: Local<State>,
+	mut state: ResMut<State>,
 	mut slot_changed: EventWriter<SlotChanged>,
 ) {
 	let context = egui_context.ctx_mut();
