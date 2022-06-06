@@ -10,7 +10,8 @@ impl Plugin for CharacterTool {
 	fn build(&self, app: &mut App) {
 		app.add_event::<SlotChanged>()
 			.add_system(update_slot.run_in_state(Some(Tool::Character)))
-			.add_system(ui.run_in_state(Some(Tool::Character)).label("ui"));
+			.add_system(ui.run_in_state(Some(Tool::Character)).label("ui"))
+			.add_exit_system(Some(Tool::Character), exit);
 	}
 }
 
@@ -47,7 +48,9 @@ fn update_slot(
 ) {
 	for SlotChanged(slot, specifier) in slots_changed.iter() {
 		if let Some(entity) = entities.remove(slot) {
-			commands.entity(entity).despawn_recursive();
+			// NOTE: using .add manually rather than the typical .entity, as the entities map will contain stale entities when swapping back to the tool after leaving.
+			// TODO: cleaner solution?
+			commands.add(DespawnRecursive { entity })
 		}
 
 		// TODO: non-equip models
@@ -94,4 +97,11 @@ fn ui(
 				}
 			}
 		});
+}
+
+fn exit(mut commands: Commands, query: Query<Entity, With<Slot>>) {
+	// TODO: this will probably need to swap to removing some root entity or other marker component when handling character bodies as well
+	for entity in query.iter() {
+		commands.entity(entity).despawn_recursive();
+	}
 }
