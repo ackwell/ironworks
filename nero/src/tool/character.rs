@@ -27,10 +27,16 @@ struct Specifier {
 
 #[derive(Component, Clone, Copy, EnumProperty, EnumIter, PartialEq, Eq, Hash)]
 enum Slot {
+	#[strum(props(label = "Head", suffix = "met"))]
+	Head,
 	#[strum(props(label = "Body", suffix = "top"))]
 	Body,
+	#[strum(props(label = "Gloves", suffix = "glv"))]
+	Gloves,
 	#[strum(props(label = "Legs", suffix = "dwn"))]
 	Legs,
+	#[strum(props(label = "Feet", suffix = "sho"))]
+	Feet,
 }
 
 fn update_slot(
