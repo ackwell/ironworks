@@ -168,7 +168,7 @@ impl Material {
 		}
 	}
 
-	// TODO: if this needs access to the key, it'll need to be moved to the specialise step in the pipeline. that could be a bit fiddly, as the layout is required to build the bind group, which is currently done in prepare - which needs to execute before specialisation. building the layout can probably be moved to a prepare step, but will need to be cached to prevent it being generated every frame.
+	// TODO: if this needs access to the key, it'll need to be moved to the specialise step in the pipeline. that could be a bit fiddly, as the layout is required to build the bind group, which is currently done in prepare - which needs to execute before specialisation. building the layout can probably be moved to a prepare step, but will need to be cached to prevent it being generated every frame. Or not? Reading through the source, prepare is only called once per extract, and extraction of render assets only occurs when they change. It effectively is caching already.
 	pub fn bind_group_layout(render_device: &RenderDevice) -> BindGroupLayout {
 		render_device.create_bind_group_layout(&BindGroupLayoutDescriptor {
 			label: Some("material_layout"),

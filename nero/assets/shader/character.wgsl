@@ -28,6 +28,8 @@ fn fragment(input: FragmentInput) -> [[location(0)]] vec4<f32> {
 	// TODO: W channel of colorset is metadata for each of the fields
 	let color_set = textureSample(color_set_texture, color_set_sampler, vec2<f32>(0.125, index.w));
 
+	// also need to pull out of chara/common/texture/-tile_n|d.tex - maybe better to work on game shaders instead of going too far down that rabbit hole
+
 	// Normal B is alpha
 	if (normal.b <= 0.5) {
 		discard;

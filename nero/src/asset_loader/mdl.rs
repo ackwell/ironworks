@@ -36,7 +36,7 @@ fn load_mdl<'a>(
 	let mut world = World::default();
 
 	let container = <mdl::ModelContainer as File>::read(bytes)?;
-	// TODO: load all 3 LOD as seperate scenes?
+	// TODO: load all 3 LOD as seperate scenes? I'll also need to load variants, and there's potentially >100 of those for some - so loading them all eagerly seems like a bad idea. Might make sense to register own asset type for these, and let consumer code specify lod/variant/etc?
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);
 
@@ -49,7 +49,6 @@ fn load_mdl<'a>(
 		let mesh_handle =
 			load_context.set_labeled_asset(&format!("Mesh{index}"), LoadedAsset::new(mesh));
 
-		// TODO: There's >1 material type that i'll need to use eod - i guess make them an enum, or something? that or focus on reading xiv shpk next.
 		let material = load_context.get_handle::<_, Material>(&mtrl_path);
 		dependencies.insert(mtrl_path);
 
