@@ -42,37 +42,33 @@ enum Slot {
 fn update_slot(
 	mut commands: Commands,
 	mut slots_changed: EventReader<SlotChanged>,
-	// TODO: rather than quering + iterating, maybe store hashmap <slot, entity>?
-	entities: Query<(Entity, &Slot)>,
+	mut entities: Local<HashMap<Slot, Entity>>,
 	asset_server: Res<AssetServer>,
 ) {
 	for SlotChanged(slot, specifier) in slots_changed.iter() {
-		// TODO: hashmap?
-		// Remove the entity currently occupying this slot.
-		entities.for_each(|(entity, entity_slot)| {
-			if entity_slot != slot {
-				return;
-			}
+		if let Some(entity) = entities.remove(slot) {
 			commands.entity(entity).despawn_recursive();
-		});
+		}
 
 		// TODO: non-equip models
 		// TODO: variants (need to check imc?)
 		// TODO: Body type (will need to be in state probably) (will need fallback rules) (sounds like an ironworks module thing?)
-		// TODO: some IDs don't have an entry for a given slot - how do i surface that error? Might be able to store tha handles of the models I load and check the asset's load states (group load state) for errors?
-		commands.spawn().insert(*slot).with_children(|children| {
+		// TODO: some IDs don't have an entry for a given slot - how do i surface that error? Might be able to store the handles of the models I load and check the asset's load states (group load state) for errors?
+		let mut entity = commands.spawn();
+		entity.insert(*slot).with_children(|children| {
 			children.spawn_scene(asset_server.load(&format!(
 				"iw://chara/equipment/e{0:04}/model/c0101e{0:04}_{1}.mdl",
 				specifier.model,
 				slot.get_str("suffix").unwrap(),
 			)));
 		});
+
+		entities.insert(*slot, entity.id());
 	}
 }
 
 #[derive(Default)]
 struct State {
-	// TODO: Using a hashmap for sort by key - is that sane? maybe an array/vec?
 	slots: HashMap<Slot, Specifier>,
 }
 
@@ -81,11 +77,11 @@ fn ui(
 	mut state: Local<State>,
 	mut slot_changed: EventWriter<SlotChanged>,
 ) {
-	let ctx = egui_context.ctx_mut();
+	let context = egui_context.ctx_mut();
 
 	egui::SidePanel::left("character")
 		.resizable(true)
-		.show(ctx, |ui| {
+		.show(context, |ui| {
 			ui.heading("character");
 
 			for slot in Slot::iter() {
