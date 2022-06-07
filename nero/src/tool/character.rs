@@ -47,13 +47,10 @@ enum Slot {
 	Feet,
 }
 
-fn enter(state: Res<State>, mut slots_changed: EventWriter<SlotChanged>) {
+fn enter(mut state: ResMut<State>, mut slots_changed: EventWriter<SlotChanged>) {
 	// On enter, re-initialise entities for all slots
 	slots_changed.send_batch(
-		state
-			.slots
-			.iter()
-			.map(|(slot, specifier)| SlotChanged(*slot, specifier.clone())),
+		Slot::iter().map(|slot| SlotChanged(slot, state.slots.entry(slot).or_default().clone())),
 	);
 }
 
