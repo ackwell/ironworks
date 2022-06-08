@@ -17,6 +17,101 @@ impl Plugin for CharacterTool {
 	}
 }
 
+// ???
+//should probably be a struct of race/clan/gender/etc
+enum Race {
+	HyurMidlanderMale,
+	HyurMidlanderMaleNpc,
+	HyurMidlanderFemale,
+	HyurMidlanderFemaleNpc,
+	HyurHighlanderMale,
+	HyurHighlanderMaleNpc,
+	HyurHighlanderFemale,
+	HyurHighlanderFemaleNpc,
+	ElezenMale,
+	ElezenMaleNpc,
+	ElezenFemale,
+	ElezenFemaleNpc,
+	MiqoteMale,
+	MiqoteMaleNpc,
+	MiqoteFemale,
+	MiqoteFemaleNpc,
+	RoegadynMale,
+	RoegadynMaleNpc,
+	RoegadynFemale,
+	RoegadynFemaleNpc,
+	LalafellMale,
+	LalafellMaleNpc,
+	LalafellFemale,
+	LalafellFemaleNpc,
+	AuRaMale,
+	AuRaMaleNpc,
+	AuRaFemale,
+	AuRaFemaleNpc,
+	HrothgarMale,
+	HrothgarMaleNpc,
+	HrothgarFemale,
+	HrothgarFemaleNpc,
+	VieraMale,
+	VieraMaleNpc,
+	VieraFemale,
+	VieraFemaleNpc,
+	// others?
+}
+
+impl Race {
+	fn fallback(&self) -> Option<Self> {
+		Some(match self {
+			Self::HyurMidlanderFemale => Self::HyurMidlanderMale,
+
+			Self::HyurHighlanderMale => Self::HyurMidlanderMale,
+			Self::HyurHighlanderFemale => Self::HyurMidlanderFemale,
+
+			Self::ElezenMale => Self::HyurMidlanderMale,
+			Self::ElezenFemale => Self::HyurMidlanderFemale,
+
+			Self::MiqoteMale => Self::HyurMidlanderMale,
+			Self::MiqoteFemale => Self::HyurMidlanderFemale,
+
+			Self::RoegadynMale => Self::HyurMidlanderMale,
+			Self::RoegadynFemale => Self::HyurMidlanderFemale,
+
+			Self::LalafellMale => Self::HyurMidlanderMale,
+			Self::LalafellFemale => Self::LalafellMale,
+
+			Self::AuRaMale => Self::HyurMidlanderMale,
+			Self::AuRaFemale => Self::HyurMidlanderFemale,
+
+			Self::HrothgarMale => Self::RoegadynMale,
+
+			Self::VieraMale => Self::HyurMidlanderMale,
+			Self::VieraFemale => Self::HyurMidlanderFemale,
+
+			// NPCs fall back to the relevant PC race
+			Self::HyurMidlanderMaleNpc => Self::HyurMidlanderMale,
+			Self::HyurMidlanderFemaleNpc => Self::HyurMidlanderFemale,
+			Self::HyurHighlanderMaleNpc => Self::HyurHighlanderMale,
+			Self::HyurHighlanderFemaleNpc => Self::HyurHighlanderFemale,
+			Self::ElezenMaleNpc => Self::ElezenMale,
+			Self::ElezenFemaleNpc => Self::ElezenFemale,
+			Self::MiqoteMaleNpc => Self::MiqoteMale,
+			Self::MiqoteFemaleNpc => Self::MiqoteFemale,
+			Self::RoegadynMaleNpc => Self::RoegadynMale,
+			Self::RoegadynFemaleNpc => Self::RoegadynFemale,
+			Self::LalafellMaleNpc => Self::LalafellMale,
+			Self::LalafellFemaleNpc => Self::LalafellFemale,
+			Self::AuRaMaleNpc => Self::AuRaMale,
+			Self::AuRaFemaleNpc => Self::AuRaFemale,
+			Self::HrothgarMaleNpc => Self::HrothgarMale,
+			Self::HrothgarFemaleNpc => Self::HrothgarFemale,
+			Self::VieraMaleNpc => Self::VieraMale,
+			Self::VieraFemaleNpc => Self::VieraFemale,
+
+			_ => return None,
+		})
+	}
+}
+
 #[derive(Default)]
 struct State {
 	slots: HashMap<Slot, Specifier>,
