@@ -198,7 +198,7 @@ struct State {
 	slots: HashMap<Slot, Specifier>,
 }
 
-struct SlotChanged(Slot, Specifier);
+struct SlotChanged(Slot);
 
 #[derive(Clone, Default)]
 struct Specifier {
@@ -223,26 +223,27 @@ enum Slot {
 	Feet,
 }
 
-fn enter(mut state: ResMut<State>, mut slots_changed: EventWriter<SlotChanged>) {
+fn enter(mut slots_changed: EventWriter<SlotChanged>) {
 	// On enter, re-initialise entities for all slots
-	slots_changed.send_batch(
-		Slot::iter().map(|slot| SlotChanged(slot, state.slots.entry(slot).or_default().clone())),
-	);
+	slots_changed.send_batch(Slot::iter().map(SlotChanged));
 }
 
 fn update_slot(
 	mut commands: Commands,
+	mut state: ResMut<State>,
 	mut slots_changed: EventReader<SlotChanged>,
 	mut entities: Local<HashMap<Slot, Entity>>,
 	asset_server: Res<AssetServer>,
 ) {
-	for SlotChanged(slot, specifier) in slots_changed.iter() {
+	for SlotChanged(slot) in slots_changed.iter() {
 		// Remove the previous entity in this slot, if any.
 		if let Some(entity) = entities.remove(slot) {
 			// NOTE: using .add manually rather than the typical .entity, as the entities map will contain stale entities when swapping back to the tool after leaving.
 			// TODO: cleaner solution?
 			commands.add(DespawnRecursive { entity })
 		}
+
+		let specifier = state.slots.entry(*slot).or_default();
 
 		// TODO: non-equip models
 		// TODO: variants (need to check imc?)
@@ -306,7 +307,7 @@ fn ui(
 
 				let response = ui.add(egui::DragValue::new(&mut specifier.set).fixed_decimals(0));
 				if response.drag_released() || response.lost_focus() {
-					slot_changed.send(SlotChanged(slot, specifier.clone()));
+					slot_changed.send(SlotChanged(slot));
 				}
 			}
 		});
