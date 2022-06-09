@@ -18,12 +18,89 @@ impl Plugin for CharacterTool {
 }
 
 // TODO: Am I able to derive this entirely from excel? CharaMakeType gets most of the way there - but doesn't map to the model IDs we need
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Character {
 	race: Race,
 	tribe: Tribe,
 	gender: Gender,
 	kind: Kind,
+}
+
+impl Character {
+	fn id(&self) -> u32 {
+		use Gender as G;
+		use Race as R;
+		use Tribe as T;
+
+		let base = match (&self.race, &self.gender, &self.tribe) {
+			(R::Hyur, G::Male, T::First) => 101,
+			(R::Hyur, G::Female, T::First) => 201,
+			(R::Hyur, G::Male, T::Second) => 301,
+			(R::Hyur, G::Female, T::Second) => 401,
+			(R::Elezen, G::Male, _) => 501,
+			(R::Elezen, G::Female, _) => 601,
+			(R::Miqote, G::Male, _) => 701,
+			(R::Miqote, G::Female, _) => 801,
+			(R::Roegadyn, G::Male, _) => 901,
+			(R::Roegadyn, G::Female, _) => 1001,
+			(R::Lalafell, G::Male, _) => 1101,
+			(R::Lalafell, G::Female, _) => 1201,
+			(R::AuRa, G::Male, _) => 1301,
+			(R::AuRa, G::Female, _) => 1401,
+			(R::Hrothgar, G::Male, _) => 1501,
+			(R::Hrothgar, G::Female, _) => 1601,
+			(R::Viera, G::Male, _) => 1701,
+			(R::Viera, G::Female, _) => 1801,
+		};
+
+		// NPCs are xxx4, rather than xxx1
+		match self.kind {
+			Kind::Pc => base,
+			Kind::Npc => base + 3,
+		}
+	}
+
+	fn fallback(&self) -> Self {
+		use Gender as G;
+		use Kind as K;
+		use Race as R;
+		use Tribe as T;
+
+		// NPCs fall back to their PC counterpart.
+		if self.kind == K::Npc {
+			return Self {
+				kind: K::Pc,
+				..self.clone()
+			};
+		}
+
+		// Hrothgar falls back to Roe.
+		if self.race == R::Hrothgar {
+			return Self {
+				race: R::Roegadyn,
+				..self.clone()
+			};
+		}
+
+		// Midlander and Lala females fall back to their male counterpart.
+		if self.gender == G::Female
+			&& matches!(
+				(self.race, self.tribe),
+				(R::Hyur, T::First) | (R::Lalafell, _)
+			) {
+			return Self {
+				gender: G::Male,
+				..self.clone()
+			};
+		}
+
+		// Everything else falls back to Midlander.
+		Self {
+			race: R::Hyur,
+			tribe: T::First,
+			..self.clone()
+		}
+	}
 }
 
 impl Default for Character {
@@ -113,100 +190,6 @@ impl Gender {
 enum Kind {
 	Pc,
 	Npc,
-}
-
-//should probably be a struct of race/clan/gender/etc
-enum RaceAll {
-	HyurMidlanderMale,
-	HyurMidlanderMaleNpc,
-	HyurMidlanderFemale,
-	HyurMidlanderFemaleNpc,
-	HyurHighlanderMale,
-	HyurHighlanderMaleNpc,
-	HyurHighlanderFemale,
-	HyurHighlanderFemaleNpc,
-	ElezenMale,
-	ElezenMaleNpc,
-	ElezenFemale,
-	ElezenFemaleNpc,
-	MiqoteMale,
-	MiqoteMaleNpc,
-	MiqoteFemale,
-	MiqoteFemaleNpc,
-	RoegadynMale,
-	RoegadynMaleNpc,
-	RoegadynFemale,
-	RoegadynFemaleNpc,
-	LalafellMale,
-	LalafellMaleNpc,
-	LalafellFemale,
-	LalafellFemaleNpc,
-	AuRaMale,
-	AuRaMaleNpc,
-	AuRaFemale,
-	AuRaFemaleNpc,
-	HrothgarMale,
-	HrothgarMaleNpc,
-	HrothgarFemale,
-	HrothgarFemaleNpc,
-	VieraMale,
-	VieraMaleNpc,
-	VieraFemale,
-	VieraFemaleNpc,
-	// others?
-}
-
-impl RaceAll {
-	fn fallback(&self) -> Option<Self> {
-		Some(match self {
-			Self::HyurMidlanderFemale => Self::HyurMidlanderMale,
-
-			Self::HyurHighlanderMale => Self::HyurMidlanderMale,
-			Self::HyurHighlanderFemale => Self::HyurMidlanderFemale,
-
-			Self::ElezenMale => Self::HyurMidlanderMale,
-			Self::ElezenFemale => Self::HyurMidlanderFemale,
-
-			Self::MiqoteMale => Self::HyurMidlanderMale,
-			Self::MiqoteFemale => Self::HyurMidlanderFemale,
-
-			Self::RoegadynMale => Self::HyurMidlanderMale,
-			Self::RoegadynFemale => Self::HyurMidlanderFemale,
-
-			Self::LalafellMale => Self::HyurMidlanderMale,
-			Self::LalafellFemale => Self::LalafellMale,
-
-			Self::AuRaMale => Self::HyurMidlanderMale,
-			Self::AuRaFemale => Self::HyurMidlanderFemale,
-
-			Self::HrothgarMale => Self::RoegadynMale,
-
-			Self::VieraMale => Self::HyurMidlanderMale,
-			Self::VieraFemale => Self::HyurMidlanderFemale,
-
-			// NPCs fall back to the relevant PC race
-			Self::HyurMidlanderMaleNpc => Self::HyurMidlanderMale,
-			Self::HyurMidlanderFemaleNpc => Self::HyurMidlanderFemale,
-			Self::HyurHighlanderMaleNpc => Self::HyurHighlanderMale,
-			Self::HyurHighlanderFemaleNpc => Self::HyurHighlanderFemale,
-			Self::ElezenMaleNpc => Self::ElezenMale,
-			Self::ElezenFemaleNpc => Self::ElezenFemale,
-			Self::MiqoteMaleNpc => Self::MiqoteMale,
-			Self::MiqoteFemaleNpc => Self::MiqoteFemale,
-			Self::RoegadynMaleNpc => Self::RoegadynMale,
-			Self::RoegadynFemaleNpc => Self::RoegadynFemale,
-			Self::LalafellMaleNpc => Self::LalafellMale,
-			Self::LalafellFemaleNpc => Self::LalafellFemale,
-			Self::AuRaMaleNpc => Self::AuRaMale,
-			Self::AuRaFemaleNpc => Self::AuRaFemale,
-			Self::HrothgarMaleNpc => Self::HrothgarMale,
-			Self::HrothgarFemaleNpc => Self::HrothgarFemale,
-			Self::VieraMaleNpc => Self::VieraMale,
-			Self::VieraFemaleNpc => Self::VieraFemale,
-
-			_ => return None,
-		})
-	}
 }
 
 #[derive(Default)]
