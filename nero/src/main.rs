@@ -1,4 +1,5 @@
 #![allow(clippy::module_inception)]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod asset_io;
 mod asset_loader;

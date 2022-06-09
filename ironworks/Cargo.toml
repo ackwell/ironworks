@@ -19,6 +19,7 @@ ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
 
 # File types
+eqdp = ["dep:modular-bitfield"]
 exd = []
 exh = []
 exl = []
