@@ -243,6 +243,7 @@ fn update_slot(
 			commands.add(DespawnRecursive { entity })
 		}
 
+		let character_id = state.character.id();
 		let specifier = state.slots.entry(*slot).or_default();
 
 		// TODO: non-equip models
@@ -252,8 +253,9 @@ fn update_slot(
 		let mut entity = commands.spawn();
 		entity.insert(*slot).with_children(|children| {
 			children.spawn_scene(asset_server.load(&format!(
-				"iw://chara/equipment/e{0:04}/model/c0101e{0:04}_{1}.mdl",
+				"iw://chara/equipment/e{0:04}/model/c{1:04}e{0:04}_{2}.mdl",
 				specifier.set,
+				character_id,
 				slot.get_str("suffix").unwrap(),
 			)));
 		});
@@ -274,32 +276,53 @@ fn ui(
 		.show(context, |ui| {
 			ui.heading("character");
 
-			egui::ComboBox::from_id_source("Race")
+			// TODO: This section needs to be pulled out and probably deduped a bunch
+			let response = egui::ComboBox::from_id_source("Race")
 				.selected_text(state.character.race.label())
 				.show_ui(ui, |ui| {
+					let mut changed = false;
 					for race in Race::iter() {
-						ui.selectable_value(&mut state.character.race, race, race.label());
+						changed |= ui
+							.selectable_value(&mut state.character.race, race, race.label())
+							.changed();
 					}
+					changed
 				});
+			let mut changed = response.inner.unwrap_or(false);
 
-			egui::ComboBox::from_id_source("Tribe")
+			let response = egui::ComboBox::from_id_source("Tribe")
 				.selected_text(state.character.tribe.label(state.character.race))
 				.show_ui(ui, |ui| {
 					let race = state.character.race;
+					let mut changed = false;
 					for tribe in Tribe::iter() {
-						ui.selectable_value(&mut state.character.tribe, tribe, tribe.label(race));
+						changed |= ui
+							.selectable_value(&mut state.character.tribe, tribe, tribe.label(race))
+							.changed();
 					}
+					changed
 				});
+			changed |= response.inner.unwrap_or(false);
 
-			egui::ComboBox::from_id_source("Gender")
+			let response = egui::ComboBox::from_id_source("Gender")
 				.selected_text(state.character.gender.label())
 				.show_ui(ui, |ui| {
+					let mut changed = false;
 					for gender in Gender::iter() {
-						ui.selectable_value(&mut state.character.gender, gender, gender.label());
+						changed |= ui
+							.selectable_value(&mut state.character.gender, gender, gender.label())
+							.changed();
 					}
+					changed
 				});
+			changed |= response.inner.unwrap_or(false);
 
 			// Skipping kind, do people want to export npc models?
+
+			// Something about the character has changed - mark all slots as potentially changed.
+			if changed {
+				slot_changed.send_batch(Slot::iter().map(SlotChanged));
+			}
 
 			for slot in Slot::iter() {
 				let specifier = state.slots.entry(slot).or_default();
