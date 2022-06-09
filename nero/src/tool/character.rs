@@ -49,16 +49,64 @@ enum Race {
 	Viera,
 }
 
+impl Race {
+	// TODO: can I use game strings for this?
+	fn label(&self) -> &'static str {
+		match self {
+			Self::Hyur => "Hyur",
+			Self::Elezen => "Elezen",
+			Self::Miqote => "Miqo'te",
+			Self::Roegadyn => "Roegadyn",
+			Self::Lalafell => "Lalafell",
+			Self::AuRa => "Au Ra",
+			Self::Hrothgar => "Hrothgar",
+			Self::Viera => "Viera",
+		}
+	}
+}
+
 #[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
 enum Tribe {
 	First,
 	Second,
 }
 
+impl Tribe {
+	fn label(&self, race: Race) -> &'static str {
+		match (race, self) {
+			(Race::Hyur, Self::First) => "Midlander",
+			(Race::Hyur, Self::Second) => "Highlander",
+			(Race::Elezen, Self::First) => "Wildwood",
+			(Race::Elezen, Self::Second) => "Duskwight",
+			(Race::Miqote, Self::First) => "Seeker of the Sun",
+			(Race::Miqote, Self::Second) => "Keeper of the Moon",
+			(Race::Roegadyn, Self::First) => "Sea Wolf",
+			(Race::Roegadyn, Self::Second) => "Hellsguard",
+			(Race::Lalafell, Self::First) => "Plainsfolk",
+			(Race::Lalafell, Self::Second) => "Dunesfolk",
+			(Race::AuRa, Self::First) => "Raen",
+			(Race::AuRa, Self::Second) => "Xaela",
+			(Race::Hrothgar, Self::First) => "Helions",
+			(Race::Hrothgar, Self::Second) => "The Lost",
+			(Race::Viera, Self::First) => "Rava",
+			(Race::Viera, Self::Second) => "Veena",
+		}
+	}
+}
+
 #[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
 enum Gender {
 	Male,
 	Female,
+}
+
+impl Gender {
+	fn label(&self) -> &'static str {
+		match self {
+			Self::Male => "Male",
+			Self::Female => "Female",
+		}
+	}
 }
 
 #[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
@@ -242,36 +290,28 @@ fn ui(
 		.show(context, |ui| {
 			ui.heading("character");
 
-			// TODO: proper string impl - use game strings?
 			egui::ComboBox::from_id_source("Race")
-				.selected_text(format!("{:?}", state.character.race))
+				.selected_text(state.character.race.label())
 				.show_ui(ui, |ui| {
 					for race in Race::iter() {
-						ui.selectable_value(&mut state.character.race, race, format!("{:?}", race));
+						ui.selectable_value(&mut state.character.race, race, race.label());
 					}
 				});
 
 			egui::ComboBox::from_id_source("Tribe")
-				.selected_text(format!("{:?}", state.character.tribe))
+				.selected_text(state.character.tribe.label(state.character.race))
 				.show_ui(ui, |ui| {
+					let race = state.character.race;
 					for tribe in Tribe::iter() {
-						ui.selectable_value(
-							&mut state.character.tribe,
-							tribe,
-							format!("{:?}", tribe),
-						);
+						ui.selectable_value(&mut state.character.tribe, tribe, tribe.label(race));
 					}
 				});
 
 			egui::ComboBox::from_id_source("Gender")
-				.selected_text(format!("{:?}", state.character.gender))
+				.selected_text(state.character.gender.label())
 				.show_ui(ui, |ui| {
 					for gender in Gender::iter() {
-						ui.selectable_value(
-							&mut state.character.gender,
-							gender,
-							format!("{:?}", gender),
-						);
+						ui.selectable_value(&mut state.character.gender, gender, gender.label());
 					}
 				});
 
