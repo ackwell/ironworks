@@ -17,9 +17,58 @@ impl Plugin for CharacterTool {
 	}
 }
 
-// ???
-//should probably be a struct of race/clan/gender/etc
+// TODO: Am I able to derive this entirely from excel? CharaMakeType gets most of the way there - but doesn't map to the model IDs we need
+#[derive(Debug)]
+struct Character {
+	race: Race,
+	tribe: Tribe,
+	gender: Gender,
+	kind: Kind,
+}
+
+impl Default for Character {
+	fn default() -> Self {
+		Self {
+			race: Race::Hyur,
+			tribe: Tribe::First,
+			gender: Gender::Male,
+			kind: Kind::Pc,
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
 enum Race {
+	Hyur,
+	Elezen,
+	Miqote,
+	Roegadyn,
+	Lalafell,
+	AuRa,
+	Hrothgar,
+	Viera,
+}
+
+#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
+enum Tribe {
+	First,
+	Second,
+}
+
+#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
+enum Gender {
+	Male,
+	Female,
+}
+
+#[derive(Clone, Copy, Debug, EnumIter, PartialEq)]
+enum Kind {
+	Pc,
+	Npc,
+}
+
+//should probably be a struct of race/clan/gender/etc
+enum RaceAll {
 	HyurMidlanderMale,
 	HyurMidlanderMaleNpc,
 	HyurMidlanderFemale,
@@ -59,7 +108,7 @@ enum Race {
 	// others?
 }
 
-impl Race {
+impl RaceAll {
 	fn fallback(&self) -> Option<Self> {
 		Some(match self {
 			Self::HyurMidlanderFemale => Self::HyurMidlanderMale,
@@ -114,6 +163,7 @@ impl Race {
 
 #[derive(Default)]
 struct State {
+	character: Character,
 	slots: HashMap<Slot, Specifier>,
 }
 
@@ -122,7 +172,7 @@ struct SlotChanged(Slot, Specifier);
 #[derive(Clone, Default)]
 struct Specifier {
 	// todo what type should these be?
-	model: u16,
+	set: u16,
 	// todo weapon type?
 	_variant: u16,
 	// todo: what about the fourth, is it always 0
@@ -171,7 +221,7 @@ fn update_slot(
 		entity.insert(*slot).with_children(|children| {
 			children.spawn_scene(asset_server.load(&format!(
 				"iw://chara/equipment/e{0:04}/model/c0101e{0:04}_{1}.mdl",
-				specifier.model,
+				specifier.set,
 				slot.get_str("suffix").unwrap(),
 			)));
 		});
@@ -192,11 +242,46 @@ fn ui(
 		.show(context, |ui| {
 			ui.heading("character");
 
+			// TODO: proper string impl - use game strings?
+			egui::ComboBox::from_id_source("Race")
+				.selected_text(format!("{:?}", state.character.race))
+				.show_ui(ui, |ui| {
+					for race in Race::iter() {
+						ui.selectable_value(&mut state.character.race, race, format!("{:?}", race));
+					}
+				});
+
+			egui::ComboBox::from_id_source("Tribe")
+				.selected_text(format!("{:?}", state.character.tribe))
+				.show_ui(ui, |ui| {
+					for tribe in Tribe::iter() {
+						ui.selectable_value(
+							&mut state.character.tribe,
+							tribe,
+							format!("{:?}", tribe),
+						);
+					}
+				});
+
+			egui::ComboBox::from_id_source("Gender")
+				.selected_text(format!("{:?}", state.character.gender))
+				.show_ui(ui, |ui| {
+					for gender in Gender::iter() {
+						ui.selectable_value(
+							&mut state.character.gender,
+							gender,
+							format!("{:?}", gender),
+						);
+					}
+				});
+
+			// Skipping kind, do people want to export npc models?
+
 			for slot in Slot::iter() {
 				let specifier = state.slots.entry(slot).or_default();
 				ui.label(slot.get_str("label").unwrap());
 
-				let response = ui.add(egui::DragValue::new(&mut specifier.model).fixed_decimals(0));
+				let response = ui.add(egui::DragValue::new(&mut specifier.set).fixed_decimals(0));
 				if response.drag_released() || response.lost_focus() {
 					slot_changed.send(SlotChanged(slot, specifier.clone()));
 				}
