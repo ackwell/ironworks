@@ -4,6 +4,8 @@
 
 mod file;
 
+#[cfg(feature = "eqdp")]
+pub mod eqdp;
 #[cfg(feature = "exd")]
 pub mod exd;
 #[cfg(feature = "exh")]
