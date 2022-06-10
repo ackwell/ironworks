@@ -38,7 +38,7 @@ impl EquipmentDeformerParameter {
 	pub fn set(&self, id: u16) -> Set {
 		// Sets are laid out sequentially - grab the index of the block it should reside in.
 		let block_index = usize::try_from(id / self.block_size).unwrap();
-		if block_index > self.block_offsets.len() {
+		if block_index >= self.block_offsets.len() {
 			return Default::default();
 		}
 
@@ -50,7 +50,7 @@ impl EquipmentDeformerParameter {
 
 		// Read the entry from the data block.
 		let mut cursor = Cursor::new(&self.data);
-		cursor.set_position((block_offset + id % self.block_size).into());
+		cursor.set_position(((block_offset + id % self.block_size) * 2).into());
 		Set(bitfield::Set::read(&mut cursor).unwrap())
 	}
 }
