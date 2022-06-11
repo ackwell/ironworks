@@ -5,9 +5,10 @@ use bevy::{
 	render::{
 		render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
 		render_resource::{
-			BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
+			AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayout,
 			BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType,
-			SamplerBindingType, ShaderStages, TextureSampleType, TextureViewDimension,
+			FilterMode, SamplerBindingType, SamplerDescriptor, ShaderStages, TextureSampleType,
+			TextureViewDimension,
 		},
 		renderer::RenderDevice,
 	},
@@ -84,19 +85,37 @@ impl RenderAsset for Material {
 
 		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
 		// TODO: I really should be specialising for this in some way, binding everything is pants on head.
-		let (color_map_0_view, color_map_0_sampler) =
+		let (color_map_0_view, _) =
 			get_texture!(&extracted_asset.samplers.get(&0x1E6FEF9C).cloned());
-		let (color_map_1_view, color_map_1_sampler) =
+		let (color_map_1_view, _) =
 			get_texture!(&extracted_asset.samplers.get(&0x6968DF0A).cloned());
-		let (diffuse_view, diffuse_sampler) =
-			get_texture!(&extracted_asset.samplers.get(&0x115306BE).cloned());
-		let (normal_view, normal_sampler) =
-			get_texture!(&extracted_asset.samplers.get(&0x0C5EC1F1).cloned());
+		let (diffuse_view, _) = get_texture!(&extracted_asset.samplers.get(&0x115306BE).cloned());
+		let (normal_view, _) = get_texture!(&extracted_asset.samplers.get(&0x0C5EC1F1).cloned());
+		let (color_set_view, _) = get_texture!(&extracted_asset.color_set);
 
-		// Colorset stuff
-		let (color_set_view, color_set_sampler) = get_texture!(&extracted_asset.color_set);
-		// TODO: this is incredibly janky. building a custom sampler here for non-blurry lookup in the normal. realistically, the game shaders actually bind the normal texture twice, once as "Normal", once as "Index", with the latter having the seperate sampler. This is relying on the default sampler using nearest filtering.
-		let index_sampler = &render_device.create_sampler(&Default::default());
+		// The game doesn't store samplers with textures, or indeed seemingly in materials - set up.
+		// TODO: this effectively means we're wasting samplers on the Image struct - seperate asset handling?
+		// TODO: work out how to configure mipmap usage, this gets really blurry really quickly
+		let sampler_description_linear = SamplerDescriptor {
+			mag_filter: FilterMode::Linear,
+			min_filter: FilterMode::Linear,
+			mipmap_filter: FilterMode::Linear,
+			..Default::default()
+		};
+		let sampler_mirror = &render_device.create_sampler(&SamplerDescriptor {
+			address_mode_u: AddressMode::MirrorRepeat,
+			address_mode_v: AddressMode::MirrorRepeat,
+			address_mode_w: AddressMode::MirrorRepeat,
+			..sampler_description_linear
+		});
+		let sampler_repeat = &render_device.create_sampler(&SamplerDescriptor {
+			address_mode_u: AddressMode::Repeat,
+			address_mode_v: AddressMode::Repeat,
+			address_mode_w: AddressMode::Repeat,
+			..sampler_description_linear
+		});
+		// TODO: Realistically, the game shaders actually bind the normal texture twice, once as "Normal", once as "Index", with the latter having the seperate sampler. This is relying on the default sampler using nearest filtering.
+		let sampler_nearest = &render_device.create_sampler(&Default::default());
 
 		// TODO: work out how to generate the bind group + layout because this is getting dumb
 		let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -109,7 +128,7 @@ impl RenderAsset for Material {
 				},
 				BindGroupEntry {
 					binding: 1,
-					resource: BindingResource::Sampler(color_map_0_sampler),
+					resource: BindingResource::Sampler(sampler_mirror),
 				},
 				BindGroupEntry {
 					binding: 2,
@@ -117,7 +136,7 @@ impl RenderAsset for Material {
 				},
 				BindGroupEntry {
 					binding: 3,
-					resource: BindingResource::Sampler(color_map_1_sampler),
+					resource: BindingResource::Sampler(sampler_mirror),
 				},
 				BindGroupEntry {
 					binding: 4,
@@ -125,7 +144,7 @@ impl RenderAsset for Material {
 				},
 				BindGroupEntry {
 					binding: 5,
-					resource: BindingResource::Sampler(normal_sampler),
+					resource: BindingResource::Sampler(sampler_mirror),
 				},
 				BindGroupEntry {
 					binding: 6,
@@ -133,11 +152,11 @@ impl RenderAsset for Material {
 				},
 				BindGroupEntry {
 					binding: 7,
-					resource: BindingResource::Sampler(color_set_sampler),
+					resource: BindingResource::Sampler(sampler_mirror),
 				},
 				BindGroupEntry {
 					binding: 8,
-					resource: BindingResource::Sampler(index_sampler),
+					resource: BindingResource::Sampler(sampler_nearest),
 				},
 				BindGroupEntry {
 					binding: 9,
@@ -145,7 +164,7 @@ impl RenderAsset for Material {
 				},
 				BindGroupEntry {
 					binding: 10,
-					resource: BindingResource::Sampler(diffuse_sampler),
+					resource: BindingResource::Sampler(sampler_repeat),
 				},
 			],
 		});

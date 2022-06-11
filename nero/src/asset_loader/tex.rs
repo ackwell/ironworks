@@ -1,10 +1,7 @@
 use bevy::{
 	asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
-	render::render_resource::{
-		AddressMode, Extent3d, FilterMode, SamplerDescriptor, TextureDescriptor, TextureDimension,
-		TextureFormat,
-	},
+	render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat},
 };
 use ironworks::file::{tex, File};
 
@@ -59,18 +56,6 @@ fn convert_tex(tex: tex::Texture) -> Image {
 			other => todo!("Texture dimension: {other:?}"),
 		},
 		..image.texture_descriptor
-	};
-
-	// TODO: xiv textures don't bundle sampler info, work out how to derive this
-	// TODO: work out how to configure mipmap usage, this gets really blurry really quickly
-	image.sampler_descriptor = SamplerDescriptor {
-		address_mode_u: AddressMode::MirrorRepeat,
-		address_mode_v: AddressMode::MirrorRepeat,
-		address_mode_w: AddressMode::MirrorRepeat,
-		mag_filter: FilterMode::Linear,
-		min_filter: FilterMode::Linear,
-		mipmap_filter: FilterMode::Linear,
-		..image.sampler_descriptor
 	};
 
 	image
