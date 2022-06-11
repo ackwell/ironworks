@@ -16,6 +16,8 @@ pub mod exl;
 pub mod mdl;
 #[cfg(feature = "mtrl")]
 pub mod mtrl;
+#[cfg(feature = "pbd")]
+pub mod pbd;
 #[cfg(feature = "tex")]
 pub mod tex;
 
