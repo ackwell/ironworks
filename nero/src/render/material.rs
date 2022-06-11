@@ -36,6 +36,7 @@ pub enum MaterialKind {
 
 	Bg,
 	Character,
+	Skin,
 }
 
 #[derive(Clone, TypeUuid)]
@@ -82,10 +83,13 @@ impl RenderAsset for Material {
 		}
 
 		// TODO: work out how i want to handle the sampler IDs without like literally hardcoding them.
+		// TODO: I really should be specialising for this in some way, binding everything is pants on head.
 		let (color_map_0_view, color_map_0_sampler) =
 			get_texture!(&extracted_asset.samplers.get(&0x1E6FEF9C).cloned());
 		let (color_map_1_view, color_map_1_sampler) =
 			get_texture!(&extracted_asset.samplers.get(&0x6968DF0A).cloned());
+		let (diffuse_view, diffuse_sampler) =
+			get_texture!(&extracted_asset.samplers.get(&0x115306BE).cloned());
 		let (normal_view, normal_sampler) =
 			get_texture!(&extracted_asset.samplers.get(&0x0C5EC1F1).cloned());
 
@@ -135,6 +139,14 @@ impl RenderAsset for Material {
 					binding: 8,
 					resource: BindingResource::Sampler(index_sampler),
 				},
+				BindGroupEntry {
+					binding: 9,
+					resource: BindingResource::TextureView(diffuse_view),
+				},
+				BindGroupEntry {
+					binding: 10,
+					resource: BindingResource::Sampler(diffuse_sampler),
+				},
 			],
 		});
 
@@ -160,6 +172,7 @@ impl Material {
 			MaterialKind::Unknown => "shader/placeholder.wgsl",
 			MaterialKind::Bg => "shader/bg.wgsl",
 			MaterialKind::Character => "shader/character.wgsl",
+			MaterialKind::Skin => "shader/skin.wgsl",
 			#[allow(unreachable_patterns)]
 			other => {
 				warn!("Unhandled material kind: {other:?}");
@@ -240,6 +253,22 @@ impl Material {
 				},
 				BindGroupLayoutEntry {
 					binding: 8,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Sampler(SamplerBindingType::Filtering),
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 9,
+					visibility: ShaderStages::FRAGMENT,
+					ty: BindingType::Texture {
+						sample_type: TextureSampleType::Float { filterable: true },
+						view_dimension: TextureViewDimension::D2,
+						multisampled: false,
+					},
+					count: None,
+				},
+				BindGroupLayoutEntry {
+					binding: 10,
 					visibility: ShaderStages::FRAGMENT,
 					ty: BindingType::Sampler(SamplerBindingType::Filtering),
 					count: None,

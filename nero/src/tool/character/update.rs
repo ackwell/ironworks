@@ -89,13 +89,14 @@ pub fn update_slot(
 		// trying to add a model that won't exist.
 		let resolved_character = match character {
 			None => continue 'slots,
-			Some(a) => a,
+			Some(character) => character,
 		};
 
 		// Build + insert the model entity.
 		// TODO: non-equip models
 		// TODO: variants (need to check imc?)
 		// TODO: some IDs don't have an entry for a given slot - how do i surface that error? Might be able to store the handles of the models I load and check the asset's load states (group load state) for errors?
+		// TODO: racial scaling
 		let mut entity = commands.spawn();
 		entity.insert(slot).with_children(|children| {
 			children.spawn_scene(asset_server.load(&format!(

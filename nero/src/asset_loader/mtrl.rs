@@ -39,6 +39,7 @@ fn load_mtrl<'a>(
 	let kind = match material.shader() {
 		"bg.shpk" => MaterialKind::Bg,
 		"character.shpk" => MaterialKind::Character,
+		"skin.shpk" => MaterialKind::Skin,
 		other => {
 			warn!("Unhandled shader: {other}");
 			MaterialKind::Unknown
