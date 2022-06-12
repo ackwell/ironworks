@@ -2,6 +2,7 @@
 
 use std::{
 	borrow::Cow,
+	collections::HashMap,
 	fmt::Debug,
 	io::{Cursor, Read, Seek, SeekFrom},
 };
@@ -36,6 +37,7 @@ impl File for PreBoneDeformer {
 #[br(little)]
 #[derive(Debug)]
 struct Deformer {
+	// this is the character / race ID (cXXXX)
 	id: u16,
 	node_index: u16,
 
@@ -43,45 +45,43 @@ struct Deformer {
 	data_offset: i32,
 
 	#[br(
-    if(data_offset > 0),
-    seek_before = SeekFrom::Start(data_offset.try_into().unwrap()),
-    restore_position,
-  )]
-	data: Option<DeformerData>,
+		if(data_offset > 0),
+		seek_before = SeekFrom::Start(data_offset.try_into().unwrap()),
+		restore_position,
+	)]
+	bone_matrices: Option<BoneMatrices>,
 
 	// TODO: apparently 2.x pbds don't include this?
-	unk: f32,
+	unknown: f32,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct Node {
-	super_index: u16,
-	sub_top_index: u16,
-	next_index: u16,
-	header_index: u16,
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct DeformerData {
+struct BoneMatrices {
 	#[br(temp, parse_with = current_position)]
-	deformer_offset: u64,
+	base_offset: u64,
 
 	#[br(temp)]
 	bone_count: u32,
 
-	#[br(args {
-    count: bone_count.try_into().unwrap(),
-    inner: (deformer_offset,)
-  })]
+	#[br(temp, args {
+		count: bone_count.try_into().unwrap(),
+		inner: (base_offset,)
+	})]
 	bone_names: Vec<BoneName>,
 
-	// NOTE: this is 1:1 with the bone names above - should probably expose as tuples or a struct
-	#[br(align_before = 4, count = bone_count)]
+	#[br(temp, align_before = 4, count = bone_count)]
 	matrices: Vec<[[f32; 4]; 3]>,
+
+	#[br(calc = (0..bone_count)
+		.map(|index| {
+			let i = usize::try_from(index).unwrap();
+			(bone_names[i].bone_name.to_string(), matrices[i])
+		})
+		.collect()
+	)]
+	bone_matrices: HashMap<String, [[f32; 4]; 3]>,
 }
 
 #[binread]
@@ -92,10 +92,20 @@ struct BoneName {
 	offset: i16,
 
 	#[br(
-    seek_before = SeekFrom::Start(base_offset + u64::try_from(offset).unwrap()),
-    restore_position,
-  )]
+		seek_before = SeekFrom::Start(base_offset + u64::try_from(offset).unwrap()),
+		restore_position,
+	)]
 	bone_name: NullString,
+}
+
+#[binread]
+#[br(little)]
+#[derive(Debug)]
+struct Node {
+	super_index: u16,
+	first_child_index: u16,
+	next_index: u16,
+	header_index: u16,
 }
 
 fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
