@@ -3,7 +3,7 @@
 use std::{
 	borrow::Cow,
 	collections::HashMap,
-	fmt::Debug,
+	fmt,
 	io::{Cursor, Read, Seek, SeekFrom},
 };
 
@@ -13,6 +13,7 @@ use crate::error::Result;
 
 use super::file::File;
 
+/// Collection of bone deformations for transforming between character skeletons.
 #[binread]
 #[br(little)]
 #[derive(Debug)]
@@ -21,10 +22,28 @@ pub struct PreBoneDeformer {
 	data_count: u32,
 
 	#[br(count = data_count)]
-	deformers: Vec<Deformer>,
+	deformers: Vec<DeformerData>,
 
 	#[br(count = data_count)]
-	nodes: Vec<Node>,
+	nodes: Vec<NodeData>,
+}
+
+impl PreBoneDeformer {
+	/// Get an iterator over the deformers in this file.
+	pub fn deformers(&self) -> impl Iterator<Item = Deformer> {
+		self.deformers.iter().map(|deformer| Deformer {
+			pbd: self,
+			deformer,
+		})
+	}
+
+	/// Get the root of the node tree.
+	pub fn root_node(&self) -> Option<Node> {
+		self.nodes
+			.iter()
+			.find(|node| node.parent_index == u16::MAX)
+			.map(|node| Node { pbd: self, node })
+	}
 }
 
 impl File for PreBoneDeformer {
@@ -33,11 +52,92 @@ impl File for PreBoneDeformer {
 	}
 }
 
+/// A node within the deformer tree.
+pub struct Node<'a> {
+	pbd: &'a PreBoneDeformer,
+	node: &'a NodeData,
+}
+
+impl Node<'_> {
+	/// Get this node's corresponding deformer.
+	pub fn deformer(&self) -> Deformer {
+		Deformer {
+			pbd: self.pbd,
+			deformer: &self.pbd.deformers[usize::from(self.node.deformer_index)],
+		}
+	}
+
+	/// Get the parent node within the tree.
+	pub fn parent(&self) -> Option<Node> {
+		self.get_relation(self.node.parent_index)
+	}
+
+	/// Get the first child node, if this node has any children.
+	pub fn first_child(&self) -> Option<Node> {
+		self.get_relation(self.node.first_child_index)
+	}
+
+	/// Get the next sibling node.
+	pub fn next(&self) -> Option<Node> {
+		self.get_relation(self.node.next_index)
+	}
+
+	fn get_relation(&self, index: u16) -> Option<Node> {
+		match index {
+			u16::MAX => None,
+			index => Some(Node {
+				pbd: self.pbd,
+				node: &self.pbd.nodes[usize::from(index)],
+			}),
+		}
+	}
+}
+
+impl fmt::Debug for Node<'_> {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.node.fmt(formatter)
+	}
+}
+
+/// Deformer information for a character ID.
+pub struct Deformer<'a> {
+	pbd: &'a PreBoneDeformer,
+	deformer: &'a DeformerData,
+}
+
+impl Deformer<'_> {
+	/// Get this deformer's corresponding node in the tree.
+	pub fn node(&self) -> Node {
+		Node {
+			pbd: self.pbd,
+			node: &self.pbd.nodes[usize::from(self.deformer.node_index)],
+		}
+	}
+
+	/// Get the character ID this deformer represents.
+	pub fn id(&self) -> u16 {
+		self.deformer.id
+	}
+
+	/// Get the bone matrices for this deformer, if any exist.
+	pub fn bone_matrices(&self) -> Option<&HashMap<String, BoneMatrix>> {
+		self.deformer
+			.bone_matrices
+			.as_ref()
+			.map(|s| &s.bone_matrices)
+	}
+}
+
+impl fmt::Debug for Deformer<'_> {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.deformer.fmt(formatter)
+	}
+}
+
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct Deformer {
-	// this is the character / race ID (cXXXX)
+struct DeformerData {
 	id: u16,
 	node_index: u16,
 
@@ -52,12 +152,13 @@ struct Deformer {
 	bone_matrices: Option<BoneMatrices>,
 
 	// TODO: apparently 2.x pbds don't include this?
-	unknown: f32,
+	_unknown: f32,
 }
+
+type BoneMatrix = [[f32; 4]; 3];
 
 #[binread]
 #[br(little)]
-#[derive(Debug)]
 struct BoneMatrices {
 	#[br(temp, parse_with = current_position)]
 	base_offset: u64,
@@ -72,7 +173,7 @@ struct BoneMatrices {
 	bone_names: Vec<BoneName>,
 
 	#[br(temp, align_before = 4, count = bone_count)]
-	matrices: Vec<[[f32; 4]; 3]>,
+	matrices: Vec<BoneMatrix>,
 
 	#[br(calc = (0..bone_count)
 		.map(|index| {
@@ -81,7 +182,13 @@ struct BoneMatrices {
 		})
 		.collect()
 	)]
-	bone_matrices: HashMap<String, [[f32; 4]; 3]>,
+	bone_matrices: HashMap<String, BoneMatrix>,
+}
+
+impl fmt::Debug for BoneMatrices {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		self.bone_matrices.fmt(formatter)
+	}
 }
 
 #[binread]
@@ -101,11 +208,11 @@ struct BoneName {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct Node {
-	super_index: u16,
+struct NodeData {
+	parent_index: u16,
 	first_child_index: u16,
 	next_index: u16,
-	header_index: u16,
+	deformer_index: u16,
 }
 
 fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
