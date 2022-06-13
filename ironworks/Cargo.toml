@@ -26,6 +26,7 @@ exl = []
 mdl = ["dep:half", "dep:modular-bitfield", "dep:num_enum"]
 mtrl = []
 pbd = []
+sklb = []
 tex = ["dep:modular-bitfield", "dep:num_enum"]
 
 [dependencies]
