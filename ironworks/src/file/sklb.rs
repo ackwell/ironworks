@@ -6,16 +6,21 @@ use std::{
 };
 
 use binrw::{binread, count, until_eof, BinRead, BinResult, ReadOptions};
+use getset::{CopyGetters, Getters};
 
 use crate::error::Result;
 
 use super::file::File;
 
+/// Skeleton data and related mappings.
 #[binread]
 #[br(little, magic = b"blks")]
-#[derive(Debug)]
+#[derive(Debug, Getters, CopyGetters)]
 pub struct SkeletonBinary {
 	// File header.
+	/// Version of this skelton file. This is a XIV-specific version tag, and does
+	/// not directly correlate with the version of the embedded tagfile.
+	#[get_copy = "pub"]
 	version: Version,
 
 	#[br(args(version))]
@@ -32,18 +37,55 @@ pub struct SkeletonBinary {
 	#[br(temp)]
 	layer_count: u16,
 
+	///
 	#[br(args {
 		count: layer_count.into(),
 		inner: (header.layer_offset().into(),)
 	})]
+	#[get = "pub"]
 	animation_layers: Vec<AnimationLayer>,
 
-	// TODO: read this properly?
+	/// Skeleton data, in Havok binary tagfile format.
 	#[br(
 		seek_before = SeekFrom::Start(header.skeleton_offset().into()),
 		parse_with = until_eof,
 	)]
+	#[get = "pub"]
 	skeleton: Vec<u8>,
+}
+
+impl SkeletonBinary {
+	/// ID of the character associated with this skeleton.
+	pub fn character_id(&self) -> u32 {
+		match &self.header {
+			Header::V1(header) => header.character_id,
+			Header::V2(header) => header.character_id,
+		}
+	}
+
+	///
+	pub fn mapper_character_id(&self) -> [u32; 4] {
+		match &self.header {
+			Header::V1(header) => header.mapper_character_id,
+			Header::V2(header) => header.mapper_character_id,
+		}
+	}
+
+	///
+	pub fn connect_bones(&self) -> Vec<i16> {
+		match &self.header {
+			Header::V1(header) => header.connect_bones.to_vec(),
+			Header::V2(header) => vec![header.connect_bone_index],
+		}
+	}
+
+	///
+	pub fn lod_sample_bone_count(&self) -> Option<[i16; 3]> {
+		match &self.header {
+			Header::V1(header) => Some(header.lod_sample_bone_count),
+			Header::V2(_) => None,
+		}
+	}
 }
 
 impl File for SkeletonBinary {
@@ -52,10 +94,12 @@ impl File for SkeletonBinary {
 	}
 }
 
+/// XIV skeleton file version.
+#[allow(missing_docs)]
 #[binread]
 #[br(little)]
 #[derive(Clone, Copy, Debug)]
-enum Version {
+pub enum Version {
 	#[br(magic = b"0011")]
 	V1100,
 
@@ -69,14 +113,12 @@ enum Version {
 	V1300,
 }
 
-// #[binread]
 #[derive(Debug)]
 enum Header {
 	V1(HeaderV1),
 	V2(HeaderV2),
 }
 
-// TODO: These might make more sense on the main struct, as they'll probably need to be exposed there for public interface anyway
 impl Header {
 	fn layer_offset(&self) -> u32 {
 		match self {
@@ -134,9 +176,15 @@ struct HeaderV2 {
 	mapper_character_id: [u32; 4],
 }
 
-#[derive(Debug)]
-struct AnimationLayer {
+///
+#[derive(Debug, Getters, CopyGetters)]
+pub struct AnimationLayer {
+	///
+	#[get_copy = "pub"]
 	layer: u32,
+
+	///
+	#[get = "pub"]
 	bone_indices: Vec<i16>,
 }
 
