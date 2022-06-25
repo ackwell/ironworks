@@ -26,7 +26,7 @@ struct TransientMarker;
 
 fn asset_test(
 	mut commands: Commands,
-	// asset_server: Res<AssetServer>,
+	asset_server: Res<AssetServer>,
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut materials: ResMut<Assets<StandardMaterial>>,
 	ironworks: Res<IronworksResource>,
@@ -68,79 +68,15 @@ fn asset_test(
 	// 	..default()
 	// });
 
-	let sklb = ironworks
-		.read()
-		.unwrap()
-		.file::<sklb::SkeletonBinary>("chara/human/c1801/skeleton/base/b0001/skl_c1801b0001.sklb")
-		.unwrap();
-
-	let root_node = tagfile::read(&mut Cursor::new(sklb.skeleton())).unwrap();
-
-	let named_variant = root_node
-		.field("namedVariants")
-		.unwrap()
-		.as_vector()
-		.unwrap()
-		.iter()
-		.find_map(|value| {
-			let node = root_node.node(*value.as_node().unwrap());
-			match node.field("name").unwrap().as_string().unwrap().as_str() {
-				"hkaAnimationContainer" => Some(node),
-				_ => None,
-			}
-		})
-		.unwrap();
-	let animation_container =
-		named_variant.node(*named_variant.field("variant").unwrap().as_node().unwrap());
-	let skeleton = animation_container.node(
-		*animation_container
-			.field("skeletons")
-			.unwrap()
-			.as_vector()
-			.unwrap()[0]
-			.as_node()
-			.unwrap(),
-	);
-
-	let parents = Vec::<i32>::try_from(skeleton.field("parentIndices").unwrap()).unwrap();
-	let pose = Vec::<Vec<f32>>::try_from(skeleton.field("referencePose").unwrap()).unwrap();
-
-	let pose_iter = std::iter::zip(parents.into_iter(), pose.into_iter());
-
-	let mesh = meshes.add(Mesh::from(Box::new(0.02, 0.01, 0.01)));
-	let material = materials.add(Color::rgb(1.0, 0.0, 0.0).into());
-
-	// TODO: probably need to do this in reverse or something
-
-	let mut root_entity = commands.spawn();
-	root_entity
+	let skeleton: Handle<Scene> =
+		asset_server.load("iw://chara/human/c0101/skeleton/base/b0001/skl_c0101b0001.sklb");
+	commands
+		.spawn()
 		.insert(TransientMarker)
-		.insert_bundle(MaterialMeshBundle {
-			mesh: meshes.add(Mesh::from(Box::new(0.02, 0.02, 0.02))),
-			material: materials.add(Color::rgb(0.0, 1.0, 0.0).into()),
-			..Default::default()
+		.insert_bundle(TransformBundle::default())
+		.with_children(|children| {
+			children.spawn_scene(skeleton);
 		});
-	let mut tree = HashMap::new();
-	tree.insert(-1, root_entity.id());
-
-	for (index, (parent, pos)) in pose_iter.enumerate() {
-		let entity = commands
-			.spawn_bundle(MaterialMeshBundle {
-				mesh: mesh.clone(),
-				material: material.clone(),
-				transform: Transform {
-					translation: Vec3::from_slice(&pos[0..3]),
-					rotation: Quat::from_slice(&pos[4..8]),
-					..Default::default()
-				},
-				..Default::default()
-			})
-			.id();
-		commands
-			.entity(*tree.get(&parent).unwrap())
-			.add_child(entity);
-		tree.insert(index.try_into().unwrap(), entity);
-	}
 
 	commands.insert_resource(AmbientLight {
 		brightness: 1.0,
