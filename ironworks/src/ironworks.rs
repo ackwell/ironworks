@@ -37,7 +37,7 @@ pub trait Resource: Send + Sync + 'static {
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
 
 	/// List the contents of the specified `path`.
-	fn list(&self, path: &str) -> Vec<ListEntry>;
+	fn list(&self, path: &str) -> Result<Vec<ListEntry>>;
 }
 
 /// Core ironworks struct. Add one or more resources to query files.
@@ -92,12 +92,17 @@ impl Ironworks {
 	}
 
 	/// List the content of the specified `path`.
-	pub fn list<'a>(&'a self, path: &'a str) -> impl Iterator<Item = ListEntry> + 'a {
+	pub fn list(&self, path: &str) -> Result<Vec<ListEntry>> {
 		self.resources
 			.iter()
 			.rev()
-			.flat_map(|resource| resource.list(path))
-			.unique()
+			.map(|resource| resource.list(path))
+			.flatten_ok()
+			.unique_by(|res| match res {
+				Ok(entry) => Some(entry.path.clone()),
+				_ => None,
+			})
+			.collect()
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

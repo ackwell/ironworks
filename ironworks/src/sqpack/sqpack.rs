@@ -1,4 +1,7 @@
-use std::{convert::Infallible, fmt::Debug};
+use std::{convert::Infallible, fmt::Debug, iter, sync::Arc};
+
+use either::Either;
+use itertools::Itertools;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -36,6 +39,12 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 		self.resource.version(&path_metadata)
 	}
 
+	fn index(&self, path_metadata: &R::PathMetadata) -> Result<Arc<Index>> {
+		self.indexes.try_get_or_insert(path_metadata.clone(), || {
+			Index::new(path_metadata, &self.resource)
+		})
+	}
+
 	/// Read the file at `path` from SqPack.
 	pub fn file(&self, path: &str) -> Result<Vec<u8>> {
 		// SqPack paths are always lower case.
@@ -44,12 +53,7 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 		// Look up the location of the requested path.
 		let path_metadata = self.path_metadata(&path)?;
 
-		let location = self
-			.indexes
-			.try_get_or_insert(path_metadata.clone(), || {
-				Index::new(&path_metadata, &self.resource)
-			})?
-			.find(&path)?;
+		let location = self.index(&path_metadata)?.find(&path)?;
 
 		// Build a File representation.
 		let dat = self
@@ -61,7 +65,7 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 	}
 
 	/// List the contents of the specified `path`.
-	pub fn list(&self, path: &str) -> Vec<ListEntry> {
+	pub fn list(&self, path: &str) -> Result<Vec<ListEntry>> {
 		let hierarchy = self
 			.hierarchy
 			.try_get_or_insert(|| -> Result<_, Infallible> { Ok(self.resource.hierarchy()) })
@@ -90,16 +94,19 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 		current
 			.into_iter()
 			.map(|node| match node {
-				Hierarchy::Item(_) => ListEntry {
-					kind: EntryKind::File,
-					// TODO: list out the hashes in the path meta at this point.
-					path: "#TODO".into(),
-				},
-				Hierarchy::Group(name, _) => ListEntry {
+				Hierarchy::Item(_path_metadata) => {
+					// let index = self.index(path_metadata)?;
+					Ok(Either::Left(iter::once(ListEntry {
+						kind: EntryKind::File,
+						path: "#TODO".into(),
+					})))
+				}
+				Hierarchy::Group(name, _) => Ok(Either::Right(iter::once(ListEntry {
 					kind: EntryKind::Directory,
 					path: name.into(),
-				},
+				}))),
 			})
+			.flatten_ok()
 			.collect()
 	}
 
@@ -124,7 +131,7 @@ where
 		self.file(path)
 	}
 
-	fn list(&self, path: &str) -> Vec<ListEntry> {
+	fn list(&self, path: &str) -> Result<Vec<ListEntry>> {
 		self.list(path)
 	}
 }

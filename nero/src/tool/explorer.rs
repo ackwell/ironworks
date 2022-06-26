@@ -37,7 +37,13 @@ fn render_path(
 ) {
 	let entries = list_cache
 		.entry(path.to_string())
-		.or_insert_with(|| ironworks.read().unwrap().list(path).collect())
+		.or_insert_with(|| {
+			ironworks
+				.read()
+				.unwrap()
+				.list(path)
+				.expect("TODO: error handling")
+		})
 		// TODO: Can this be avoided? Without it, the recursion leads to nested borrows.
 		//       Might able to avoid via sorting folders first...
 		.clone();

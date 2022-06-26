@@ -2371,6 +2371,7 @@ version = "0.3.1"
 dependencies = [
  "binrw",
  "derivative",
+ "either",
  "enum-as-inner",
  "flate2",
  "getset",
