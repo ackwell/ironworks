@@ -82,6 +82,17 @@ impl FsResource {
 		}
 	}
 
+	// A category exists if either index file exists for chunk 0.
+	fn category_exists(&self, repository: u8, category: u8) -> bool {
+		[
+			self.build_file_path(repository, category, 0, "index"),
+			self.build_file_path(repository, category, 0, "index2"),
+		]
+		.iter()
+		.filter_map(|mp| mp.as_ref().ok())
+		.any(|path| path.exists())
+	}
+
 	fn build_file_path(
 		&self,
 		repository: u8,
@@ -143,21 +154,23 @@ impl sqpack::Resource for FsResource {
 	}
 
 	fn hierarchy(&self) -> Vec<sqpack::Hierarchy<Self::PathMetadata>> {
-		// TODO: this should check that the path exists on disk first so it doesn't clutter up with repo/cat combos that don't actually exist
+		let item = |repository: u8, category: u8| {
+			self.category_exists(repository, category)
+				.then(|| sqpack::Hierarchy::Item((repository, category)))
+		};
+
+		let group = |expansion: String, repository: u8, category: u8| {
+			item(repository, category).map(|item| sqpack::Hierarchy::Group(expansion, vec![item]))
+		};
+
 		let repositories = |category: u8| {
 			self.repositories
 				.iter()
 				.enumerate()
-				.map(|(index, repository)| match repository.as_str() {
+				.filter_map(|(index, repository)| match repository.as_str() {
 					// The default repository has no folder representation
-					"ffxiv" => sqpack::Hierarchy::Item((0, category)),
-					expansion => sqpack::Hierarchy::Group(
-						expansion.into(),
-						vec![sqpack::Hierarchy::Item((
-							u8::try_from(index).unwrap(),
-							category,
-						))],
-					),
+					"ffxiv" => item(0, category),
+					expansion => group(expansion.into(), u8::try_from(index).unwrap(), category),
 				})
 				.collect::<Vec<_>>()
 		};
