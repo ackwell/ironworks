@@ -1,14 +1,5 @@
-use std::io::Cursor;
-
-use bevy::{
-	prelude::{shape::Box, *},
-	utils::HashMap,
-};
-use ironworks::file::sklb;
+use bevy::prelude::*;
 use iyes_loopless::prelude::AppLooplessStateExt;
-use mayhem::tagfile;
-
-use crate::asset_io::IronworksResource;
 
 use super::Tool;
 
@@ -27,9 +18,8 @@ struct TransientMarker;
 fn asset_test(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
-	mut meshes: ResMut<Assets<Mesh>>,
-	mut materials: ResMut<Assets<StandardMaterial>>,
-	ironworks: Res<IronworksResource>,
+	// mut meshes: ResMut<Assets<Mesh>>,
+	// mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
 	// 2D texture test
 	// commands.spawn_bundle(OrthographicCameraBundle::new_2d());
