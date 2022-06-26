@@ -1,10 +1,10 @@
-use std::fmt::Debug;
+use std::{convert::Infallible, fmt::Debug};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	ironworks::{EntryKind, ListEntry, Resource},
 	sqpack,
-	utility::{HashMapCache, HashMapCacheExt},
+	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 };
 
 use super::{file, index::Index, Hierarchy};
@@ -15,6 +15,7 @@ pub struct SqPack<R, K> {
 	resource: R,
 
 	indexes: HashMapCache<K, Index>,
+	hierarchy: OptionCache<Vec<Hierarchy<K>>>,
 }
 
 impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
@@ -25,6 +26,7 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 			resource,
 
 			indexes: Default::default(),
+			hierarchy: Default::default(),
 		}
 	}
 
@@ -59,15 +61,18 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 	}
 
 	/// List the contents of the specified `path`.
-	pub fn list(&self, path: &str) -> impl Iterator<Item = ListEntry> {
-		// TODO: do this eagerly?
-		let mut hierarchy = self.resource.hierarchy();
+	pub fn list(&self, path: &str) -> Vec<ListEntry> {
+		let hierarchy = self
+			.hierarchy
+			.try_get_or_insert(|| -> Result<_, Infallible> { Ok(self.resource.hierarchy()) })
+			.unwrap();
 
 		// TODO: this isn't... nice. what's the best way to represent this?
 		// If there's a requested path, drill into the hierarchy to the appropriate location.
+		let mut current = hierarchy.as_ref().iter().collect::<Vec<_>>();
 		if !path.is_empty() {
 			for segment in path.split('/') {
-				hierarchy = hierarchy
+				current = current
 					.into_iter()
 					.filter_map(|node| match node {
 						Hierarchy::Group(name, children) if name == segment => Some(children),
@@ -76,23 +81,26 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 					.flatten()
 					.collect::<Vec<_>>();
 
-				if hierarchy.is_empty() {
+				if current.is_empty() {
 					break;
 				}
 			}
 		}
 
-		hierarchy.into_iter().map(|node| match node {
-			Hierarchy::Item(_) => ListEntry {
-				kind: EntryKind::File,
-				// TODO: list out the hashes in the path meta at this point.
-				path: "#TODO".into(),
-			},
-			Hierarchy::Group(name, _) => ListEntry {
-				kind: EntryKind::Directory,
-				path: name,
-			},
-		})
+		current
+			.into_iter()
+			.map(|node| match node {
+				Hierarchy::Item(_) => ListEntry {
+					kind: EntryKind::File,
+					// TODO: list out the hashes in the path meta at this point.
+					path: "#TODO".into(),
+				},
+				Hierarchy::Group(name, _) => ListEntry {
+					kind: EntryKind::Directory,
+					path: name.into(),
+				},
+			})
+			.collect()
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<R::PathMetadata> {
@@ -106,7 +114,7 @@ impl<R: sqpack::Resource> SqPack<R, R::PathMetadata> {
 impl<R> Resource for SqPack<R, R::PathMetadata>
 where
 	R: sqpack::Resource + Send + Sync + 'static,
-	R::PathMetadata: Send,
+	R::PathMetadata: Send + Sync,
 {
 	fn version(&self, path: &str) -> Result<String> {
 		self.version(path)
@@ -116,7 +124,7 @@ where
 		self.file(path)
 	}
 
-	fn list(&self, path: &str) -> Box<dyn Iterator<Item = ListEntry>> {
-		Box::new(self.list(path))
+	fn list(&self, path: &str) -> Vec<ListEntry> {
+		self.list(path)
 	}
 }

@@ -37,7 +37,7 @@ pub trait Resource: Send + Sync + 'static {
 	fn file(&self, path: &str) -> Result<Vec<u8>>;
 
 	/// List the contents of the specified `path`.
-	fn list(&self, path: &str) -> Box<dyn Iterator<Item = ListEntry>>;
+	fn list(&self, path: &str) -> Vec<ListEntry>;
 }
 
 /// Core ironworks struct. Add one or more resources to query files.

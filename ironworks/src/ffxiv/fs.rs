@@ -84,13 +84,13 @@ impl FsResource {
 
 	// A category exists if either index file exists for chunk 0.
 	fn category_exists(&self, repository: u8, category: u8) -> bool {
-		[
-			self.build_file_path(repository, category, 0, "index"),
-			self.build_file_path(repository, category, 0, "index2"),
-		]
-		.iter()
-		.filter_map(|mp| mp.as_ref().ok())
-		.any(|path| path.exists())
+		["index", "index2"]
+			.iter()
+			.filter_map(|extension| {
+				self.build_file_path(repository, category, 0, extension)
+					.ok()
+			})
+			.any(|path| path.exists())
 	}
 
 	fn build_file_path(
