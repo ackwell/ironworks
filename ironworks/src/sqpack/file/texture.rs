@@ -21,14 +21,14 @@ struct SurfaceBlockInfo {
 #[br(little)]
 #[derive(Debug)]
 struct TexHeader {
-	// attribute: u32,
+	attribute: u32,
 	// format: u32,
 	// width: u16,
 	// height: u16,
 	// depth: u16,
 	// mip_levels: u16,
 	// lod_offsets: [u32; 3],
-	#[br(pad_before = 28)]
+	#[br(pad_before = 24)]
 	surface_offsets: [u32; 13],
 }
 
@@ -76,10 +76,18 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		)?;
 	}
 
+	// The attribute field is a bitset, index 26 signifies if the texture is a cube. Check `file/tex` for full bitset definition.
+	let stride = match texture_header {
+		Some(TexHeader { attribute, .. }) if (attribute >> 25) & 1 == 1 => 6,
+		_ => 1,
+	};
+
 	for (index, block) in blocks.iter().enumerate() {
 		// Move to the expected start position of the block.
 		if let Some(ref header) = texture_header {
-			writer.set_position(header.surface_offsets[index].into());
+			if index % stride == 0 {
+				writer.set_position(header.surface_offsets[index / stride].into());
+			}
 		}
 
 		// Read each sub-block into the writer.
