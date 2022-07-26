@@ -55,6 +55,10 @@ pub enum ErrorValue {
 		sheet: Option<String>,
 	},
 
+	/// A SqPack file.
+	#[cfg(feature = "sqpack")]
+	File(Vec<u8>),
+
 	/// A value not represented by other variants.
 	///
 	/// `ErrorValue`s of the `Other` type should only be `match`ed on with a wildcard
@@ -77,6 +81,9 @@ impl fmt::Display for ErrorValue {
 				"Excel row {}/{row}:{subrow}",
 				sheet.as_deref().unwrap_or("(none)"),
 			),
+
+			#[cfg(feature = "sqpack")]
+			Self::File(file) => write!(formatter, "SqPack file ({} bytes)", file.len()),
 
 			Self::Other(value) => write!(formatter, "{value}"),
 		}

@@ -5,7 +5,7 @@ use binrw::BinRead;
 use crate::error::{Error, Result};
 
 use super::{
-	model,
+	empty, model,
 	shared::{read_failed, FileKind, Header},
 	standard, texture,
 };
@@ -17,15 +17,12 @@ pub fn read(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
 
 	let expected_file_size = header.raw_file_size;
 
-	// TODO: if type 1 and first 64 == second 64, RSF
-	//       if type 1 and first 64 == [0..], empty
-
 	let file_offset = offset + header.size;
 	let out_buffer = match &header.kind {
+		FileKind::Empty => empty::read(reader, header),
 		FileKind::Standard => standard::read(reader, file_offset, header),
 		FileKind::Model => model::read(reader, file_offset, header),
 		FileKind::Texture => texture::read(reader, file_offset, header),
-		_ => todo!("File kind: {:?}", header.kind),
 	}?;
 
 	match out_buffer.len() == expected_file_size.try_into().unwrap() {
