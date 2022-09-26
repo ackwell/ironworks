@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
 use ironworks::excel::Row;
 use std::result::Result;
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 impl MetadataAdapter for BuddySkill {
     fn name() -> String {
         "BuddySkill".to_string()

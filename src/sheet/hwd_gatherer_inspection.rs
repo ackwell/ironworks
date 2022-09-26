@@ -1,9 +1,9 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 use std::vec::Vec;
-use crate::error::PopulateError;
 use crate::utility::read_array;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for HWDGathererInspection {
     fn name() -> String {
         "HWDGathererInspection".to_string()

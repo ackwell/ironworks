@@ -1,9 +1,9 @@
-use ironworks::excel::Row;
 use std::result::Result;
-use std::convert::Infallible;
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
+use std::convert::Infallible;
 impl MetadataAdapter for PublicContent {
     fn name() -> String {
         "PublicContent".to_string()

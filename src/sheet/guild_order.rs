@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
 use std::result::Result;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for GuildOrder {
     fn name() -> String {
         "GuildOrder".to_string()

@@ -1,9 +1,9 @@
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
 use std::result::Result;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
-use ironworks::excel::Row;
 impl MetadataAdapter for YKW {
     fn name() -> String {
         "YKW".to_string()

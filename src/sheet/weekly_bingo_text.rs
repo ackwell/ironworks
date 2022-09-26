@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use std::result::Result;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
 impl MetadataAdapter for WeeklyBingoText {
     fn name() -> String {
         "WeeklyBingoText".to_string()

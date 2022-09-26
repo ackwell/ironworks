@@ -1,8 +1,8 @@
 use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for ActionTransient {
     fn name() -> String {
         "ActionTransient".to_string()

@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
+use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for QuestEffect {
     fn name() -> String {
         "QuestEffect".to_string()

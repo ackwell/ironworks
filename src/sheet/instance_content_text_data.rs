@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for InstanceContentTextData {
     fn name() -> String {
         "InstanceContentTextData".to_string()

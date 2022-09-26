@@ -1,6 +1,6 @@
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 impl MetadataAdapter for TutorialHealer {
     fn name() -> String {

@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for LeveClient {
     fn name() -> String {
         "LeveClient".to_string()

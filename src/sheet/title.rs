@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for Title {
     fn name() -> String {

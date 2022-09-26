@@ -1,9 +1,9 @@
-use crate::utility::read_array;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
-use crate::error::PopulateError;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
 impl MetadataAdapter for EventIconPriority {
     fn name() -> String {
         "EventIconPriority".to_string()

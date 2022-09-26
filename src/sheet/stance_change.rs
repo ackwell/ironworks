@@ -1,9 +1,9 @@
+use std::result::Result;
 use crate::error::PopulateError;
 use std::vec::Vec;
-use crate::utility::read_array;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
+use crate::utility::read_array;
 impl MetadataAdapter for StanceChange {
     fn name() -> String {
         "StanceChange".to_string()

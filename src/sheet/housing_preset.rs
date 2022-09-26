@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 impl MetadataAdapter for HousingPreset {
     fn name() -> String {

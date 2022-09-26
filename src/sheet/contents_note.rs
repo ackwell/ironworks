@@ -1,5 +1,5 @@
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 use std::result::Result;
 use crate::metadata::MetadataAdapter;

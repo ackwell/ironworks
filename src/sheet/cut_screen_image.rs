@@ -1,7 +1,7 @@
-use std::result::Result;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for CutScreenImage {
     fn name() -> String {
         "CutScreenImage".to_string()

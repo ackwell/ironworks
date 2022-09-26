@@ -1,9 +1,9 @@
+use std::vec::Vec;
+use crate::error::PopulateError;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
 use ironworks::excel::Row;
-use std::vec::Vec;
-use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for QuestClassJobReward {
     fn name() -> String {
         "QuestClassJobReward".to_string()

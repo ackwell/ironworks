@@ -1,8 +1,8 @@
 use std::result::Result;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 impl MetadataAdapter for ContentRoulette {
     fn name() -> String {
         "ContentRoulette".to_string()

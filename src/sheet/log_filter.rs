@@ -1,8 +1,8 @@
-use std::result::Result;
-use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
+use std::result::Result;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for LogFilter {
     fn name() -> String {
         "LogFilter".to_string()

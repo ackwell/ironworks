@@ -1,9 +1,9 @@
-use std::vec::Vec;
 use crate::utility::read_array;
 use std::result::Result;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
+use std::vec::Vec;
 impl MetadataAdapter for MonsterNoteTarget {
     fn name() -> String {
         "MonsterNoteTarget".to_string()

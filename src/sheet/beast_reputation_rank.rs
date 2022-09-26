@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
 use std::result::Result;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for BeastReputationRank {
     fn name() -> String {
         "BeastReputationRank".to_string()

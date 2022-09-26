@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
 impl MetadataAdapter for Cutscene {
     fn name() -> String {
         "Cutscene".to_string()

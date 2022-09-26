@@ -1,8 +1,8 @@
+use std::result::Result;
 use ironworks::excel::Row;
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for Jingle {
     fn name() -> String {
         "Jingle".to_string()

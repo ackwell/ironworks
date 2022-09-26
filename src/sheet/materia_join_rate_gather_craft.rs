@@ -1,9 +1,9 @@
-use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use crate::error::PopulateError;
 use std::vec::Vec;
+use crate::utility::read_array;
 impl MetadataAdapter for MateriaJoinRateGatherCraft {
     fn name() -> String {
         "MateriaJoinRateGatherCraft".to_string()

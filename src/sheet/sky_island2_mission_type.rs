@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for SkyIsland2MissionType {
     fn name() -> String {
         "SkyIsland2MissionType".to_string()

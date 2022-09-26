@@ -1,10 +1,10 @@
-use std::vec::Vec;
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
-use crate::utility::read_array;
 use std::result::Result;
-use crate::error::PopulateError;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use crate::error::PopulateError;
+use std::vec::Vec;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for CraftLeveTalk {
     fn name() -> String {
         "CraftLeveTalk".to_string()

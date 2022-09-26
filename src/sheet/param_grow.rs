@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for ParamGrow {
     fn name() -> String {
         "ParamGrow".to_string()

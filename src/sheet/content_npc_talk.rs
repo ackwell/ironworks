@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use crate::utility::read_array;
 use ironworks::excel::Row;
 use std::result::Result;
+use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 impl MetadataAdapter for ContentNpcTalk {
     fn name() -> String {
         "ContentNpcTalk".to_string()

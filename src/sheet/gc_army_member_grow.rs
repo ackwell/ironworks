@@ -1,9 +1,9 @@
-use std::result::Result;
-use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use crate::utility::read_array;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
+use std::result::Result;
+use crate::utility::read_array;
+use crate::error::PopulateError;
 impl MetadataAdapter for GcArmyMemberGrow {
     fn name() -> String {
         "GcArmyMemberGrow".to_string()

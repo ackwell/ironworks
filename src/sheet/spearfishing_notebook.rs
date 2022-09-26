@@ -1,6 +1,6 @@
-use std::result::Result;
 use crate::error::PopulateError;
 use ironworks::excel::Row;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for SpearfishingNotebook {
     fn name() -> String {

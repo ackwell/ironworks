@@ -1,10 +1,10 @@
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
-use std::result::Result;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
 use crate::error::PopulateError;
+use std::result::Result;
+use ironworks::excel::Row;
+use crate::utility::read_array;
+use ironworks::sestring::SeString;
+use std::vec::Vec;
 impl MetadataAdapter for GuildleveAssignment {
     fn name() -> String {
         "GuildleveAssignment".to_string()

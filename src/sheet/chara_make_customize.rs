@@ -1,7 +1,7 @@
+use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use ironworks::excel::Row;
 impl MetadataAdapter for CharaMakeCustomize {
     fn name() -> String {
         "CharaMakeCustomize".to_string()

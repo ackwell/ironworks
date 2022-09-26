@@ -1,8 +1,8 @@
-use std::result::Result;
 use crate::error::PopulateError;
 use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for FCHierarchy {
     fn name() -> String {
         "FCHierarchy".to_string()

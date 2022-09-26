@@ -1,9 +1,9 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::utility::read_array;
-use crate::error::PopulateError;
-use std::vec::Vec;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use std::vec::Vec;
+use crate::error::PopulateError;
 impl MetadataAdapter for PerformGroup {
     fn name() -> String {
         "PerformGroup".to_string()

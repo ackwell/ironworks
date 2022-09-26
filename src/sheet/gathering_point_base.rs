@@ -1,9 +1,9 @@
-use crate::utility::read_array;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::utility::read_array;
+use std::result::Result;
 use std::vec::Vec;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 impl MetadataAdapter for GatheringPointBase {
     fn name() -> String {
         "GatheringPointBase".to_string()
@@ -18,7 +18,6 @@ pub struct GatheringPointBase {
     pub r#gathering_type: i32,
     pub r#gathering_level: u8,
     pub r#item: Vec<i32>,
-    pub r#is_limited: bool,
 }
 impl GatheringPointBase {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -31,7 +30,6 @@ impl GatheringPointBase {
                 1usize,
                 |offset| { Result::Ok(row.field(2usize + offset)?.into_i32()?) },
             )?,
-            r#is_limited: row.field(10usize + offset)?.into_bool()?,
         })
     }
 }

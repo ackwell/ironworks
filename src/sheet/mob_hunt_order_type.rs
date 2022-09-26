@@ -1,7 +1,7 @@
 use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
 use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for MobHuntOrderType {
     fn name() -> String {
         "MobHuntOrderType".to_string()

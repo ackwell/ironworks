@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for SubmarinePart {
     fn name() -> String {
         "SubmarinePart".to_string()

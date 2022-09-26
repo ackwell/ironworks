@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for HWDCrafterSupplyReward {
     fn name() -> String {
         "HWDCrafterSupplyReward".to_string()

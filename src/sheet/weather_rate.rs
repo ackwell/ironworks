@@ -1,9 +1,9 @@
-use std::vec::Vec;
+use std::result::Result;
 use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use std::vec::Vec;
 impl MetadataAdapter for WeatherRate {
     fn name() -> String {
         "WeatherRate".to_string()

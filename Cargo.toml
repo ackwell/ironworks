@@ -1,7 +1,7 @@
 [package]
 name = "ironworks_sheets"
-version = "0.1.0-saint-coinach"
+version = "0.4.0-saint-coinach"
 edition = "2021"
 
 [dependencies]
-ironworks = {version = "0.2.0", features = ["excel"]}
+ironworks = {version = "0.4.0", features = ["excel"]}

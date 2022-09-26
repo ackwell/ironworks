@@ -1,9 +1,9 @@
 use ironworks::excel::Row;
-use std::result::Result;
-use crate::error::PopulateError;
 use crate::utility::read_array;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
+use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for AetherCurrentCompFlgSet {
     fn name() -> String {
         "AetherCurrentCompFlgSet".to_string()

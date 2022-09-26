@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for GCRankGridaniaMaleText {
     fn name() -> String {
         "GCRankGridaniaMaleText".to_string()

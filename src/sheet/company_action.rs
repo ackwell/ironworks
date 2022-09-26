@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for CompanyAction {
     fn name() -> String {
         "CompanyAction".to_string()

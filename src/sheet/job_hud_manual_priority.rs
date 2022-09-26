@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use crate::utility::read_array;
+use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use std::vec::Vec;
 use ironworks::excel::Row;
 impl MetadataAdapter for JobHudManualPriority {
     fn name() -> String {

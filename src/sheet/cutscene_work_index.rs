@@ -1,6 +1,6 @@
-use crate::error::PopulateError;
 use std::result::Result;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for CutsceneWorkIndex {
     fn name() -> String {

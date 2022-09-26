@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
 use ironworks::excel::Row;
-use std::result::Result;
 use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for WorldDCGroupType {
     fn name() -> String {
         "WorldDCGroupType".to_string()

@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use std::result::Result;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for FCRights {
     fn name() -> String {
         "FCRights".to_string()

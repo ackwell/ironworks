@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
 use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for QuestRedoChapterUITab {
     fn name() -> String {
         "QuestRedoChapterUITab".to_string()

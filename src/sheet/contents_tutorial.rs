@@ -1,10 +1,10 @@
-use crate::utility::read_array;
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::utility::read_array;
 use std::result::Result;
 use ironworks::sestring::SeString;
-use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for ContentsTutorial {
     fn name() -> String {
         "ContentsTutorial".to_string()

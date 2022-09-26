@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 impl MetadataAdapter for GuidePageString {
     fn name() -> String {
         "GuidePageString".to_string()

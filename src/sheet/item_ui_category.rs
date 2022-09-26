@@ -1,8 +1,8 @@
 use std::result::Result;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 impl MetadataAdapter for ItemUICategory {
     fn name() -> String {
         "ItemUICategory".to_string()

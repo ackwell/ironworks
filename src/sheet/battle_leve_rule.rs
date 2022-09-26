@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
 use ironworks::sestring::SeString;
 use std::result::Result;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for BattleLeveRule {
     fn name() -> String {

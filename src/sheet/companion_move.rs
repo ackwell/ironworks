@@ -1,7 +1,7 @@
+use std::result::Result;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for CompanionMove {
     fn name() -> String {

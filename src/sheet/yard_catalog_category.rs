@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for YardCatalogCategory {
     fn name() -> String {

@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for EurekaMagiciteItemType {
     fn name() -> String {
         "EurekaMagiciteItemType".to_string()

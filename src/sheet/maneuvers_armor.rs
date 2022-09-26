@@ -1,9 +1,9 @@
-use crate::utility::read_array;
-use crate::error::PopulateError;
-use std::vec::Vec;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
+use crate::error::PopulateError;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for ManeuversArmor {
     fn name() -> String {
         "ManeuversArmor".to_string()

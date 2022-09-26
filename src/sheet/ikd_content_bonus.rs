@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use crate::error::PopulateError;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use std::result::Result;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for IKDContentBonus {
     fn name() -> String {
         "IKDContentBonus".to_string()

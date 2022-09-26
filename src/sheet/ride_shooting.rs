@@ -1,9 +1,9 @@
-use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
+use crate::utility::read_array;
 use crate::error::PopulateError;
 use std::result::Result;
 use ironworks::excel::Row;
-use crate::utility::read_array;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for RideShooting {
     fn name() -> String {
         "RideShooting".to_string()

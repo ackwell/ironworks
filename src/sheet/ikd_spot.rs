@@ -1,6 +1,6 @@
+use ironworks::excel::Row;
 use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for IKDSpot {
     fn name() -> String {

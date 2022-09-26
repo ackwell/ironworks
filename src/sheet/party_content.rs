@@ -1,9 +1,9 @@
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 use std::vec::Vec;
 use std::result::Result;
-use crate::error::PopulateError;
 use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 impl MetadataAdapter for PartyContent {
     fn name() -> String {
         "PartyContent".to_string()

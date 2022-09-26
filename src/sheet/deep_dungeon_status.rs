@@ -1,7 +1,7 @@
+use std::result::Result;
 use crate::error::PopulateError;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
 impl MetadataAdapter for DeepDungeonStatus {
     fn name() -> String {
         "DeepDungeonStatus".to_string()

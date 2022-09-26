@@ -1,8 +1,8 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for TextCommandParam {
     fn name() -> String {
         "TextCommandParam".to_string()

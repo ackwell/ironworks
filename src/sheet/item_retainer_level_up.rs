@@ -1,7 +1,7 @@
+use std::result::Result;
+use crate::error::PopulateError;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use std::result::Result;
 impl MetadataAdapter for ItemRetainerLevelUp {
     fn name() -> String {
         "ItemRetainerLevelUp".to_string()

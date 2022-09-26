@@ -1,8 +1,7 @@
-use std::result::Result;
-use std::convert::Infallible;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for Picture {
     fn name() -> String {
         "Picture".to_string()
@@ -14,16 +13,14 @@ impl MetadataAdapter for Picture {
 }
 #[derive(Debug)]
 pub struct Picture {
-    pub r#item: i32,
     pub r#image: i32,
-    pub r#signature: Option<Infallible>,
+    pub r#signature: i32,
 }
 impl Picture {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
-            r#item: row.field(0usize + offset)?.into_i32()?,
-            r#image: row.field(1usize + offset)?.into_i32()?,
-            r#signature: None,
+            r#image: row.field(0usize + offset)?.into_i32()?,
+            r#signature: row.field(1usize + offset)?.into_i32()?,
         })
     }
 }

@@ -1,10 +1,10 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
 use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
 use crate::utility::read_array;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Snipe {
     fn name() -> String {
         "Snipe".to_string()

@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use crate::error::PopulateError;
 use ironworks::sestring::SeString;
+use std::result::Result;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for VFX {
     fn name() -> String {
         "VFX".to_string()

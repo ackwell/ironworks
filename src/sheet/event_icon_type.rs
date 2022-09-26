@@ -1,6 +1,6 @@
+use ironworks::excel::Row;
 use std::result::Result;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 impl MetadataAdapter for EventIconType {
     fn name() -> String {

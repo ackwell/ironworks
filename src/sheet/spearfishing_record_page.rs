@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use std::result::Result;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for SpearfishingRecordPage {
     fn name() -> String {
         "SpearfishingRecordPage".to_string()

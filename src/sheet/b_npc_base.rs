@@ -1,7 +1,7 @@
+use std::result::Result;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use std::result::Result;
 impl MetadataAdapter for BNpcBase {
     fn name() -> String {
         "BNpcBase".to_string()
@@ -27,6 +27,7 @@ pub struct BNpcBase {
     pub r#array_event_handler: i32,
     pub r#b_npc_parts: u8,
     pub r#unknown13: u8,
+    pub r#unknown14: u8,
     pub r#is_target_line: bool,
     pub r#is_display_level: bool,
 }
@@ -47,8 +48,9 @@ impl BNpcBase {
             r#array_event_handler: row.field(11usize + offset)?.into_i32()?,
             r#b_npc_parts: row.field(12usize + offset)?.into_u8()?,
             r#unknown13: row.field(13usize + offset)?.into_u8()?,
-            r#is_target_line: row.field(14usize + offset)?.into_bool()?,
-            r#is_display_level: row.field(15usize + offset)?.into_bool()?,
+            r#unknown14: row.field(14usize + offset)?.into_u8()?,
+            r#is_target_line: row.field(15usize + offset)?.into_bool()?,
+            r#is_display_level: row.field(16usize + offset)?.into_bool()?,
         })
     }
 }

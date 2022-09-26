@@ -1,7 +1,7 @@
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 impl MetadataAdapter for ChocoboRaceItem {
     fn name() -> String {

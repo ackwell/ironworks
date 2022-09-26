@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
+use std::result::Result;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for GuildOrderGuide {
     fn name() -> String {
         "GuildOrderGuide".to_string()

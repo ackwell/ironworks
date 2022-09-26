@@ -1,10 +1,10 @@
-use std::vec::Vec;
 use crate::error::PopulateError;
-use crate::utility::read_array;
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
+use std::vec::Vec;
+use std::result::Result;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 impl MetadataAdapter for Emote {
     fn name() -> String {
         "Emote".to_string()

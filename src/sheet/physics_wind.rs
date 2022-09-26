@@ -1,7 +1,7 @@
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use std::result::Result;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for PhysicsWind {
     fn name() -> String {
         "PhysicsWind".to_string()

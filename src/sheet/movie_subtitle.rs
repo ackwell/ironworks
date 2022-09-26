@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
 use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 impl MetadataAdapter for MovieSubtitle {
     fn name() -> String {
         "MovieSubtitle".to_string()

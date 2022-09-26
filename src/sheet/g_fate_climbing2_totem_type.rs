@@ -1,6 +1,6 @@
+use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for GFateClimbing2TotemType {
     fn name() -> String {

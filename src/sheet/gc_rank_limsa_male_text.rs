@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
 impl MetadataAdapter for GCRankLimsaMaleText {
     fn name() -> String {

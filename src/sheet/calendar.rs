@@ -1,9 +1,9 @@
-use std::result::Result;
 use std::vec::Vec;
 use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for Calendar {
     fn name() -> String {
         "Calendar".to_string()

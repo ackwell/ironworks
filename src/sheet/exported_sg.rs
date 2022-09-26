@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for ExportedSG {
     fn name() -> String {
         "ExportedSG".to_string()

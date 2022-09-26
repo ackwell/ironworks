@@ -1,6 +1,6 @@
 use ironworks::excel::Row;
-use crate::error::PopulateError;
 use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for TutorialDPS {
     fn name() -> String {

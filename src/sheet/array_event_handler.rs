@@ -1,9 +1,9 @@
-use crate::error::PopulateError;
+use std::vec::Vec;
+use crate::utility::read_array;
 use std::result::Result;
 use ironworks::excel::Row;
-use std::vec::Vec;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
 impl MetadataAdapter for ArrayEventHandler {
     fn name() -> String {
         "ArrayEventHandler".to_string()

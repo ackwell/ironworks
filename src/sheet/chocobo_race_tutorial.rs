@@ -1,8 +1,8 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
 use std::vec::Vec;
+use crate::utility::read_array;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 use ironworks::excel::Row;
 impl MetadataAdapter for ChocoboRaceTutorial {
     fn name() -> String {

@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
+use crate::utility::read_array;
+use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use std::vec::Vec;
 impl MetadataAdapter for WeeklyBingoRewardData {
     fn name() -> String {
         "WeeklyBingoRewardData".to_string()

@@ -1,7 +1,7 @@
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for ActionProcStatus {
     fn name() -> String {
         "ActionProcStatus".to_string()

@@ -1,8 +1,8 @@
 use std::result::Result;
-use crate::error::PopulateError;
-use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for DeepDungeonItem {
     fn name() -> String {
         "DeepDungeonItem".to_string()

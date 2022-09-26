@@ -1,9 +1,9 @@
-use crate::error::PopulateError;
-use std::result::Result;
 use std::vec::Vec;
 use crate::utility::read_array;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for DeepDungeonRoom {
     fn name() -> String {
         "DeepDungeonRoom".to_string()

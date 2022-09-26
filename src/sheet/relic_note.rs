@@ -1,9 +1,9 @@
 use ironworks::excel::Row;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
+use std::vec::Vec;
 use crate::utility::read_array;
 use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for RelicNote {
     fn name() -> String {
         "RelicNote".to_string()

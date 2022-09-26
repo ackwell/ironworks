@@ -1,9 +1,9 @@
 use std::vec::Vec;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::utility::read_array;
 use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 impl MetadataAdapter for EventCustomIconType {
     fn name() -> String {
         "EventCustomIconType".to_string()

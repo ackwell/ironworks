@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
 impl MetadataAdapter for OnlineStatus {
     fn name() -> String {
         "OnlineStatus".to_string()

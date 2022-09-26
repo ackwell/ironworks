@@ -1,9 +1,9 @@
 use ironworks::excel::Row;
-use crate::utility::read_array;
 use std::vec::Vec;
-use crate::error::PopulateError;
-use std::result::Result;
+use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for CraftLeve {
     fn name() -> String {
         "CraftLeve".to_string()

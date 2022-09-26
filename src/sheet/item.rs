@@ -1,10 +1,10 @@
-use ironworks::excel::Row;
-use crate::utility::read_array;
-use std::result::Result;
 use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
+use std::result::Result;
 use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for Item {
     fn name() -> String {
         "Item".to_string()
@@ -73,7 +73,7 @@ pub struct Item {
     pub r#is_dyeable: bool,
     pub r#is_crest_worthy: bool,
     pub r#item_action: u16,
-    pub r#unknown31: u8,
+    pub r#cast_times: u8,
     pub r#cooldowns: u16,
     pub r#class_job_repair: u8,
     pub r#item_repair: i32,
@@ -146,7 +146,7 @@ impl Item {
             r#is_dyeable: row.field(28usize + offset)?.into_bool()?,
             r#is_crest_worthy: row.field(29usize + offset)?.into_bool()?,
             r#item_action: row.field(30usize + offset)?.into_u16()?,
-            r#unknown31: row.field(31usize + offset)?.into_u8()?,
+            r#cast_times: row.field(31usize + offset)?.into_u8()?,
             r#cooldowns: row.field(32usize + offset)?.into_u16()?,
             r#class_job_repair: row.field(33usize + offset)?.into_u8()?,
             r#item_repair: row.field(34usize + offset)?.into_i32()?,

@@ -1,7 +1,7 @@
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use std::result::Result;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for TraitTransient {
     fn name() -> String {

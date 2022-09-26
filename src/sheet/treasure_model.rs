@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
 impl MetadataAdapter for TreasureModel {
     fn name() -> String {

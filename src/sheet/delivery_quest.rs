@@ -1,7 +1,7 @@
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 impl MetadataAdapter for DeliveryQuest {
     fn name() -> String {
         "DeliveryQuest".to_string()

@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use ironworks::sestring::SeString;
 use crate::error::PopulateError;
+use std::result::Result;
+use ironworks::excel::Row;
 impl MetadataAdapter for RecastNavimesh {
     fn name() -> String {
         "RecastNavimesh".to_string()

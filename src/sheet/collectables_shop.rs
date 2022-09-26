@@ -1,10 +1,10 @@
+use std::vec::Vec;
+use crate::error::PopulateError;
+use crate::utility::read_array;
+use std::result::Result;
+use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
-use crate::error::PopulateError;
-use std::result::Result;
-use std::vec::Vec;
-use crate::utility::read_array;
 impl MetadataAdapter for CollectablesShop {
     fn name() -> String {
         "CollectablesShop".to_string()

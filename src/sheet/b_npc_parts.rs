@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for BNpcParts {
     fn name() -> String {
         "BNpcParts".to_string()

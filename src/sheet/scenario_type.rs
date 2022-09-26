@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 impl MetadataAdapter for ScenarioType {
     fn name() -> String {
         "ScenarioType".to_string()

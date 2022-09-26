@@ -1,9 +1,9 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::utility::read_array;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for GatheringNotebookList {
     fn name() -> String {
         "GatheringNotebookList".to_string()

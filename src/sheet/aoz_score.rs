@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use std::result::Result;
-use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 impl MetadataAdapter for AOZScore {
     fn name() -> String {
         "AOZScore".to_string()

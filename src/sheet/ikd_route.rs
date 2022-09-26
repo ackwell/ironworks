@@ -1,10 +1,10 @@
-use std::result::Result;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use crate::utility::read_array;
+use std::result::Result;
+use ironworks::excel::Row;
 use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for IKDRoute {
     fn name() -> String {
         "IKDRoute".to_string()

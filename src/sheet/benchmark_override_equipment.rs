@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for BenchmarkOverrideEquipment {
     fn name() -> String {
         "BenchmarkOverrideEquipment".to_string()

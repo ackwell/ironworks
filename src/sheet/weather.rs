@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for Weather {
     fn name() -> String {
         "Weather".to_string()

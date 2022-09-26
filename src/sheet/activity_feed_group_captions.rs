@@ -1,6 +1,6 @@
 use ironworks::sestring::SeString;
-use crate::error::PopulateError;
 use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 impl MetadataAdapter for ActivityFeedGroupCaptions {

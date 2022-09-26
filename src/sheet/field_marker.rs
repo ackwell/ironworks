@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for FieldMarker {
     fn name() -> String {
         "FieldMarker".to_string()

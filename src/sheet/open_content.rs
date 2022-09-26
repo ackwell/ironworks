@@ -1,9 +1,9 @@
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::utility::read_array;
 use std::result::Result;
 use std::vec::Vec;
-use crate::utility::read_array;
 impl MetadataAdapter for OpenContent {
     fn name() -> String {
         "OpenContent".to_string()

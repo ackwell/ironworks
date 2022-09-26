@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::convert::Infallible;
 use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for ModelSkeleton {
     fn name() -> String {
         "ModelSkeleton".to_string()

@@ -1,7 +1,7 @@
 use ironworks::excel::Row;
-use crate::error::PopulateError;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for InstanceContentGuide {
     fn name() -> String {
         "InstanceContentGuide".to_string()

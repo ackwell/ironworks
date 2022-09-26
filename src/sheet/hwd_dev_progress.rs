@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use std::result::Result;
+use ironworks::excel::Row;
 impl MetadataAdapter for HWDDevProgress {
     fn name() -> String {
         "HWDDevProgress".to_string()

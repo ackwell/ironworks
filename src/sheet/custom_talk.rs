@@ -1,10 +1,10 @@
-use ironworks::sestring::SeString;
-use crate::error::PopulateError;
+use crate::utility::read_array;
 use std::vec::Vec;
+use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 use std::result::Result;
 use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
-use ironworks::excel::Row;
 impl MetadataAdapter for CustomTalk {
     fn name() -> String {
         "CustomTalk".to_string()

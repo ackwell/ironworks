@@ -1,9 +1,9 @@
-use std::result::Result;
+use std::vec::Vec;
+use crate::error::PopulateError;
 use crate::utility::read_array;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for SatisfactionNpc {
     fn name() -> String {
         "SatisfactionNpc".to_string()

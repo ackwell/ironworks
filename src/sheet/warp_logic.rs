@@ -1,9 +1,9 @@
-use std::result::Result;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use std::vec::Vec;
 use crate::error::PopulateError;
+use ironworks::sestring::SeString;
 use crate::utility::read_array;
+use std::vec::Vec;
+use ironworks::excel::Row;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for WarpLogic {
     fn name() -> String {

@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for GatheringType {
     fn name() -> String {
         "GatheringType".to_string()

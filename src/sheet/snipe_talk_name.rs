@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use std::result::Result;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for SnipeTalkName {
     fn name() -> String {
         "SnipeTalkName".to_string()

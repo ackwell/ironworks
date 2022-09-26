@@ -1,8 +1,8 @@
+use ironworks::excel::Row;
 use crate::error::PopulateError;
 use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for TripleTriadCardType {
     fn name() -> String {
         "TripleTriadCardType".to_string()

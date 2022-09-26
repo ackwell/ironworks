@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
-use ironworks::sestring::SeString;
 use std::result::Result;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
+use ironworks::excel::Row;
 impl MetadataAdapter for GatheringLeveRule {
     fn name() -> String {
         "GatheringLeveRule".to_string()

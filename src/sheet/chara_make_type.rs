@@ -1,8 +1,8 @@
-use std::result::Result;
-use std::vec::Vec;
-use crate::error::PopulateError;
 use crate::utility::read_array;
+use crate::error::PopulateError;
+use std::result::Result;
 use ironworks::excel::Row;
+use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for CharaMakeType {
     fn name() -> String {

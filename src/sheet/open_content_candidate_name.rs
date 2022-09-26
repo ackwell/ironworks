@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
 use std::result::Result;
+use ironworks::excel::Row;
 impl MetadataAdapter for OpenContentCandidateName {
     fn name() -> String {
         "OpenContentCandidateName".to_string()

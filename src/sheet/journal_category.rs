@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
 use ironworks::sestring::SeString;
-use crate::error::PopulateError;
 impl MetadataAdapter for JournalCategory {
     fn name() -> String {
         "JournalCategory".to_string()

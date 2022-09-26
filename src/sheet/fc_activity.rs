@@ -1,8 +1,8 @@
-use std::result::Result;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for FCActivity {
     fn name() -> String {
         "FCActivity".to_string()

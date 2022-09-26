@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for GCSupplyDutyReward {
     fn name() -> String {
         "GCSupplyDutyReward".to_string()

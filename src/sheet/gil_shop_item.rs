@@ -1,8 +1,8 @@
-use std::vec::Vec;
-use crate::utility::read_array;
-use std::result::Result;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
+use std::vec::Vec;
+use crate::error::PopulateError;
+use std::result::Result;
+use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for GilShopItem {
     fn name() -> String {

@@ -1,7 +1,7 @@
 use crate::metadata::MetadataAdapter;
+use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use std::result::Result;
 impl MetadataAdapter for SpearfishingItem {
     fn name() -> String {
@@ -17,9 +17,12 @@ pub struct SpearfishingItem {
     pub r#description: SeString,
     pub r#item: i32,
     pub r#gathering_item_level: u16,
-    pub r#fishing_record_type: bool,
-    pub r#territory_type: bool,
-    pub r#is_visible: u8,
+    pub r#unknown3: bool,
+    pub r#unknown4: bool,
+    pub r#fishing_record_type: u8,
+    pub r#territory_type: u16,
+    pub r#unknown7: u16,
+    pub r#is_visible: bool,
 }
 impl SpearfishingItem {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -27,9 +30,12 @@ impl SpearfishingItem {
             r#description: row.field(0usize + offset)?.into_string()?,
             r#item: row.field(1usize + offset)?.into_i32()?,
             r#gathering_item_level: row.field(2usize + offset)?.into_u16()?,
-            r#fishing_record_type: row.field(3usize + offset)?.into_bool()?,
-            r#territory_type: row.field(4usize + offset)?.into_bool()?,
-            r#is_visible: row.field(5usize + offset)?.into_u8()?,
+            r#unknown3: row.field(3usize + offset)?.into_bool()?,
+            r#unknown4: row.field(4usize + offset)?.into_bool()?,
+            r#fishing_record_type: row.field(5usize + offset)?.into_u8()?,
+            r#territory_type: row.field(6usize + offset)?.into_u16()?,
+            r#unknown7: row.field(7usize + offset)?.into_u16()?,
+            r#is_visible: row.field(8usize + offset)?.into_bool()?,
         })
     }
 }

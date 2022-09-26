@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for RetainerFortuneRewardRange {
     fn name() -> String {
         "RetainerFortuneRewardRange".to_string()

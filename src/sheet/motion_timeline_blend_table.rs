@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use std::result::Result;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for MotionTimelineBlendTable {
     fn name() -> String {
         "MotionTimelineBlendTable".to_string()

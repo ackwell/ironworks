@@ -1,9 +1,9 @@
 use crate::utility::read_array;
-use ironworks::excel::Row;
+use std::vec::Vec;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use crate::error::PopulateError;
-use std::vec::Vec;
+use ironworks::excel::Row;
 impl MetadataAdapter for AnimationLOD {
     fn name() -> String {
         "AnimationLOD".to_string()

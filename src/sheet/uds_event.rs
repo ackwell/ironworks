@@ -1,9 +1,9 @@
-use crate::error::PopulateError;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
-use crate::utility::read_array;
+use std::result::Result;
 use ironworks::sestring::SeString;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 use std::vec::Vec;
 impl MetadataAdapter for UDS_Event {
     fn name() -> String {

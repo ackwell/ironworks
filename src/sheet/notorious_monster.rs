@@ -1,6 +1,6 @@
+use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for NotoriousMonster {
     fn name() -> String {

@@ -1,7 +1,7 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for MapCondition {
     fn name() -> String {
         "MapCondition".to_string()

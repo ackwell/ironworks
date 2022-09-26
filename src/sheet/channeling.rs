@@ -1,8 +1,8 @@
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for Channeling {
     fn name() -> String {
         "Channeling".to_string()

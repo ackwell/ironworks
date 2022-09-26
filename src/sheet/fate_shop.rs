@@ -1,9 +1,9 @@
+use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::result::Result;
-use std::vec::Vec;
 use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for FateShop {
     fn name() -> String {
         "FateShop".to_string()

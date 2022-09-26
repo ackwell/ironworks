@@ -1,9 +1,9 @@
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 use crate::utility::read_array;
 use std::vec::Vec;
-use ironworks::excel::Row;
-use crate::error::PopulateError;
-use std::result::Result;
 impl MetadataAdapter for AnimaWeapon5 {
     fn name() -> String {
         "AnimaWeapon5".to_string()

@@ -1,7 +1,7 @@
-use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for GcArmyCaptureTactics {
     fn name() -> String {
         "GcArmyCaptureTactics".to_string()

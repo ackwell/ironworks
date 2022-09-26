@@ -1,10 +1,10 @@
+use std::result::Result;
+use std::vec::Vec;
+use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
 use ironworks::sestring::SeString;
-use crate::utility::read_array;
-use std::vec::Vec;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::result::Result;
 impl MetadataAdapter for BaseParam {
     fn name() -> String {
         "BaseParam".to_string()
@@ -41,7 +41,7 @@ pub struct BaseParam {
     pub r#head_chest_hands_legs_feet_percent: u16,
     pub r#chest_legs_gloves_percent: u16,
     pub r#chest_legs_feet_percent: u16,
-    pub r#meld_param: Vec<u8>,
+    pub r#meld_param: Vec<u16>,
 }
 impl BaseParam {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -77,7 +77,7 @@ impl BaseParam {
                 offset,
                 13usize,
                 1usize,
-                |offset| { Result::Ok(row.field(25usize + offset)?.into_u8()?) },
+                |offset| { Result::Ok(row.field(25usize + offset)?.into_u16()?) },
             )?,
         })
     }

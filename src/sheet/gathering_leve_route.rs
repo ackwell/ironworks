@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
 use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
-use crate::error::PopulateError;
 use std::result::Result;
+use std::vec::Vec;
 use ironworks::excel::Row;
 impl MetadataAdapter for GatheringLeveRoute {
     fn name() -> String {

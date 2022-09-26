@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use std::result::Result;
 use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for AquariumWater {
     fn name() -> String {
         "AquariumWater".to_string()

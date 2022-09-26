@@ -1,8 +1,8 @@
 use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for AnimaWeapon5Param {
     fn name() -> String {
         "AnimaWeapon5Param".to_string()

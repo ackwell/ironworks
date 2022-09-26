@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for TraitRecast {
     fn name() -> String {
         "TraitRecast".to_string()

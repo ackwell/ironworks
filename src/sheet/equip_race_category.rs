@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for EquipRaceCategory {
     fn name() -> String {
         "EquipRaceCategory".to_string()

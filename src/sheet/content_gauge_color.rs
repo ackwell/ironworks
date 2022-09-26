@@ -1,7 +1,7 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for ContentGaugeColor {
     fn name() -> String {
         "ContentGaugeColor".to_string()

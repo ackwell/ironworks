@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for ContentRouletteRoleBonus {
     fn name() -> String {
         "ContentRouletteRoleBonus".to_string()

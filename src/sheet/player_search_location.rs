@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
+use crate::error::PopulateError;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for PlayerSearchLocation {
     fn name() -> String {
         "PlayerSearchLocation".to_string()

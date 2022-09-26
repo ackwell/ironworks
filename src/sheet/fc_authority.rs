@@ -1,6 +1,6 @@
-use ironworks::sestring::SeString;
-use std::result::Result;
 use ironworks::excel::Row;
+use std::result::Result;
+use ironworks::sestring::SeString;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for FCAuthority {

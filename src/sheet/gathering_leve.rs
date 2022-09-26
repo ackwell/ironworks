@@ -1,9 +1,9 @@
-use std::vec::Vec;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
+use crate::utility::read_array;
 use std::result::Result;
 use crate::error::PopulateError;
-use crate::utility::read_array;
-use ironworks::excel::Row;
 impl MetadataAdapter for GatheringLeve {
     fn name() -> String {
         "GatheringLeve".to_string()

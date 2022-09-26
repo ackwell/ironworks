@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for CustomTalkNestHandlers {
     fn name() -> String {
         "CustomTalkNestHandlers".to_string()

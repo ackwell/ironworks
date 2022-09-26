@@ -1,7 +1,8 @@
 use std::result::Result;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 impl MetadataAdapter for NpcYell {
     fn name() -> String {
         "NpcYell".to_string()
@@ -22,7 +23,8 @@ pub struct NpcYell {
     pub r#is_balloon_slow: bool,
     pub r#battle_talk_time: bool,
     pub r#unknown8: u8,
-    pub r#text: u8,
+    pub r#unknown9: u8,
+    pub r#text: SeString,
 }
 impl NpcYell {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -36,7 +38,8 @@ impl NpcYell {
             r#is_balloon_slow: row.field(6usize + offset)?.into_bool()?,
             r#battle_talk_time: row.field(7usize + offset)?.into_bool()?,
             r#unknown8: row.field(8usize + offset)?.into_u8()?,
-            r#text: row.field(9usize + offset)?.into_u8()?,
+            r#unknown9: row.field(9usize + offset)?.into_u8()?,
+            r#text: row.field(10usize + offset)?.into_string()?,
         })
     }
 }

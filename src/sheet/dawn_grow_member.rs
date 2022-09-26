@@ -1,10 +1,9 @@
+use crate::error::PopulateError;
 use ironworks::excel::Row;
 use std::result::Result;
-use std::vec::Vec;
-use crate::error::PopulateError;
-use std::convert::Infallible;
-use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use std::vec::Vec;
+use crate::utility::read_array;
 impl MetadataAdapter for DawnGrowMember {
     fn name() -> String {
         "DawnGrowMember".to_string()
@@ -16,28 +15,26 @@ impl MetadataAdapter for DawnGrowMember {
 }
 #[derive(Debug)]
 pub struct DawnGrowMember {
-    pub r#member: u32,
     pub r#select_image: Vec<u32>,
     pub r#portrait_image: Vec<u32>,
-    pub r#class: Option<Infallible>,
+    pub r#class: u8,
 }
 impl DawnGrowMember {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
-            r#member: row.field(0usize + offset)?.into_u32()?,
             r#select_image: read_array(
                 offset,
                 3usize,
                 1usize,
-                |offset| { Result::Ok(row.field(1usize + offset)?.into_u32()?) },
+                |offset| { Result::Ok(row.field(0usize + offset)?.into_u32()?) },
             )?,
             r#portrait_image: read_array(
                 offset,
                 3usize,
                 1usize,
-                |offset| { Result::Ok(row.field(4usize + offset)?.into_u32()?) },
+                |offset| { Result::Ok(row.field(3usize + offset)?.into_u32()?) },
             )?,
-            r#class: None,
+            r#class: row.field(6usize + offset)?.into_u8()?,
         })
     }
 }

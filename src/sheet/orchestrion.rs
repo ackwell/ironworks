@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 impl MetadataAdapter for Orchestrion {
     fn name() -> String {
         "Orchestrion".to_string()

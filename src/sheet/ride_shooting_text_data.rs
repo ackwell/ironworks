@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use ironworks::excel::Row;
 impl MetadataAdapter for RideShootingTextData {
     fn name() -> String {
         "RideShootingTextData".to_string()

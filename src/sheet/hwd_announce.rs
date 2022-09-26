@@ -1,8 +1,8 @@
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
 impl MetadataAdapter for HWDAnnounce {
     fn name() -> String {
         "HWDAnnounce".to_string()

@@ -1,8 +1,8 @@
-use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for Mount {
     fn name() -> String {
         "Mount".to_string()

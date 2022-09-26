@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use ironworks::excel::Row;
 impl MetadataAdapter for GatheringItem {
     fn name() -> String {
         "GatheringItem".to_string()

@@ -1,7 +1,7 @@
-use crate::error::PopulateError;
 use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use ironworks::excel::Row;
 impl MetadataAdapter for MapMarkerRegion {
     fn name() -> String {
         "MapMarkerRegion".to_string()

@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
 use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for CraftLevelDifference {
     fn name() -> String {
         "CraftLevelDifference".to_string()

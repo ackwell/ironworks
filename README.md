@@ -9,5 +9,5 @@ Generated FFXIV excel schema structs.
 Generated against:
 ||Version|
 |--|--|
-|**saint-coinach**|69caa7e14fed1caaeb2089fad484c25e491d3c37|
-|**Excel**|2022.04.07.0000.0000|
+|**saint-coinach**|3cc64dedd011a8aa1a82674decc060f216edd547|
+|**Excel**|2022.09.07.0000.0000|

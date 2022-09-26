@@ -1,7 +1,7 @@
 use std::result::Result;
+use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 impl MetadataAdapter for ContentTalkParam {
     fn name() -> String {
         "ContentTalkParam".to_string()

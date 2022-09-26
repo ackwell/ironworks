@@ -1,9 +1,9 @@
 use std::vec::Vec;
 use crate::error::PopulateError;
-use crate::utility::read_array;
-use std::result::Result;
 use ironworks::excel::Row;
+use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for PhysicsGroup {
     fn name() -> String {
         "PhysicsGroup".to_string()

@@ -1,9 +1,9 @@
 use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
-use crate::error::PopulateError;
 use crate::utility::read_array;
+use std::vec::Vec;
 use std::result::Result;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for WeeklyLotBonus {
     fn name() -> String {
         "WeeklyLotBonus".to_string()

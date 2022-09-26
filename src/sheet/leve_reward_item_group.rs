@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use std::result::Result;
+use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::utility::read_array;
 use crate::error::PopulateError;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for LeveRewardItemGroup {
     fn name() -> String {
         "LeveRewardItemGroup".to_string()

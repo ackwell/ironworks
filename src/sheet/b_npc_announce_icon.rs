@@ -1,6 +1,6 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 use std::result::Result;
 impl MetadataAdapter for BNpcAnnounceIcon {
     fn name() -> String {

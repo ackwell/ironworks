@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
+use std::result::Result;
 impl MetadataAdapter for MountFlyingCondition {
     fn name() -> String {
         "MountFlyingCondition".to_string()

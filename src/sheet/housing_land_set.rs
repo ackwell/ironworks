@@ -1,9 +1,9 @@
 use std::result::Result;
 use crate::utility::read_array;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for HousingLandSet {
     fn name() -> String {
         "HousingLandSet".to_string()

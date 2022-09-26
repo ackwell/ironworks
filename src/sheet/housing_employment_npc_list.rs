@@ -1,9 +1,9 @@
-use std::result::Result;
 use std::vec::Vec;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 use crate::utility::read_array;
+use std::result::Result;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for HousingEmploymentNpcList {
     fn name() -> String {
         "HousingEmploymentNpcList".to_string()

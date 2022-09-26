@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
 use ironworks::sestring::SeString;
-use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
+use ironworks::excel::Row;
+use crate::error::PopulateError;
 impl MetadataAdapter for GroupPoseStampCategory {
     fn name() -> String {
         "GroupPoseStampCategory".to_string()

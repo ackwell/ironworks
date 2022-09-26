@@ -1,8 +1,8 @@
 use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
-use std::result::Result;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
+use std::result::Result;
+use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 impl MetadataAdapter for ExVersion {
     fn name() -> String {
         "ExVersion".to_string()

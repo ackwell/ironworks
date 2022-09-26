@@ -1,8 +1,8 @@
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 use ironworks::sestring::SeString;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 impl MetadataAdapter for ItemSearchCategory {
     fn name() -> String {
         "ItemSearchCategory".to_string()

@@ -1,8 +1,8 @@
 use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for GroupPoseFrame {
     fn name() -> String {
         "GroupPoseFrame".to_string()

@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use crate::error::PopulateError;
 use ironworks::sestring::SeString;
-use std::result::Result;
+use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for FCProfile {
     fn name() -> String {
         "FCProfile".to_string()

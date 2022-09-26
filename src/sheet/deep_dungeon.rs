@@ -1,9 +1,9 @@
-use crate::metadata::MetadataAdapter;
 use std::vec::Vec;
-use ironworks::sestring::SeString;
-use std::result::Result;
 use crate::utility::read_array;
 use crate::error::PopulateError;
+use std::result::Result;
+use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 impl MetadataAdapter for DeepDungeon {
     fn name() -> String {

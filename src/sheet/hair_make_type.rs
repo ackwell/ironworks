@@ -1,7 +1,7 @@
 use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 use ironworks::excel::Row;
 use std::result::Result;
+use crate::error::PopulateError;
 impl MetadataAdapter for HairMakeType {
     fn name() -> String {
         "HairMakeType".to_string()

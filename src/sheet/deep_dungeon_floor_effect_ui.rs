@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use crate::error::PopulateError;
+use ironworks::sestring::SeString;
 impl MetadataAdapter for DeepDungeonFloorEffectUI {
     fn name() -> String {
         "DeepDungeonFloorEffectUI".to_string()

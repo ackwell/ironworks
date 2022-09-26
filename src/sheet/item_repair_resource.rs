@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 use std::result::Result;
 use ironworks::excel::Row;
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for ItemRepairResource {
     fn name() -> String {
         "ItemRepairResource".to_string()
