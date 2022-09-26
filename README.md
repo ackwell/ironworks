@@ -25,7 +25,7 @@ Additionally, file type readers are opt-in. The feature modules above will autom
 
 ```toml
 [dependencies]
-ironworks = {version = "0.3.0", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.4.0", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
 ```rust
@@ -35,15 +35,17 @@ fn main() -> Result<(), Error> {
   // Build the core ironworks instance. Additional resources can be registered
   // for more complicated file layouts.
   let ironworks = Ironworks::new()
-    .resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+    .with_resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
 
   // Read out files as raw bytes or structured data.
   let bytes = ironworks.file::<Vec<u8>>("exd/root.exl")?;
   let list = ironworks.file::<exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
-	let excel = Excel::new(&ironworks, ffxiv::Mapper::new());
-  let field = excel.sheet("Item")?.row(37362)?.field(0)?;
+	let excel = Excel::with()
+		.language(ffxiv::Language::English)
+		.build(&ironworks, ffxiv::Mapper::new());
+	let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())
 }
