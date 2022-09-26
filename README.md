@@ -42,10 +42,10 @@ fn main() -> Result<(), Error> {
   let list = ironworks.file::<exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
-	let excel = Excel::with()
-		.language(ffxiv::Language::English)
-		.build(&ironworks, ffxiv::Mapper::new());
-	let field = excel.sheet("Item")?.row(37362)?.field(0)?;
+  let excel = Excel::with()
+    .language(ffxiv::Language::English)
+    .build(&ironworks, ffxiv::Mapper::new());
+  let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())
 }
