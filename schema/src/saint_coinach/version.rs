@@ -83,8 +83,14 @@ impl<'repo> Version<'repo> {
 			))
 		})?;
 
-		// todo error
-		let value = serde_json::from_slice::<Value>(blob.content()).unwrap();
+		// Trim the BOM if it's present (really, StC?)
+		let mut content = blob.content();
+		if content.starts_with(&[0xEF, 0xBB, 0xBF]) {
+			content = &content[3..]
+		}
+
+		// TODO: handle errors better
+		let value = serde_json::from_slice::<Value>(content).unwrap();
 		let node = parse_sheet_definition(&value)?;
 
 		let sheet = Sheet {
