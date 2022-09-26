@@ -117,6 +117,7 @@ mod bitfield {
 
 	#[bitfield]
 	#[derive(BinRead, Debug, Default)]
+	#[br(map = Self::from_bytes)]
 	pub struct Set {
 		pub head_ears: Slot,
 		pub body_neck: Slot,

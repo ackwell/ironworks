@@ -240,6 +240,7 @@ pub enum VertexAttributeKind {
 #[bitfield]
 #[binread]
 #[derive(Debug)]
+#[br(map = Self::from_bytes)]
 struct Flags1 {
 	dust_occlusion_enabled: bool,
 	show_occlusion_enabled: bool,
@@ -254,6 +255,7 @@ struct Flags1 {
 #[bitfield]
 #[binread]
 #[derive(Debug)]
+#[br(map = Self::from_bytes)]
 struct Flags2 {
 	unknown2: bool,
 	bg_uv_scroll_enabled: bool,

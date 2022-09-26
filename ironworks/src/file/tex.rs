@@ -71,6 +71,7 @@ mod bitfield {
 	#[bitfield]
 	#[binread]
 	#[derive(Debug)]
+	#[br(map = Self::from_bytes)]
 	pub struct Attributes {
 		discard_per_frame: bool,
 		discard_per_map: bool,
