@@ -1,6 +1,6 @@
 [package]
 name = "ironworks"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["ackwell <saxon@ackwell.com.au>"]
 edition = "2021"
 description = "Modular FFXIV data toolkit written in rust."

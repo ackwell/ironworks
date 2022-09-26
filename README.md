@@ -25,7 +25,7 @@ Additionally, file type readers are opt-in. The feature modules above will autom
 
 ```toml
 [dependencies]
-ironworks = {version = "0.4.0", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.4.1", features = ["excel", "ffxiv", "sqpack"]}
 ```
 
 ```rust
