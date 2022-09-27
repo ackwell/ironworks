@@ -30,7 +30,7 @@ sklb = []
 tex = ["dep:modular-bitfield", "dep:num_enum"]
 
 [dependencies]
-binrw = "0.8.4"
+binrw = "0.10.0"
 derivative = "2.2.0"
 getset = "0.1.2"
 thiserror = "1.0.30"

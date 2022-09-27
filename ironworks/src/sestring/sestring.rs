@@ -9,7 +9,7 @@ pub struct SeString {
 
 impl ToString for SeString {
 	fn to_string(&self) -> String {
-		self.inner.clone().into_string()
+		self.inner.clone().to_string()
 	}
 }
 
