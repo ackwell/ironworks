@@ -42,7 +42,7 @@ impl Material {
 	fn read_shader(file: &structs::Material) -> Result<String> {
 		let mut cursor = Cursor::new(&file.string_data);
 		cursor.set_position(file.shader_package_name_offset.into());
-		let shader = NullString::read(&mut cursor)?.into_string();
+		let shader = NullString::read(&mut cursor)?.to_string();
 		Ok(shader)
 	}
 
@@ -54,7 +54,7 @@ impl Material {
 			.map(|sampler| {
 				let offset = &file.texture_offsets[usize::from(sampler.texture_index)];
 				cursor.set_position(offset.offset.into());
-				let texture = NullString::read(&mut cursor)?.into_string();
+				let texture = NullString::read(&mut cursor)?.to_string();
 
 				Ok(Sampler {
 					id: sampler.id,

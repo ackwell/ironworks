@@ -48,7 +48,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		+ block_counts.index_buffer.iter().sum::<u16>();
 
 	// TODO: i should probably make an impl for this it's pretty repetetive
-	let block_sizes = <Vec<u16>>::read_args(
+	let block_sizes = <Vec<u16>>::read_le_args(
 		&mut reader,
 		VecArgs {
 			count: total_blocks.try_into().unwrap(),

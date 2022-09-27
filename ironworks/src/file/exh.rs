@@ -71,7 +71,7 @@ impl File for ExcelHeader {
 
 /// The kind of sheet.
 #[binread]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[br(repr = u8)]
 pub enum SheetKind {
 	/// Unknown kind. Will be treated equivalently to Default.

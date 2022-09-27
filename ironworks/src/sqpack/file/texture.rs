@@ -47,7 +47,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		.iter()
 		.fold(0, |total, block| total + block.block_count);
 
-	let sub_block_offsets = <Vec<u16>>::read_args(
+	let sub_block_offsets = <Vec<u16>>::read_le_args(
 		&mut reader,
 		VecArgs {
 			count: sub_block_count.try_into().unwrap(),

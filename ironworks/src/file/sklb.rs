@@ -196,13 +196,13 @@ impl BinRead for AnimationLayer {
 		options: &ReadOptions,
 		(base_offset,): Self::Args,
 	) -> BinResult<Self> {
-		let offset = u16::read(reader)?;
+		let offset = u16::read_le(reader)?;
 		let position = reader.stream_position()?;
 
 		reader.seek(SeekFrom::Start(base_offset + u64::from(offset)))?;
 
-		let layer = u32::read(reader)?;
-		let bone_count = u16::read(reader)?;
+		let layer = u32::read_le(reader)?;
+		let bone_count = u16::read_le(reader)?;
 		let bone_indices = count(bone_count.into())(reader, options, ())?;
 
 		let result = Self {

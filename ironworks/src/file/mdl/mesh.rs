@@ -34,7 +34,7 @@ impl Mesh {
 		let mut cursor = Cursor::new(&self.file.string_buffer);
 		cursor.set_position(name_offset.into());
 
-		let name = NullString::read(&mut cursor)?.into_string();
+		let name = NullString::read(&mut cursor)?.to_string();
 		Ok(name)
 	}
 
@@ -50,7 +50,7 @@ impl Mesh {
 		let mut cursor = Cursor::new(&self.file.data);
 		cursor.set_position(u64::from(offset) - self.file.data_offset);
 
-		let indices = <Vec<u16>>::read_args(
+		let indices = <Vec<u16>>::read_le_args(
 			&mut cursor,
 			VecArgs {
 				count: mesh.index_count.try_into().unwrap(),
@@ -137,20 +137,24 @@ where
 }
 
 fn single3(reader: &mut (impl Read + Seek)) -> Result<[f32; 3]> {
-	Ok([f32::read(reader)?, f32::read(reader)?, f32::read(reader)?])
+	Ok([
+		f32::read_le(reader)?,
+		f32::read_le(reader)?,
+		f32::read_le(reader)?,
+	])
 }
 
 fn single4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
 	Ok([
-		f32::read(reader)?,
-		f32::read(reader)?,
-		f32::read(reader)?,
-		f32::read(reader)?,
+		f32::read_le(reader)?,
+		f32::read_le(reader)?,
+		f32::read_le(reader)?,
+		f32::read_le(reader)?,
 	])
 }
 
 fn uint(reader: &mut (impl Read + Seek)) -> Result<u32> {
-	Ok(u32::read(reader)?)
+	Ok(u32::read_le(reader)?)
 }
 
 fn bfloat4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
@@ -164,17 +168,17 @@ fn bfloat4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
 
 fn half2(reader: &mut (impl Read + Seek)) -> Result<[f32; 2]> {
 	Ok([
-		f16::from_bits(u16::read(reader)?).to_f32(),
-		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
 	])
 }
 
 fn half4(reader: &mut (impl Read + Seek)) -> Result<[f32; 4]> {
 	Ok([
-		f16::from_bits(u16::read(reader)?).to_f32(),
-		f16::from_bits(u16::read(reader)?).to_f32(),
-		f16::from_bits(u16::read(reader)?).to_f32(),
-		f16::from_bits(u16::read(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
+		f16::from_bits(u16::read_le(reader)?).to_f32(),
 	])
 }
 
