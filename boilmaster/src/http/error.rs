@@ -31,6 +31,13 @@ impl From<ironworks::Error> for Error {
 	}
 }
 
+impl From<ironworks_schema::Error> for Error {
+	fn from(error: ironworks_schema::Error) -> Self {
+		// There _is_ a NotFound value in this error, but it doesn't really map to something you'd 404 about.
+		Self::Other(error.into())
+	}
+}
+
 impl IntoResponse for Error {
 	fn into_response(self) -> axum::response::Response {
 		// Log the full error for ISEs - we don't show this info anywhere else in case it contains something sensitive.
