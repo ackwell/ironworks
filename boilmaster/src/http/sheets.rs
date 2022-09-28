@@ -55,12 +55,12 @@ async fn row(
 	let schema_sheet = schema_version.sheet(&sheet_name);
 
 	let result = match schema_sheet {
-		Ok(sheet) => read::read_sheet(&sheet, &row),
+		Ok(sheet) => read::read_sheet(&sheet, &row)?,
 		Err(err) => todo!("no schema found because {}, what is the fallback?", err),
 	};
 
 	// Ok(format!("{:#?}", result))
-	Ok(result)
+	Ok(Json(result))
 
 	// Ok(format!("{:#?}", row.field(0)))
 }

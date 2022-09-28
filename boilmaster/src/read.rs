@@ -2,35 +2,54 @@ use std::collections::HashMap;
 
 use ironworks::excel;
 use ironworks_schema as schema;
+use serde::{Serialize, Serializer};
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
 pub enum Value {
 	Array(Vec<Value>),
 	// TODO: should references even exist in this enum, or should we eagerly resolve them? I'm tempted to say the latter.
+	#[serde(serialize_with = "serialize_scalar")]
 	Scalar(excel::Field),
 	Struct(HashMap<String, Value>),
 }
 
+// TODO: this is effectively just making up for serialize not being impl'd in iw::excel - should that be enabled under a feature or is it better to do over here as we are?
+fn serialize_scalar<S: Serializer>(field: &excel::Field, s: S) -> Result<S::Ok, S::Error> {
+	use excel::Field as F;
+
+	match field {
+		// TODO: more comprehensive sestring handling
+		F::String(se_string) => s.serialize_str(&se_string.to_string()),
+		F::Bool(value) => s.serialize_bool(*value),
+		F::I8(value) => s.serialize_i8(*value),
+		F::I16(value) => s.serialize_i16(*value),
+		F::I32(value) => s.serialize_i32(*value),
+		F::I64(value) => s.serialize_i64(*value),
+		F::U8(value) => s.serialize_u8(*value),
+		F::U16(value) => s.serialize_u16(*value),
+		F::U32(value) => s.serialize_u32(*value),
+		F::U64(value) => s.serialize_u64(*value),
+		F::F32(value) => s.serialize_f32(*value),
+	}
+}
+
 // TODO: need some representation of filtering for this, preferably that will be constructable from reference filters, gql queries, and a get request for rest
-// TODO: this shouldn't return a string, i don't think. need some arbitrary nested format (nested dicts?) that can be translated depending on what format we're using
-pub fn read_sheet(sheet: &schema::Sheet, row: &excel::Row) -> String {
+pub fn read_sheet(sheet: &schema::Sheet, row: &excel::Row) -> anyhow::Result<Value> {
 	if sheet.order != schema::Order::Index {
 		todo!("sheet schema {:?} order", sheet.order);
 	}
 
-	let result = read_node(0, &sheet.node, row);
-	format!("{result:#?}")
+	read_node(0, &sheet.node, row)
 }
 
 fn read_node(index: u32, node: &schema::Node, row: &excel::Row) -> anyhow::Result<Value> {
+	use schema::Node as N;
 	match node {
-		schema::Node::Array { count, node } => read_array(index, *count, node, row),
-		schema::Node::Scalar => read_scalar(index, row),
-		schema::Node::Struct(definition) => read_struct(index, definition, row),
-		node => {
-			tracing::warn!("Unhandled node type: {node:?}");
-			Ok(Value::Scalar(excel::Field::F32(f32::MIN)))
-		}
+		N::Array { count, node } => read_array(index, *count, node, row),
+		N::Reference(targets) => read_reference(index, targets, row),
+		N::Scalar => read_scalar(index, row),
+		N::Struct(definition) => read_struct(index, definition, row),
 	}
 }
 
@@ -50,6 +69,15 @@ fn read_array(
 		.collect::<anyhow::Result<Vec<_>>>()?;
 
 	Ok(Value::Array(vec))
+}
+
+fn read_reference(
+	index: u32,
+	targets: &[schema::ReferenceTarget],
+	row: &excel::Row,
+) -> anyhow::Result<Value> {
+	tracing::warn!("Unhandled reference type: {targets:?}");
+	read_scalar(index, row)
 }
 
 fn read_scalar(index: u32, row: &excel::Row) -> anyhow::Result<Value> {
