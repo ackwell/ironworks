@@ -1,3 +1,12 @@
+use crate::error::Result;
+
+/// Representation of a full Excel schema.
+pub trait Schema {
+	// TODO: should this have sheet_names as well?
+	/// Get the schema for the specified sheet.
+	fn sheet(&self, name: &str) -> Result<Sheet>;
+}
+
 // TODO: consider making internals on these private with getters?
 
 /// Schema and metadata for a sheet within an Excel database.
@@ -14,7 +23,7 @@ pub struct Sheet {
 }
 
 /// Ordering of column definitions.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Order {
 	/// Ordered by index of definition within Excel header file.
 	Index,

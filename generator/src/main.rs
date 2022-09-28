@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use generate::generate_sheet;
 use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
-use ironworks_schema::{saint_coinach::Provider, Sheet as SchemaSheet};
+use ironworks_schema::{saint_coinach::Provider, Schema, Sheet as SchemaSheet};
 use quote::{format_ident, quote};
 use rust_embed::RustEmbed;
 use toml_edit::Document;

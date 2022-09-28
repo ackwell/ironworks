@@ -3,6 +3,7 @@ use std::sync::Arc;
 use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
 use ironworks::{excel::Excel, file::exh};
+use ironworks_schema::Schema;
 
 use crate::read;
 
@@ -52,12 +53,14 @@ async fn row(
 	let schema_provider = ironworks_schema::saint_coinach::Provider::new()?;
 	// TODO: as part of said shared resource, need a way to handle updating the repo
 	let schema_version = schema_provider.version("HEAD")?;
-	let schema_sheet = schema_version.sheet(&sheet_name);
 
-	let result = match schema_sheet {
-		Ok(sheet) => read::read_sheet(&sheet, &row)?,
-		Err(err) => todo!("no schema found because {}, what is the fallback?", err),
-	};
+	let result = read::read_sheet(
+		&sheet_name,
+		&read::ReaderContext {
+			row: &row,
+			schema: &schema_version,
+		},
+	)?;
 
 	// Ok(format!("{:#?}", result))
 	Ok(Json(result))

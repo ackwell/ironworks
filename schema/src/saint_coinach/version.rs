@@ -8,6 +8,7 @@ use serde_json::Value;
 use crate::{
 	error::{Error, ErrorValue, Result},
 	schema::{Order, Sheet},
+	Schema,
 };
 
 use super::parse::parse_sheet_definition;
@@ -62,8 +63,16 @@ impl<'repo> Version<'repo> {
 		Ok(iter)
 	}
 
-	/// Get the schema for the requested sheet at this version.
-	pub fn sheet(&self, name: &str) -> Result<Sheet> {
+	fn object_at_path(&self, path: &Path) -> Result<Object, git2::Error> {
+		self.commit
+			.tree()?
+			.get_path(path)?
+			.to_object(self.repository)
+	}
+}
+
+impl Schema for Version<'_> {
+	fn sheet(&self, name: &str) -> Result<Sheet> {
 		let path = DEFINITION_PATH.join(format!("{name}.json"));
 
 		let object = self
@@ -100,12 +109,5 @@ impl<'repo> Version<'repo> {
 		};
 
 		Ok(sheet)
-	}
-
-	fn object_at_path(&self, path: &Path) -> Result<Object, git2::Error> {
-		self.commit
-			.tree()?
-			.get_path(path)?
-			.to_object(self.repository)
 	}
 }
