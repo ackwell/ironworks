@@ -1,13 +1,18 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{convert::Infallible, fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file,
-	utility::{OptionCache, OptionCacheExt},
+	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
 };
 
-use super::{borrowed::Borrowed, mapper::Mapper, metadata::SheetMetadata, sheet::Sheet};
+use super::{
+	borrowed::Borrowed,
+	mapper::Mapper,
+	metadata::SheetMetadata,
+	sheet::{Sheet, SheetCache},
+};
 
 /// Options for the root Excel database.
 #[derive(Debug, Default)]
@@ -40,6 +45,7 @@ pub struct Excel<'i> {
 	mapper: Box<dyn Mapper>,
 
 	list: OptionCache<file::exl::ExcelList>,
+	sheets: HashMapCache<String, SheetCache>,
 }
 
 impl Debug for Excel<'_> {
@@ -76,6 +82,7 @@ impl<'i> Excel<'i> {
 			mapper: Box::new(mapper),
 
 			list: Default::default(),
+			sheets: Default::default(),
 		}
 	}
 
@@ -99,11 +106,19 @@ impl<'i> Excel<'i> {
 			return Err(Error::NotFound(ErrorValue::Sheet(sheet_name)));
 		}
 
+		let cache = self
+			.sheets
+			.try_get_or_insert(sheet_name, || -> Result<_, Infallible> {
+				Ok(Default::default())
+			})
+			.unwrap();
+
 		Ok(Sheet::new(
 			sheet_metadata,
 			self.default_language,
 			self.ironworks.clone(),
 			self.mapper.as_ref(),
+			cache,
 		))
 	}
 }
