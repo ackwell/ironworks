@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks::{excel::Excel, file::exh};
+use ironworks::{
+	excel::{Excel, Row},
+	file::exh,
+};
+use ironworks_schema::saint_coinach;
 
 use crate::read;
 
@@ -45,28 +49,9 @@ async fn row(
 
 	let row = sheet.row(row_id)?;
 
-	// TODO: should any of this schema stuff be in the read module?
-	// TODO: this should be shared logic with subrows
-	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request
-	// TODO: this would presumably be specified as a provider:version pair in some way
-	let schema_provider = ironworks_schema::saint_coinach::Provider::new()?;
-	// TODO: as part of said shared resource, need a way to handle updating the repo
-	let schema_version = schema_provider.version("HEAD")?;
+	let result = read_row(&sheet_name, &excel, &row)?;
 
-	let result = read::read_sheet(
-		&sheet_name,
-		read::ReaderContext {
-			excel: &excel,
-			schema: &schema_version,
-			row: &row,
-			limit: 1,
-		},
-	)?;
-
-	// Ok(format!("{:#?}", result))
 	Ok(Json(result))
-
-	// Ok(format!("{:#?}", row.field(0)))
 }
 
 #[debug_handler]
@@ -83,5 +68,27 @@ async fn subrow(
 
 	let row = sheet.subrow(row_id, subrow_id)?;
 
-	Ok(format!("{:#?}", row.field(0)))
+	let result = read_row(&sheet_name, &excel, &row)?;
+
+	Ok(Json(result))
+}
+
+fn read_row(sheet_name: &str, excel: &Excel, row: &Row) -> Result<read::Value> {
+	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request
+	// TODO: this would presumably be specified as a provider:version pair in some way
+	// TODO: as part of said shared resource, need a way to handle updating the repo
+	let provider = saint_coinach::Provider::new()?;
+	let version = provider.version("HEAD")?;
+
+	let value = read::read_sheet(
+		sheet_name,
+		read::ReaderContext {
+			excel,
+			schema: &version,
+			row,
+			limit: 1,
+		},
+	)?;
+
+	Ok(value)
 }
