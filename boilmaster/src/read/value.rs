@@ -7,7 +7,7 @@ use serde::{Serialize, Serializer};
 #[serde(untagged)]
 pub enum Value {
 	Array(Vec<Value>),
-	// TODO: should references even exist in this enum, or should we eagerly resolve them? I'm tempted to say the latter.
+	Reference(Reference),
 	#[serde(serialize_with = "serialize_scalar")]
 	Scalar(excel::Field),
 	Struct(HashMap<String, Value>),
@@ -30,5 +30,31 @@ fn serialize_scalar<S: Serializer>(field: &excel::Field, s: S) -> Result<S::Ok, 
 		F::U32(value) => s.serialize_u32(*value),
 		F::U64(value) => s.serialize_u64(*value),
 		F::F32(value) => s.serialize_f32(*value),
+	}
+}
+
+// TODO: finalise this
+#[derive(Debug, Serialize)]
+pub struct Reference {
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub sheet: Option<String>,
+
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub key: Option<String>,
+
+	pub value: i32,
+
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub data: Option<Box<Value>>,
+}
+
+impl Reference {
+	pub fn new(value: i32) -> Self {
+		Reference {
+			sheet: None,
+			key: None,
+			value,
+			data: None,
+		}
 	}
 }

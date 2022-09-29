@@ -1,0 +1,5 @@
+[env]
+CARGO_MANIFEST_DIR = {value = "../", relative = true}
+
+[profile.dev]
+opt-level = 1

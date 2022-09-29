@@ -3,7 +3,6 @@ use std::sync::Arc;
 use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
 use ironworks::{excel::Excel, file::exh};
-use ironworks_schema::Schema;
 
 use crate::read;
 
@@ -56,9 +55,11 @@ async fn row(
 
 	let result = read::read_sheet(
 		&sheet_name,
-		&read::ReaderContext {
-			row: &row,
+		read::ReaderContext {
+			excel: &excel,
 			schema: &schema_version,
+			row: &row,
+			limit: 1,
 		},
 	)?;
 

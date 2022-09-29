@@ -38,7 +38,6 @@ pub enum Node {
 	#[allow(missing_docs)]
 	Array { count: u32, node: Box<Node> },
 
-	// TODO: Reference fields
 	/// A reference to one or more rows in other sheets.
 	Reference(Vec<ReferenceTarget>),
 
