@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
@@ -158,7 +158,7 @@ fn read_struct(
 			*index += node.size();
 			Some(result.map(|value| (key.clone(), value)))
 		})
-		.collect::<Result<HashMap<_, _>>>()?;
+		.collect::<Result<BTreeMap<_, _>>>()?;
 
 	Ok(Value::Struct(map))
 }

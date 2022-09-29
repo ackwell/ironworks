@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use ironworks::excel;
 use serde::{Serialize, Serializer};
@@ -10,7 +10,7 @@ pub enum Value {
 	Reference(Reference),
 	#[serde(serialize_with = "serialize_scalar")]
 	Scalar(excel::Field),
-	Struct(HashMap<String, Value>),
+	Struct(BTreeMap<String, Value>),
 }
 
 // TODO: this is effectively just making up for serialize not being impl'd in iw::excel - should that be enabled under a feature or is it better to do over here as we are?
