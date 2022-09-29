@@ -13,6 +13,14 @@ use super::row_options::RowOptions;
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
 
+// TODO: how much should be in this? Arguably the mapper &co might be relevant given that the mapper is required to fill the caches, etc.
+/// Data cache for raw values, decoupled from mapping/metadata concerns.
+#[derive(Debug, Default)]
+pub struct SheetCache {
+	header: OptionCache<exh::ExcelHeader>,
+	pages: HashMapCache<(u32, u8), exd::ExcelData>,
+}
+
 /// A sheet within an Excel database.
 pub struct Sheet<'i, S> {
 	sheet_metadata: S,
@@ -21,8 +29,7 @@ pub struct Sheet<'i, S> {
 	ironworks: Borrowed<'i, Ironworks>,
 	mapper: &'i dyn Mapper,
 
-	header: OptionCache<exh::ExcelHeader>,
-	pages: HashMapCache<(u32, u8), exd::ExcelData>,
+	cache: Arc<SheetCache>,
 }
 
 impl<S: Debug> Debug for Sheet<'_, S> {
@@ -40,6 +47,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		default_language: u8,
 		ironworks: Borrowed<'i, Ironworks>,
 		mapper: &'i dyn Mapper,
+		cache: Arc<SheetCache>,
 	) -> Self {
 		Self {
 			sheet_metadata,
@@ -48,8 +56,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			ironworks,
 			mapper,
 
-			header: Default::default(),
-			pages: Default::default(),
+			cache,
 		}
 	}
 
@@ -131,12 +138,15 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			.ok_or_else(row_not_found)?
 			.start_id();
 
-		let page = self.pages.try_get_or_insert((start_id, language), || {
-			let path = self
-				.mapper
-				.exd(&self.sheet_metadata.name(), start_id, language);
-			self.ironworks.file(&path)
-		})?;
+		let page = self
+			.cache
+			.pages
+			.try_get_or_insert((start_id, language), || {
+				let path = self
+					.mapper
+					.exd(&self.sheet_metadata.name(), start_id, language);
+				self.ironworks.file(&path)
+			})?;
 
 		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
@@ -150,7 +160,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	}
 
 	fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
-		self.header.try_get_or_insert(|| {
+		self.cache.header.try_get_or_insert(|| {
 			let path = self.mapper.exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)
 		})
