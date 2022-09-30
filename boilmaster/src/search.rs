@@ -2,13 +2,13 @@ use std::{env::current_exe, fs};
 
 use anyhow::{Context, Result};
 use ironworks::{
-	excel::{Excel, Field},
+	excel::{Excel, Field, Sheet},
 	file::exh,
 };
 use tantivy::{
 	directory::MmapDirectory,
 	schema::{self, Schema},
-	Document, Index,
+	Document, Index, IndexSettings,
 };
 
 pub fn temp_test_search(excel: &Excel) -> Result<()> {
@@ -26,49 +26,24 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 
 	let directory = MmapDirectory::open(path)?;
 
-	let mut schema_builder = Schema::builder();
+	// TODO: this should likely be the part of the path that gets joined onto the base or similar
+	let index_name = "TODO";
+	let index = match Index::exists(&directory)? {
+		// NOTE: this assumes that the schema will be effectively immutable
+		true => {
+			tracing::debug!("using existing index {index_name:?}");
+			Index::open(directory)?
+		}
+		false => {
+			tracing::debug!("building {index_name:?}");
+			let schema = build_sheet_schema(&sheet)?;
+			Index::create(directory, schema, IndexSettings::default())?
+		}
+	};
 
-	schema_builder.add_u64_field("id", schema::STORED);
-	for column in sheet.columns()? {
-		// TODO: technically speaking, using offset means both offset-ordered and column-ordered will work. right?
-		let name = column.offset().to_string();
+	let schema = index.schema();
 
-		use exh::ColumnKind as CK;
-		match column.kind() {
-			// TODO: per-language columns. at the moment, this is just english
-			CK::String => schema_builder.add_text_field(&name, schema::TEXT),
-
-			CK::Int8 | CK::Int16 | CK::Int32 | CK::Int64 => {
-				schema_builder.add_i64_field(&name, schema::INDEXED)
-			}
-
-			CK::UInt8 | CK::UInt16 | CK::UInt32 | CK::UInt64 => {
-				schema_builder.add_u64_field(&name, schema::INDEXED)
-			}
-
-			CK::Float32 => schema_builder.add_f64_field(&name, schema::INDEXED),
-
-			// TODO: not sure how to handle bools...
-			CK::Bool
-			| CK::PackedBool0
-			| CK::PackedBool1
-			| CK::PackedBool2
-			| CK::PackedBool3
-			| CK::PackedBool4
-			| CK::PackedBool5
-			| CK::PackedBool6
-			| CK::PackedBool7 => schema_builder.add_u64_field(&name, schema::INDEXED),
-		};
-	}
-
-	let schema = schema_builder.build();
-
-	// TODO: this errors if the index already exists with a different schema - is that going to be an issue, or should we pre-emptively destroy and recreate?
-	let index = Index::open_or_create(directory, schema.clone())?;
-
-	// uuuuuuuuuuh, checking if already ingested? probably going to involve doing at topdocs(1) and seeing if there's any result?
-
-	// let reader = index.reader_builder().reload_policy(ReloadPolicy);
+	// TODO: this can probably just use the ::exists above, and ingestion should be a oneshot anyway.
 	let segment_metas = index.searchable_segment_metas();
 	tracing::info!("segment metas: {segment_metas:?}");
 	let has_docs = segment_metas?.iter().any(|meta| meta.num_docs() > 0);
@@ -120,4 +95,43 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 	tracing::info!("opened index {index:?}");
 
 	Ok(())
+}
+
+fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
+	let mut schema_builder = Schema::builder();
+
+	schema_builder.add_u64_field("id", schema::STORED);
+	for column in sheet.columns()? {
+		// TODO: technically speaking, using offset means both offset-ordered and column-ordered will work. right?
+		let name = column.offset().to_string();
+
+		use exh::ColumnKind as CK;
+		match column.kind() {
+			// TODO: per-language columns. at the moment, this is just english
+			CK::String => schema_builder.add_text_field(&name, schema::TEXT),
+
+			CK::Int8 | CK::Int16 | CK::Int32 | CK::Int64 => {
+				schema_builder.add_i64_field(&name, schema::INDEXED)
+			}
+
+			CK::UInt8 | CK::UInt16 | CK::UInt32 | CK::UInt64 => {
+				schema_builder.add_u64_field(&name, schema::INDEXED)
+			}
+
+			CK::Float32 => schema_builder.add_f64_field(&name, schema::INDEXED),
+
+			// TODO: not sure how to handle bools...
+			CK::Bool
+			| CK::PackedBool0
+			| CK::PackedBool1
+			| CK::PackedBool2
+			| CK::PackedBool3
+			| CK::PackedBool4
+			| CK::PackedBool5
+			| CK::PackedBool6
+			| CK::PackedBool7 => schema_builder.add_u64_field(&name, schema::INDEXED),
+		};
+	}
+
+	Ok(schema_builder.build())
 }
