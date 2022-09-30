@@ -4,30 +4,27 @@ use axum::{Extension, Router, Server};
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 
-use crate::{data::Data, search::temp_test_search};
+use crate::data::Data;
 
 use super::sheets;
 
-pub async fn serve() {
+// TODO: should the data be an arc at this point? i guess it'll depend if i need to store refs to it for search &c
+pub async fn serve(data: Data) {
 	Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
-		.serve(router().into_make_service())
+		.serve(router(data).into_make_service())
 		.with_graceful_shutdown(shutdown_signal())
 		.await
 		.unwrap()
 }
 
-fn router() -> Router {
-	let data = Data::new();
-
-	// TODO: THIS SHOULD NOT BE HERE
-	temp_test_search(data.version(None).excel()).unwrap();
-
+fn router(data: Data) -> Router {
 	Router::new()
 		.nest("/sheets", sheets::router())
 		.layer(Extension(Arc::new(data)))
 		.layer(TraceLayer::new_for_http())
 }
 
+// TODO: can I set this up in the main.rs and use it in multiple places?
 async fn shutdown_signal() {
 	let ctrl_c = async {
 		signal::ctrl_c()

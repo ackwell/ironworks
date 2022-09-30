@@ -1,6 +1,7 @@
 #![allow(clippy::module_inception)]
 
-mod data;
+// TODO: probably take these non-public and expose an explicit interface here? or is it not worth it given this is the entry point
+pub mod data;
 pub mod http;
 mod read;
-mod search;
+pub mod search;

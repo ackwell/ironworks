@@ -1,4 +1,4 @@
-use boilmaster::http;
+use boilmaster::{data::Data, http, search::temp_test_search};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 #[tokio::main]
@@ -9,5 +9,9 @@ async fn main() {
 		.with(tracing_subscriber::fmt::layer().with_filter(filter::LevelFilter::DEBUG))
 		.init();
 
-	http::serve().await
+	let data = Data::new();
+
+	temp_test_search(data.version(None).excel()).unwrap();
+
+	http::serve(data).await
 }
