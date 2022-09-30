@@ -11,6 +11,7 @@ axum-macros = "0.2.0"
 ironworks = {path = "../ironworks", features = ["excel", "ffxiv", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 serde = {version = "1.0.137", features = ["derive"]}
+tantivy = "0.18.0"
 thiserror = "1.0.30"
 tokio = {version = "1.17.0", features = ["full"]}
 tower-http = {version = "0.3.0", features = ["trace"]}

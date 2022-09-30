@@ -4,6 +4,8 @@ use axum::{Extension, Router};
 use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
 use tower_http::trace::TraceLayer;
 
+use crate::search::temp_test_search;
+
 use super::sheets;
 
 pub fn router() -> Router {
@@ -13,6 +15,9 @@ pub fn router() -> Router {
 	let excel = Excel::with()
 		.language(ffxiv::Language::English)
 		.build(Arc::new(ironworks), ffxiv::Mapper::new());
+
+	// TODO: THIS SHOULD NOT BE HERE
+	temp_test_search(&excel).unwrap();
 
 	Router::new()
 		.nest("/sheets", sheets::router())
