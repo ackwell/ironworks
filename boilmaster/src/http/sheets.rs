@@ -8,7 +8,7 @@ use ironworks::{
 };
 use ironworks_schema::saint_coinach;
 
-use crate::read;
+use crate::{data::Data, read};
 
 use super::{
 	error::{Anyhow, Error, Result},
@@ -26,7 +26,9 @@ pub fn router() -> Router {
 }
 
 #[debug_handler]
-async fn sheets(Extension(excel): Extension<Arc<Excel<'static>>>) -> Result<impl IntoResponse> {
+async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoResponse> {
+	let excel = data.version(None).excel();
+
 	let list = excel.list().anyhow()?;
 
 	// This contains quite a lot of quest/ and custom/ - should I filter them out? Or support them better?
@@ -38,8 +40,10 @@ async fn sheets(Extension(excel): Extension<Arc<Excel<'static>>>) -> Result<impl
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
-	Extension(excel): Extension<Arc<Excel<'static>>>,
+	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
+	let excel = data.version(None).excel();
+
 	let sheet = excel.sheet(&sheet_name)?;
 	if sheet.kind()? == exh::SheetKind::Subrows {
 		return Err(Error::Invalid(format!(
@@ -49,7 +53,7 @@ async fn row(
 
 	let row = sheet.row(row_id)?;
 
-	let result = read_row(&sheet_name, &excel, &row)?;
+	let result = read_row(&sheet_name, excel, &row)?;
 
 	Ok(Json(result))
 }
@@ -57,8 +61,10 @@ async fn row(
 #[debug_handler]
 async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
-	Extension(excel): Extension<Arc<Excel<'static>>>,
+	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
+	let excel = data.version(None).excel();
+
 	let sheet = excel.sheet(&sheet_name)?;
 	if sheet.kind()? != exh::SheetKind::Subrows {
 		return Err(Error::Invalid(format!(
@@ -68,7 +74,7 @@ async fn subrow(
 
 	let row = sheet.subrow(row_id, subrow_id)?;
 
-	let result = read_row(&sheet_name, &excel, &row)?;
+	let result = read_row(&sheet_name, excel, &row)?;
 
 	Ok(Json(result))
 }
