@@ -12,22 +12,26 @@ use tantivy::{
 };
 
 pub fn temp_test_search(excel: &Excel) -> Result<()> {
-	// TODO: just using action as a test case
-	let sheet = excel.sheet("Action")?;
+	// TODO: this should be a more active setup in future
+	let version = excel.version()?;
+	let sheet_name = "Action";
+	let index_name = format!("{version}/{sheet_name}");
 
-	tracing::info!("building index");
+	// TODO: just using action as a test case
+	let sheet = excel.sheet(sheet_name)?;
 
 	// TODO: configurable directory, this shouldn't be touching current exe at all
 	let path = current_exe()?
 		.parent()
 		.context("path has no parent")?
-		.join("search");
+		.join("search")
+		.join(version)
+		.join(sheet_name);
 	fs::create_dir_all(&path)?;
 
 	let directory = MmapDirectory::open(path)?;
 
 	// TODO: this should likely be the part of the path that gets joined onto the base or similar
-	let index_name = "TODO";
 	let index = match Index::exists(&directory)? {
 		// NOTE: this assumes that the schema will be effectively immutable
 		true => {
