@@ -3,5 +3,5 @@ mod sheet;
 
 pub use {
 	row_options::RowOptions,
-	sheet::{Sheet, SheetCache},
+	sheet::{Sheet, SheetCache, SheetIterator},
 };

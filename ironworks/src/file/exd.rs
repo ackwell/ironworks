@@ -48,6 +48,8 @@ impl ExcelData {
 		Ok(&self.data[offset..offset + length])
 	}
 
+	/// Fetch the number of subrows associated with a row ID. On sheets with a kind
+	/// other than subrow, this will always be 1.
 	pub fn subrow_count(&self, row_id: u32) -> Result<u16> {
 		let (row_header, _offset) = self.row_meta(row_id)?;
 		Ok(row_header.row_count)

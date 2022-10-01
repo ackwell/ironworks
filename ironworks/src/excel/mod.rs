@@ -14,5 +14,5 @@ pub use {
 	mapper::Mapper,
 	metadata::SheetMetadata,
 	row::Row,
-	sheet::{RowOptions, Sheet},
+	sheet::{RowOptions, Sheet, SheetIterator},
 };

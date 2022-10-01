@@ -77,6 +77,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		RowOptions::new(self)
 	}
 
+	/// Build an iterator over the rows in this sheet.
 	pub fn iter(&'i self) -> SheetIterator<'i, S> {
 		SheetIterator::new(self)
 	}
@@ -114,11 +115,10 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			subrow: subrow_id,
 			sheet: self.sheet_metadata.name().into(),
 		};
-		let row_not_found = || Error::NotFound(row_error_value());
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
 		if header.kind() != exh::SheetKind::Subrows && subrow_id > 0 {
-			return Err(row_not_found());
+			return Err(Error::NotFound(row_error_value()));
 		}
 
 		// Try to read in the page for the requested (sub)row.
@@ -189,6 +189,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	}
 }
 
+/// An iterator that iterates over the rows of an excel sheet.
 #[derive(Debug)]
 pub struct SheetIterator<'i, S> {
 	sheet: &'i Sheet<'i, S>,
