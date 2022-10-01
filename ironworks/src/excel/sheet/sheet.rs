@@ -8,7 +8,10 @@ use crate::{
 	Ironworks,
 };
 
-use super::{row_options::RowOptions, SheetIterator};
+use super::{
+	row_options::{RowConfig, RowOptions},
+	SheetIterator,
+};
 
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
@@ -77,35 +80,35 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		RowOptions::new(self)
 	}
 
-	/// Build an iterator over the rows in this sheet.
+	/// Iterate over the rows in this sheet.
 	pub fn iter(&'i self) -> SheetIterator<'i, S> {
-		SheetIterator::new(self)
+		self.iter_with_options(Default::default())
+	}
+
+	pub(super) fn iter_with_options(&'i self, config: RowConfig) -> SheetIterator<'i, S> {
+		SheetIterator::new(self, config)
 	}
 
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
 	pub fn row(&self, row_id: u32) -> Result<S::Row> {
-		self.row_with_options(row_id, &Default::default())
+		self.row_with_options(row_id, Default::default())
 	}
 
 	/// Fetch a row from this sheet by its ID and subrow ID.
 	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<S::Row> {
-		self.subrow_with_options(row_id, subrow_id, &Default::default())
+		self.subrow_with_options(row_id, subrow_id, Default::default())
 	}
 
-	pub(super) fn row_with_options(
-		&self,
-		row_id: u32,
-		options: &RowOptions<'i, S>,
-	) -> Result<S::Row> {
-		self.subrow_with_options(row_id, 0, options)
+	pub(super) fn row_with_options(&self, row_id: u32, config: RowConfig) -> Result<S::Row> {
+		self.subrow_with_options(row_id, 0, config)
 	}
 
 	pub(super) fn subrow_with_options(
 		&self,
 		row_id: u32,
 		subrow_id: u16,
-		options: &RowOptions<'i, S>,
+		config: RowConfig,
 	) -> Result<S::Row> {
 		let header = self.header()?;
 
@@ -121,7 +124,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		}
 
 		// Try to read in the page for the requested (sub)row.
-		let page = self.page(row_id, subrow_id, options.language)?;
+		let page = self.page(row_id, subrow_id, config.language)?;
 
 		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
