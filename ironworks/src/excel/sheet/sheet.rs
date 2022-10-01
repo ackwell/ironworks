@@ -8,7 +8,10 @@ use crate::{
 	Ironworks,
 };
 
-use super::row_options::RowOptions;
+use super::{
+	row_options::{RowConfig, RowOptions},
+	SheetIterator,
+};
 
 // TODO: Where should this go? It's also effectively used by the main Excel struct.
 const LANGUAGE_NONE: u8 = 0;
@@ -77,31 +80,35 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		RowOptions::new(self)
 	}
 
+	/// Iterate over the rows in this sheet.
+	pub fn iter(&'i self) -> SheetIterator<'i, S> {
+		self.iter_with_options(Default::default())
+	}
+
+	pub(super) fn iter_with_options(&'i self, config: RowConfig) -> SheetIterator<'i, S> {
+		SheetIterator::new(self, config)
+	}
+
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
 	pub fn row(&self, row_id: u32) -> Result<S::Row> {
-		self.row_with_options(row_id, &Default::default())
+		self.row_with_options(row_id, Default::default())
 	}
 
 	/// Fetch a row from this sheet by its ID and subrow ID.
 	pub fn subrow(&self, row_id: u32, subrow_id: u16) -> Result<S::Row> {
-		self.subrow_with_options(row_id, subrow_id, &Default::default())
+		self.subrow_with_options(row_id, subrow_id, Default::default())
 	}
 
-	pub(super) fn row_with_options(
-		&self,
-		row_id: u32,
-		options: &RowOptions<'i, S>,
-	) -> Result<S::Row> {
-		self.subrow_with_options(row_id, 0, options)
+	pub(super) fn row_with_options(&self, row_id: u32, config: RowConfig) -> Result<S::Row> {
+		self.subrow_with_options(row_id, 0, config)
 	}
 
-	// TODO: this fn is absurdly long. split it up.
 	pub(super) fn subrow_with_options(
 		&self,
 		row_id: u32,
 		subrow_id: u16,
-		options: &RowOptions<'i, S>,
+		config: RowConfig,
 	) -> Result<S::Row> {
 		let header = self.header()?;
 
@@ -110,43 +117,14 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			subrow: subrow_id,
 			sheet: self.sheet_metadata.name().into(),
 		};
-		let row_not_found = || Error::NotFound(row_error_value());
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
 		if header.kind() != exh::SheetKind::Subrows && subrow_id > 0 {
-			return Err(row_not_found());
+			return Err(Error::NotFound(row_error_value()));
 		}
 
-		// Get the language to load, or NONE if the language is not supported by this sheet.
-		// TODO: Should an explicit language request fail hard on miss?
-		let requested_language = options.language.unwrap_or(self.default_language);
-		let language = *header
-			.languages()
-			.get(&requested_language)
-			.or_else(|| header.languages().get(&LANGUAGE_NONE))
-			// TODO: Should this be Invalid or NotFound?
-			// TODO: Should we have an explicit ErrorValue for language?
-			.ok_or_else(|| {
-				Error::NotFound(ErrorValue::Other(format!("language {requested_language}")))
-			})?;
-
 		// Try to read in the page for the requested (sub)row.
-		let start_id = header
-			.pages()
-			.iter()
-			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
-			.ok_or_else(row_not_found)?
-			.start_id();
-
-		let page = self
-			.cache
-			.pages
-			.try_get_or_insert((start_id, language), || {
-				let path = self
-					.mapper
-					.exd(&self.sheet_metadata.name(), start_id, language);
-				self.ironworks.file(&path)
-			})?;
+		let page = self.page(row_id, subrow_id, config.language)?;
 
 		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
@@ -159,10 +137,56 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
 	}
 
-	fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
+	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
 		self.cache.header.try_get_or_insert(|| {
 			let path = self.mapper.exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)
 		})
+	}
+
+	// TODO: not a fan of the subrow id in this
+	pub(super) fn page(
+		&self,
+		row_id: u32,
+		subrow_id: u16,
+		language: Option<u8>,
+	) -> Result<Arc<exd::ExcelData>> {
+		let header = self.header()?;
+
+		// Get the language to load, or NONE if the language is not supported by this sheet.
+		// TODO: Should an explicit language request fail hard on miss?
+		let requested_language = language.unwrap_or(self.default_language);
+		let language = *header
+			.languages()
+			.get(&requested_language)
+			.or_else(|| header.languages().get(&LANGUAGE_NONE))
+			// TODO: Should this be Invalid or NotFound?
+			// TODO: Should we have an explicit ErrorValue for language?
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Other(format!("language {requested_language}")))
+			})?;
+
+		let start_id = header
+			.pages()
+			.iter()
+			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Row {
+					row: row_id,
+					subrow: subrow_id,
+					sheet: self.sheet_metadata.name().into(),
+				})
+			})?
+			.start_id();
+
+		// Try to read in the page for the requested (sub)row.
+		self.cache
+			.pages
+			.try_get_or_insert((start_id, language), || {
+				let path = self
+					.mapper
+					.exd(&self.sheet_metadata.name(), start_id, language);
+				self.ironworks.file(&path)
+			})
 	}
 }
