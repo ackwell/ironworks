@@ -215,6 +215,7 @@ where
 
 	fn next(&mut self) -> Option<Self::Item> {
 		// TODO: both the .page and .subrow calls should have some means to utilise an iter-wide lang override
+		// TODO: need to fall back to 0-lang a-la how main row logic currently functions
 
 		let subrow_count = match self.subrow_count {
 			Some(v) => v,
@@ -239,5 +240,20 @@ where
 		self.subrow_id += 1;
 
 		Some(row)
+	}
+
+	fn nth(&mut self, n: usize) -> Option<Self::Item> {
+		use exh::SheetKind as K;
+		match self.sheet.header().ok()?.kind() {
+			// Subrows have to be done the manual way, as there's no way to know the subrow count without reading the relevant .exd page.
+			K::Subrows => {
+				for _i in 0..n {
+					self.next()?;
+				}
+			}
+			_ => self.row_id = n.try_into().unwrap(),
+		}
+
+		self.next()
 	}
 }
