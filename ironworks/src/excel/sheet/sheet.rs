@@ -77,6 +77,10 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		RowOptions::new(self)
 	}
 
+	pub fn iter(&'i self) -> SheetIterator<'i, S> {
+		SheetIterator::new(self)
+	}
+
 	/// Fetch a row from this sheet by ID. In the case of a sheet with subrows,
 	/// this will return subrow 0.
 	pub fn row(&self, row_id: u32) -> Result<S::Row> {
@@ -131,22 +135,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			})?;
 
 		// Try to read in the page for the requested (sub)row.
-		let start_id = header
-			.pages()
-			.iter()
-			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
-			.ok_or_else(row_not_found)?
-			.start_id();
-
-		let page = self
-			.cache
-			.pages
-			.try_get_or_insert((start_id, language), || {
-				let path = self
-					.mapper
-					.exd(&self.sheet_metadata.name(), start_id, language);
-				self.ironworks.file(&path)
-			})?;
+		let page = self.page(row_id, subrow_id, language)?;
 
 		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
@@ -164,5 +153,91 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			let path = self.mapper.exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)
 		})
+	}
+
+	// TODO: not a fan of the subrow id in this
+	fn page(&self, row_id: u32, subrow_id: u16, language: u8) -> Result<Arc<exd::ExcelData>> {
+		let start_id = self
+			.header()?
+			.pages()
+			.iter()
+			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Row {
+					row: row_id,
+					subrow: subrow_id,
+					sheet: self.sheet_metadata.name().into(),
+				})
+			})?
+			.start_id();
+
+		self.cache
+			.pages
+			.try_get_or_insert((start_id, language), || {
+				eprintln!(
+					"READ EXD: name:{} startid:{start_id} lang:{language}",
+					self.sheet_metadata.name()
+				);
+				let path = self
+					.mapper
+					.exd(&self.sheet_metadata.name(), start_id, language);
+				self.ironworks.file(&path)
+			})
+	}
+}
+
+#[derive(Debug)]
+pub struct SheetIterator<'i, S> {
+	sheet: &'i Sheet<'i, S>,
+
+	row_id: u32,
+	subrow_id: u16,
+
+	subrow_count: Option<u16>,
+}
+
+impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
+	fn new(sheet: &'i Sheet<S>) -> Self {
+		SheetIterator {
+			sheet,
+			row_id: 0,
+			subrow_id: 0,
+			subrow_count: None,
+		}
+	}
+}
+
+impl<S: SheetMetadata> Iterator for SheetIterator<'_, S>
+where
+	S::Row: Debug,
+{
+	type Item = S::Row;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		// TODO: both the .page and .subrow calls should have some means to utilise an iter-wide lang override
+
+		let subrow_count = match self.subrow_count {
+			Some(v) => v,
+			None => {
+				let page = self
+					.sheet
+					.page(self.row_id, self.subrow_id, self.sheet.default_language)
+					.ok()?;
+				let subrow_count = page.subrow_count(self.row_id).ok()?;
+				*self.subrow_count.insert(subrow_count)
+			}
+		};
+
+		if self.subrow_id >= subrow_count {
+			self.row_id += 1;
+			self.subrow_id = 0;
+			self.subrow_count = None;
+		}
+
+		let row = self.sheet.subrow(self.row_id, self.subrow_id).ok()?;
+
+		self.subrow_id += 1;
+
+		Some(row)
 	}
 }
