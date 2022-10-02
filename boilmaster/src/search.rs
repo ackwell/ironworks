@@ -112,7 +112,7 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 		);
 
 		for (index, column) in sheet.columns()?.iter().enumerate() {
-			let field = schema.get_field(&column.offset().to_string()).unwrap();
+			let field = schema.get_field(&column_to_field_name(column)).unwrap();
 			// TODO: this would really value .field(impl intocolumn) or similar
 			let value = row.field(index)?;
 			// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
@@ -155,8 +155,7 @@ fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
 	schema_builder.add_u64_field("subrow_id", schema::STORED);
 
 	for column in sheet.columns()? {
-		// TODO: technically speaking, using offset means both offset-ordered and column-ordered will work. right?
-		let name = column.offset().to_string();
+		let name = column_to_field_name(&column);
 
 		use exh::ColumnKind as CK;
 		match column.kind() {
@@ -187,4 +186,23 @@ fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
 	}
 
 	Ok(schema_builder.build())
+}
+
+fn column_to_field_name(column: &exh::ColumnDefinition) -> String {
+	// For packed bool columns, offset alone is not enough to disambiguate a
+	// field - add a suffix of the packed bit position.
+	use exh::ColumnKind as CK;
+	let suffix = match column.kind() {
+		CK::PackedBool0 => "_0",
+		CK::PackedBool1 => "_1",
+		CK::PackedBool2 => "_2",
+		CK::PackedBool3 => "_3",
+		CK::PackedBool4 => "_4",
+		CK::PackedBool5 => "_5",
+		CK::PackedBool6 => "_6",
+		CK::PackedBool7 => "_7",
+		_ => "",
+	};
+
+	format!("{}{suffix}", column.offset())
 }
