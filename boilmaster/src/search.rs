@@ -82,7 +82,7 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 		for (score, doc_addresss) in top_docs {
 			let doc = searcher.doc(doc_addresss)?;
 			let id = doc
-				.get_first(schema.get_field("id").unwrap())
+				.get_first(schema.get_field("row_id").unwrap())
 				.unwrap()
 				.as_u64()
 				.unwrap();
@@ -105,7 +105,11 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 	for row in sheet.iter() {
 		let mut document = Document::new();
 
-		document.add_u64(schema.get_field("id").unwrap(), (*row.row_id()).into());
+		document.add_u64(schema.get_field("row_id").unwrap(), (*row.row_id()).into());
+		document.add_u64(
+			schema.get_field("subrow_id").unwrap(),
+			(*row.subrow_id()).into(),
+		);
 
 		for (index, column) in sheet.columns()?.iter().enumerate() {
 			let field = schema.get_field(&column.offset().to_string()).unwrap();
@@ -146,8 +150,10 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
 	let mut schema_builder = Schema::builder();
 
-	// TODO: need rowid and subrowid
-	schema_builder.add_u64_field("id", schema::STORED);
+	// RowID and SubrowID are the only stored fields, search results can be looked up in real excel for the full dataset.
+	schema_builder.add_u64_field("row_id", schema::STORED);
+	schema_builder.add_u64_field("subrow_id", schema::STORED);
+
 	for column in sheet.columns()? {
 		// TODO: technically speaking, using offset means both offset-ordered and column-ordered will work. right?
 		let name = column.offset().to_string();
@@ -167,7 +173,7 @@ fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
 
 			CK::Float32 => schema_builder.add_f64_field(&name, schema::INDEXED),
 
-			// TODO: not sure how to handle bools...
+			// TODO: not sure how to handle bools... u64 each seems really wasteful
 			CK::Bool
 			| CK::PackedBool0
 			| CK::PackedBool1
