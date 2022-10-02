@@ -2,7 +2,7 @@ use std::{env::current_exe, fs};
 
 use anyhow::{Context, Result};
 use ironworks::{
-	excel::{Excel, Field, Sheet},
+	excel::{Excel, Field, Row, Sheet},
 	file::exh,
 };
 use tantivy::{
@@ -43,8 +43,8 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 		}
 		false => {
 			tracing::debug!("building {index_name:?}");
-			let schema = build_sheet_schema(&sheet)?;
-			Index::create(directory, schema, IndexSettings::default())?
+			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
+			ingest_sheet(&sheet, directory)?
 		}
 	};
 
@@ -97,44 +97,28 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 		return Ok(());
 	}
 
+	tracing::info!("opened index {index:?}");
+
+	Ok(())
+}
+
+fn ingest_sheet(sheet: &Sheet<&str>, directory: MmapDirectory) -> Result<Index> {
+	let columns = sheet.columns()?;
+
+	let index = Index::create(
+		directory,
+		build_sheet_schema(&columns)?,
+		IndexSettings::default(),
+	)?;
+
+	// Allocating 50mb for writer ingestion.
+	// TODO: Is this per index? A bulk version ingestion might be problematic @ 50mb/ea, test this behavior.
+	// TODO: probably should be configurable anyway.
 	let mut writer = index.writer(50 * 1024 * 1024)?;
 
-	// TODO: this is nightmare fuel, break up. a lot.
 	// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
-	tracing::debug!("ingesting {index_name}");
 	for row in sheet.iter() {
-		let mut document = Document::new();
-
-		document.add_u64(schema.get_field("row_id").unwrap(), (*row.row_id()).into());
-		document.add_u64(
-			schema.get_field("subrow_id").unwrap(),
-			(*row.subrow_id()).into(),
-		);
-
-		for (index, column) in sheet.columns()?.iter().enumerate() {
-			let field = schema.get_field(&column_to_field_name(column)).unwrap();
-			// TODO: this would really value .field(impl intocolumn) or similar
-			let value = row.field(index)?;
-			// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
-			use Field as F;
-			match value {
-				F::String(value) => document.add_text(field, value),
-
-				F::I8(value) => document.add_i64(field, i64::from(value)),
-				F::I16(value) => document.add_i64(field, i64::from(value)),
-				F::I32(value) => document.add_i64(field, i64::from(value)),
-				F::I64(value) => document.add_i64(field, value),
-
-				F::U8(value) => document.add_u64(field, u64::from(value)),
-				F::U16(value) => document.add_u64(field, u64::from(value)),
-				F::U32(value) => document.add_u64(field, u64::from(value)),
-				F::U64(value) => document.add_u64(field, value),
-
-				F::F32(value) => document.add_f64(field, f64::from(value)),
-
-				F::Bool(value) => document.add_u64(field, u64::from(value)),
-			}
-		}
+		let document = build_row_document(row, &columns, &index.schema())?;
 
 		// this can block; which suggests to me that at minimum, ingesting should be done on the side.
 		writer.add_document(document)?;
@@ -142,20 +126,18 @@ pub fn temp_test_search(excel: &Excel) -> Result<()> {
 
 	writer.commit()?;
 
-	tracing::info!("opened index {index:?}");
-
-	Ok(())
+	Ok(index)
 }
 
-fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
+fn build_sheet_schema(columns: &[exh::ColumnDefinition]) -> Result<Schema> {
 	let mut schema_builder = Schema::builder();
 
 	// RowID and SubrowID are the only stored fields, search results can be looked up in real excel for the full dataset.
 	schema_builder.add_u64_field("row_id", schema::STORED);
 	schema_builder.add_u64_field("subrow_id", schema::STORED);
 
-	for column in sheet.columns()? {
-		let name = column_to_field_name(&column);
+	for column in columns {
+		let name = column_to_field_name(column);
 
 		use exh::ColumnKind as CK;
 		match column.kind() {
@@ -186,6 +168,47 @@ fn build_sheet_schema(sheet: &Sheet<&str>) -> Result<Schema> {
 	}
 
 	Ok(schema_builder.build())
+}
+
+fn build_row_document(
+	row: Row,
+	columns: &[exh::ColumnDefinition],
+	schema: &Schema,
+) -> Result<Document> {
+	let mut document = Document::new();
+
+	document.add_u64(schema.get_field("row_id").unwrap(), (*row.row_id()).into());
+	document.add_u64(
+		schema.get_field("subrow_id").unwrap(),
+		(*row.subrow_id()).into(),
+	);
+
+	for (index, column) in columns.iter().enumerate() {
+		let field = schema.get_field(&column_to_field_name(column)).unwrap();
+		// TODO: this would really value .field(impl intocolumn) or similar
+		let value = row.field(index)?;
+		// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
+		use Field as F;
+		match value {
+			F::String(value) => document.add_text(field, value),
+
+			F::I8(value) => document.add_i64(field, value.into()),
+			F::I16(value) => document.add_i64(field, value.into()),
+			F::I32(value) => document.add_i64(field, value.into()),
+			F::I64(value) => document.add_i64(field, value),
+
+			F::U8(value) => document.add_u64(field, value.into()),
+			F::U16(value) => document.add_u64(field, value.into()),
+			F::U32(value) => document.add_u64(field, value.into()),
+			F::U64(value) => document.add_u64(field, value),
+
+			F::F32(value) => document.add_f64(field, value.into()),
+
+			F::Bool(value) => document.add_u64(field, value.into()),
+		}
+	}
+
+	Ok(document)
 }
 
 fn column_to_field_name(column: &exh::ColumnDefinition) -> String {
