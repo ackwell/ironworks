@@ -4,17 +4,18 @@ use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
 
 pub struct Data {
 	// TODO: this should be a lazy map of some kind once this is using real data
-	temp_version: DataVersion,
+	temp_version: Version,
 }
 
 impl Data {
+	#[allow(clippy::new_without_default)]
 	pub fn new() -> Self {
 		Data {
-			temp_version: DataVersion::new(),
+			temp_version: Version::new(),
 		}
 	}
 
-	pub fn version(&self, version: Option<&str>) -> &DataVersion {
+	pub fn version(&self, version: Option<&str>) -> &Version {
 		// TODO: actual version handling, pulling data from an actual game install. need patching and all that shit.
 		if version.is_some() {
 			todo!("data version handling");
@@ -24,11 +25,11 @@ impl Data {
 	}
 }
 
-pub struct DataVersion {
+pub struct Version {
 	excel: Arc<Excel<'static>>,
 }
 
-impl DataVersion {
+impl Version {
 	fn new() -> Self {
 		// TODO: Work out how to handle languages
 		let ironworks =
@@ -37,7 +38,7 @@ impl DataVersion {
 			.language(ffxiv::Language::English)
 			.build(Arc::new(ironworks), ffxiv::Mapper::new());
 
-		DataVersion {
+		Version {
 			excel: Arc::new(excel),
 		}
 	}

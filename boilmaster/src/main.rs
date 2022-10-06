@@ -1,4 +1,4 @@
-use boilmaster::{data::Data, http, search::temp_test_search};
+use boilmaster::{data::Data, http, search::Search};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 #[tokio::main]
@@ -11,7 +11,8 @@ async fn main() {
 
 	let data = Data::new();
 
-	temp_test_search(data.version(None).excel()).unwrap();
+	let mut search = Search::new();
+	search.initialize(&data).expect("TODO: Error handling here");
 
 	http::serve(data).await
 }
