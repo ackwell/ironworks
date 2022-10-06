@@ -14,5 +14,5 @@ async fn main() {
 	let mut search = Search::new();
 	search.initialize(&data).expect("TODO: Error handling here");
 
-	http::serve(data).await
+	http::serve(data, search).await
 }

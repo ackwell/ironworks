@@ -22,6 +22,7 @@ impl Version {
 		let excel = data_version.excel();
 
 		// TODO: build an index for every sheet
+		// NOTE: should probably record which sheets contain strings so we can immediately ignore the rest when there's a query string
 		let sheets = ["Action"];
 
 		let mut indices = HashMap::new();
@@ -39,14 +40,18 @@ impl Version {
 
 	// TODO: index specifier?
 	// TODO: non-string-query filters
-	pub fn search(&self, query: &str) {
-		// TODO: this should combine across multiple indicies in some score-centric way?
-		let x = self
+	// TODO: continuation?
+	pub fn search(&self, query: &str) -> Result<impl Iterator<Item = (f32, (u32, u16))>> {
+		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
+		// TODO: this needs to tag results with their index in some manner because at the moment it immeidatly gets lost
+		let index_results = self
 			.indices
 			.values()
 			.map(|index| index.search(query))
-			.collect::<Vec<_>>();
+			.collect::<Result<Vec<_>>>()?;
 
-		tracing::debug!("search result: {x:#?}");
+		let iterator = index_results.into_iter().flatten();
+
+		Ok(iterator)
 	}
 }

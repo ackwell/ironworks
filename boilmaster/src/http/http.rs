@@ -4,22 +4,24 @@ use axum::{Extension, Router, Server};
 use tokio::signal;
 use tower_http::trace::TraceLayer;
 
-use crate::data::Data;
+use crate::{data::Data, search::Search};
 
-use super::sheets;
+use super::{search, sheets};
 
 // TODO: should the data be an arc at this point? i guess it'll depend if i need to store refs to it for search &c
-pub async fn serve(data: Data) {
+pub async fn serve(data: Data, search: Search) {
 	Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
-		.serve(router(data).into_make_service())
+		.serve(router(data, search).into_make_service())
 		.with_graceful_shutdown(shutdown_signal())
 		.await
 		.unwrap()
 }
 
-fn router(data: Data) -> Router {
+fn router(data: Data, search: Search) -> Router {
 	Router::new()
 		.nest("/sheets", sheets::router())
+		.nest("/search", search::router(search))
+		// TODO: I'm not convinced by setting up the data layer this high, seems a bit magic so to speak
 		.layer(Extension(Arc::new(data)))
 		.layer(TraceLayer::new_for_http())
 }
