@@ -1,6 +1,7 @@
 use std::{fs, path::Path};
 
 use anyhow::Result;
+use either::Either;
 use ironworks::excel::Excel;
 use tantivy::{
 	collector::TopDocs, directory::MmapDirectory, query::QueryParser, schema::FieldType,
@@ -34,6 +35,7 @@ impl Index {
 				let sheet = excel.sheet(sheet_name)?;
 				// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 				// TODO: maybe rayon for executing the blocking init?
+				// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
 				ingest_sheet(&sheet, directory)
 					.expect("TODO: error handling for ingestion failures")
 			}
@@ -66,6 +68,12 @@ impl Index {
 			.filter(|(_field, entry)| matches!(entry.field_type(), FieldType::Str(_)))
 			.map(|(field, _entry)| field)
 			.collect::<Vec<_>>();
+
+		// No string fields means a query string will never match (it'll throw an error, even).
+		// TODO: this condition does not hold when further filters are added
+		if string_fields.is_empty() {
+			return Ok(Either::Right(std::iter::empty()));
+		}
 
 		// TODO: these string constants should be in a shared location.
 		let row_id_field = schema
@@ -102,6 +110,6 @@ impl Index {
 			(score, (row_id, subrow_id))
 		});
 
-		Ok(todo_result)
+		Ok(Either::Left(todo_result))
 	}
 }

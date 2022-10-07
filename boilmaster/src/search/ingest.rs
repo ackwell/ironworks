@@ -14,10 +14,11 @@ pub fn ingest_sheet(sheet: &Sheet<&str>, directory: MmapDirectory) -> Result<tan
 		IndexSettings::default(),
 	)?;
 
-	// Allocating 50mb for writer ingestion.
-	// TODO: Is this per index? A bulk version ingestion might be problematic @ 50mb/ea, test this behavior.
+	// Allocating 5mb for writer ingestion.
+	// TODO: Is this per index? (yes it is) A bulk version ingestion might be problematic @ 5mb/ea, test this behavior. there's ~6.5k sheets, so in the unlikely case all of them are being written at the same time, that's a gnarly amount of ram.
 	// TODO: probably should be configurable anyway.
-	let mut writer = index.writer(50 * 1024 * 1024)?;
+	// TODO: realistically, ingestion needs to be a queue system
+	let mut writer = index.writer(5 * 1024 * 1024)?;
 
 	// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
 	for row in sheet.iter() {
@@ -93,6 +94,7 @@ fn build_row_document(
 		// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
 		use Field as F;
 		match value {
+			// TODO: need to make sure the ingested strings don't contain non-string payloads
 			F::String(value) => document.add_text(field, value),
 
 			F::I8(value) => document.add_i64(field, value.into()),

@@ -8,6 +8,7 @@ publish = false
 anyhow = "1.0.55"
 axum = "0.5.3"
 axum-macros = "0.2.0"
+either = "1.8.0"
 ironworks = {path = "../ironworks", features = ["excel", "ffxiv", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 serde = {version = "1.0.137", features = ["derive"]}

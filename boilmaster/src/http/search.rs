@@ -23,14 +23,16 @@ async fn search(
 
 	let results = search_version
 		.search("summon")?
-		.map(|(score, (row_id, subrow_id))| -> Result<_> {
-			// TODO: consume index -> sheet tags once those are exposed
-			let temp_sheet = excel.sheet("Action")?;
+		.map(|(score, (sheet_name, row_id, subrow_id))| -> Result<_> {
+			let temp_sheet = excel.sheet(sheet_name)?;
 			let row = temp_sheet.subrow(row_id, subrow_id)?;
 			// TODO: parse properly
-			let name = row.field(0)?.as_string().unwrap().to_string();
+			let name = row
+				.field(0)?
+				.as_string()
+				.map(|se_string| se_string.to_string());
 
-			Ok((score, name))
+			Ok((score, sheet_name.to_string(), name))
 		})
 		.collect::<Result<Vec<_>>>()?;
 
