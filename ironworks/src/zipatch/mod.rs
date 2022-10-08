@@ -1,6 +1,6 @@
 use std::fs;
 
-use binrw::{until, BinRead};
+use binrw::{binread, until, BinRead, NullString};
 
 use crate::error::Result;
 
@@ -86,15 +86,83 @@ enum Option {
 #[derive(Debug, BinRead)]
 #[br(big)]
 struct SqPack {
-	// TODO
+	size: u32,
+	// operation: u8,
+	payload: SqPackPayload,
+}
+
+#[derive(Debug, BinRead)]
+#[br(big)]
+enum SqPackPayload {
+	#[br(magic = b"A")]
+	Add(Todo),
+
+	#[br(magic = b"D")]
+	Delete(Todo),
+
+	#[br(magic = b"E")]
+	Expand(Todo),
+
+	#[br(magic = b"F")]
+	FileOperation(SqPackFileOperation),
+
+	#[br(magic = b"H")]
+	Header(Todo),
+
+	#[br(magic = b"I")]
+	Index(Todo),
+
+	#[br(magic = b"X")]
+	PatchInfo(Todo),
+
+	#[br(magic = b"T")]
+	TargetInfo(Todo),
+}
+
+#[derive(Debug, BinRead)]
+struct Todo();
+
+#[binread]
+#[derive(Debug)]
+#[br(big)]
+struct SqPackFileOperation {
+	kind: SqPackFileOperationKind,
+	#[br(pad_before = 2)]
+	// unk1: [u8; 2]
+	offset: u64,
+	size: u64,
+	#[br(temp)]
+	path_length: u32,
+	#[br(pad_after = 2)]
+	// todo: repository id?
+	expansion_id: u16,
+	// unk2: [u8; 2]
+
+	// ??????
+	#[br(pad_size_to = path_length)]
+	path: NullString,
+}
+
+#[derive(Debug, BinRead)]
+#[br(repr = u8)]
+enum SqPackFileOperationKind {
+	AddFile = 'A' as isize,
+	// Unused?
+	DeleteFile = 'D' as isize,
+	// Unused?
+	MakeDirTree = 'M' as isize,
+	RemoveAll = 'R' as isize,
 }
 
 pub fn test() -> Result<ZiPatch> {
 	let mut file = fs::File::open(
-		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001a.patch",
+		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001d.patch",
 	)?;
 
-	let zipatch = ZiPatch::read(&mut file)?;
+	let zipatch = ZiPatch::read(&mut file).unwrap();
+
+	let test = &zipatch.chunks[200];
+	println!("{test:#?}");
 
 	Ok(zipatch)
 }
