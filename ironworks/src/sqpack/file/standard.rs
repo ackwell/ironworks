@@ -167,3 +167,40 @@ where
 		Ok(bytes_read)
 	}
 }
+
+impl<R> Seek for SqPackStream<R> {
+	fn seek(&mut self, position: SeekFrom) -> io::Result<u64> {
+		let (base, position) = match position {
+			SeekFrom::Start(position) => {
+				self.position = position.try_into().unwrap();
+				return Ok(position);
+			}
+			SeekFrom::Current(position) => (self.position, position),
+			SeekFrom::End(position) => {
+				let base = match self.metadata.last() {
+					Some(meta) => meta.output_offset + meta.output_size,
+					None => 0,
+				};
+				(base, position)
+			}
+		};
+
+		// All of this because the easy way is unstable. still.
+		let ibase = i64::try_from(base).unwrap();
+		let ioffset = ibase.checked_add(position).ok_or_else(|| {
+			io::Error::new(
+				io::ErrorKind::InvalidInput,
+				"invalid seek to an overflowing position",
+			)
+		})?;
+		if ioffset < 0 {
+			return Err(io::Error::new(
+				io::ErrorKind::InvalidInput,
+				"invalid seek to a negative position",
+			));
+		}
+		let offset = u64::try_from(ioffset).unwrap();
+		self.position = offset.try_into().unwrap();
+		Ok(offset)
+	}
+}
