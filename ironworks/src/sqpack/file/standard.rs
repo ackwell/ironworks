@@ -15,7 +15,6 @@ struct BlockInfo {
 	output_size: u16,
 }
 
-// TODO: should that offset be a usize? will need changes up the code path obviosuly
 pub fn read<R: Read + Seek>(mut reader: R, offset: u32, header: Header) -> Result<FileStream<R>> {
 	// Eagerly read the block info.
 	let blocks = <Vec<BlockInfo>>::read_args(
@@ -61,7 +60,6 @@ pub struct FileStream<R> {
 	/// Stream's position within the sqpack file.
 	position: usize,
 	/// Block index currently being read.
-	// TODO: is it work keeping this? It can be derived from the position
 	current_block: usize,
 	/// Cached reader for the current block.
 	block_data: Option<Cursor<Vec<u8>>>,
@@ -181,7 +179,7 @@ impl<R> Seek for FileStream<R> {
 			}
 		};
 
-		// All of this because the easy way is unstable. still.
+		// All of this because the easy way is unstable. Still.
 		let ibase = i64::try_from(base).unwrap();
 		let ioffset = ibase.checked_add(position).ok_or_else(|| {
 			io::Error::new(

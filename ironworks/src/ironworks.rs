@@ -73,7 +73,6 @@ impl Ironworks {
 	/// as raw bytes, pass `Vec<u8>` to F.
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
 		let stream = self.find_first(path, |resource| resource.file(path))?;
-
 		F::read(stream)
 	}
 

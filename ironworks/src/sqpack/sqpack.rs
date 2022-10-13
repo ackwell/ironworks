@@ -75,7 +75,7 @@ where
 		self.version(path)
 	}
 
-	fn file(&self, path: &str) -> Result<Box<(dyn FileStream)>> {
+	fn file(&self, path: &str) -> Result<Box<dyn FileStream>> {
 		Ok(Box::new(self.file(path)?))
 	}
 }
