@@ -15,8 +15,8 @@ struct BlockInfo {
 	output_size: u16,
 }
 
-// todo: should that offset be a usize? will need changes up the code path obviosuly
-pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
+// TODO: should that offset be a usize? will need changes up the code path obviosuly
+pub fn read<R: Read + Seek>(mut reader: R, offset: u32, header: Header) -> Result<FileStream<R>> {
 	// Eagerly read the block info.
 	let blocks = <Vec<BlockInfo>>::read_args(
 		&mut reader,
@@ -39,12 +39,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		})
 		.collect::<Vec<_>>();
 
-	let mut stream = SqPackStream::new(reader, offset, metadata);
-
-	let mut temp_buf = Vec::new();
-	stream.read_to_end(&mut temp_buf)?;
-
-	Ok(temp_buf)
+	Ok(FileStream::new(reader, offset, metadata))
 }
 
 #[derive(Debug)]
@@ -54,7 +49,7 @@ struct BlockMetadata {
 	output_size: usize,
 }
 
-struct SqPackStream<R> {
+pub struct FileStream<R> {
 	/// Reader for the full dat file that the sqpack file is being read from.
 	dat_reader: R,
 	/// Offset for this sqpack file within the full dat file.
@@ -71,7 +66,7 @@ struct SqPackStream<R> {
 	block_data: Option<Cursor<Vec<u8>>>,
 }
 
-impl<R> SqPackStream<R>
+impl<R> FileStream<R>
 where
 	R: Read + Seek,
 {
@@ -88,7 +83,7 @@ where
 	}
 }
 
-impl<R> Read for SqPackStream<R>
+impl<R> Read for FileStream<R>
 where
 	R: Read + Seek,
 {
@@ -168,7 +163,7 @@ where
 	}
 }
 
-impl<R> Seek for SqPackStream<R> {
+impl<R> Seek for FileStream<R> {
 	fn seek(&mut self, position: SeekFrom) -> io::Result<u64> {
 		let (base, position) = match position {
 			SeekFrom::Start(position) => {
