@@ -36,7 +36,7 @@ struct SectionInfo<T: BinRead<Args = ()> + 'static> {
 	index_buffer: [T; MAX_LODS],
 }
 
-pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
+pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Cursor<Vec<u8>>> {
 	let model_header = ModelHeader::read(&mut reader)?;
 
 	// Model header is followed by an array of block sizes.
@@ -141,6 +141,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	}
 
 	// Write out the header now we've collected the info for it.
+	// TODO: While these values do work, it's technically not a match with the game's own format - the `_size` property in the header has the correct final values, but they're 0-padded, leading to larger sizes than we get with this method. Look into fixing this up to get as close to 1:1 as possible.
 	writer.seek(SeekFrom::Start(0))?;
 	writer.write_le(&header.block_count)?; // version
 	writer.write_le(&stack_size)?;
@@ -156,7 +157,9 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	writer.write_le(&model_header.edge_geometry_enabled)?;
 	writer.write_le(&0u8)?;
 
-	Ok(writer.into_inner())
+	// TODO: Look into lazy reading this. Can probably read LODs lazily?
+	writer.seek(SeekFrom::Start(0))?;
+	Ok(writer)
 }
 
 fn read_blocks(

@@ -1,11 +1,11 @@
-use std::io::{Read, Seek};
+use std::io::{Empty, Read, Seek};
 
 use crate::error::{Error, ErrorValue, Result};
 
 use super::shared::Header;
 
-pub fn read(reader: impl Read + Seek, header: Header) -> Result<Vec<u8>> {
-	let mut buf = Vec::new();
+pub fn read(reader: impl Read + Seek, header: Header) -> Result<Empty> {
+	let mut buf = Vec::with_capacity(header.raw_file_size.try_into().unwrap());
 	reader
 		.take(header.raw_file_size.into())
 		.read_to_end(&mut buf)?;

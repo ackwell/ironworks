@@ -32,7 +32,7 @@ struct TexHeader {
 	surface_offsets: [u32; 13],
 }
 
-pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Vec<u8>> {
+pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result<Cursor<Vec<u8>>> {
 	// Eagerly read the block info.
 	let blocks = <Vec<SurfaceBlockInfo>>::read_args(
 		&mut reader,
@@ -102,5 +102,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		}
 	}
 
-	Ok(writer.into_inner())
+	// TODO: is there a reasonable way to lazy read a texture?
+	writer.seek(SeekFrom::Start(0))?;
+	Ok(writer)
 }

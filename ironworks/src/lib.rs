@@ -20,6 +20,6 @@ pub mod sestring;
 pub mod sqpack;
 
 pub use {
+	crate::ironworks::{FileStream, Ironworks, Resource},
 	error::{Error, ErrorValue},
-	ironworks::{Ironworks, Resource},
 };

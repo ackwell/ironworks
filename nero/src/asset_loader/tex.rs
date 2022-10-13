@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use bevy::{
 	asset::{AssetLoader, BoxedFuture, LoadContext, LoadedAsset},
 	prelude::*,
@@ -17,7 +19,7 @@ impl AssetLoader for TexAssetLoader {
 		load_context: &'a mut LoadContext,
 	) -> BoxedFuture<'a, Result<(), anyhow::Error>> {
 		Box::pin(async move {
-			let tex = <tex::Texture as File>::read(bytes)?;
+			let tex = <tex::Texture as File>::read(Cursor::new(bytes.to_vec()))?;
 			let image = convert_tex(tex);
 
 			load_context.set_default_asset(LoadedAsset::new(image));

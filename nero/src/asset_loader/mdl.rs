@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, io::Cursor, path::PathBuf};
 
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
@@ -35,7 +35,7 @@ fn load_mdl<'a>(
 ) -> Result<(), anyhow::Error> {
 	let mut world = World::default();
 
-	let container = <mdl::ModelContainer as File>::read(bytes)?;
+	let container = <mdl::ModelContainer as File>::read(Cursor::new(bytes.to_vec()))?;
 	// TODO: load all 3 LOD as seperate scenes?
 	let model = container.model(mdl::Lod::High);
 	let meshes = model.meshes().into_iter().map(load_mesh);

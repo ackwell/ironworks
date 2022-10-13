@@ -1,9 +1,9 @@
-use std::{borrow::Cow, fmt, io::Cursor};
+use std::{fmt, io::Cursor};
 
 use binrw::{BinRead, NullString};
 use getset::{CopyGetters, Getters};
 
-use crate::{error::Result, file::File};
+use crate::{error::Result, file::File, FileStream};
 
 use super::structs;
 
@@ -67,8 +67,8 @@ impl Material {
 }
 
 impl File for Material {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		let file = structs::Material::read(&mut Cursor::new(data.into()))?;
+	fn read(mut stream: impl FileStream) -> Result<Self> {
+		let file = structs::Material::read(&mut stream)?;
 		Ok(Material {
 			shader: Material::read_shader(&file)?,
 			samplers: Material::read_samplers(&file)?,
