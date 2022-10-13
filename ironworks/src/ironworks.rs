@@ -5,6 +5,10 @@ use crate::{
 	file::File,
 };
 
+// TODO: is it worth having an expected_size of some kind on this? it would be useful for vec reads i guess? This basically exists soley for the trait object on resource.
+/// Representation of a file stream read from a resource.
+pub trait FileStream: std::io::Read + std::io::Seek {}
+
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 /// Resource layer that can provide data to an ironworks instance.
 pub trait Resource: Send + Sync + 'static {
@@ -13,10 +17,10 @@ pub trait Resource: Send + Sync + 'static {
 	/// continuing to the next resource.
 	fn version(&self, path: &str) -> Result<String>;
 
-	/// Get the raw byte data for the file at `path`. A return value of
+	/// Get a data stream for the file at `path`. A return value of
 	/// `Err(Error::NotFound(ErrorValue::Path(_)))` will result in lookups
 	/// continuing to the next resource.
-	fn file(&self, path: &str) -> Result<Vec<u8>>;
+	fn file(&self, path: &str) -> Result<Box<dyn FileStream>>;
 }
 
 /// Core ironworks struct. Add one or more resources to query files.
@@ -66,8 +70,12 @@ impl Ironworks {
 	/// Read the file at `path`, using file type F to parse. To retrieve the file
 	/// as raw bytes, pass `Vec<u8>` to F.
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
-		let data = self.find_first(path, |resource| resource.file(path))?;
-		F::read(data)
+		let mut data = self.find_first(path, |resource| resource.file(path))?;
+
+		let mut buffer = Vec::new();
+		data.read_to_end(&mut buffer)?;
+
+		F::read(buffer)
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

@@ -49,6 +49,7 @@ struct BlockMetadata {
 	output_size: usize,
 }
 
+#[derive(Debug)]
 pub struct FileStream<R> {
 	/// Reader for the full dat file that the sqpack file is being read from.
 	dat_reader: R,
