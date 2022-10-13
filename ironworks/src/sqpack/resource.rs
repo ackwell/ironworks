@@ -22,7 +22,7 @@ pub trait Resource {
 	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2>;
 
 	/// The type of a dat resource.
-	type Dat: Read + Seek;
+	type Dat: Read + Seek + Send + Sync;
 	/// Fetches the specified dat resource.
 	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat>;
 }

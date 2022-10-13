@@ -8,8 +8,8 @@ use crate::{
 };
 
 /// Representation of a file stream read from a resource.
-pub trait FileStream: Read + Seek + 'static {}
-impl<T> FileStream for T where T: Read + Seek + 'static {}
+pub trait FileStream: Read + Seek + Send + Sync + 'static {}
+impl<T> FileStream for T where T: Read + Seek + Send + Sync + 'static {}
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 /// Resource layer that can provide data to an ironworks instance.
