@@ -1,4 +1,4 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::{collections::HashSet, io::Cursor, path::PathBuf};
 
 use bevy::{
 	asset::{AssetLoader, AssetPath, BoxedFuture, LoadContext, LoadedAsset},
@@ -33,7 +33,7 @@ fn load_mtrl<'a>(
 	// TODO: this pattern will probably crop up a bunch. abstract it and the handle logic as a helper?
 	let mut dependencies = HashSet::<String>::new();
 
-	let material = <mtrl::Material>::read(bytes)?;
+	let material = <mtrl::Material>::read(Cursor::new(bytes.to_vec()))?;
 
 	let samplers = material
 		.samplers()

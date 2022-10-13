@@ -1,3 +1,5 @@
+use std::io::{Read, Seek};
+
 use derivative::Derivative;
 
 use crate::{
@@ -5,9 +7,9 @@ use crate::{
 	file::File,
 };
 
-// TODO: is it worth having an expected_size of some kind on this? it would be useful for vec reads i guess? This basically exists soley for the trait object on resource.
 /// Representation of a file stream read from a resource.
-pub trait FileStream: std::io::Read + std::io::Seek {}
+pub trait FileStream: Read + Seek + 'static {}
+impl<T> FileStream for T where T: Read + Seek + 'static {}
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 /// Resource layer that can provide data to an ironworks instance.
@@ -70,12 +72,9 @@ impl Ironworks {
 	/// Read the file at `path`, using file type F to parse. To retrieve the file
 	/// as raw bytes, pass `Vec<u8>` to F.
 	pub fn file<F: File>(&self, path: &str) -> Result<F> {
-		let mut data = self.find_first(path, |resource| resource.file(path))?;
+		let stream = self.find_first(path, |resource| resource.file(path))?;
 
-		let mut buffer = Vec::new();
-		data.read_to_end(&mut buffer)?;
-
-		F::read(buffer)
+		F::read(stream)
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

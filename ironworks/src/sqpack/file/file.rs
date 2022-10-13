@@ -66,5 +66,3 @@ impl<R: Read + Seek> Seek for FileStream<R> {
 		}
 	}
 }
-
-impl<R: Read + Seek> crate::ironworks::FileStream for FileStream<R> {}

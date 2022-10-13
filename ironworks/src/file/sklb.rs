@@ -1,14 +1,11 @@
 //! Structs and utilities for parsing .sklb files.
 
-use std::{
-	borrow::Cow,
-	io::{Cursor, Read, Seek, SeekFrom},
-};
+use std::io::{Read, Seek, SeekFrom};
 
 use binrw::{binread, count, until_eof, BinRead, BinResult, ReadOptions};
 use getset::{CopyGetters, Getters};
 
-use crate::error::Result;
+use crate::{error::Result, FileStream};
 
 use super::file::File;
 
@@ -89,8 +86,8 @@ impl SkeletonBinary {
 }
 
 impl File for SkeletonBinary {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
+	fn read(mut stream: impl FileStream) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut stream)?)
 	}
 }
 

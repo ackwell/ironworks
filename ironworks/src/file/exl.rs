@@ -2,7 +2,10 @@
 
 use std::{borrow::Cow, collections::HashSet};
 
-use crate::error::{Error, Result};
+use crate::{
+	error::{Error, Result},
+	FileStream,
+};
 
 use super::File;
 
@@ -25,12 +28,12 @@ impl ExcelList {
 }
 
 impl File for ExcelList {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		let cow: Cow<[u8]> = data.into();
-
+	fn read(mut stream: impl FileStream) -> Result<Self> {
 		// The excel list is actually just plaintext, read it in as a string.
-		let list =
-			String::from_utf8(cow.into_owned()).map_err(|error| Error::Resource(error.into()))?;
+		let mut list = String::new();
+		stream
+			.read_to_string(&mut list)
+			.map_err(|error| Error::Resource(error.into()))?;
 
 		let mut lines = list.split("\r\n");
 
@@ -55,6 +58,8 @@ impl File for ExcelList {
 
 #[cfg(test)]
 mod test {
+	use std::io::{self, Cursor};
+
 	use crate::{error::Error, file::File};
 
 	use super::ExcelList;
@@ -63,25 +68,25 @@ mod test {
 
 	#[test]
 	fn empty() {
-		let list = ExcelList::read(vec![]);
+		let list = ExcelList::read(io::empty());
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn missing_magic() {
-		let list = ExcelList::read(b"hello\r\nworld".to_vec());
+		let list = ExcelList::read(Cursor::new(b"hello\r\nworld".to_vec()));
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn has_sheet() {
-		let list = ExcelList::read(TEST_LIST.to_vec()).unwrap();
+		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
 		assert!(list.has("sheet2"));
 	}
 
 	#[test]
 	fn missing_sheet() {
-		let list = ExcelList::read(TEST_LIST.to_vec()).unwrap();
+		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
 		assert!(!list.has("sheet4"));
 	}
 }

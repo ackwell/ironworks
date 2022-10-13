@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	ironworks::FileStream,
 	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
 	Resource,
