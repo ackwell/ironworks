@@ -39,7 +39,7 @@ mod test {
 		assert_sync::<Excel>();
 		assert_sync::<ExcelOptions>();
 		assert_sync::<Field>();
-		// assert_sync::<Row>();
+		assert_sync::<Row>();
 		assert_sync::<RowOptions<()>>();
 		assert_sync::<Sheet<()>>();
 		assert_sync::<SheetIterator<()>>();
