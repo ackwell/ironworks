@@ -2,10 +2,9 @@ use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	file::index,
 	sqpack::Resource,
 };
-
-use super::{index1::Index1, index2::Index2, shared::FileMetadata};
 
 #[derive(Debug)]
 pub struct Location {
@@ -57,8 +56,8 @@ impl Index {
 
 #[derive(Debug)]
 enum IndexChunk {
-	Index1(Index1),
-	Index2(Index2),
+	Index1(index::Index),
+	Index2,
 }
 
 impl IndexChunk {
@@ -66,23 +65,20 @@ impl IndexChunk {
 		resource
 			.index(repository, category, chunk)
 			.and_then(|mut reader| {
-				let file = Index1::read(&mut reader)?;
+				let file = index::Index::read(&mut reader)?;
 				Ok(IndexChunk::Index1(file))
 			})
 			.or_else(|_| {
 				resource
 					.index2(repository, category, chunk)
-					.and_then(|mut reader| {
-						let file = Index2::read(&mut reader)?;
-						Ok(IndexChunk::Index2(file))
-					})
+					.map(|mut _reader| IndexChunk::Index2)
 			})
 	}
 
-	fn find(&self, path: &str) -> Result<FileMetadata> {
+	fn find(&self, path: &str) -> Result<index::FileMetadata> {
 		match self {
 			Self::Index1(index) => index.find(path),
-			Self::Index2(_index) => todo!("index2"),
+			Self::Index2 => todo!("index2"),
 		}
 	}
 }
