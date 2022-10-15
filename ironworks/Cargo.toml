@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
 ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
-zipatch = []
+zipatch = ["dep:memmap2"]
 
 # File types
 eqdp = ["dep:modular-bitfield"]
@@ -39,5 +39,6 @@ thiserror = "1.0.30"
 enum-as-inner = {version = "0.5.0", optional = true}
 flate2 = {version = "1.0.22", optional = true}
 half = {version = "2.1.0", optional = true}
+memmap2 = {version = "0.5.7", optional = true}
 modular-bitfield = {version = "0.11.2", optional = true}
 num_enum = {version = "0.5.7", optional = true}

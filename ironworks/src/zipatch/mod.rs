@@ -293,8 +293,15 @@ enum Region {
 pub fn test() -> Result<ZiPatch> {
 	let mut file = fs::File::open(
 		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001d.patch",
-		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0001.0000.patch",
+		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0000.0000.patch",
 	)?;
+
+	// eep; todo doc this if it works and i end up using it lmao
+	// it's about 2x as fast as a bufreader wrapper on a file. worth it?
+	let test = unsafe { memmap2::Mmap::map(&file) }.unwrap();
+	let mut file = std::io::Cursor::new(test);
+
+	// let mut file = BufReader::new(file);
 
 	let zipatch = ZiPatch::read(&mut file).unwrap();
 
@@ -307,7 +314,7 @@ pub fn test() -> Result<ZiPatch> {
 		let foo = match &chunk.kind {
 			ChunkKind::SqPack(sqpack) => match &sqpack.payload {
 				SqPackPayload::FileOperation(fo) => {
-					format!("SQPACK:FileOperation:{:?}", fo.kind)
+					format!("SQPACK:FileOperation:{:?}:{}", fo.kind, fo.path)
 				}
 				SqPackPayload::IndexUpdate(fo) => {
 					format!("SQPACK:IndexUpdate:{:?}", fo.kind)
