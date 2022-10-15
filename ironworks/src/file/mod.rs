@@ -12,6 +12,8 @@ pub mod exd;
 pub mod exh;
 #[cfg(feature = "exl")]
 pub mod exl;
+#[cfg(feature = "index")]
+pub mod index;
 #[cfg(feature = "mdl")]
 pub mod mdl;
 #[cfg(feature = "mtrl")]
