@@ -10,29 +10,37 @@ use super::{
 	standard, texture,
 };
 
-pub fn read<R: Read + Seek>(mut reader: R, offset: u32) -> Result<FileStream<R>> {
-	// Move to the start of the file and read in the header.
-	reader.seek(SeekFrom::Start(offset.into()))?;
-	let header = Header::read(&mut reader)?;
-
-	let file_offset = offset + header.size;
-
-	use FileStreamKind as FSK;
-	let file_stream = match &header.kind {
-		FileKind::Empty => FSK::Empty(empty::read(reader, header)?),
-		FileKind::Standard => FSK::Standard(standard::read(reader, file_offset, header)?),
-		FileKind::Model => FSK::Model(model::read(reader, file_offset, header)?),
-		FileKind::Texture => FSK::Texture(texture::read(reader, file_offset, header)?),
-	};
-
-	Ok(FileStream { inner: file_stream })
-}
-
 // Wrapper struct to prevent the innards of the file streams from being public API surface.
 /// A stream of data for a file read from a sqpack dat archive.
 #[derive(Debug)]
-pub struct FileStream<R> {
+pub struct File<R> {
 	inner: FileStreamKind<R>,
+}
+
+impl<R: Read + Seek> File<R> {
+	/// Create a new File which which will translate SqPack stored data in the given stream.
+	pub fn new(reader: R) -> Result<Self> {
+		Self::at_offset(reader, 0)
+	}
+
+	/// Create a new File which which will translate SqPack stored data in the given stream starting at the specified offset.
+	pub fn at_offset(mut reader: R, offset: u32) -> Result<Self> {
+		// Move to the start of the file and read in the header.
+		reader.seek(SeekFrom::Start(offset.into()))?;
+		let header = Header::read(&mut reader)?;
+
+		let file_offset = offset + header.size;
+
+		use FileStreamKind as FSK;
+		let file_stream = match &header.kind {
+			FileKind::Empty => FSK::Empty(empty::read(reader, header)?),
+			FileKind::Standard => FSK::Standard(standard::read(reader, file_offset, header)?),
+			FileKind::Model => FSK::Model(model::read(reader, file_offset, header)?),
+			FileKind::Texture => FSK::Texture(texture::read(reader, file_offset, header)?),
+		};
+
+		Ok(File { inner: file_stream })
+	}
 }
 
 #[derive(Debug)]
@@ -43,7 +51,7 @@ enum FileStreamKind<R> {
 	Texture(Cursor<Vec<u8>>),
 }
 
-impl<R: Read + Seek> Read for FileStream<R> {
+impl<R: Read + Seek> Read for File<R> {
 	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
 		use FileStreamKind as FSK;
 		match &mut self.inner {
@@ -55,7 +63,7 @@ impl<R: Read + Seek> Read for FileStream<R> {
 	}
 }
 
-impl<R: Read + Seek> Seek for FileStream<R> {
+impl<R: Read + Seek> Seek for File<R> {
 	fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
 		use FileStreamKind as FSK;
 		match &mut self.inner {

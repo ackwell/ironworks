@@ -5,4 +5,4 @@ mod shared;
 mod standard;
 mod texture;
 
-pub use file::{read, FileStream};
+pub use file::File;

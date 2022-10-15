@@ -8,7 +8,7 @@ use crate::{
 	Resource,
 };
 
-use super::{file, index::Index};
+use super::{file::File, index::Index};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 
 	/// Read the file at `path` from SqPack.
-	pub fn file(&self, path: &str) -> Result<file::FileStream<R::Dat>> {
+	pub fn file(&self, path: &str) -> Result<File<R::Dat>> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
@@ -56,7 +56,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 			.dat(repository, category, location.chunk, location.data_file)?;
 
 		// TODO: Cache files? Tempted to say it's the IW struct's responsibility. Is it even possible here with streams?
-		file::read(dat, location.offset)
+		File::at_offset(dat, location.offset)
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
