@@ -34,6 +34,12 @@ enum ChunkKind {
 	#[br(magic = b"APLY")]
 	ApplyOption(ApplyOption),
 
+	#[br(magic = b"ADIR")]
+	AddDirectory(AddDirectory),
+
+	#[br(magic = b"DELD")]
+	DeleteDirectory(DeleteDirectory),
+
 	#[br(magic = b"SQPK")]
 	SqPack(SqPack),
 
@@ -41,6 +47,7 @@ enum ChunkKind {
 	EndOfFile,
 }
 
+// TODO: reference https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/FileHeaderChunk.cs for versioned structure
 #[derive(Debug, BinRead)]
 #[br(big)]
 struct FileHeader {
@@ -51,9 +58,9 @@ struct FileHeader {
 	#[br(pad_before = 1)]
 	// note don't trust this it doesn't seem to match the file name's suggestion
 	patch_kind: PatchKind,
-	#[br(pad_before = 24)]
+	// #[br(pad_before = 24)]
 	// unk3: [u8; 24]
-	hash: u32,
+	// hash: u32,
 	// unk4: [u8; 212]
 }
 
@@ -82,6 +89,32 @@ struct ApplyOption {
 enum Option {
 	IgnoreMissing = 1,
 	IgnoreMismatch = 2,
+}
+
+#[binread]
+#[derive(Debug)]
+#[br(big)]
+struct AddDirectory {
+	#[br(temp)]
+	length: u32,
+	#[br(
+		count = length,
+		try_map = String::from_utf8,
+	)]
+	path: String,
+}
+
+#[binread]
+#[derive(Debug)]
+#[br(big)]
+struct DeleteDirectory {
+	#[br(temp)]
+	length: u32,
+	#[br(
+		count = length,
+		try_map = String::from_utf8,
+	)]
+	path: String,
 }
 
 // TODO: not happy with naming on most of the sqpack stuff
@@ -293,7 +326,8 @@ enum Region {
 pub fn test() -> Result<ZiPatch> {
 	let mut file = fs::File::open(
 		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001d.patch",
-		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0000.0000.patch",
+		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0000.0000.patch",
+		"/mnt/c/Users/ackwell/code/xiv/patches/boot/2b5cbc63/D2022.08.05.0000.0001.patch",
 	)?;
 
 	// eep; todo doc this if it works and i end up using it lmao
@@ -325,6 +359,8 @@ pub fn test() -> Result<ZiPatch> {
 			},
 			ChunkKind::ApplyOption(_) => "APPLY".to_string(),
 			ChunkKind::FileHeader(_) => "FHEAD".to_string(),
+			ChunkKind::AddDirectory(_) => "ADIR".to_string(),
+			ChunkKind::DeleteDirectory(_) => "DELD".to_string(),
 			ChunkKind::EndOfFile => "EOF".to_string(),
 		};
 		counts.entry(foo).and_modify(|v| *v += 1).or_insert(1);
