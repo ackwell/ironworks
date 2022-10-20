@@ -218,6 +218,8 @@ struct SqPackFileOperation {
 	// ??????
 	#[br(pad_size_to = path_length)]
 	path: NullString,
+	// data here i assume? looks like there's a whole other structure going on
+	// check https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/SqpkCommand/SqpkFile.cs#L51
 }
 
 #[derive(Debug, BinRead)]
@@ -326,8 +328,9 @@ enum Region {
 pub fn test() -> Result<ZiPatch> {
 	let mut file = fs::File::open(
 		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001d.patch",
-		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0000.0000.patch",
-		"/mnt/c/Users/ackwell/code/xiv/patches/boot/2b5cbc63/D2022.08.05.0000.0001.patch",
+		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0001.0000.patch",
+		// "/mnt/c/Users/ackwell/code/xiv/patches/boot/2b5cbc63/D2022.08.05.0000.0001.patch",
+		"/mnt/c/Users/ackwell/code/xiv/patches/game/ex4/1bf99b87/D2022.09.30.0000.0000.patch",
 	)?;
 
 	// eep; todo doc this if it works and i end up using it lmao
@@ -348,7 +351,10 @@ pub fn test() -> Result<ZiPatch> {
 		let foo = match &chunk.kind {
 			ChunkKind::SqPack(sqpack) => match &sqpack.payload {
 				SqPackPayload::FileOperation(fo) => {
-					format!("SQPACK:FileOperation:{:?}:{}", fo.kind, fo.path)
+					format!(
+						"SQPACK:FileOperation:{:?}:{} ({}, {})",
+						fo.kind, fo.path, fo.offset, fo.size
+					)
 				}
 				SqPackPayload::IndexUpdate(fo) => {
 					format!("SQPACK:IndexUpdate:{:?}", fo.kind)
