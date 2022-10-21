@@ -5,8 +5,6 @@ use modular_bitfield::prelude::*;
 
 use crate::{error::Result, file::File, FileStream};
 
-// TODO: restructure this stuff to put headers at actual appropriate locations and so forth
-
 #[binread]
 #[br(little, magic = b"uldh")]
 #[derive(Debug)]
@@ -14,38 +12,18 @@ pub struct UiLayout {
 	#[br(count = 4)]
 	#[br(try_map = String::from_utf8)]
 	version: String,
-	component_offset: u32,
-	widget_offset: u32,
 
-	// TODO: this should seek based on component_offset
 	#[br(temp)]
-	component_header_start: PosValue<()>,
-	component_header: ComponentHeader,
+	addon1_offset: u32,
 
-	// assets
-	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.asset_list_offset)))]
-	assets: Section<Asset>,
-
-	// "parts"? - looks like it's a list of metadata, rects of textures to use
-	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.parts_list_offset)))]
-	parts: Section<Parts>,
-
-	// components
-	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.component_list_offset)))]
-	components: Section<Component>,
-
-	// timelines
-	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.timeline_list_offset)))]
-	timelines: Section<Timeline>,
-
-	// widgets? combinewidget?
 	#[br(temp)]
-	widget_header_start: PosValue<()>,
-	#[br(seek_before = SeekFrom::Start(widget_offset.into()))]
-	widget_header: ComponentHeader,
+	addon2_offset: u32,
 
-	#[br(seek_before = SeekFrom::Start(widget_header_start.pos + u64::from(widget_header.widget_offset)))]
-	widgets: Section<Widget>,
+	#[br(seek_before = SeekFrom::Start(addon1_offset.into()))]
+	addon1: Addon,
+
+	#[br(seek_before = SeekFrom::Start(addon2_offset.into()))]
+	addon2: Addon,
 }
 
 impl File for UiLayout {
@@ -55,20 +33,59 @@ impl File for UiLayout {
 }
 
 #[binread]
-#[br(little, magic = b"atkh")]
+#[br(little)]
 #[derive(Debug)]
-struct ComponentHeader {
-	// TODO: probably should make a 4-char-string type because this is silly
+struct Addon {
+	#[br(temp)]
+	start: PosValue<()>,
+
+	// TODO: need a better name for this "id" field
+	#[br(count = 4)]
+	#[br(try_map = String::from_utf8)]
+	#[br(assert(id == "atkh"))]
+	id: String,
+
 	#[br(count = 4)]
 	#[br(try_map = String::from_utf8)]
 	version: String,
-	asset_list_offset: u32,
-	parts_list_offset: u32,
-	component_list_offset: u32,
-	timeline_list_offset: u32,
-	widget_offset: u32,
+
+	#[br(temp)]
+	assets_offset: u32,
+
+	#[br(temp)]
+	parts_offset: u32,
+
+	#[br(temp)]
+	components_offset: u32,
+
+	#[br(temp)]
+	timelines_offset: u32,
+
+	#[br(temp)]
+	widgets_offset: u32,
+
 	overwrite_data_offset: u32,
 	timeline_num: u32,
+
+	#[br(if(assets_offset > 0))]
+	#[br(seek_before = SeekFrom::Start(start.pos + u64::from(assets_offset)))]
+	assets: Option<Section<Asset>>,
+
+	#[br(if(parts_offset > 0))]
+	#[br(seek_before = SeekFrom::Start(start.pos + u64::from(parts_offset)))]
+	parts: Option<Section<Parts>>,
+
+	#[br(if(components_offset > 0))]
+	#[br(seek_before = SeekFrom::Start(start.pos + u64::from(components_offset)))]
+	components: Option<Section<Component>>,
+
+	#[br(if(timelines_offset > 0))]
+	#[br(seek_before = SeekFrom::Start(start.pos + u64::from(timelines_offset)))]
+	timelines: Option<Section<Timeline>>,
+
+	#[br(if(widgets_offset > 0))]
+	#[br(seek_before = SeekFrom::Start(start.pos + u64::from(widgets_offset)))]
+	widgets: Option<Section<Widget>>,
 }
 
 #[binread]
