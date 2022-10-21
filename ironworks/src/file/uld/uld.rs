@@ -3,9 +3,7 @@ use std::io::SeekFrom;
 use binrw::{binread, BinRead, NullString, PosValue};
 use modular_bitfield::prelude::*;
 
-use crate::{error::Result, FileStream};
-
-use super::file::File;
+use crate::{error::Result, file::File, FileStream};
 
 // TODO: restructure this stuff to put headers at actual appropriate locations and so forth
 
