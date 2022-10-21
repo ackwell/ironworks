@@ -24,37 +24,28 @@ pub struct UiLayout {
 
 	// assets
 	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.asset_list_offset)))]
-	asset_list: PartHeader,
-	#[br(count = asset_list.data_num)]
-	asset_data: Vec<AssetData>,
+	assets: Section<Asset>,
 
 	// "parts"? - looks like it's a list of metadata, rects of textures to use
 	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.parts_list_offset)))]
-	part_list: PartHeader,
-	#[br(count = part_list.data_num)]
-	parts: Vec<PartsData>,
+	parts: Section<Parts>,
 
 	// components
 	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.component_list_offset)))]
-	component_list: PartHeader,
-	#[br(count = component_list.data_num)]
-	components: Vec<ComponentData>,
+	components: Section<Component>,
 
 	// timelines
 	#[br(seek_before = SeekFrom::Start(component_header_start.pos + u64::from(component_header.timeline_list_offset)))]
-	timeline_list: PartHeader,
-	#[br(count = timeline_list.data_num)]
-	timelines: Vec<TimelineData>,
+	timelines: Section<Timeline>,
 
 	// widgets? combinewidget?
+	#[br(temp)]
 	widget_header_start: PosValue<()>,
 	#[br(seek_before = SeekFrom::Start(widget_offset.into()))]
 	widget_header: ComponentHeader,
 
 	#[br(seek_before = SeekFrom::Start(widget_header_start.pos + u64::from(widget_header.widget_offset)))]
-	widgets_list: PartHeader,
-	#[br(count = widgets_list.data_num)]
-	widgets: Vec<WidgetData>,
+	widgets: Section<Widget>,
 }
 
 impl File for UiLayout {
@@ -83,7 +74,7 @@ struct ComponentHeader {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct PartHeader {
+struct Section<T: BinRead<Args = ()>> {
 	#[br(count = 4)]
 	#[br(try_map = String::from_utf8)]
 	id: String,
@@ -93,13 +84,17 @@ struct PartHeader {
 	version: String,
 
 	#[br(pad_after = 4)]
-	data_num: u32,
+	#[br(temp)]
+	count: u32,
+
+	#[br(count = count)]
+	values: Vec<T>,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct AssetData {
+struct Asset {
 	id: u32,
 
 	// TODO: is it safe to assume that it's a nullstring or will a 44-char path be un-nulled
@@ -114,7 +109,7 @@ struct AssetData {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct PartsData {
+struct Parts {
 	id: u32,
 	part_num: u32,
 	offset: u32,
@@ -136,7 +131,7 @@ struct PartData {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct ComponentData {
+struct Component {
 	id: u32,
 	// these u8 seem fine? check. they should be boolean eod
 	ignore_input: u8,
@@ -388,7 +383,7 @@ enum NodeExtendedData {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct TimelineData {
+struct Timeline {
 	id: u32,
 	offset: u32,
 	frame_count: [u16; 2],
@@ -436,7 +431,7 @@ enum KeyGroupExtendedData {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct WidgetData {
+struct Widget {
 	id: u32,
 	align_type: i32, // enum
 	x: i16,
