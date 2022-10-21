@@ -1,9 +1,10 @@
 use std::io::SeekFrom;
 
 use binrw::{binread, BinRead, NullString, PosValue};
-use modular_bitfield::prelude::*;
 
 use crate::{error::Result, file::File, FileStream};
+
+use super::{component::Component, node::Node, shared::ToDo};
 
 #[binread]
 #[br(little, magic = b"uldh")]
@@ -14,16 +15,16 @@ pub struct UiLayout {
 	version: String,
 
 	#[br(temp)]
-	addon1_offset: u32,
+	addon_1_offset: u32,
 
 	#[br(temp)]
-	addon2_offset: u32,
+	addon_2_offset: u32,
 
-	#[br(seek_before = SeekFrom::Start(addon1_offset.into()))]
-	addon1: Addon,
+	#[br(seek_before = SeekFrom::Start(addon_1_offset.into()))]
+	addon_1: Addon,
 
-	#[br(seek_before = SeekFrom::Start(addon2_offset.into()))]
-	addon2: Addon,
+	#[br(seek_before = SeekFrom::Start(addon_2_offset.into()))]
+	addon_2: Addon,
 }
 
 impl File for UiLayout {
@@ -131,270 +132,18 @@ struct Parts {
 	part_num: u32,
 	offset: u32,
 	#[br(count = part_num)]
-	parts: Vec<PartData>,
+	parts: Vec<Part>,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct PartData {
+struct Part {
 	texture_id: u32,
 	u: u16,
 	v: u16,
 	w: u16,
 	h: u16,
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct Component {
-	id: u32,
-	// these u8 seem fine? check. they should be boolean eod
-	ignore_input: u8,
-	arrow_drag: u8,
-	arrow_drop: u8,
-	// kind: ComponentKind,
-	kind: u8,
-	node_num: u32,
-	size: u16,
-	offset: u16,
-	// magic kind shit?
-	#[br(pad_size_to = offset - 16)]
-	#[br(args(kind))]
-	data: ComponentExtendedData,
-
-	#[br(count = node_num)]
-	nodes: Vec<NodeData>,
-}
-
-// TODO: better name. componentdata should probably be component, and this component data
-// TODO: do i want to put the data in seperate structs?
-// todo: offset is for todo
-#[binread]
-#[br(little, import(kind: u8))]
-#[derive(Debug)]
-enum ComponentExtendedData {
-	#[br(pre_assert(kind == 0))]
-	Custom,
-
-	#[br(pre_assert(kind == 1))]
-	Button {
-		nodes: [u32; 2],
-	},
-
-	// #[br(pre_assert(kind == 2))]
-	// Window,
-
-	// #[br(pre_assert(kind == 3))]
-	// CheckButton,
-
-	// #[br(pre_assert(kind == 4))]
-	// RadioButton,
-
-	// #[br(pre_assert(kind == 5))]
-	// GaugeBar,
-
-	// #[br(pre_assert(kind == 6))]
-	// Slider,
-
-	// #[br(pre_assert(kind == 7))]
-	// TextInput,
-
-	// #[br(pre_assert(kind == 8))]
-	// NumericInput,
-
-	// #[br(pre_assert(kind == 9))]
-	// TreeList,
-
-	// #[br(pre_assert(kind == 10))]
-	// DropDown,
-
-	// #[br(pre_assert(kind == 11))]
-	// Tab,
-
-	// #[br(pre_assert(kind == 12))]
-	// TreeList,
-	#[br(pre_assert(kind == 13))]
-	ScrollBar {
-		nodes: [u32; 4],
-		margin: u16,
-		vertical: u8, //bool?
-		padding: u8,
-	},
-
-	// #[br(pre_assert(kind == 14))]
-	// ListItem,
-
-	// #[br(pre_assert(kind == 15))]
-	// Icon,
-
-	// #[br(pre_assert(kind == 16))]
-	// IconText,
-
-	// #[br(pre_assert(kind == 17))]
-	// DragDrop,
-
-	// #[br(pre_assert(kind == 18))]
-	// GuildleveCard,
-
-	// #[br(pre_assert(kind == 19))]
-	// TextNineGrid,
-
-	// #[br(pre_assert(kind == 20))]
-	// JournalCanvas,
-
-	// #[br(pre_assert(kind == 21))]
-	// MultiPurpose,
-
-	// #[br(pre_assert(kind == 22))]
-	// Map,
-
-	// #[br(pre_assert(kind == 23))]
-	// Preview,
-	Todo(#[br(args("component", kind.into()))] Todo),
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct NodeData {
-	id: u32,
-	// why are these i32? i'm guessing -1 to signify none?
-	parent_id: i32,
-	older_id: i32,
-	younger_id: i32,
-	child_id: i32,
-	// this seems to be a data tag
-	kind: i32,
-	offset: u16,
-	tab_index: i16,
-	navigation_id: [i32; 4],
-	x: i16,
-	y: i16,
-	w: u16,
-	h: u16,
-	rot: f32,
-	scale_x: f32,
-	scale_y: f32,
-	origin_x: i16,
-	origin_y: i16,
-	priority: u16,
-	attributes: NodeDataAttributes,
-	// todo: structs for these maybe?
-	mul_r: i16,
-	mul_g: i16,
-	mul_b: i16,
-	add_r: i16,
-	add_g: i16,
-	add_b: i16,
-	alpha: u8,
-	clip_count: i8,
-	timeline_id: u16,
-
-	#[br(pad_size_to = offset - 88)]
-	#[br(args(kind))]
-	data: NodeExtendedData,
-}
-
-#[bitfield]
-#[binread]
-#[br(map = Self::from_bytes)]
-#[derive(Debug)]
-struct NodeDataAttributes {
-	visible: bool,
-	enable: bool,
-	clip: bool,
-	fill: bool,
-	anchor_top: bool,
-	anchor_bottom: bool,
-	anchor_left: bool,
-	anchor_right: bool,
-	is_hit: bool,
-	#[skip]
-	reserved: B7,
-}
-
-// TODO: same shit about naming
-// TODO: remove offset, it's just there for the todo
-#[binread]
-#[br(little, import(kind: i32))]
-#[derive(Debug)]
-enum NodeExtendedData {
-	#[br(pre_assert(kind == 1))]
-	None,
-
-	#[br(pre_assert(kind == 2))]
-	Image {
-		parts_id: u32,
-		part_id: u32,
-		// these two are bools
-		h_flip: u8,
-		v_flip: u8,
-		wrap_mode: u8,
-		blend_mode: u8,
-	},
-
-	#[br(pre_assert(kind == 3))]
-	Text {
-		text_id: u32,
-		text_color: u32,
-		text_align: u16,
-		font_type: u8, // this is an enum
-		font_size: u8,
-		edge_color: u32, // "glow in stc parlance?"
-		// TODO: BITFIELD SHITTERY
-		// bold
-		// italic
-		// edge
-		// glare
-		// multiline
-		// ellipsis
-		// paragraph
-		// emboss
-		flags: u8,
-		sheet_kind: u8,
-		char_spacing: i8,
-		line_spacing: u8,
-		// seems first bit is a flag and then 31 bits of padding?
-		flags2: u32,
-	},
-
-	#[br(pre_assert(kind == 4))]
-	NineGrid {
-		parts_id: u32,
-		part_id: u32,
-		parts_type: u8,
-		render_type: u8,
-		offset_top: i16,
-		offset_bottom: i16,
-		offset_left: i16,
-		offset_right: i16,
-		blend_mode: u8,
-		padding: u8,
-	},
-
-	#[br(pre_assert(kind == 5))]
-	Counter {
-		parts_id: u32,
-		part_id: u8,
-		num_w: u8,
-		comma_w: u8,
-		space_w: u8,
-		text_align: u16,
-		padding: u16,
-	},
-
-	#[br(pre_assert(kind == 8))]
-	Collision {
-		kind: u16,
-		uses: u16,
-		x: i32,
-		y: i32,
-		radius: u32,
-	},
-
-	Todo(#[br(args("node", kind.into()))] Todo),
 }
 
 #[binread]
@@ -406,27 +155,27 @@ struct Timeline {
 	frame_count: [u16; 2],
 
 	#[br(count = frame_count[0])]
-	frame_data_1: Vec<FrameData>,
+	frames_1: Vec<Frame>,
 	#[br(count = frame_count[1])]
-	frame_data_2: Vec<FrameData>,
+	frames_2: Vec<Frame>,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct FrameData {
+struct Frame {
 	start: u32,
 	end: u32,
 	offset: u32,
 	key_group_count: u32,
 	#[br(count = key_group_count)]
-	key_groups: Vec<KeyGroupData>,
+	key_groups: Vec<KeyGroup>,
 }
 
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct KeyGroupData {
+struct KeyGroup {
 	// these are enums
 	usage: u16,
 	kind: u16,
@@ -435,14 +184,14 @@ struct KeyGroupData {
 
 	#[br(pad_size_to = offset - 8)]
 	#[br(args(kind))]
-	data: KeyGroupExtendedData,
+	data: KeyGroupData,
 }
 
 #[binread]
 #[br(little, import(kind: u16))]
 #[derive(Debug)]
-enum KeyGroupExtendedData {
-	Todo(#[br(args("key group", kind.into()))] Todo),
+enum KeyGroupData {
+	Todo(#[br(args("key group", kind.into()))] ToDo),
 }
 
 #[binread]
@@ -457,22 +206,5 @@ struct Widget {
 	offset: u16,
 
 	#[br(count = node_num)]
-	nodes: Vec<NodeData>,
-}
-
-#[derive(Debug)]
-struct Todo {
-	kind: &'static str,
-	value: i64,
-}
-impl BinRead for Todo {
-	type Args = (&'static str, i64);
-
-	fn read_options<R: std::io::Read + std::io::Seek>(
-		reader: &mut R,
-		options: &binrw::ReadOptions,
-		(kind, value): Self::Args,
-	) -> binrw::BinResult<Self> {
-		Ok(Self { kind, value })
-	}
+	nodes: Vec<Node>,
 }
