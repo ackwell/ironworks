@@ -22,5 +22,7 @@ pub mod pbd;
 pub mod sklb;
 #[cfg(feature = "tex")]
 pub mod tex;
+#[cfg(feature = "uld")]
+pub mod uld;
 
 pub use file::File;

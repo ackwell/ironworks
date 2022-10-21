@@ -28,6 +28,7 @@ mtrl = []
 pbd = []
 sklb = []
 tex = ["dep:modular-bitfield", "dep:num_enum"]
+uld = ["dep:modular-bitfield"]
 
 [dependencies]
 binrw = "0.10.0"
