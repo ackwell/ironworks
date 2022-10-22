@@ -1,7 +1,7 @@
 use binrw::binread;
 use modular_bitfield::{bitfield, specifiers::*};
 
-use super::shared::ToDo;
+use super::shared::Unknown;
 
 #[binread]
 #[br(little)]
@@ -63,8 +63,6 @@ struct NodeAttributes {
 	reserved: B7,
 }
 
-// TODO: same shit about naming
-// TODO: remove offset, it's just there for the todo
 #[binread]
 #[br(little, import(kind: i32))]
 #[derive(Debug)]
@@ -142,5 +140,5 @@ enum NodeData {
 		radius: u32,
 	},
 
-	Todo(#[br(args("node", kind.into()))] ToDo),
+	Unknown(#[br(args("node", kind.into()))] Unknown),
 }

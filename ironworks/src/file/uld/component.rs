@@ -2,7 +2,7 @@ use binrw::binread;
 
 use super::{
 	node::Node,
-	shared::{ByteString, ToDo},
+	shared::{ByteString, Unknown},
 };
 
 #[binread]
@@ -116,5 +116,5 @@ enum ComponentData {
 
 	// #[br(pre_assert(kind == 23))]
 	// Preview,
-	Todo(#[br(args("component", kind.into()))] ToDo),
+	Unknown(#[br(args("component", kind.into()))] Unknown),
 }

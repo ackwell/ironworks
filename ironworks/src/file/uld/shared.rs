@@ -31,12 +31,12 @@ impl<const N: usize> fmt::Debug for ByteString<N> {
 }
 
 #[derive(Debug)]
-pub struct ToDo {
+pub struct Unknown {
 	kind: &'static str,
 	value: i64,
 }
 
-impl BinRead for ToDo {
+impl BinRead for Unknown {
 	type Args = (&'static str, i64);
 
 	fn read_options<R: Read + Seek>(
