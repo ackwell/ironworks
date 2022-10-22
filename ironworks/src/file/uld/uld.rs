@@ -5,11 +5,8 @@ use binrw::{binread, BinRead, PosValue};
 use crate::{error::Result, file::File, FileStream};
 
 use super::{
-	asset::Asset,
-	component::Component,
-	node::Node,
-	parts::Parts,
-	shared::{ByteString, ToDo},
+	asset::Asset, component::Component, node::Node, parts::Parts, shared::ByteString,
+	timeline::Timeline,
 };
 
 #[binread]
@@ -104,60 +101,6 @@ struct Section<T: BinRead<Args = (ByteString<4>, ByteString<4>)>> {
 		inner: (magic, version)
 	})]
 	values: Vec<T>,
-}
-
-#[binread]
-#[br(little)]
-#[br(import(magic: ByteString<4>, _version: ByteString<4>))]
-#[br(pre_assert(
-	&magic == b"tlhd",
-	"incorrect magic, expected b\"tlhd\", got {:?}",
-	magic
-))]
-#[derive(Debug)]
-struct Timeline {
-	id: u32,
-	offset: u32,
-	frame_count: [u16; 2],
-
-	#[br(count = frame_count[0])]
-	frames_1: Vec<Frame>,
-	#[br(count = frame_count[1])]
-	frames_2: Vec<Frame>,
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct Frame {
-	start: u32,
-	end: u32,
-	offset: u32,
-	key_group_count: u32,
-	#[br(count = key_group_count)]
-	key_groups: Vec<KeyGroup>,
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct KeyGroup {
-	// these are enums
-	usage: u16,
-	kind: u16,
-	offset: u16,
-	count: u16, // 8
-
-	#[br(pad_size_to = offset - 8)]
-	#[br(args(kind))]
-	data: KeyGroupData,
-}
-
-#[binread]
-#[br(little, import(kind: u16))]
-#[derive(Debug)]
-enum KeyGroupData {
-	Todo(#[br(args("key group", kind.into()))] ToDo),
 }
 
 #[binread]
