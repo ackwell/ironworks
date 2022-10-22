@@ -1,7 +1,7 @@
 use binrw::binread;
 use modular_bitfield::{bitfield, specifiers::*};
 
-use super::shared::Unknown;
+use super::shared::{U8Bool, Unknown};
 
 #[binread]
 #[br(little)]
@@ -74,9 +74,8 @@ enum NodeData {
 	Image {
 		parts_id: u32,
 		part_id: u32,
-		// these two are bools
-		h_flip: u8,
-		v_flip: u8,
+		h_flip: U8Bool,
+		v_flip: U8Bool,
 		wrap_mode: u8,
 		blend_mode: u8,
 	},

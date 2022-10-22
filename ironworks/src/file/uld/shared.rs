@@ -30,6 +30,23 @@ impl<const N: usize> fmt::Debug for ByteString<N> {
 	}
 }
 
+// TODO: should probably add custom display/deref for this?
+#[derive(Debug)]
+pub struct U8Bool(bool);
+
+impl BinRead for U8Bool {
+	type Args = ();
+
+	fn read_options<R: Read + Seek>(
+		reader: &mut R,
+		options: &ReadOptions,
+		_args: Self::Args,
+	) -> BinResult<Self> {
+		let value = u8::read_options(reader, options, ())?;
+		Ok(Self(value != 0))
+	}
+}
+
 #[derive(Debug)]
 pub struct Unknown {
 	kind: &'static str,

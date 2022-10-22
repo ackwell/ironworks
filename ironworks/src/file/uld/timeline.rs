@@ -1,6 +1,6 @@
 use binrw::binread;
 
-use super::shared::{ByteString, Unknown};
+use super::shared::{ByteString, U8Bool, Unknown};
 
 #[binread]
 #[br(little)]
@@ -164,13 +164,13 @@ enum KeyFrameData {
 	U32_3([u32; 3]),
 
 	#[br(pre_assert(kind == 21))]
-	Bool1(#[br(map = |value: u8| value != 0)] bool),
+	Bool1(U8Bool),
 
 	#[br(pre_assert(kind == 22))]
-	Bool2(#[br(map = |values:[u8; 2]| [values[0] != 0, values[1] != 0])] [bool; 2]),
+	Bool2([U8Bool; 2]),
 
 	#[br(pre_assert(kind == 23))]
-	Bool3(#[br(map = |values:[u8; 3]| [values[0] != 0, values[1] != 0, values[2] != 0])] [bool; 3]),
+	Bool3([U8Bool; 3]),
 
 	#[br(pre_assert(kind == 24))]
 	Color {

@@ -2,7 +2,7 @@ use binrw::binread;
 
 use super::{
 	node::Node,
-	shared::{ByteString, Unknown},
+	shared::{ByteString, U8Bool, Unknown},
 };
 
 #[binread]
@@ -17,9 +17,9 @@ use super::{
 pub struct Component {
 	id: u32,
 	// these u8 seem fine? check. they should be boolean eod
-	ignore_input: u8,
-	arrow_drag: u8,
-	arrow_drop: u8,
+	ignore_input: U8Bool,
+	arrow_drag: U8Bool,
+	arrow_drop: U8Bool,
 
 	kind: u8,
 	node_num: u32,
@@ -83,7 +83,7 @@ enum ComponentData {
 	ScrollBar {
 		nodes: [u32; 4],
 		margin: u16,
-		vertical: u8, //bool?
+		vertical: U8Bool,
 		padding: u8,
 	},
 
