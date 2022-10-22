@@ -1,10 +1,11 @@
 use std::io::SeekFrom;
 
-use binrw::{binread, BinRead, NullString, PosValue};
+use binrw::{binread, BinRead, PosValue};
 
 use crate::{error::Result, file::File, FileStream};
 
 use super::{
+	asset::Asset,
 	component::Component,
 	node::Node,
 	shared::{ByteString, ToDo},
@@ -102,27 +103,6 @@ struct Section<T: BinRead<Args = (ByteString<4>, ByteString<4>)>> {
 		inner: (magic, version)
 	})]
 	values: Vec<T>,
-}
-
-#[binread]
-#[br(little)]
-#[br(import(magic: ByteString<4>, _version: ByteString<4>))]
-#[br(pre_assert(
-	&magic == b"ashd",
-	"incorrect magic, expected b\"ashd\", got {:?}",
-	magic
-))]
-#[derive(Debug)]
-struct Asset {
-	id: u32,
-
-	// TODO: is it safe to assume that it's a nullstring or will a 44-char path be un-nulled
-	#[br(pad_size_to = 44)]
-	filename: NullString,
-
-	db_id: u32,
-
-	unk: i32,
 }
 
 #[binread]
