@@ -40,11 +40,10 @@ struct Addon {
 	#[br(temp)]
 	start: PosValue<()>,
 
-	// TODO: need a better name for this "id" field
 	#[br(count = 4)]
 	#[br(try_map = String::from_utf8)]
-	#[br(assert(id == "atkh"))]
-	id: String,
+	#[br(assert(magic == "atkh"))]
+	magic: String,
 
 	#[br(count = 4)]
 	#[br(try_map = String::from_utf8)]
@@ -92,25 +91,29 @@ struct Addon {
 #[binread]
 #[br(little)]
 #[derive(Debug)]
-struct Section<T: BinRead<Args = ()>> {
-	#[br(count = 4)]
-	#[br(try_map = String::from_utf8)]
-	id: String,
-
-	#[br(count = 4)]
-	#[br(try_map = String::from_utf8)]
-	version: String,
+struct Section<T: BinRead<Args = ([u8; 4], [u8; 4])>> {
+	magic: [u8; 4],
+	version: [u8; 4],
 
 	#[br(pad_after = 4)]
 	#[br(temp)]
 	count: u32,
 
-	#[br(count = count)]
+	#[br(args {
+		count: count.try_into().unwrap(),
+		inner: (magic, version)
+	})]
 	values: Vec<T>,
 }
 
 #[binread]
 #[br(little)]
+#[br(import(magic: [u8; 4], _version: [u8; 4]))]
+#[br(pre_assert(
+	&magic == b"ashd",
+	"incorrect magic, expected \"ashd\", got \"{}\"",
+	std::str::from_utf8(&magic).unwrap()
+))]
 #[derive(Debug)]
 struct Asset {
 	id: u32,
@@ -126,6 +129,12 @@ struct Asset {
 
 #[binread]
 #[br(little)]
+#[br(import(magic: [u8; 4], _version: [u8; 4]))]
+#[br(pre_assert(
+	&magic == b"tphd",
+	"incorrect magic, expected \"tphd\", got \"{}\"",
+	std::str::from_utf8(&magic).unwrap()
+))]
 #[derive(Debug)]
 struct Parts {
 	id: u32,
@@ -148,6 +157,12 @@ struct Part {
 
 #[binread]
 #[br(little)]
+#[br(import(magic: [u8; 4], _version: [u8; 4]))]
+#[br(pre_assert(
+	&magic == b"tlhd",
+	"incorrect magic, expected \"tlhd\", got \"{}\"",
+	std::str::from_utf8(&magic).unwrap()
+))]
 #[derive(Debug)]
 struct Timeline {
 	id: u32,
@@ -196,6 +211,12 @@ enum KeyGroupData {
 
 #[binread]
 #[br(little)]
+#[br(import(magic: [u8; 4], _version: [u8; 4]))]
+#[br(pre_assert(
+	&magic == b"wdhd",
+	"incorrect magic, expected \"wdhd\", got \"{}\"",
+	std::str::from_utf8(&magic).unwrap()
+))]
 #[derive(Debug)]
 struct Widget {
 	id: u32,

@@ -4,6 +4,12 @@ use super::{node::Node, shared::ToDo};
 
 #[binread]
 #[br(little)]
+#[br(import(magic: [u8; 4], _version: [u8; 4]))]
+#[br(pre_assert(
+	&magic == b"cohd",
+	"incorrect magic, expected \"cohd\", got \"{}\"",
+	std::str::from_utf8(&magic).unwrap()
+))]
 #[derive(Debug)]
 pub struct Component {
 	id: u32,
