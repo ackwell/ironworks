@@ -4,6 +4,7 @@
 mod asset;
 mod component;
 mod node;
+mod parts;
 mod shared;
 mod uld;
 

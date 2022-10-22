@@ -8,6 +8,7 @@ use super::{
 	asset::Asset,
 	component::Component,
 	node::Node,
+	parts::Parts,
 	shared::{ByteString, ToDo},
 };
 
@@ -103,34 +104,6 @@ struct Section<T: BinRead<Args = (ByteString<4>, ByteString<4>)>> {
 		inner: (magic, version)
 	})]
 	values: Vec<T>,
-}
-
-#[binread]
-#[br(little)]
-#[br(import(magic: ByteString<4>, _version: ByteString<4>))]
-#[br(pre_assert(
-	&magic == b"tphd",
-	"incorrect magic, expected b\"tphd\", got {:?}",
-	magic
-))]
-#[derive(Debug)]
-struct Parts {
-	id: u32,
-	part_num: u32,
-	offset: u32,
-	#[br(count = part_num)]
-	parts: Vec<Part>,
-}
-
-#[binread]
-#[br(little)]
-#[derive(Debug)]
-struct Part {
-	texture_id: u32,
-	u: u16,
-	v: u16,
-	w: u16,
-	h: u16,
 }
 
 #[binread]
