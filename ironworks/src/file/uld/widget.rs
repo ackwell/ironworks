@@ -28,17 +28,18 @@ pub struct Widget {
 	nodes: Vec<Node>,
 }
 
+// TODO: this is duplicated with node's alignment. consolidate, depending on resolution of todo above?
 #[binread]
 #[br(little, repr = u8)]
 #[derive(Debug)]
 enum Alignment {
 	TopLeft = 0,
-	TopCenter = 1,
+	TopMiddle = 1,
 	TopRight = 2,
-	Left = 3,
+	MiddleLeft = 3,
 	Center = 4,
-	Right = 5,
+	MiddleRight = 5,
 	BottomLeft = 6,
-	Bottom = 7,
+	BottomMiddle = 7,
 	BottomRight = 8,
 }
