@@ -8,5 +8,6 @@ mod parts;
 mod shared;
 mod timeline;
 mod uld;
+mod widget;
 
 pub use uld::UiLayout;

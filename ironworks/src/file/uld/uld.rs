@@ -5,8 +5,8 @@ use binrw::{binread, BinRead, PosValue};
 use crate::{error::Result, file::File, FileStream};
 
 use super::{
-	asset::Asset, component::Component, node::Node, parts::Parts, shared::ByteString,
-	timeline::Timeline,
+	asset::Asset, component::Component, parts::Parts, shared::ByteString, timeline::Timeline,
+	widget::Widget,
 };
 
 #[binread]
@@ -101,25 +101,4 @@ struct Section<T: BinRead<Args = (ByteString<4>, ByteString<4>)>> {
 		inner: (magic, version)
 	})]
 	values: Vec<T>,
-}
-
-#[binread]
-#[br(little)]
-#[br(import(magic: ByteString<4>, _version: ByteString<4>))]
-#[br(pre_assert(
-	&magic == b"wdhd",
-	"incorrect magic, expected b\"wdhd\", got {:?}",
-	magic
-))]
-#[derive(Debug)]
-struct Widget {
-	id: u32,
-	align_type: i32, // enum
-	x: i16,
-	y: i16,
-	node_num: u16,
-	offset: u16,
-
-	#[br(count = node_num)]
-	nodes: Vec<Node>,
 }
