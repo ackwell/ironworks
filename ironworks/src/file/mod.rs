@@ -16,6 +16,8 @@ pub mod exl;
 pub mod mdl;
 #[cfg(feature = "mtrl")]
 pub mod mtrl;
+#[cfg(feature = "patch")]
+pub mod patch;
 #[cfg(feature = "pbd")]
 pub mod pbd;
 #[cfg(feature = "sklb")]
