@@ -5,16 +5,18 @@ use binrw::{binread, until, BinRead, NullString};
 use crate::error::Result;
 
 // TODO: it might not be worth reading all of this into memory at once - maybe remove this top level binread, make the magic check manual, then expose an iterator for the chunks
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big, magic = b"\x91ZIPATCH\x0D\x0A\x1A\x0A")]
+#[derive(Debug)]
 pub struct ZiPatch {
 	// TODO: limit
 	#[br(parse_with = until(|chunk: &Chunk| matches!(chunk.kind, ChunkKind::EndOfFile)))]
 	chunks: Vec<Chunk>,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct Chunk {
 	// TODO: use this? do individual chunks own this logic or nah?
 	size: u32,
@@ -25,8 +27,9 @@ struct Chunk {
 }
 
 // TODO: rename, this isn't just a kind
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 enum ChunkKind {
 	#[br(magic = b"FHDR")]
 	FileHeader(FileHeader),
@@ -47,8 +50,9 @@ enum ChunkKind {
 	EndOfFile,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct FileHeader {
 	// unk1: u16
 	#[br(pad_before = 2)]
@@ -88,8 +92,9 @@ struct FileHeaderV3 {
 	sqpack_file_commands: u32,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 enum PatchKind {
 	#[br(magic = b"DIFF")]
 	Diff,
@@ -98,8 +103,9 @@ enum PatchKind {
 	Hist,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct ApplyOption {
 	option: OptionKind,
 	#[br(pad_before = 4)]
@@ -108,8 +114,9 @@ struct ApplyOption {
 	// unk2: [u8; 4],
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big, repr = u32)]
+#[derive(Debug)]
 enum OptionKind {
 	IgnoreMissing = 1,
 	IgnoreMismatch = 2,
@@ -142,16 +149,18 @@ struct DeleteDirectory {
 }
 
 // TODO: not happy with naming on most of the sqpack stuff
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPack {
 	size: u32,
 	// operation: u8,
 	payload: SqPackPayload,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 enum SqPackPayload {
 	#[br(magic = b"A")]
 	Add(SqPackAdd),
@@ -180,8 +189,9 @@ enum SqPackPayload {
 	TargetInfo(SqPackTargetInfo),
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackAdd {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -193,8 +203,9 @@ struct SqPackAdd {
 	// data - store the full reader offset for this point maybe?
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackDelete {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -203,8 +214,9 @@ struct SqPackDelete {
 	count: u32,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackExpand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -215,8 +227,9 @@ struct SqPackExpand {
 
 // TODO: put this somewhere more sensible
 // TODO: name
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct File {
 	main_id: u16,
 	sub_id: u16,
@@ -246,8 +259,9 @@ struct SqPackFileOperation {
 	// check https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/SqpkCommand/SqpkFile.cs#L51
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = u8)]
+#[derive(Debug)]
 #[repr(u8)]
 enum SqPackFileOperationKind {
 	AddFile = b'A',
@@ -258,8 +272,9 @@ enum SqPackFileOperationKind {
 	RemoveAll = b'R',
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackHeaderUpdate {
 	file_kind: SqPackHeaderFileKind,
 	header_kind: SqPackHeaderHeaderKind,
@@ -268,8 +283,9 @@ struct SqPackHeaderUpdate {
 	payload: Vec<u8>,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = u8)]
+#[derive(Debug)]
 #[repr(u8)]
 enum SqPackHeaderFileKind {
 	Dat = b'D',
@@ -277,8 +293,9 @@ enum SqPackHeaderFileKind {
 }
 
 // TODO: these names jfc
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = u8)]
+#[derive(Debug)]
 #[repr(u8)]
 enum SqPackHeaderHeaderKind {
 	Version = b'V',
@@ -286,8 +303,9 @@ enum SqPackHeaderHeaderKind {
 	Index = b'I',
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackIndexUpdate {
 	kind: SqPackIndexUpdateKind,
 	is_synonym: u8, //bool
@@ -299,16 +317,18 @@ struct SqPackIndexUpdate {
 	block_number: u32,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = u8)]
+#[derive(Debug)]
 #[repr(u8)]
 enum SqPackIndexUpdateKind {
 	Add = b'A',
 	Delete = b'D',
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackPatchInfo {
 	status: u8,
 	version: u8,
@@ -318,8 +338,9 @@ struct SqPackPatchInfo {
 	// padding?
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(big)]
+#[derive(Debug)]
 struct SqPackTargetInfo {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -333,8 +354,9 @@ struct SqPackTargetInfo {
 	//padding
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = u16)]
+#[derive(Debug)]
 enum Platform {
 	Win32 = 0,
 	Ps3 = 1,
@@ -342,8 +364,9 @@ enum Platform {
 	Unknown = 3,
 }
 
-#[derive(Debug, BinRead)]
+#[binread]
 #[br(repr = i16)]
+#[derive(Debug)]
 enum Region {
 	Global = -1,
 	// ZH seems to use global, KR is unknown
