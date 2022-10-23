@@ -47,7 +47,6 @@ enum ChunkKind {
 	EndOfFile,
 }
 
-// TODO: reference https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/FileHeaderChunk.cs for versioned structure
 #[derive(Debug, BinRead)]
 #[br(big)]
 struct FileHeader {
@@ -55,13 +54,38 @@ struct FileHeader {
 	#[br(pad_before = 2)]
 	version: u8,
 	// unk2: u8
-	#[br(pad_before = 1)]
 	// note don't trust this it doesn't seem to match the file name's suggestion
+	#[br(pad_before = 1)]
 	patch_kind: PatchKind,
-	// #[br(pad_before = 24)]
-	// unk3: [u8; 24]
-	// hash: u32,
-	// unk4: [u8; 212]
+	entry_files: u32,
+
+	#[br(if(version == 3))]
+	v3: Option<FileHeaderV3>,
+}
+
+#[binread]
+#[br(big)]
+#[derive(Debug)]
+struct FileHeaderV3 {
+	add_directories: u32,
+	delete_directories: u32,
+
+	// wtaf?
+	#[br(temp)]
+	delete_data_1: u32,
+	#[br(temp)]
+	delete_data_2: u32,
+	#[br(calc = u64::from(delete_data_1) | u64::from(delete_data_2) << 32)]
+	delete_data: u64,
+
+	minor_version: u32,
+	repository_name: u32, // crc'd? how is this a name
+	commands: u32,
+	sqpack_add_commands: u32,
+	sqpack_delete_commands: u32,
+	sqpack_expand_commands: u32,
+	sqpack_header_commands: u32,
+	sqpack_file_commands: u32,
 }
 
 #[derive(Debug, BinRead)]
@@ -77,7 +101,7 @@ enum PatchKind {
 #[derive(Debug, BinRead)]
 #[br(big)]
 struct ApplyOption {
-	option: Option,
+	option: OptionKind,
 	#[br(pad_before = 4)]
 	// unk1: u32,
 	value: u32,
@@ -86,7 +110,7 @@ struct ApplyOption {
 
 #[derive(Debug, BinRead)]
 #[br(big, repr = u32)]
-enum Option {
+enum OptionKind {
 	IgnoreMissing = 1,
 	IgnoreMismatch = 2,
 }
@@ -328,9 +352,9 @@ enum Region {
 pub fn test() -> Result<ZiPatch> {
 	let mut file = fs::File::open(
 		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/H2017.06.06.0000.0001d.patch",
-		// "/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0001.0000.patch",
+		"/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/D2022.08.05.0001.0000.patch",
 		// "/mnt/c/Users/ackwell/code/xiv/patches/boot/2b5cbc63/D2022.08.05.0000.0001.patch",
-		"/mnt/c/Users/ackwell/code/xiv/patches/game/ex4/1bf99b87/D2022.09.30.0000.0000.patch",
+		// "/mnt/c/Users/ackwell/code/xiv/patches/game/ex4/1bf99b87/D2022.09.30.0000.0000.patch",
 	)?;
 
 	// eep; todo doc this if it works and i end up using it lmao
@@ -341,6 +365,8 @@ pub fn test() -> Result<ZiPatch> {
 	// let mut file = BufReader::new(file);
 
 	let zipatch = ZiPatch::read(&mut file).unwrap();
+
+	println!("{zipatch:#?}");
 
 	let mut counts = HashMap::<String, u32>::new();
 
