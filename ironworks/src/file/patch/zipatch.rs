@@ -10,6 +10,8 @@ use crate::{error::Result, file::File, FileStream};
 
 use super::chunk::Chunk;
 
+const ZIPATCH_MAGIC: &[u8; 12] = b"\x91ZIPATCH\x0D\x0A\x1A\x0A";
+
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ZiPatch {
@@ -19,22 +21,17 @@ pub struct ZiPatch {
 
 impl ZiPatch {
 	pub fn todo_name_me_iterate_chunks(&self) -> ChunkIterator {
-		// TODO: ctor? - need to store that base offset somewhere so it doesn't just nightmare fuel me
-		ChunkIterator {
-			stream: self.stream.clone(),
-			offset: 12,
-			complete: false,
-		}
+		ChunkIterator::new(self.stream.clone())
 	}
 }
 
 impl File for ZiPatch {
 	fn read(mut stream: impl FileStream) -> Result<Self> {
 		// Check the magic in the header
-		let mut magic = [0u8; 12];
+		let mut magic = [0u8; ZIPATCH_MAGIC.len()];
 		stream.read_exact(&mut magic)?;
 
-		if &magic != b"\x91ZIPATCH\x0D\x0A\x1A\x0A" {
+		if &magic != ZIPATCH_MAGIC {
 			todo!("error message")
 		}
 
@@ -50,6 +47,16 @@ pub struct ChunkIterator {
 	stream: Arc<Mutex<Box<dyn FileStream>>>,
 	offset: u64,
 	complete: bool,
+}
+
+impl ChunkIterator {
+	fn new(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Self {
+		ChunkIterator {
+			stream,
+			offset: ZIPATCH_MAGIC.len().try_into().unwrap(),
+			complete: false,
+		}
+	}
 }
 
 impl Iterator for ChunkIterator {
