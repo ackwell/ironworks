@@ -1,15 +1,14 @@
 //! Structs and utilities for parsing .pbd files.
 
 use std::{
-	borrow::Cow,
 	collections::HashMap,
 	fmt,
-	io::{Cursor, Read, Seek, SeekFrom},
+	io::{Read, Seek, SeekFrom},
 };
 
 use binrw::{binread, BinRead, BinResult, NullString, ReadOptions};
 
-use crate::error::Result;
+use crate::{error::Result, FileStream};
 
 use super::file::File;
 
@@ -47,8 +46,8 @@ impl PreBoneDeformer {
 }
 
 impl File for PreBoneDeformer {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
+	fn read(mut stream: impl FileStream) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut stream)?)
 	}
 }
 

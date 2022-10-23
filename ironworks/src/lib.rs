@@ -22,6 +22,27 @@ pub mod sqpack;
 pub mod zipatch;
 
 pub use {
+	crate::ironworks::{FileStream, Ironworks, Resource},
 	error::{Error, ErrorValue},
-	ironworks::{Ironworks, Resource},
 };
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	#[test]
+	fn test_send() {
+		fn assert_send<T: Send>() {}
+		assert_send::<Ironworks>();
+		assert_send::<Error>();
+		assert_send::<ErrorValue>();
+	}
+
+	#[test]
+	fn test_sync() {
+		fn assert_sync<T: Sync>() {}
+		assert_sync::<Ironworks>();
+		assert_sync::<Error>();
+		assert_sync::<ErrorValue>();
+	}
+}

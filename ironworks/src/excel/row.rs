@@ -1,4 +1,7 @@
-use std::{cell::RefCell, io::Cursor, sync::Arc};
+use std::{
+	io::Cursor,
+	sync::{Arc, Mutex},
+};
 
 use binrw::{BinReaderExt, BinResult};
 
@@ -16,7 +19,7 @@ pub struct Row {
 	subrow_id: u16,
 
 	header: Arc<file::exh::ExcelHeader>,
-	data: RefCell<Cursor<Vec<u8>>>,
+	data: Mutex<Cursor<Vec<u8>>>,
 }
 
 impl Row {
@@ -59,7 +62,7 @@ impl Row {
 		use file::exh::ColumnKind as K;
 		use Field as F;
 
-		let mut cursor = self.data.borrow_mut();
+		let mut cursor = self.data.lock().expect("Data mutex poisoned.");
 
 		cursor.set_position(column.offset().into());
 

@@ -1,10 +1,10 @@
 //! Structs and utilities for parsing .eqdp files.
 
-use std::{borrow::Cow, fmt::Debug, io::Cursor};
+use std::{fmt::Debug, io::Cursor};
 
 use binrw::{binread, until_eof, BinRead};
 
-use crate::error::Result;
+use crate::{error::Result, FileStream};
 
 use super::file::File;
 
@@ -28,8 +28,8 @@ pub struct EquipmentDeformerParameter {
 }
 
 impl File for EquipmentDeformerParameter {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
+	fn read(mut stream: impl FileStream) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut stream)?)
 	}
 }
 

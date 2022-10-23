@@ -2,12 +2,13 @@ use std::fmt::Debug;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	ironworks::FileStream,
 	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
 	Resource,
 };
 
-use super::{file, index::Index};
+use super::{file::File, index::Index};
 
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
@@ -35,7 +36,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 
 	/// Read the file at `path` from SqPack.
-	pub fn file(&self, path: &str) -> Result<Vec<u8>> {
+	pub fn file(&self, path: &str) -> Result<File<R::Dat>> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
@@ -54,8 +55,8 @@ impl<R: sqpack::Resource> SqPack<R> {
 			.resource
 			.dat(repository, category, location.chunk, location.data_file)?;
 
-		// TODO: Cache files? Tempted to say it's the IW struct's responsibility.
-		file::read(dat, location.offset)
+		// TODO: Cache files? Tempted to say it's the IW struct's responsibility. Is it even possible here with streams?
+		File::at_offset(dat, location.offset)
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
@@ -74,7 +75,7 @@ where
 		self.version(path)
 	}
 
-	fn file(&self, path: &str) -> Result<Vec<u8>> {
-		self.file(path)
+	fn file(&self, path: &str) -> Result<Box<dyn FileStream>> {
+		Ok(Box::new(self.file(path)?))
 	}
 }

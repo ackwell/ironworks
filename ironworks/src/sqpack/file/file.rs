@@ -1,34 +1,76 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Cursor, Empty, Read, Seek, SeekFrom};
 
 use binrw::BinRead;
 
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 use super::{
 	empty, model,
-	shared::{read_failed, FileKind, Header},
+	shared::{FileKind, Header},
 	standard, texture,
 };
 
-pub fn read(mut reader: impl Read + Seek, offset: u32) -> Result<Vec<u8>> {
-	// Move to the start of the file and read in the header.
-	reader.seek(SeekFrom::Start(offset.into()))?;
-	let header = Header::read(&mut reader)?;
+// Wrapper struct to prevent the innards of the file streams from being public API surface.
+/// A stream of data for a file read from a sqpack dat archive.
+#[derive(Debug)]
+pub struct File<R> {
+	inner: FileStreamKind<R>,
+}
 
-	let expected_file_size = header.raw_file_size;
+impl<R: Read + Seek> File<R> {
+	/// Create a new File which which will translate SqPack stored data in the given stream.
+	pub fn new(reader: R) -> Result<Self> {
+		Self::at_offset(reader, 0)
+	}
 
-	let file_offset = offset + header.size;
-	let out_buffer = match &header.kind {
-		FileKind::Empty => empty::read(reader, header),
-		FileKind::Standard => standard::read(reader, file_offset, header),
-		FileKind::Model => model::read(reader, file_offset, header),
-		FileKind::Texture => texture::read(reader, file_offset, header),
-	}?;
+	/// Create a new File which which will translate SqPack stored data in the given stream starting at the specified offset.
+	pub fn at_offset(mut reader: R, offset: u32) -> Result<Self> {
+		// Move to the start of the file and read in the header.
+		reader.seek(SeekFrom::Start(offset.into()))?;
+		let header = Header::read(&mut reader)?;
 
-	match out_buffer.len() == expected_file_size.try_into().unwrap() {
-		true => Ok(out_buffer),
-		false => Err(Error::Resource(
-			read_failed("file", expected_file_size, out_buffer.len()).into(),
-		)),
+		let file_offset = offset + header.size;
+
+		use FileStreamKind as FSK;
+		let file_stream = match &header.kind {
+			FileKind::Empty => FSK::Empty(empty::read(reader, header)?),
+			FileKind::Standard => FSK::Standard(standard::read(reader, file_offset, header)?),
+			FileKind::Model => FSK::Model(model::read(reader, file_offset, header)?),
+			FileKind::Texture => FSK::Texture(texture::read(reader, file_offset, header)?),
+		};
+
+		Ok(File { inner: file_stream })
+	}
+}
+
+#[derive(Debug)]
+enum FileStreamKind<R> {
+	Empty(Empty),
+	Standard(standard::FileStream<R>),
+	Model(Cursor<Vec<u8>>),
+	Texture(Cursor<Vec<u8>>),
+}
+
+impl<R: Read + Seek> Read for File<R> {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		use FileStreamKind as FSK;
+		match &mut self.inner {
+			FSK::Empty(stream) => stream.read(buf),
+			FSK::Standard(stream) => stream.read(buf),
+			FSK::Model(stream) => stream.read(buf),
+			FSK::Texture(stream) => stream.read(buf),
+		}
+	}
+}
+
+impl<R: Read + Seek> Seek for File<R> {
+	fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+		use FileStreamKind as FSK;
+		match &mut self.inner {
+			FSK::Empty(stream) => stream.seek(pos),
+			FSK::Standard(stream) => stream.seek(pos),
+			FSK::Model(stream) => stream.seek(pos),
+			FSK::Texture(stream) => stream.seek(pos),
+		}
 	}
 }

@@ -1,13 +1,13 @@
 //! Structs and utilities for parsing .exd files.
 
-use std::{
-	borrow::Cow,
-	io::{Cursor, Read, Seek},
-};
+use std::io::{Cursor, Read, Seek};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	FileStream,
+};
 
 use super::file::File;
 
@@ -115,8 +115,8 @@ impl ExcelData {
 }
 
 impl File for ExcelData {
-	fn read<'a>(data: impl Into<Cow<'a, [u8]>>) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut Cursor::new(data.into()))?)
+	fn read(mut stream: impl FileStream) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut stream)?)
 	}
 }
 
