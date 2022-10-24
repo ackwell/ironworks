@@ -81,7 +81,7 @@ impl Iterator for ChunkIterator {
 		// Chunk reading will need to use the stream, drop our handle on it.
 		drop(handle);
 
-		let chunk = Chunk::read(self.stream.clone());
+		let chunk = Chunk::read(self.stream.clone()).expect("e");
 
 		// Update iterator offset to the start of the next chunk. `size` only represents
 		// the size of the chunk data itself, so the +12 is to account for the other

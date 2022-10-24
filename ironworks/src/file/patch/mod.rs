@@ -6,7 +6,7 @@ mod lazy;
 mod zipatch;
 
 pub use {
-	chunk::Chunk,
+	chunk::{AddDirectoryChunk, ApplyChunk, Chunk, DeleteDirectoryChunk, OptionKind},
 	lazy::LazyStreamReader,
 	zipatch::{ChunkIterator, ZiPatch},
 };
