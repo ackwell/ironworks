@@ -3,6 +3,7 @@
 
 mod chunk;
 mod lazy;
+mod sqpack;
 mod zipatch;
 
 pub use {

@@ -3,9 +3,12 @@ use std::sync::{Arc, Mutex};
 use binrw::{binread, meta::ReadEndian, BinRead};
 use getset::{CopyGetters, Getters};
 
-use crate::{error::Result, FileStream};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	FileStream,
+};
 
-use super::lazy::LazyStreamReader;
+use super::{lazy::LazyStreamReader, sqpack::SqPackChunk};
 
 #[derive(Debug)]
 pub enum Chunk {
@@ -13,7 +16,7 @@ pub enum Chunk {
 	Apply(ApplyChunk),
 	AddDirectory(AddDirectoryChunk),
 	DeleteDirectory(DeleteDirectoryChunk),
-	SqPack,
+	SqPack(SqPackChunk),
 	EndOfFile,
 }
 
@@ -29,10 +32,14 @@ impl Chunk {
 			b"APLY" => Self::Apply(eager(stream)?),
 			b"ADIR" => Self::AddDirectory(eager(stream)?),
 			b"DELD" => Self::DeleteDirectory(eager(stream)?),
-			b"SQPK" => Self::SqPack,
+			b"SQPK" => Self::SqPack(SqPackChunk::read(stream)?),
 			b"EOF_" => Self::EndOfFile,
-			// temp obv
-			other => todo!("Unknown chunk kind {other:?}"),
+			other => {
+				return Err(Error::Invalid(
+					ErrorValue::Other("chunk magic".into()),
+					format!("unknown chunk magic {other:?}"),
+				))
+			}
 		};
 
 		Ok(chunk)
