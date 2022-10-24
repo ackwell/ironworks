@@ -3,7 +3,7 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-use binrw::{binread, BinRead};
+use binrw::BinRead;
 use derivative::Derivative;
 
 use crate::{error::Result, file::File, FileStream};
@@ -67,41 +67,33 @@ impl Iterator for ChunkIterator {
 			return None;
 		}
 
-		let mut stream = self.stream.lock().expect("TODO poison message");
+		let mut handle = self.stream.lock().unwrap();
 
-		// Seek to last known offset - in a tight loop this is effectively a noop, but need to make sure if there's stuff jumping around.
+		// Seek to last known offset - in a tight loop this is effectively a noop,
+		// but need to make sure if there's stuff jumping around.
 		// TODO: lots of jumping around would be catastrophic for read performance - it'd be nice to be able to request something cloneable, so i.e. file handles could be cloned between chunk iterators, rather than trying to share access to a single one - but i'm not sure how to mode that without major refactors.
-		stream
+		handle
 			.seek(SeekFrom::Start(self.offset))
 			.expect("TODO this shouldn't happen, right? what do");
 
-		let container = ChunkContainer::read(&mut *stream).expect(
-			"TODO i'm really not sure what to do about all these results in an option return type",
-		);
+		let size = u32::read_be(&mut *handle).expect("e");
 
-		// Update the offset to the new position
-		self.offset = stream.stream_position().expect("TODO FUCK ME");
+		// Chunk reading will need to use the stream, drop our handle on it.
+		drop(handle);
 
-		// TODO: check the hash? is it worth it?
+		let chunk = Chunk::read(self.stream.clone());
 
-		// If we just read an EOF chunk, mark this iterator as complete.
-		if let Chunk::EndOfFile = container.chunk {
+		// Update iterator offset to the start of the next chunk. `size` only represents
+		// the size of the chunk data itself, so the +12 is to account for the other
+		// fields in the container.
+		self.offset += u64::from(size) + 12;
+
+		// TODO: check the hash? is it worth it? I'd need to relock the stream for that...
+
+		if let Chunk::EndOfFile = chunk {
 			self.complete = true;
 		}
 
-		Some(container.chunk)
+		Some(chunk)
 	}
-}
-
-#[binread]
-#[br(big)]
-#[derive(Debug)]
-struct ChunkContainer {
-	#[br(temp)]
-	size: u32,
-
-	#[br(pad_size_to = size + 4)]
-	chunk: Chunk,
-
-	hash: u32,
 }

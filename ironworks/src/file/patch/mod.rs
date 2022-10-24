@@ -1,3 +1,6 @@
+// TEMP
+#![allow(missing_docs, dead_code)]
+
 mod chunk;
 mod zipatch;
 
