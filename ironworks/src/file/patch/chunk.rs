@@ -1,7 +1,12 @@
-use binrw::binread;
+use std::io::{Read, Seek};
+
+use binrw::{binread, BinRead, BinResult, ReadOptions};
 use getset::{CopyGetters, Getters};
 
-use super::sqpack::SqPackChunk;
+use super::command::{
+	AddCommand, DeleteCommand, ExpandCommand, FileOperationCommand, HeaderUpdateCommand,
+	IndexUpdateCommand, PatchInfoCommand, TargetInfoCommand,
+};
 
 #[binread]
 #[br(big)]
@@ -135,4 +140,52 @@ pub struct DeleteDirectoryChunk {
 		try_map = String::from_utf8,
 	)]
 	path: String,
+}
+
+#[derive(Debug)]
+pub enum SqPackChunk {
+	Add(AddCommand),
+	Delete(DeleteCommand),
+	Expand(ExpandCommand),
+	FileOperation(FileOperationCommand),
+	HeaderUpdate(HeaderUpdateCommand),
+	IndexUpdate(IndexUpdateCommand),
+	PatchInfo(PatchInfoCommand),
+	TargetInfo(TargetInfoCommand),
+}
+
+// Manual BinRead implementation because of that pesky size: u32 at the start of sqpack chunks that we don't want.
+impl BinRead for SqPackChunk {
+	type Args = ();
+
+	fn read_options<R: Read + Seek>(
+		reader: &mut R,
+		options: &ReadOptions,
+		_args: Self::Args,
+	) -> BinResult<Self> {
+		// NOTE: in all observed instances, this size value is equivalent to the parent size on the chunk container.
+		// If things have broken, check https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/SqpkChunk.cs#L31-L34 - if it's not a match check, something's wrong.
+		let chunk_size = u32::read_options(reader, options, ())?;
+		let pos = reader.stream_position()?;
+		let magic = u8::read_options(reader, options, ())?;
+
+		let command = match magic {
+			b'A' => Self::Add(AddCommand::read_options(reader, options, ())?),
+			b'D' => Self::Delete(DeleteCommand::read_options(reader, options, ())?),
+			b'E' => Self::Expand(ExpandCommand::read_options(reader, options, ())?),
+			b'F' => Self::FileOperation(FileOperationCommand::read_options(reader, options, ())?),
+			b'H' => Self::HeaderUpdate(HeaderUpdateCommand::read_options(reader, options, ())?),
+			b'I' => Self::IndexUpdate(IndexUpdateCommand::read_options(reader, options, ())?),
+			b'X' => Self::PatchInfo(PatchInfoCommand::read_options(reader, options, ())?),
+			b'T' => Self::TargetInfo(TargetInfoCommand::read_options(reader, options, ())?),
+			other => {
+				return Err(binrw::Error::BadMagic {
+					pos,
+					found: Box::new(other),
+				});
+			}
+		};
+
+		Ok(command)
+	}
 }

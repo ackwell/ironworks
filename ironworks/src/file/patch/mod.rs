@@ -2,17 +2,17 @@
 #![allow(missing_docs, dead_code)]
 
 mod chunk;
-mod sqpack;
+mod command;
 mod zipatch;
 
 pub use {
 	chunk::{
 		AddDirectoryChunk, ApplyChunk, Chunk, DeleteDirectoryChunk, FileHeaderChunk, FileHeaderV3,
-		OptionKind,
+		OptionKind, SqPackChunk,
 	},
-	sqpack::{
+	command::{
 		AddCommand, DeleteCommand, ExpandCommand, FileOperationCommand, HeaderUpdateCommand,
-		IndexUpdateCommand, PatchInfoCommand, SqPackChunk, TargetInfoCommand,
+		IndexUpdateCommand, PatchInfoCommand, TargetInfoCommand,
 	},
 	zipatch::{ChunkIterator, ZiPatch},
 };
