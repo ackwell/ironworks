@@ -68,13 +68,19 @@ pub struct AddCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
 	file: SqPackFile,
-	offset: u32,
-	count: u32,
-	delete_count: u32,
-	// TODO:
-	// data - store the full reader offset for this point maybe?
+	// target file offset to start writing, in bytes
+	#[br(map = |value: u32| value << 7)]
+	target_offset: u32,
+	// size of data to copy, in bytes
+	#[br(map = |value: u32| value << 7)]
+	data_size: u32,
+	// no. of bytes to blank after write op
+	#[br(map = |value: u32| value << 7)]
+	delete_size: u32,
+
+	// offset in bytes within the zipatch itself to read the data
 	#[br(map = |v: PosValue<()>| v.pos)]
-	test: u64,
+	source_offset: u64,
 }
 
 #[binread]
@@ -84,8 +90,10 @@ pub struct DeleteCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
 	file: SqPackFile,
-	offset: u32,
-	count: u32,
+	#[br(map = |value: u32| value << 7)]
+	target_offset: u32,
+	#[br(map = |value: u32| value << 7)]
+	delete_size: u32,
 }
 
 #[binread]
@@ -95,8 +103,10 @@ pub struct ExpandCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
 	file: SqPackFile,
-	offset: u32,
-	count: u32,
+	#[br(map = |value: u32| value << 7)]
+	target_offset: u32,
+	#[br(map = |value: u32| value << 7)]
+	delete_size: u32,
 }
 
 #[binread]
