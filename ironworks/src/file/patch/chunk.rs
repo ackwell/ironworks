@@ -1,54 +1,29 @@
-use std::sync::{Arc, Mutex};
-
-use binrw::{binread, meta::ReadEndian, BinRead};
+use binrw::binread;
 use getset::{CopyGetters, Getters};
 
-use crate::{
-	error::{Error, ErrorValue, Result},
-	FileStream,
-};
+use super::sqpack::SqPackChunk;
 
-use super::{lazy::LazyStreamReader, sqpack::SqPackChunk};
-
+#[binread]
+#[br(big)]
 #[derive(Debug)]
 pub enum Chunk {
-	FileHeader(LazyStreamReader<FileHeaderChunk>),
+	#[br(magic = b"FHDR")]
+	FileHeader(FileHeaderChunk),
+
+	#[br(magic = b"APLY")]
 	Apply(ApplyChunk),
+
+	#[br(magic = b"ADIR")]
 	AddDirectory(AddDirectoryChunk),
+
+	#[br(magic = b"DELD")]
 	DeleteDirectory(DeleteDirectoryChunk),
+
+	#[br(magic = b"SQPK")]
 	SqPack(SqPackChunk),
+
+	#[br(magic = b"EOF_")]
 	EndOfFile,
-}
-
-impl Chunk {
-	pub(super) fn read(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Result<Self> {
-		// Get the magic for this chunk.
-		let mut handle = stream.lock().unwrap();
-		let magic = <[u8; 4]>::read(&mut *handle)?;
-		drop(handle);
-
-		let chunk = match &magic {
-			b"FHDR" => Self::FileHeader(LazyStreamReader::new(stream)),
-			b"APLY" => Self::Apply(eager(stream)?),
-			b"ADIR" => Self::AddDirectory(eager(stream)?),
-			b"DELD" => Self::DeleteDirectory(eager(stream)?),
-			b"SQPK" => Self::SqPack(SqPackChunk::read(stream)?),
-			b"EOF_" => Self::EndOfFile,
-			other => {
-				return Err(Error::Invalid(
-					ErrorValue::Other("chunk magic".into()),
-					format!("unknown chunk magic {other:?}"),
-				))
-			}
-		};
-
-		Ok(chunk)
-	}
-}
-
-fn eager<T: BinRead<Args = ()> + ReadEndian>(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Result<T> {
-	let mut handle = stream.lock().unwrap();
-	Ok(T::read(&mut *handle)?)
 }
 
 #[binread]

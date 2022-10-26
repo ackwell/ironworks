@@ -1,18 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::io::{Read, Seek};
 
-use binrw::{binread, meta::ReadEndian, BinRead, PosValue};
-
-use crate::{
-	error::{Error, ErrorValue, Result},
-	FileStream,
-};
-
-use super::lazy::LazyStreamReader;
+use binrw::{binread, BinRead, BinResult, PosValue, ReadOptions};
 
 #[derive(Debug)]
 pub enum SqPackChunk {
-	// This being lazy is an immense time save - but does it _realistically_ matter? are consumers ever going to iterate and _not_ want adds?
-	Add(LazyStreamReader<AddCommand>),
+	Add(AddCommand),
 	Delete,
 	Expand,
 	FileOperation,
@@ -22,15 +14,22 @@ pub enum SqPackChunk {
 	TargetInfo,
 }
 
-impl SqPackChunk {
-	pub(super) fn read(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Result<Self> {
-		let mut handle = stream.lock().unwrap();
-		let size = u32::read_be(&mut *handle)?;
-		let magic = u8::read(&mut *handle)?;
-		drop(handle);
+// Manual BinRead implementation because of that pesky size: u32 at the start of sqpack chunks that we don't want.
+impl BinRead for SqPackChunk {
+	type Args = ();
+
+	fn read_options<R: Read + Seek>(
+		reader: &mut R,
+		options: &ReadOptions,
+		_args: Self::Args,
+	) -> BinResult<Self> {
+		// TODO: should I use the size?
+		let _size = u32::read_options(reader, options, ())?;
+		let pos = reader.stream_position()?;
+		let magic = u8::read_options(reader, options, ())?;
 
 		let command = match magic {
-			b'A' => Self::Add(LazyStreamReader::new(stream)),
+			b'A' => Self::Add(AddCommand::read_options(reader, options, ())?),
 			b'D' => Self::Delete,
 			b'E' => Self::Expand,
 			b'F' => Self::FileOperation,
@@ -39,21 +38,15 @@ impl SqPackChunk {
 			b'X' => Self::PatchInfo,
 			b'T' => Self::TargetInfo,
 			other => {
-				return Err(Error::Invalid(
-					ErrorValue::Other("sqpack command magic".into()),
-					format!("unknown command {other:?}"),
-				))
+				return Err(binrw::Error::BadMagic {
+					pos,
+					found: Box::new(other),
+				});
 			}
 		};
 
 		Ok(command)
 	}
-}
-
-// todo this is duped, nuke
-fn eager<T: BinRead<Args = ()> + ReadEndian>(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Result<T> {
-	let mut handle = stream.lock().unwrap();
-	Ok(T::read(&mut *handle)?)
 }
 
 // todo: doc this.
