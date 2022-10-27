@@ -1,5 +1,4 @@
-// TEMP
-#![allow(missing_docs)]
+//! Structs and utilities for parsing ZiPatch .patch files.
 
 mod chunk;
 mod command;

@@ -12,6 +12,11 @@ use super::chunk::Chunk;
 
 const ZIPATCH_MAGIC: &[u8; 12] = b"\x91ZIPATCH\x0D\x0A\x1A\x0A";
 
+/// ZiPatch incremental patch file format.
+///
+/// This file format contains a significant number of small headers interspersed
+/// between payloads, and will _heavily_ benefit from buffered reading or
+/// memory-mapped files.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ZiPatch {
@@ -20,8 +25,8 @@ pub struct ZiPatch {
 }
 
 impl ZiPatch {
-	// note that it iters results because reads can fail
-	pub fn todo_name_me_iterate_chunks(&self) -> ChunkIterator {
+	/// Get an iterator over the chunks within this patch file.
+	pub fn chunks(&self) -> ChunkIterator {
 		ChunkIterator::new(self.stream.clone())
 	}
 }
@@ -44,6 +49,9 @@ impl File for ZiPatch {
 	}
 }
 
+/// Iterator over the chunks within a patch file.
+///
+/// Chunks are read lazily from the source stream over the course of iteration.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ChunkIterator {
