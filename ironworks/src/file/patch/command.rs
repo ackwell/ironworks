@@ -1,4 +1,8 @@
-use binrw::{binread, NullString, PosValue};
+use std::io::{Read, Seek, SeekFrom};
+
+use binrw::{binread, BinRead, BinResult, NullString, PosValue, ReadOptions};
+
+const UNCOMPRESSED_MARKER_SIZE: u32 = 32_000;
 
 // todo: doc this.
 // dat`"{main_id:02x}{sub_id:04x}.{platform}.dat{file_id}"`
@@ -62,35 +66,100 @@ pub struct ExpandCommand {
 
 #[binread]
 #[derive(Debug)]
+#[br(big, import(command_size: u32))]
 pub struct FileOperationCommand {
-	kind: FileOperationKind,
+	#[br(temp, map = |value: PosValue<()>| value.pos)]
+	command_start: u64,
+
+	#[br(temp)]
+	operation_magic: u8,
+
 	// unk1: [u8; 2]
 	#[br(pad_before = 2)]
 	offset: u64,
 	size: u64,
+
 	#[br(temp)]
 	path_length: u32,
+
 	#[br(pad_after = 2)]
 	// todo: repository id?
 	expansion_id: u16,
 	// unk2: [u8; 2]
 	#[br(pad_size_to = path_length)]
 	path: NullString,
-	// data here i assume? looks like there's a whole other structure going on
-	// check https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/SqpkCommand/SqpkFile.cs#L51
+
+	#[br(args(operation_magic, command_start, command_size))]
+	operation: FileOperation,
 }
 
 #[binread]
-#[br(repr = u8)]
+#[br(import(magic: u8, command_start: u64, command_size: u32))]
 #[derive(Debug)]
-#[repr(u8)]
-enum FileOperationKind {
-	AddFile = b'A',
+enum FileOperation {
+	#[br(pre_assert(magic == b'A'))]
+	AddFile(
+		#[br(parse_with = parse_block_headers)]
+		#[br(args(command_start, command_size))]
+		Vec<BlockHeader>,
+	),
+
 	// Unused?
-	DeleteFile = b'D',
+	#[br(pre_assert(magic == b'D'))]
+	DeleteFile,
+
 	// Unused?
-	MakeDirTree = b'M',
-	RemoveAll = b'R',
+	#[br(pre_assert(magic == b'M'))]
+	MakeDirTree,
+
+	#[br(pre_assert(magic == b'R'))]
+	RemoveAll,
+}
+
+fn parse_block_headers<R: Read + Seek>(
+	reader: &mut R,
+	options: &ReadOptions,
+	(command_start, command_size): (u64, u32),
+) -> BinResult<Vec<BlockHeader>> {
+	let command_end = u64::from(command_size) + command_start;
+
+	let mut headers = vec![];
+
+	// Read headers while there's space left in the command's data.
+	while reader.stream_position()? < command_end {
+		let header = BlockHeader::read_options(reader, options, ())?;
+
+		// Blocks can be compressed or uncompressed in source data, and are sorta-kinda aligned in typical Square fashion.
+		let source_size = match header.compressed_size != UNCOMPRESSED_MARKER_SIZE {
+			true => header.compressed_size,
+			false => header.decompressed_size,
+		};
+		let aligned_size = (u64::from(source_size) + 0x8F) & 0xFFFFFF80;
+
+		// Skip over the block's payload.
+		reader.seek(SeekFrom::Current(
+			(aligned_size - u64::from(header.header_size))
+				.try_into()
+				.unwrap(),
+		))?;
+
+		headers.push(header);
+	}
+
+	Ok(headers)
+}
+
+// This is identical to the `BlockHeader` in `sqpack::file` - look into sharing.
+#[binread]
+#[br(little)] // REALLY?
+#[derive(Debug)]
+struct BlockHeader {
+	// Practically always 16.
+	header_size: u32,
+	// unk1: [u8; 4]
+	#[br(pad_before = 4)]
+	compressed_size: u32,
+	decompressed_size: u32,
 }
 
 #[binread]

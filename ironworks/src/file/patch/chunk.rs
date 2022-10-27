@@ -9,7 +9,7 @@ use super::command::{
 };
 
 #[binread]
-#[br(big)]
+#[br(big, import(chunk_size: u32))]
 #[derive(Debug)]
 pub enum Chunk {
 	#[br(magic = b"FHDR")]
@@ -25,7 +25,7 @@ pub enum Chunk {
 	DeleteDirectory(DeleteDirectoryChunk),
 
 	#[br(magic = b"SQPK")]
-	SqPack(SqPackChunk),
+	SqPack(#[br(args(chunk_size))] SqPackChunk),
 
 	#[br(magic = b"EOF_")]
 	EndOfFile,
@@ -156,24 +156,32 @@ pub enum SqPackChunk {
 
 // Manual BinRead implementation because of that pesky size: u32 at the start of sqpack chunks that we don't want.
 impl BinRead for SqPackChunk {
-	type Args = ();
+	type Args = (u32,);
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
 		options: &ReadOptions,
-		_args: Self::Args,
+		(chunk_size,): Self::Args,
 	) -> BinResult<Self> {
 		// NOTE: in all observed instances, this size value is equivalent to the parent size on the chunk container.
-		// If things have broken, check https://github.com/goatcorp/FFXIVQuickLauncher/blob/master/src/XIVLauncher.Common/Patching/ZiPatch/Chunk/SqpkChunk.cs#L31-L34 - if it's not a match check, something's wrong.
-		let chunk_size = u32::read_options(reader, options, ())?;
+		let inner_size = u32::read_options(reader, options, ())?;
+		assert!(inner_size == chunk_size);
+
 		let pos = reader.stream_position()?;
 		let magic = u8::read_options(reader, options, ())?;
+
+		// The command is 5 bytes smaller than the chunk, due to the header read above.
+		let command_size = chunk_size - 5;
 
 		let command = match magic {
 			b'A' => Self::Add(AddCommand::read_options(reader, options, ())?),
 			b'D' => Self::Delete(DeleteCommand::read_options(reader, options, ())?),
 			b'E' => Self::Expand(ExpandCommand::read_options(reader, options, ())?),
-			b'F' => Self::FileOperation(FileOperationCommand::read_options(reader, options, ())?),
+			b'F' => Self::FileOperation(FileOperationCommand::read_options(
+				reader,
+				options,
+				(command_size,),
+			)?),
 			b'H' => Self::HeaderUpdate(HeaderUpdateCommand::read_options(reader, options, ())?),
 			b'I' => Self::IndexUpdate(IndexUpdateCommand::read_options(reader, options, ())?),
 			b'X' => Self::PatchInfo(PatchInfoCommand::read_options(reader, options, ())?),

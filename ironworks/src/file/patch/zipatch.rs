@@ -69,7 +69,7 @@ impl ChunkIterator {
 
 		let size = u32::read_be(&mut *handle)?;
 
-		let chunk = Chunk::read(&mut *handle)?;
+		let chunk = Chunk::read_args(&mut *handle, (size,))?;
 
 		// Update iterator offset to the start of the next chunk. `size` only represents
 		// the size of the chunk data itself, so the +12 is to account for the other
