@@ -160,6 +160,9 @@ struct BlockHeader {
 	#[br(pad_before = 4)]
 	compressed_size: u32,
 	decompressed_size: u32,
+
+	#[br(map = |value: PosValue<()>| value.pos)]
+	offset: u64,
 }
 
 #[binread]
@@ -169,9 +172,13 @@ pub struct HeaderUpdateCommand {
 	file_kind: HeaderFileKind,
 	header_kind: HeaderKind,
 	path: SqPackFile,
-	// TODO: handle this the same way as the add command
-	#[br(count = 1024)] // not using an array to avoid it inlining all of that into the enum
-	payload: Vec<u8>,
+
+	#[br(map = |value: PosValue<()>| value.pos)]
+	offset: u64,
+
+	// It's _always_ 1kb of data.
+	#[br(calc = 1024)]
+	size: u32,
 }
 
 #[binread]
