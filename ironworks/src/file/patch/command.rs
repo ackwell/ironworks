@@ -18,29 +18,32 @@ pub struct SqPackFile {
 	file_id: u32,
 }
 
+/// Write data to a file.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
 #[get_copy = "pub"]
 pub struct AddCommand {
 	// unk1: [u8; 3]
+	/// File to write to.
 	#[br(pad_before = 3)]
 	file: SqPackFile,
-	// target file offset to start writing, in bytes
+	/// Target file offset to start writing, in bytes.
 	#[br(map = |value: u32| value << 7)]
 	target_offset: u32,
-	// size of data to copy, in bytes
+	/// Size of data to copy, in bytes.
 	#[br(map = |value: u32| value << 7)]
 	data_size: u32,
-	// no. of bytes to blank after write op
+	/// Number of bytes to blank after writing.
 	#[br(map = |value: u32| value << 7)]
 	delete_size: u32,
 
-	// offset in bytes within the zipatch itself to read the data
-	#[br(map = |v: PosValue<()>| v.pos)]
+	/// Offset in bytes within the patch file to read the data from.
+	#[br(map = |value: PosValue<()>| value.pos)]
 	source_offset: u64,
 }
 
+/// Delete data from a file.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
@@ -55,6 +58,7 @@ pub struct DeleteCommand {
 	delete_size: u32,
 }
 
+/// Expand the size of a file.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
@@ -69,6 +73,7 @@ pub struct ExpandCommand {
 	delete_size: u32,
 }
 
+/// Perform a file operation.
 #[binread]
 #[derive(Debug, Getters, CopyGetters)]
 #[br(big, import(command_size: u32))]
@@ -162,6 +167,7 @@ fn parse_block_headers<R: Read + Seek>(
 }
 
 // This is identical to the `BlockHeader` in `sqpack::file` - look into sharing.
+/// Block of potentially-compressed data
 #[binread]
 #[br(little)] // REALLY?
 #[derive(Debug, CopyGetters)]
@@ -178,6 +184,7 @@ pub struct BlockHeader {
 	offset: u64,
 }
 
+/// Update the header of a file.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
@@ -195,6 +202,7 @@ pub struct HeaderUpdateCommand {
 	size: u32,
 }
 
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = u8)]
 #[derive(Debug, Clone, Copy)]
@@ -204,6 +212,7 @@ pub enum HeaderFileKind {
 	Index = b'I',
 }
 
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = u8)]
 #[derive(Debug, Clone, Copy)]
@@ -214,6 +223,7 @@ pub enum HeaderKind {
 	Index = b'I',
 }
 
+/// Update an entry in a SqPack index file.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
@@ -230,6 +240,7 @@ pub struct IndexUpdateCommand {
 	block_number: u32,
 }
 
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = u8)]
 #[derive(Debug, Clone, Copy)]
@@ -239,35 +250,52 @@ pub enum IndexUpdateKind {
 	Delete = b'D',
 }
 
+/// Metadata about the SqPack patch.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
 #[get_copy = "pub"]
 pub struct PatchInfoCommand {
+	///
 	status: u8,
+	///
 	version: u8,
+
 	// align: u8,
+	///
 	#[br(pad_before = 1)]
 	install_size: u64,
 }
 
+/// Metadata about the target SqPack install.
 #[binread]
 #[br(big)]
 #[derive(Debug, CopyGetters)]
 #[get_copy = "pub"]
 pub struct TargetInfoCommand {
 	// unk1: [u8; 3]
+	/// The target platform of this patch.
 	#[br(pad_before = 3)]
 	platform: TargetPlatform,
+
+	/// The target game service region of this patch.
 	region: TargetRegion,
+
+	///
 	#[br(map = |value: u16| value !=0)]
 	is_debug: bool,
+
+	///
 	version: u16,
-	// TODO: these two seem off, probably shouldn't expose
-	deleted_data_size: u64,
-	seek_count: u64,
+
+	// TODO: these two seem off, look into what they're supposed to represent.
+	#[getset(skip)]
+	_deleted_data_size: u64,
+	#[getset(skip)]
+	_seek_count: u64,
 }
 
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = u16)]
 #[derive(Debug, Clone, Copy)]
@@ -278,6 +306,7 @@ pub enum TargetPlatform {
 	Unknown = 3,
 }
 
+#[allow(missing_docs)]
 #[binread]
 #[br(repr = i16)]
 #[derive(Debug, Clone, Copy)]
