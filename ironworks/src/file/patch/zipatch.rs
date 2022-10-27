@@ -44,7 +44,10 @@ impl File for ZiPatch {
 	}
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct ChunkIterator {
+	#[derivative(Debug = "ignore")]
 	stream: Arc<Mutex<Box<dyn FileStream>>>,
 	offset: u64,
 	complete: bool,

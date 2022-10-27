@@ -1,5 +1,5 @@
 // TEMP
-#![allow(missing_docs, dead_code)]
+#![allow(missing_docs)]
 
 mod chunk;
 mod command;
@@ -11,8 +11,9 @@ pub use {
 		OptionKind, SqPackChunk,
 	},
 	command::{
-		AddCommand, DeleteCommand, ExpandCommand, FileOperationCommand, HeaderUpdateCommand,
-		IndexUpdateCommand, PatchInfoCommand, TargetInfoCommand,
+		AddCommand, BlockHeader, DeleteCommand, ExpandCommand, FileOperation, FileOperationCommand,
+		HeaderFileKind, HeaderKind, HeaderUpdateCommand, IndexUpdateCommand, IndexUpdateKind,
+		PatchInfoCommand, SqPackFile, TargetInfoCommand, TargetPlatform, TargetRegion,
 	},
 	zipatch::{ChunkIterator, ZiPatch},
 };

@@ -1,6 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 
 use binrw::{binread, BinRead, BinResult, NullString, PosValue, ReadOptions};
+use getset::{CopyGetters, Getters};
 
 const UNCOMPRESSED_MARKER_SIZE: u32 = 32_000;
 
@@ -9,8 +10,9 @@ const UNCOMPRESSED_MARKER_SIZE: u32 = 32_000;
 // idx`"{main_id:02x}{sub_id:04x}.{platform}.index{file_id>0?file_id:""}"`
 #[binread]
 #[br(big)]
-#[derive(Debug)]
-struct SqPackFile {
+#[derive(Debug, Clone, Copy, CopyGetters)]
+#[get_copy = "pub"]
+pub struct SqPackFile {
 	main_id: u16,
 	sub_id: u16,
 	file_id: u32,
@@ -18,7 +20,8 @@ struct SqPackFile {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct AddCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -40,7 +43,8 @@ pub struct AddCommand {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct DeleteCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -53,7 +57,8 @@ pub struct DeleteCommand {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct ExpandCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -65,7 +70,7 @@ pub struct ExpandCommand {
 }
 
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, Getters, CopyGetters)]
 #[br(big, import(command_size: u32))]
 pub struct FileOperationCommand {
 	#[br(temp, map = |value: PosValue<()>| value.pos)]
@@ -76,27 +81,34 @@ pub struct FileOperationCommand {
 
 	// unk1: [u8; 2]
 	#[br(pad_before = 2)]
-	offset: u64,
-	size: u64,
+	#[get_copy = "pub"]
+	target_offset: u64,
+
+	#[get_copy = "pub"]
+	target_size: u64,
 
 	#[br(temp)]
 	path_length: u32,
 
-	#[br(pad_after = 2)]
 	// todo: repository id?
+	#[get_copy = "pub"]
 	expansion_id: u16,
+
 	// unk2: [u8; 2]
+	#[br(pad_before = 2)]
 	#[br(pad_size_to = path_length)]
+	#[get = "pub"]
 	path: NullString,
 
 	#[br(args(operation_magic, command_start, command_size))]
+	#[get = "pub"]
 	operation: FileOperation,
 }
 
 #[binread]
 #[br(import(magic: u8, command_start: u64, command_size: u32))]
 #[derive(Debug)]
-enum FileOperation {
+pub enum FileOperation {
 	#[br(pre_assert(magic == b'A'))]
 	AddFile(
 		#[br(parse_with = parse_block_headers)]
@@ -152,8 +164,9 @@ fn parse_block_headers<R: Read + Seek>(
 // This is identical to the `BlockHeader` in `sqpack::file` - look into sharing.
 #[binread]
 #[br(little)] // REALLY?
-#[derive(Debug)]
-struct BlockHeader {
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
+pub struct BlockHeader {
 	// Practically always 16.
 	header_size: u32,
 	// unk1: [u8; 4]
@@ -167,11 +180,12 @@ struct BlockHeader {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct HeaderUpdateCommand {
 	file_kind: HeaderFileKind,
 	header_kind: HeaderKind,
-	path: SqPackFile,
+	file: SqPackFile,
 
 	#[br(map = |value: PosValue<()>| value.pos)]
 	offset: u64,
@@ -183,18 +197,18 @@ pub struct HeaderUpdateCommand {
 
 #[binread]
 #[br(repr = u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
-enum HeaderFileKind {
+pub enum HeaderFileKind {
 	Dat = b'D',
 	Index = b'I',
 }
 
 #[binread]
 #[br(repr = u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
-enum HeaderKind {
+pub enum HeaderKind {
 	Version = b'V',
 	Data = b'D',
 	Index = b'I',
@@ -202,14 +216,15 @@ enum HeaderKind {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct IndexUpdateCommand {
 	kind: IndexUpdateKind,
 	#[br(map = |value: u8| value != 0)]
 	is_synonym: bool,
 	// align: u8
 	#[br(pad_before = 1)]
-	index: SqPackFile,
+	file: SqPackFile,
 	file_hash: u64,
 	block_offset: u32,
 	block_number: u32,
@@ -217,16 +232,17 @@ pub struct IndexUpdateCommand {
 
 #[binread]
 #[br(repr = u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(u8)]
-enum IndexUpdateKind {
+pub enum IndexUpdateKind {
 	Add = b'A',
 	Delete = b'D',
 }
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct PatchInfoCommand {
 	status: u8,
 	version: u8,
@@ -237,7 +253,8 @@ pub struct PatchInfoCommand {
 
 #[binread]
 #[br(big)]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct TargetInfoCommand {
 	// unk1: [u8; 3]
 	#[br(pad_before = 3)]
@@ -253,8 +270,8 @@ pub struct TargetInfoCommand {
 
 #[binread]
 #[br(repr = u16)]
-#[derive(Debug)]
-enum TargetPlatform {
+#[derive(Debug, Clone, Copy)]
+pub enum TargetPlatform {
 	Win32 = 0,
 	Ps3 = 1,
 	Ps4 = 2,
@@ -263,8 +280,8 @@ enum TargetPlatform {
 
 #[binread]
 #[br(repr = i16)]
-#[derive(Debug)]
-enum TargetRegion {
+#[derive(Debug, Clone, Copy)]
+pub enum TargetRegion {
 	Global = -1,
 	// ZH seems to use global, KR is unknown
 }
