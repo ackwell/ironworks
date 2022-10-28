@@ -173,11 +173,8 @@ fn parse_block_headers<R: Read + Seek>(
 		let header = BlockHeader::read_options(reader, options, ())?;
 
 		// Blocks can be compressed or uncompressed in source data, and are sorta-kinda aligned in typical Square fashion.
-		let source_size = match header.compressed_size != UNCOMPRESSED_MARKER_SIZE {
-			true => header.compressed_size,
-			false => header.decompressed_size,
-		};
-		let aligned_size = (u64::from(source_size) + 0x8F) & 0xFFFFFF80;
+		let payload_size = header.payload_size();
+		let aligned_size = (u64::from(payload_size) + 0x8F) & 0xFFFFFF80;
 
 		// Skip over the block's payload.
 		reader.seek(SeekFrom::Current(
@@ -213,8 +210,20 @@ pub struct BlockHeader {
 	offset: u64,
 }
 
-// TODO: consider moving some of the calculations in `parse_block_headers`
-// into pub impl fns, so they can be reused by consumers.
+impl BlockHeader {
+	/// Whether this block is compressed within the patch file.
+	pub fn is_compressed(&self) -> bool {
+		self.compressed_size != UNCOMPRESSED_MARKER_SIZE
+	}
+
+	/// Size of the block payload in the patch file.
+	pub fn payload_size(&self) -> u32 {
+		match self.is_compressed() {
+			true => self.compressed_size,
+			false => self.decompressed_size,
+		}
+	}
+}
 
 /// Update the header of a file.
 #[binread]
