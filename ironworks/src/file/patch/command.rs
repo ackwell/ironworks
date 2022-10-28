@@ -192,6 +192,8 @@ pub struct BlockHeader {
 pub struct HeaderUpdateCommand {
 	file_kind: HeaderFileKind,
 	header_kind: HeaderKind,
+
+	#[br(pad_before = 1)]
 	file: SqPackFile,
 
 	#[br(map = |value: PosValue<()>| value.pos)]
