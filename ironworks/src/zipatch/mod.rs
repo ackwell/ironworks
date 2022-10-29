@@ -1,45 +1,61 @@
 // TEMP
 #![allow(missing_docs)]
 
-use std::{fs, io::BufReader};
+use std::{collections::HashSet, fs, io::BufReader};
 
-use crate::file::{
-	patch::{self, FileOperationCommand},
-	File,
-};
+use crate::file::{patch, File};
 
 pub fn temp_test() {
 	// for now, i'm just hardcoding a lookup for 0a (exd)'s index. this should likely, at _minimum_, store the metadata for all found indices in a cache structure of some kind
-	let target = "sqpack/ffxiv/0a0000.win32.index";
+	// let target = "sqpack/ffxiv/0a0000.win32.index";
+	let target = "sqpack/ffxiv/020000.win32.index";
 	let out = PATCH_LIST
 		.iter()
 		// atm patch list is in oldest-first, and we want to get the newest copy of a file
 		.rev()
 		// hardcoding because lazy
-		.map(|filename| format!("/mnt/c/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
+		.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
 		// get the zipatch struct for each file
-		.map(|filepath| {
+		.scan(HashSet::<String>::new(), |seen_start, filepath| {
 			println!("checking {filepath}");
-			let file = fs::File::open(filepath).expect("TODO");
+			let file = fs::File::open(&filepath).expect("TODO");
 			let buf = BufReader::new(file);
-			patch::ZiPatch::read(buf).expect("TODO")
-		})
-		// operating on full patches at a time - this makes the (safe?) assumption that the granularity of a game _version_ is at _minimum_ one patch.
-		.find_map(|zipatch| {
-			zipatch.chunks().find_map(|chunk| {
-				let chunk = chunk.expect("TODO");
-				match &chunk {
-					patch::Chunk::SqPack(patch::SqPackChunk::FileOperation(
-						command @ FileOperationCommand { .. },
-					)) if matches!(command.operation(), patch::FileOperation::AddFile(_))
-						&& command.path().to_string() == target =>
-					{
-						Some(chunk)
+
+			// operating on full patches at a time - this makes the (safe?) assumption that the granularity of a game _version_ is at _minimum_ one patch.
+			let zipatch = patch::ZiPatch::read(buf).expect("TODO");
+
+			// we can assume that a non-1.6m byte file is EOF, but we _can't_ assume that 1.6m _isn't_ EOF (technically)
+
+			let target_file_ops = zipatch
+				.chunks()
+				.filter_map(|chunk| {
+					let chunk = chunk.expect("TODO");
+					match chunk {
+						// realistically this would be checking for _any_ index files - we build down
+						// todo the condition on this is... bad.
+						patch::Chunk::SqPack(patch::SqPackChunk::FileOperation(
+							command @ patch::FileOperationCommand { .. },
+						)) if matches!(command.operation(), patch::FileOperation::AddFile(_))
+							&& command.path().to_string() == target
+							&& !seen_start.contains(&command.path().to_string()) =>
+						{
+							Some(command)
+						}
+						_ => None,
 					}
-					_ => None,
-				}
-			})
-		});
+				})
+				.collect::<Vec<_>>();
+
+			// ASSUMPTION: an off:0 write chunk will always be the first chunk within a given patch for that file: any writes before it would be zeroed by the off:0.
+			// TODO: this will fail as soon as there's >1 target, i'll probably need to do some form of grouping by command path.
+			if !target_file_ops.is_empty() && target_file_ops[0].target_offset() == 0 {
+				seen_start.insert(target_file_ops[0].path().to_string());
+			}
+
+			// only returning the length to save output _for now_
+			Some((filepath, target_file_ops.len()))
+		})
+		.collect::<Vec<_>>();
 
 	println!("found: {out:#?}")
 }
