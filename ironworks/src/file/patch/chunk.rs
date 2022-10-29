@@ -155,10 +155,8 @@ pub struct AddDirectoryChunk {
 	length: u32,
 
 	/// Path of the directory to add. Path is relative to the target folder.
-	#[br(
-		count = length,
-		try_map = String::from_utf8,
-	)]
+	#[br(count = length)]
+	#[br(try_map = String::from_utf8)]
 	path: String,
 }
 
@@ -172,10 +170,8 @@ pub struct DeleteDirectoryChunk {
 	length: u32,
 
 	/// Path of the directory to delete. Path is relative to the target folder.
-	#[br(
-		count = length,
-		try_map = String::from_utf8,
-	)]
+	#[br(count = length)]
+	#[br(try_map = String::from_utf8)]
 	path: String,
 }
 

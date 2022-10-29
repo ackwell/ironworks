@@ -105,18 +105,17 @@ pub struct FileOperationCommand {
 	#[get_copy = "pub"]
 	target_offset: u64,
 
-	/// Number of bytes that will be written to the target file. This maxes at
-	/// 1,600,000 bytes - larger files will be split across multiple chunks.
+	/// Number of bytes that will be written to the target file. This will typically
+	/// max out at 1,600,000 bytes - larger files will be split across multiple chunks.
 	#[get_copy = "pub"]
 	target_size: u64,
 
 	#[br(temp)]
 	path_length: u32,
 
-	// todo: repository id?
 	///
 	#[get_copy = "pub"]
-	expansion_id: u16,
+	repository_id: u16,
 
 	// unk2: [u8; 2]
 	/// Path of the target file within the game's directory.
@@ -154,7 +153,7 @@ pub enum FileOperation {
 	#[br(pre_assert(magic == b'M'))]
 	MakeDirTree,
 
-	/// Remove all files for the specified expansion ID.
+	/// Remove all files for the specified repository ID.
 	#[br(pre_assert(magic == b'R'))]
 	RemoveAll,
 }
