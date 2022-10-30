@@ -1,4 +1,5 @@
 use binrw::BinRead;
+use getset::CopyGetters;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -7,11 +8,18 @@ use crate::{
 
 use super::{index1::Index1, index2::Index2, shared::FileMetadata};
 
-#[derive(Debug)]
+/// Specifier of a file location within a SqPack category.
+#[derive(Debug, CopyGetters)]
+#[get_copy = "pub"]
 pub struct Location {
-	pub chunk: u8,
-	pub data_file: u8,
-	pub offset: u32,
+	/// SqPack chunk the file is in, i.e. `0000XX.win32.dat1`.
+	chunk: u8,
+	/// Data file the file is in, i.e. `000000.win32.datX`.
+	data_file: u8,
+	/// Offset within the targeted data file that the file starts at.
+	offset: u32,
+	/// Size of the target file, if known.
+	size: Option<u32>,
 }
 
 #[derive(Debug)]
@@ -41,10 +49,11 @@ impl Index {
 			.find_map(|(index, chunk)| match chunk.find(path) {
 				Err(Error::NotFound(_)) => None,
 				Err(error) => Some(Err(error)),
-				Ok(meta) => Some(Ok(Location {
+				Ok((meta, size)) => Some(Ok(Location {
 					chunk: index.try_into().unwrap(),
 					data_file: meta.data_file_id,
 					offset: meta.offset,
+					size,
 				})),
 			});
 
@@ -79,7 +88,7 @@ impl IndexChunk {
 			})
 	}
 
-	fn find(&self, path: &str) -> Result<FileMetadata> {
+	fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
 		match self {
 			Self::Index1(index) => index.find(path),
 			Self::Index2(_index) => todo!("index2"),

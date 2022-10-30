@@ -36,7 +36,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 
 	/// Read the file at `path` from SqPack.
-	pub fn file(&self, path: &str) -> Result<File<R::Dat>> {
+	pub fn file(&self, path: &str) -> Result<File<R::File>> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
@@ -51,12 +51,10 @@ impl<R: sqpack::Resource> SqPack<R> {
 			.find(&path)?;
 
 		// Build a File representation.
-		let dat = self
-			.resource
-			.dat(repository, category, location.chunk, location.data_file)?;
+		let dat = self.resource.file(repository, category, location)?;
 
 		// TODO: Cache files? Tempted to say it's the IW struct's responsibility. Is it even possible here with streams?
-		File::at_offset(dat, location.offset)
+		File::new(dat)
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {

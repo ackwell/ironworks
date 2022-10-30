@@ -4,4 +4,4 @@ mod index1;
 mod index2;
 mod shared;
 
-pub use index::Index;
+pub use index::{Index, Location};

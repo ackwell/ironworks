@@ -5,7 +5,7 @@ mod index;
 mod resource;
 mod sqpack;
 
-pub use {file::File, resource::Resource, sqpack::SqPack};
+pub use {file::File, index::Location, resource::Resource, sqpack::SqPack};
 
 #[cfg(test)]
 mod test {

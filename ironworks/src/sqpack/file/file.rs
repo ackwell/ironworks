@@ -19,24 +19,16 @@ pub struct File<R> {
 
 impl<R: Read + Seek> File<R> {
 	/// Create a new File which which will translate SqPack stored data in the given stream.
-	pub fn new(reader: R) -> Result<Self> {
-		Self::at_offset(reader, 0)
-	}
-
-	/// Create a new File which which will translate SqPack stored data in the given stream starting at the specified offset.
-	pub fn at_offset(mut reader: R, offset: u32) -> Result<Self> {
-		// Move to the start of the file and read in the header.
-		reader.seek(SeekFrom::Start(offset.into()))?;
+	pub fn new(mut reader: R) -> Result<Self> {
+		// Read in the header.
 		let header = Header::read(&mut reader)?;
-
-		let file_offset = offset + header.size;
 
 		use FileStreamKind as FSK;
 		let file_stream = match &header.kind {
 			FileKind::Empty => FSK::Empty(empty::read(reader, header)?),
-			FileKind::Standard => FSK::Standard(standard::read(reader, file_offset, header)?),
-			FileKind::Model => FSK::Model(model::read(reader, file_offset, header)?),
-			FileKind::Texture => FSK::Texture(texture::read(reader, file_offset, header)?),
+			FileKind::Standard => FSK::Standard(standard::read(reader, header.size, header)?),
+			FileKind::Model => FSK::Model(model::read(reader, header.size, header)?),
+			FileKind::Texture => FSK::Texture(texture::read(reader, header.size, header)?),
 		};
 
 		Ok(File { inner: file_stream })

@@ -181,9 +181,9 @@ impl sqpack::Resource for ZiPatchVersion {
 		)))
 	}
 
-	type Dat = io::Empty;
-	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
-		todo!("SQPACK DAT: {repository} {category} {chunk} {dat}")
+	type File = io::Empty;
+	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
+		todo!("SQPACK FILE: {repository} {category} {location:?}")
 	}
 }
 
