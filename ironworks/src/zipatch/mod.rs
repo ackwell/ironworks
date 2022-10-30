@@ -1,63 +1,107 @@
 // TEMP
 #![allow(missing_docs)]
 
-use std::{collections::HashSet, fs, io::BufReader};
+use std::{collections::HashMap, fs, io::BufReader};
 
-use crate::file::{patch, File};
+use crate::{
+	error::Result,
+	file::{
+		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch},
+		File,
+	},
+};
 
 pub fn temp_test() {
-	// for now, i'm just hardcoding a lookup for 0a (exd)'s index. this should likely, at _minimum_, store the metadata for all found indices in a cache structure of some kind
-	// let target = "sqpack/ffxiv/0a0000.win32.index";
-	let target = "sqpack/ffxiv/020000.win32.index";
-	let out = PATCH_LIST
+	// NOTE: so this is technically the "warm up" process - it can probably be done semi-lazily, but it forms a basis that needs to exist before lookups are performed
+	let patch_data = PATCH_LIST
 		.iter()
 		// atm patch list is in oldest-first, and we want to get the newest copy of a file
 		.rev()
 		// hardcoding because lazy
 		.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
 		// get the zipatch struct for each file
-		.scan(HashSet::<String>::new(), |seen_start, filepath| {
-			println!("checking {filepath}");
+		.try_fold(HashMap::new(), |mut patch_data, filepath| -> Result<_> {
+			eprintln!("checking {filepath}");
+
 			let file = fs::File::open(&filepath).expect("TODO");
 			let buf = BufReader::new(file);
 
 			// operating on full patches at a time - this makes the (safe?) assumption that the granularity of a game _version_ is at _minimum_ one patch.
-			let zipatch = patch::ZiPatch::read(buf).expect("TODO");
+			let zipatch = ZiPatch::read(buf).expect("TODO");
 
 			// we can assume that a non-1.6m byte file is EOF, but we _can't_ assume that 1.6m _isn't_ EOF (technically)
 
-			let target_file_ops = zipatch
-				.chunks()
-				.filter_map(|chunk| {
-					let chunk = chunk.expect("TODO");
-					match chunk {
-						// realistically this would be checking for _any_ index files - we build down
-						// todo the condition on this is... bad.
-						patch::Chunk::SqPack(patch::SqPackChunk::FileOperation(
-							command @ patch::FileOperationCommand { .. },
-						)) if matches!(command.operation(), patch::FileOperation::AddFile(_))
-							&& command.path().to_string() == target
-							&& !seen_start.contains(&command.path().to_string()) =>
-						{
-							Some(command)
-						}
-						_ => None,
-					}
-				})
-				.collect::<Vec<_>>();
+			let patch_chunks = collect_chunks(zipatch)?;
 
-			// ASSUMPTION: an off:0 write chunk will always be the first chunk within a given patch for that file: any writes before it would be zeroed by the off:0.
-			// TODO: this will fail as soon as there's >1 target, i'll probably need to do some form of grouping by command path.
-			if !target_file_ops.is_empty() && target_file_ops[0].target_offset() == 0 {
-				seen_start.insert(target_file_ops[0].path().to_string());
-			}
+			// TODO: filepath correct way to do this?
+			patch_data.insert(filepath, patch_chunks);
 
-			// only returning the length to save output _for now_
-			Some((filepath, target_file_ops.len()))
+			Ok(patch_data)
 		})
-		.collect::<Vec<_>>();
+		.expect("TODO");
 
-	println!("found: {out:#?}")
+	// _now_ we perform the actual lookup. for now, testing by looking up the most recent 0a.
+	let target = "sqpack/ffxiv/0a0000.win32.index";
+
+	let patch_targets = PATCH_LIST
+		.iter()
+		.rev()
+		// TODO: def. need a better approach for this obv.
+		.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
+		.filter_map(|filepath| {
+			// NOTE: using getkeyvalue so that the key string is a reference, which allows it to stay a single ref elsewhere
+			let (filepath, patch_commands) = patch_data.get_key_value(&filepath).expect("TODO");
+			patch_commands
+				.get(target)
+				.map(|commands| (filepath.as_str(), commands))
+		});
+
+	let mut final_commands = Vec::<(&str, &FileOperationCommand)>::new();
+	for (filepath, commands) in patch_targets {
+		final_commands = commands
+			.iter()
+			.map(|command| (filepath, command))
+			.chain(final_commands.into_iter())
+			.collect::<Vec<_>>();
+
+		// ASSUMPTION: an off:0 write chunk will always be the first chunk within a given patch for that file: any writes before it would be zeroed by the off:0.
+		if !final_commands.is_empty() && final_commands[0].1.target_offset() == 0 {
+			break;
+		}
+	}
+
+	println!("found: {final_commands:#?}")
+}
+
+// TODO: better name
+fn collect_chunks(zipatch: ZiPatch) -> Result<HashMap<String, Vec<FileOperationCommand>>> {
+	// TODO: retry on failure?
+	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
+	zipatch
+		.chunks()
+		.try_fold(HashMap::new(), |mut index_commands, chunk| -> Result<_> {
+			match chunk? {
+				Chunk::SqPack(SqPackChunk::FileOperation(
+					command @ FileOperationCommand { .. },
+				)) if is_index_command(&command) => {
+					index_commands
+						.entry(command.path().to_string())
+						.or_insert_with(Vec::new)
+						.push(command);
+				}
+				_ => {}
+			};
+
+			Ok(index_commands)
+		})
+}
+
+fn is_index_command(command: &FileOperationCommand) -> bool {
+	// TODO: do i want index2 as well?
+	static TARGET_EXTENSION: &str = ".index";
+
+	matches!(command.operation(), FileOperation::AddFile(_))
+		&& command.path().to_string().ends_with(TARGET_EXTENSION)
 }
 
 // Temp listing because i'm being lazy and don't want to handle the ordering side of things right now
