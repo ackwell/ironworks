@@ -1,12 +1,18 @@
 // TEMP
 #![allow(missing_docs)]
 
-use std::{collections::HashMap, fs, io::BufReader};
+use std::{
+	collections::HashMap,
+	fs,
+	io::{self, BufReader, Cursor, Read, Seek, SeekFrom},
+};
+
+use flate2::read::DeflateDecoder;
 
 use crate::{
 	error::Result,
 	file::{
-		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch},
+		patch::{BlockHeader, Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch},
 		File,
 	},
 };
@@ -70,7 +76,33 @@ pub fn temp_test() {
 		}
 	}
 
-	println!("found: {final_commands:#?}")
+	// try reading a cursor of the index
+	// TODO: would be nice to get a total size for this?
+	let mut cursor = Cursor::new(Vec::<u8>::new());
+	for (filepath, command) in final_commands {
+		// TODO: Probably shouldn't open a new file handle for every single command
+		let file = fs::File::open(filepath).expect("TODO");
+		let mut file = BufReader::new(file);
+
+		cursor
+			.seek(SeekFrom::Start(command.target_offset()))
+			.expect("TODO");
+
+		let blocks = match command.operation() {
+			FileOperation::AddFile(blocks) => blocks,
+			_ => unreachable!(),
+		};
+
+		for block in blocks {
+			let mut reader = read_block(&mut file, block).expect("TODO");
+			io::copy(&mut reader, &mut cursor).expect("TODO");
+		}
+	}
+
+	let mut outfile = fs::File::create("indexdump.index").expect("TODO");
+
+	cursor.seek(SeekFrom::Start(0)).expect("TODO");
+	io::copy(&mut cursor, &mut outfile).expect("TODO");
 }
 
 // TODO: better name
@@ -102,6 +134,44 @@ fn is_index_command(command: &FileOperationCommand) -> bool {
 
 	matches!(command.operation(), FileOperation::AddFile(_))
 		&& command.path().to_string().ends_with(TARGET_EXTENSION)
+}
+
+// TODO: This is pretty much a copy paste from sqpack::file::shared - work out how this can be reused
+fn read_block<'a, R: Read + Seek>(
+	reader: &'a mut R,
+	header: &BlockHeader,
+) -> io::Result<BlockReader<'a, R>> {
+	// Seek to the block and read its header so we know how much to expect in the rest of the block.
+	// reader.seek(SeekFrom::Start(offset.into()))?;
+	// let block_header =
+	// 	BlockHeader::read(reader).map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
+	reader.seek(SeekFrom::Start(header.offset()))?;
+
+	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
+
+	// Build a reader for the block.
+	let reader = match header.is_compressed() {
+		true => BlockReader::Compressed(DeflateDecoder::new(
+			reader.take(header.compressed_size().into()),
+		)),
+		false => BlockReader::Loose(reader.take(header.decompressed_size().into())),
+	};
+
+	Ok(reader)
+}
+
+enum BlockReader<'a, R> {
+	Loose(io::Take<&'a mut R>),
+	Compressed(DeflateDecoder<io::Take<&'a mut R>>),
+}
+
+impl<R: Read> Read for BlockReader<'_, R> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		match self {
+			Self::Loose(reader) => reader.read(buf),
+			Self::Compressed(reader) => reader.read(buf),
+		}
+	}
 }
 
 // Temp listing because i'm being lazy and don't want to handle the ordering side of things right now
