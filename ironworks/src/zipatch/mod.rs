@@ -10,103 +10,209 @@ use std::{
 use flate2::read::DeflateDecoder;
 
 use crate::{
-	error::Result,
+	error::{Error, ErrorValue, Result},
 	file::{
-		patch::{BlockHeader, Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch},
+		patch::{
+			BlockHeader, Chunk, FileOperation, FileOperationCommand, SqPackChunk,
+			ZiPatch as ZiPatchFile,
+		},
 		File,
 	},
+	sqpack,
 };
 
-pub fn temp_test() {
-	// NOTE: so this is technically the "warm up" process - it can probably be done semi-lazily, but it forms a basis that needs to exist before lookups are performed
-	let patch_data = PATCH_LIST
-		.iter()
-		// atm patch list is in oldest-first, and we want to get the newest copy of a file
-		.rev()
-		// hardcoding because lazy
-		.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
-		// get the zipatch struct for each file
-		.try_fold(HashMap::new(), |mut patch_data, filepath| -> Result<_> {
-			eprintln!("checking {filepath}");
+#[derive(Debug)]
+pub struct ZiPatch {}
 
-			let file = fs::File::open(&filepath).expect("TODO");
-			let buf = BufReader::new(file);
-
-			// operating on full patches at a time - this makes the (safe?) assumption that the granularity of a game _version_ is at _minimum_ one patch.
-			let zipatch = ZiPatch::read(buf).expect("TODO");
-
-			// we can assume that a non-1.6m byte file is EOF, but we _can't_ assume that 1.6m _isn't_ EOF (technically)
-
-			let patch_chunks = collect_chunks(zipatch)?;
-
-			// TODO: filepath correct way to do this?
-			patch_data.insert(filepath, patch_chunks);
-
-			Ok(patch_data)
-		})
-		.expect("TODO");
-
-	// _now_ we perform the actual lookup. for now, testing by looking up the most recent 0a.
-	let target = "sqpack/ffxiv/0a0000.win32.index";
-
-	let patch_targets = PATCH_LIST
-		.iter()
-		.rev()
-		// TODO: def. need a better approach for this obv.
-		.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
-		.filter_map(|filepath| {
-			// NOTE: using getkeyvalue so that the key string is a reference, which allows it to stay a single ref elsewhere
-			let (filepath, patch_commands) = patch_data.get_key_value(&filepath).expect("TODO");
-			patch_commands
-				.get(target)
-				.map(|commands| (filepath.as_str(), commands))
-		});
-
-	let mut final_commands = Vec::<(&str, &FileOperationCommand)>::new();
-	for (filepath, commands) in patch_targets {
-		final_commands = commands
-			.iter()
-			.map(|command| (filepath, command))
-			.chain(final_commands.into_iter())
-			.collect::<Vec<_>>();
-
-		// ASSUMPTION: an off:0 write chunk will always be the first chunk within a given patch for that file: any writes before it would be zeroed by the off:0.
-		if !final_commands.is_empty() && final_commands[0].1.target_offset() == 0 {
-			break;
-		}
+impl ZiPatch {
+	pub fn new() -> Self {
+		Self {}
 	}
 
-	// try reading a cursor of the index
-	// TODO: would be nice to get a total size for this?
-	let mut cursor = Cursor::new(Vec::<u8>::new());
-	for (filepath, command) in final_commands {
-		// TODO: Probably shouldn't open a new file handle for every single command
-		let file = fs::File::open(filepath).expect("TODO");
-		let mut file = BufReader::new(file);
-
-		cursor
-			.seek(SeekFrom::Start(command.target_offset()))
-			.expect("TODO");
-
-		let blocks = match command.operation() {
-			FileOperation::AddFile(blocks) => blocks,
-			_ => unreachable!(),
-		};
-
-		for block in blocks {
-			let mut reader = read_block(&mut file, block).expect("TODO");
-			io::copy(&mut reader, &mut cursor).expect("TODO");
-		}
+	pub fn version(&self /* TODO: what's this api? */) -> ZiPatchVersion {
+		ZiPatchVersion::new()
 	}
-
-	let mut outfile = fs::File::create("indexdump.index").expect("TODO");
-
-	cursor.seek(SeekFrom::Start(0)).expect("TODO");
-	io::copy(&mut cursor, &mut outfile).expect("TODO");
 }
 
+#[derive(Debug)]
+pub struct ZiPatchVersion {
+	// TODO: the various caches should probably live on the main ZiPatch and be shared by all versions
+	// TODO: doing the above will probably then best be fit by a single hash key for each patch file. cam be built on-request and such.
+	index_commands: HashMap<String, HashMap<String, Vec<FileOperationCommand>>>,
+}
+
+impl ZiPatchVersion {
+	fn new() -> Self {
+		// NOTE: so this is technically the "warm up" process - it can probably be done semi-lazily, but it forms a basis that needs to exist before lookups are performed
+		let patch_data = PATCH_LIST
+			.iter()
+			// atm patch list is in oldest-first, and we want to get the newest copy of a file
+			.rev()
+			// hardcoding because lazy
+			.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
+			// get the zipatch struct for each file
+			.try_fold(HashMap::new(), |mut patch_data, filepath| -> Result<_> {
+				eprintln!("checking {filepath}");
+
+				let file = fs::File::open(&filepath).expect("TODO");
+				let buf = BufReader::new(file);
+
+				// operating on full patches at a time - this makes the (safe?) assumption that the granularity of a game _version_ is at _minimum_ one patch.
+				let zipatch = ZiPatchFile::read(buf).expect("TODO");
+
+				// we can assume that a non-1.6m byte file is EOF, but we _can't_ assume that 1.6m _isn't_ EOF (technically)
+
+				let patch_chunks = collect_chunks(zipatch)?;
+
+				// TODO: filepath correct way to do this? - probably not - should store just the patch name, and map that to fs path via indirection when hitting the fs itself
+				patch_data.insert(filepath, patch_chunks);
+
+				Ok(patch_data)
+			})
+			.expect("TODO");
+
+		Self {
+			index_commands: patch_data,
+		}
+	}
+}
+
+impl sqpack::Resource for ZiPatchVersion {
+	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
+		let split = path.split('/').take(2).collect::<Vec<_>>();
+
+		match split[..] {
+			[path_category, _path_repository] => Some((
+				// TODO: i'm hardcoding this to repo 0 (ffxiv) for now - this should be based on the patch repositories available
+				0,
+				CATEGORIES
+					.iter()
+					.position(|category| category == &Some(path_category))?
+					.try_into()
+					.unwrap(),
+			)),
+			_ => None,
+		}
+	}
+
+	fn version(&self, repository: u8) -> Result<String> {
+		todo!("SQPACK VERSION {repository}")
+	}
+
+	type Index = Cursor<Vec<u8>>;
+	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+		// TODO: assumptions go brr
+		let platform = "win32";
+		let extension = "index";
+
+		// TODO: this is partially copied from ffxiv::fs - how do i reuse this? the prefix is diff.
+		let target = format!(
+			"sqpack/ffxiv/{category:02x}{repository:02x}{chunk:02x}.{platform}.{extension}"
+		);
+		eprintln!("LOOKING FOR {target:?}");
+
+		// todo: this should probably be reusing something on the main impl
+		let patch_targets = PATCH_LIST
+			.iter()
+			.rev()
+			// TODO: def. need a better approach for this obv.
+			.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
+			.filter_map(|filepath| {
+				// NOTE: using getkeyvalue so that the key string is a reference, which allows it to stay a single ref elsewhere
+				let (filepath, patch_commands) =
+					self.index_commands.get_key_value(&filepath).expect("TODO");
+				patch_commands
+					.get(&target)
+					.map(|commands| (filepath.as_str(), commands))
+			});
+
+		let mut final_commands = Vec::<(&str, &FileOperationCommand)>::new();
+		for (filepath, commands) in patch_targets {
+			final_commands = commands
+				.iter()
+				.map(|command| (filepath, command))
+				.chain(final_commands.into_iter())
+				.collect::<Vec<_>>();
+
+			// ASSUMPTION: an off:0 write chunk will always be the first chunk within a given patch for that file: any writes before it would be zeroed by the off:0.
+			if !final_commands.is_empty() && final_commands[0].1.target_offset() == 0 {
+				break;
+			}
+		}
+
+		// if there's no commands for the specified file we can assume it doesn't exist
+		if final_commands.is_empty() {
+			return Err(Error::NotFound(ErrorValue::Other(format!(
+				"zipatch target {target}"
+			))));
+		}
+
+		// try reading a cursor of the index
+		// TODO: would be nice to get a total size for this?
+		let mut cursor = Cursor::new(Vec::<u8>::new());
+		for (filepath, command) in final_commands {
+			// TODO: Probably shouldn't open a new file handle for every single command
+			let file = fs::File::open(filepath).expect("TODO");
+			let mut file = BufReader::new(file);
+
+			cursor.set_position(command.target_offset());
+
+			let blocks = match command.operation() {
+				FileOperation::AddFile(blocks) => blocks,
+				_ => unreachable!(),
+			};
+
+			for block in blocks {
+				let mut reader = read_block(&mut file, block).expect("TODO");
+				io::copy(&mut reader, &mut cursor).expect("TODO");
+			}
+		}
+
+		cursor.set_position(0);
+
+		Ok(cursor)
+	}
+
+	type Index2 = io::Empty;
+	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Index2> {
+		// TODO: lmao.
+		Err(Error::NotFound(ErrorValue::Other(
+			"TODO: zipatch .index2 lookup".to_string(),
+		)))
+	}
+
+	type Dat = io::Empty;
+	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
+		todo!("SQPACK DAT: {repository} {category} {chunk} {dat}")
+	}
+}
+
+// TODO: this is copied from ffxiv::fs. i need to work out the ffxiv boundary for zipatch - and not copy this.
+const CATEGORIES: &[Option<&str>] = &[
+	/* 0x00 */ Some("common"),
+	/* 0x01 */ Some("bgcommon"),
+	/* 0x02 */ Some("bg"),
+	/* 0x03 */ Some("cut"),
+	/* 0x04 */ Some("chara"),
+	/* 0x05 */ Some("shader"),
+	/* 0x06 */ Some("ui"),
+	/* 0x07 */ Some("sound"),
+	/* 0x08 */ Some("vfx"),
+	/* 0x09 */ Some("ui_script"),
+	/* 0x0a */ Some("exd"),
+	/* 0x0b */ Some("game_script"),
+	/* 0x0c */ Some("music"),
+	/* 0x0d */ None,
+	/* 0x0e */ None,
+	/* 0x0f */ None,
+	/* 0x10 */ None,
+	/* 0x11 */ None,
+	/* 0x12 */ Some("sqpack_test"),
+	/* 0x13 */ Some("debug"),
+];
+
 // TODO: better name
-fn collect_chunks(zipatch: ZiPatch) -> Result<HashMap<String, Vec<FileOperationCommand>>> {
+fn collect_chunks(zipatch: ZiPatchFile) -> Result<HashMap<String, Vec<FileOperationCommand>>> {
 	// TODO: retry on failure?
 	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
 	zipatch
