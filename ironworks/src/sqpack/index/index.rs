@@ -18,7 +18,8 @@ pub struct Location {
 	data_file: u8,
 	/// Offset within the targeted data file that the file starts at.
 	offset: u32,
-	/// Size of the target file, if known.
+	/// Estimated size of the target file, if known. This will typically err on
+	/// the larger side, as files commonly have some amount of padding at the end.
 	size: Option<u32>,
 }
 

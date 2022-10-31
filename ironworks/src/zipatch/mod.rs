@@ -181,7 +181,7 @@ impl sqpack::Resource for ZiPatchVersion {
 		)))
 	}
 
-	type File = io::Empty;
+	type File = Cursor<Vec<u8>>;
 	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
 		// TODO: this is disgusting.
 		let key = format!(
@@ -190,6 +190,12 @@ impl sqpack::Resource for ZiPatchVersion {
 			(u16::from(repository) * 256) + u16::from(location.chunk()),
 			location.data_file()
 		);
+
+		// todo using u32max; realistically it should fall back to file size - but does it matter?
+		let interval_stop = match location.size() {
+			Some(size) => size + location.offset(),
+			None => u32::MAX,
+		};
 
 		let patch_targets = PATCH_LIST
 			.iter()
@@ -203,26 +209,42 @@ impl sqpack::Resource for ZiPatchVersion {
 
 				let tree = patch_data.dat_trees.get(&key)?;
 
-				// todo this should proooooooobably be in a for loop underneath or some bullshit
-				// todo look into maybe using lapper intersections for this? idk what the api surface is for that.
-				// todo using u32max; realistically it should fall back to file size - but does it matter?
-				let stop = match location.size() {
-					Some(size) => size + location.offset(),
-					None => u32::MAX,
-				};
+				// TODO: this is querying the entire range; even if we'll only need a subset - effectively meaning the tree lookup and the later RangeThing are double handling the querying; in a sense. if i can rework the interval tree to be intersect-able; might be simpler to do that
 
-				let intervals = tree.find(location.offset(), stop).collect::<Vec<_>>();
+				let intervals = tree
+					.find(location.offset(), interval_stop)
+					.collect::<Vec<_>>();
 
 				match intervals.is_empty() {
 					false => Some((filepath, intervals)),
 					true => None,
 				}
-			})
-			.collect::<Vec<_>>();
+			});
 
-		println!("file target intervals: {patch_targets:#?}");
+		// todo: this might work as a scan?
+		// let thing = RangeThing::new(location.offset()..);
+		let mut out = Cursor::new(Vec::<u8>::new());
+		#[allow(clippy::never_loop)]
+		for (filepath, intervals) in patch_targets {
+			// ASSUMPTION: it's safe to act with intervals from a single patch file in a theoretically unordered fashion. IIF this assumption is broken; the intervals will likely need to be sorted by _chunk_ order (by adding an index to the interval value i assume) before being applied in reverse order.
+			// FUCK IT TIER ASSUMPTION: square practically _only_ operates at a file level - they never seem to ship a partial file (maybe bar a file being broken over blocks in H2017). For now; I'm just going to check that the first patch we hit has exactly one interval, and if shit blows up later i'll revisit it. I'm so not in the mood for trying to work out how to do otherwise right now.
+			if intervals.len() > 1 {
+				todo!("OOPSIE WOOPSIE!! Uwu We made a fucky wucky!! A wittle fucko boingo! The code monkeys at our headquarters are working VEWY HAWD to fix this!")
+			}
+			let interval = intervals[0];
 
-		todo!("SQPACK FILE: {repository} {category} {location:?} - {key}")
+			let start_inset = u64::from(location.offset() - interval.start);
+			let size = u64::from(interval.stop - interval.start) - start_inset;
+
+			let mut file = fs::File::open(filepath)?;
+			file.seek(SeekFrom::Start(interval.val + start_inset))?;
+			io::copy(&mut file.take(size), &mut out)?;
+			break;
+		}
+
+		out.set_position(0);
+
+		Ok(out)
 	}
 }
 
