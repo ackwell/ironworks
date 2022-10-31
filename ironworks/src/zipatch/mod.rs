@@ -8,6 +8,7 @@ use std::{
 };
 
 use flate2::read::DeflateDecoder;
+use rust_lapper::{Interval, Lapper};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -38,7 +39,7 @@ impl ZiPatch {
 pub struct ZiPatchVersion {
 	// TODO: the various caches should probably live on the main ZiPatch and be shared by all versions
 	// TODO: doing the above will probably then best be fit by a single hash key for each patch file. cam be built on-request and such.
-	index_commands: HashMap<String, HashMap<String, Vec<FileOperationCommand>>>,
+	patch_data: HashMap<String, PatchData>,
 }
 
 impl ZiPatchVersion {
@@ -71,9 +72,7 @@ impl ZiPatchVersion {
 			})
 			.expect("TODO");
 
-		Self {
-			index_commands: patch_data,
-		}
+		Self { patch_data }
 	}
 }
 
@@ -119,9 +118,10 @@ impl sqpack::Resource for ZiPatchVersion {
 			.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
 			.filter_map(|filepath| {
 				// NOTE: using getkeyvalue so that the key string is a reference, which allows it to stay a single ref elsewhere
-				let (filepath, patch_commands) =
-					self.index_commands.get_key_value(&filepath).expect("TODO");
-				patch_commands
+				let (filepath, patch_data) =
+					self.patch_data.get_key_value(&filepath).expect("TODO");
+				patch_data
+					.index_commands
 					.get(&target)
 					.map(|commands| (filepath.as_str(), commands))
 			});
@@ -183,7 +183,46 @@ impl sqpack::Resource for ZiPatchVersion {
 
 	type File = io::Empty;
 	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
-		todo!("SQPACK FILE: {repository} {category} {location:?}")
+		// TODO: this is disgusting.
+		let key = format!(
+			"{}|{}|{}",
+			category,
+			(u16::from(repository) * 256) + u16::from(location.chunk()),
+			location.data_file()
+		);
+
+		let patch_targets = PATCH_LIST
+			.iter()
+			.rev()
+			// TODO: def. need a better approach for this obv.
+			.map(|filename| format!("C:/Users/ackwell/code/xiv/patches/game/4e9a232b/{filename}"))
+			.filter_map(|filepath| {
+				// NOTE: using getkeyvalue so that the key string is a reference, which allows it to stay a single ref elsewhere
+				let (filepath, patch_data) =
+					self.patch_data.get_key_value(&filepath).expect("TODO");
+
+				let tree = patch_data.dat_trees.get(&key)?;
+
+				// todo this should proooooooobably be in a for loop underneath or some bullshit
+				// todo look into maybe using lapper intersections for this? idk what the api surface is for that.
+				// todo using u32max; realistically it should fall back to file size - but does it matter?
+				let stop = match location.size() {
+					Some(size) => size + location.offset(),
+					None => u32::MAX,
+				};
+
+				let intervals = tree.find(location.offset(), stop).collect::<Vec<_>>();
+
+				match intervals.is_empty() {
+					false => Some((filepath, intervals)),
+					true => None,
+				}
+			})
+			.collect::<Vec<_>>();
+
+		println!("file target intervals: {patch_targets:#?}");
+
+		todo!("SQPACK FILE: {repository} {category} {location:?} - {key}")
 	}
 }
 
@@ -211,27 +250,60 @@ const CATEGORIES: &[Option<&str>] = &[
 	/* 0x13 */ Some("debug"),
 ];
 
+#[derive(Debug)]
+struct PatchData {
+	index_commands: HashMap<String, Vec<FileOperationCommand>>,
+	dat_trees: HashMap<String, Lapper<u32, u64>>,
+}
+
 // TODO: better name
-fn collect_chunks(zipatch: ZiPatchFile) -> Result<HashMap<String, Vec<FileOperationCommand>>> {
+fn collect_chunks(zipatch: ZiPatchFile) -> Result<PatchData> {
 	// TODO: retry on failure?
 	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
-	zipatch
-		.chunks()
-		.try_fold(HashMap::new(), |mut index_commands, chunk| -> Result<_> {
+	let (index_commands, intervals) = zipatch.chunks().try_fold(
+		(HashMap::new(), HashMap::new()),
+		|(mut index_commands, mut intervals), chunk| -> Result<_> {
 			match chunk? {
-				Chunk::SqPack(SqPackChunk::FileOperation(
-					command @ FileOperationCommand { .. },
-				)) if is_index_command(&command) => {
+				Chunk::SqPack(SqPackChunk::FileOperation(command))
+					if is_index_command(&command) =>
+				{
 					index_commands
 						.entry(command.path().to_string())
 						.or_insert_with(Vec::new)
 						.push(command);
 				}
+
+				Chunk::SqPack(SqPackChunk::Add(command)) => {
+					// TODO: how do i want to handle this? realistically; some files will fall all the way back to the FileOps in H2017, which will have the disk filename rather than the sqpackfile struct. i'm tempted to say we should translate towards the struct rather than a string; but using string for brevity for now. If going with struct; index should be updated to align. That said; there's multiple dats per index, so can't share a top level hashmap.
+					let file = command.file();
+					let key = format!("{}|{}|{}", file.main_id(), file.sub_id(), file.file_id());
+
+					intervals
+						.entry(key)
+						.or_insert_with(Vec::new)
+						.push(Interval {
+							start: command.target_offset(),
+							stop: command.target_offset() + command.data_size(),
+							val: command.source_offset(),
+						});
+				}
+
 				_ => {}
 			};
 
-			Ok(index_commands)
-		})
+			Ok((index_commands, intervals))
+		},
+	)?;
+
+	let dat_trees = intervals
+		.into_iter()
+		.map(|(key, intervals)| (key, Lapper::new(intervals)))
+		.collect::<HashMap<_, _>>();
+
+	Ok(PatchData {
+		index_commands,
+		dat_trees,
+	})
 }
 
 fn is_index_command(command: &FileOperationCommand) -> bool {
