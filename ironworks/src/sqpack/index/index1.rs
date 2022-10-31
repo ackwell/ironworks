@@ -71,9 +71,13 @@ impl Index1 {
 				let metadata = entry.file_metadata.clone();
 
 				// Look up the offset after this meta, if any exists.
-				let next_offset = self.offsets.range(metadata.offset + 1..).next().copied();
+				let size = self
+					.offsets
+					.range(metadata.offset + 1..)
+					.next()
+					.map(|stop| stop - metadata.offset);
 
-				(metadata, next_offset)
+				(metadata, size)
 			})
 			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.into())))
 	}
