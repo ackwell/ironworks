@@ -54,7 +54,7 @@ enum Platform {
 #[derive(Debug)]
 pub struct FsResource {
 	path: PathBuf,
-	repositories: Vec<String>,
+	repositories: Vec<Option<String>>,
 	platform: Platform,
 }
 
@@ -109,6 +109,7 @@ impl FsResource {
 	fn get_repository_name(&self, repository: u8) -> Result<&String> {
 		self.repositories
 			.get(usize::from(repository))
+			.and_then(|option| option.as_ref())
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("repository {repository}"))))
 	}
 }
@@ -125,7 +126,7 @@ impl Resource for FsResource {
 			[path_category, path_repository] => Some((
 				self.repositories
 					.iter()
-					.position(|repository| repository == path_repository)
+					.position(|repository| repository.as_deref() == Some(path_repository))
 					.unwrap_or(0)
 					.try_into()
 					.unwrap(),
@@ -186,9 +187,9 @@ fn find_install() -> Option<PathBuf> {
 		.find(|path| path.exists())
 }
 
-fn find_repositories(path: &Path) -> Vec<String> {
+fn find_repositories(path: &Path) -> Vec<Option<String>> {
 	(0..=9)
-		.filter_map(|index| {
+		.map(|index| {
 			let name = if index == 0 {
 				"ffxiv".into()
 			} else {
