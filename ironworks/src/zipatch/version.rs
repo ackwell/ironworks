@@ -1,6 +1,8 @@
-use std::io;
+use std::{io, sync::Arc};
 
 use crate::{error::Result, sqpack};
+
+use super::cache::PatchCache;
 
 // TODO: These (and path_metadata itself) should be moved into sqpack proper once and for all
 const REPOSITORIES: &[&str] = &[
@@ -31,11 +33,13 @@ const CATEGORIES: &[Option<&str>] = &[
 ];
 
 #[derive(Debug)]
-pub struct Version {}
+pub struct Version {
+	cache: Arc<PatchCache>,
+}
 
 impl Version {
-	pub(super) fn new() -> Self {
-		Self {}
+	pub(super) fn new(cache: Arc<PatchCache>) -> Self {
+		Self { cache }
 	}
 }
 
@@ -67,6 +71,9 @@ impl sqpack::Resource for Version {
 
 	type Index = io::Empty;
 	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+		let a = self.cache.todonameme(repository)?.collect::<Vec<_>>();
+		// temp collect
+		println!("{a:?}");
 		todo!("index({repository}, {category}, {chunk})")
 	}
 
