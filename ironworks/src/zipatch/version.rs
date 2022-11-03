@@ -1,8 +1,19 @@
-use std::{io, sync::Arc};
+use std::{
+	fs,
+	io::{self, BufReader, Cursor},
+	sync::Arc,
+};
 
-use crate::{error::Result, sqpack};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	file::patch::FileOperation,
+	sqpack,
+};
 
-use super::cache::PatchCache;
+use super::{
+	cache::{PatchCache, SqPackSpecifier},
+	temp_sqpack::read_block,
+};
 
 // TODO: These (and path_metadata itself) should be moved into sqpack proper once and for all
 const REPOSITORIES: &[&str] = &[
@@ -69,17 +80,73 @@ impl sqpack::Resource for Version {
 		todo!("version({repository})")
 	}
 
-	type Index = io::Empty;
+	type Index = io::Cursor<Vec<u8>>;
 	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
-		let a = self.cache.todonameme(repository)?.collect::<Vec<_>>();
-		// temp collect
-		println!("{a:?}");
-		todo!("index({repository}, {category}, {chunk})")
+		let target_specifier = SqPackSpecifier {
+			repository,
+			category,
+			chunk,
+			extension: 1,
+		};
+
+		let mut empty = true;
+		let mut cursor = Cursor::new(Vec::<u8>::new());
+
+		for maybe_metadata in self.cache.todonameme(repository)? {
+			// Grab the commands for the requested target, if any exist in this patch.
+			let metadata = maybe_metadata?;
+			let commands = match metadata.index_commands.get(&target_specifier) {
+				Some(commands) => commands,
+				None => continue,
+			};
+
+			// Read the commands for this patch.
+			// TODO: This construction of a file reader here is _very_ janky. Should be removed, and pulled from the cache in some way.
+			let mut file = BufReader::new(fs::File::open(&metadata.path)?);
+			for command in commands {
+				empty = false;
+				cursor.set_position(command.target_offset());
+				let blocks = match command.operation() {
+					FileOperation::AddFile(blocks) => blocks,
+					_ => unreachable!(),
+				};
+
+				// TODO: this should be brought in from sqpack proper
+				for block in blocks {
+					let mut reader = read_block(&mut file, block)?;
+					io::copy(&mut reader, &mut cursor)?;
+				}
+			}
+
+			// ASSUMPTION: The offset:0 (first) chunk for a file, even if split across
+			// multiple patches, will _always_ be the first chunk touching that file
+			// within the patch it is in, as any prior file operations would be negated
+			// by the truncation of the file caused by an offset:0 chunk.
+
+			// If this patch started with offset:0, we can stop reading.
+			if !commands.is_empty() && commands[0].target_offset() == 0 {
+				break;
+			}
+		}
+
+		// If nothing was read, we mark this index as not found.
+		if empty {
+			// TODO: Improve the error value.
+			return Err(Error::NotFound(ErrorValue::Other(format!(
+				"zipatch target {target_specifier:?}"
+			))));
+		}
+
+		// Done - reset the cursor's position and return it as a view of the index.
+		cursor.set_position(0);
+		Ok(cursor)
 	}
 
 	type Index2 = io::Empty;
-	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
-		todo!("index2({repository}, {category}, {chunk})")
+	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Index2> {
+		Err(Error::NotFound(ErrorValue::Other(
+			"TODO: zipatch .index2 lookup".to_string(),
+		)))
 	}
 
 	type File = io::Empty;

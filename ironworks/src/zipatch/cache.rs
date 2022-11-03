@@ -31,9 +31,11 @@ impl PatchCache {
 		}
 	}
 
+	// TODO: flatten that outer result maybe?
 	pub fn todonameme(
 		&self,
 		repository_id: u8,
+		// TODO: this needs a version param to skip meta prior to.
 	) -> Result<impl Iterator<Item = Result<Arc<PatchMetadata>>> + '_> {
 		let (base_dir, patches) = self.repositories.get(&repository_id).ok_or_else(|| {
 			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
@@ -53,17 +55,20 @@ impl PatchCache {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-struct SqPackSpecifier {
-	repository: u8,
-	category: u8,
-	chunk: u8,
-	extension: u8,
+pub struct SqPackSpecifier {
+	pub repository: u8,
+	pub category: u8,
+	pub chunk: u8,
+	pub extension: u8,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct PatchMetadata {
+	// TODO: if i move the reader generation to consumer-provided in some manner; this can probably be a ref or w/e to that. As-is, this is horrid.
+	pub path: PathBuf,
+
 	// TODO: consider storing a slightly more ergonomic struct instead of commands
-	index_commands: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
+	pub index_commands: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
 }
 
 fn read_metadata(path: &Path) -> Result<PatchMetadata> {
@@ -75,7 +80,10 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 
 	// TODO: Retry on failure?
 	zipatch.chunks().try_fold(
-		PatchMetadata::default(),
+		PatchMetadata {
+			path: path.to_owned(),
+			index_commands: Default::default(),
+		},
 		|mut metadata, chunk| -> Result<_> {
 			match chunk? {
 				Chunk::SqPack(SqPackChunk::FileOperation(command))
