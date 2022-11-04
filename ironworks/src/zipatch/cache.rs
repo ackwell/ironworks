@@ -92,6 +92,7 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 		},
 		|mut metadata, chunk| -> Result<_> {
 			match chunk? {
+				// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
 				Chunk::SqPack(SqPackChunk::FileOperation(command))
 					if is_index_command(&command) =>
 				{

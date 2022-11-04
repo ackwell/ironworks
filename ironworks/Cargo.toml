@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
 ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
-zipatch = ["dep:flate2", "dep:rust-lapper", "patch", "sqpack"]
+zipatch = ["dep:flate2", "patch", "sqpack"]
 
 # File types
 eqdp = ["dep:modular-bitfield"]
@@ -42,4 +42,3 @@ flate2 = {version = "1.0.22", optional = true}
 half = {version = "2.1.0", optional = true}
 modular-bitfield = {version = "0.11.2", optional = true}
 num_enum = {version = "0.5.7", optional = true}
-rust-lapper = {version = "1.1.0", optional = true }
