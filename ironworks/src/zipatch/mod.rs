@@ -1,7 +1,7 @@
 // Temp
 #![allow(missing_docs, clippy::new_without_default)]
 
-mod cache;
+mod lookup;
 mod temp_sqpack;
 mod version;
 mod zipatch;

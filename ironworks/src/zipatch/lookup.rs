@@ -1,11 +1,8 @@
-// TODO: if zipatch doesn't grow much this might make more sense over there.
-
 use std::{
 	collections::HashMap,
 	fs,
 	io::BufReader,
 	path::{Path, PathBuf},
-	sync::Arc,
 };
 
 use crate::{
@@ -17,45 +14,7 @@ use crate::{
 		},
 		File,
 	},
-	utility::{HashMapCache, HashMapCacheExt},
 };
-
-#[derive(Debug)]
-pub struct PatchCache {
-	repositories: HashMap<u8, (PathBuf, Vec<String>)>,
-	cache: HashMapCache<(u8, String), PatchMetadata>,
-}
-
-impl PatchCache {
-	pub fn new(repositories: HashMap<u8, (PathBuf, Vec<String>)>) -> Self {
-		Self {
-			repositories,
-			cache: Default::default(),
-		}
-	}
-
-	// TODO: flatten that outer result maybe?
-	pub fn todonameme(
-		&self,
-		repository_id: u8,
-		// TODO: this needs a version param to skip meta prior to.
-	) -> Result<impl Iterator<Item = Result<Arc<PatchMetadata>>> + '_> {
-		let (base_dir, patches) = self.repositories.get(&repository_id).ok_or_else(|| {
-			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
-		})?;
-
-		// We're operating at a patch-by-patch granularity here, with the (very safe)
-		// assumption that a game version is at minimum one patch.
-		let iterator = patches.iter().rev().map(move |patch| {
-			// TODO: this will lock the cache for the entire time it's building the cache for a patch - consider if that should be resolved.
-			self.cache
-				.try_get_or_insert((repository_id, patch.clone()), || {
-					read_metadata(&base_dir.join(format!("{patch}.patch")))
-				})
-		});
-		Ok(iterator)
-	}
-}
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SqPackSpecifier {
@@ -66,7 +25,7 @@ pub struct SqPackSpecifier {
 }
 
 #[derive(Debug)]
-pub struct PatchMetadata {
+pub struct PatchLookup {
 	// TODO: if i move the reader generation to consumer-provided in some manner; this can probably be a ref or w/e to that. As-is, this is horrid.
 	pub path: PathBuf,
 
@@ -76,7 +35,14 @@ pub struct PatchMetadata {
 	pub add_commands: HashMap<(SqPackSpecifier, u32), AddCommand>,
 }
 
-fn read_metadata(path: &Path) -> Result<PatchMetadata> {
+impl PatchLookup {
+	// TODO: clean this up a bit
+	pub fn new(path: &Path) -> Result<Self> {
+		read_lookup(path)
+	}
+}
+
+fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	// TODO: this should be log:: or something
 	println!("reading patch: {path:?}");
 
@@ -85,18 +51,18 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 
 	// TODO: Retry on failure?
 	zipatch.chunks().try_fold(
-		PatchMetadata {
+		PatchLookup {
 			path: path.to_owned(),
 			index_commands: Default::default(),
 			add_commands: Default::default(),
 		},
-		|mut metadata, chunk| -> Result<_> {
+		|mut lookup, chunk| -> Result<_> {
 			match chunk? {
 				// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
 				Chunk::SqPack(SqPackChunk::FileOperation(command))
 					if is_index_command(&command) =>
 				{
-					metadata
+					lookup
 						.index_commands
 						.entry(path_to_specifier(&command.path().to_string())?)
 						.or_insert_with(Vec::new)
@@ -116,7 +82,7 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 					// chunks - an entire file can be read by looking for the single add
 					// command starting at the precise offset we're looking for.
 
-					let old_value = metadata
+					let old_value = lookup
 						.add_commands
 						.insert((specifier, command.target_offset()), command);
 
@@ -127,7 +93,7 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 
 				_ => {}
 			};
-			Ok(metadata)
+			Ok(lookup)
 		},
 	)
 }

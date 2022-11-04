@@ -11,10 +11,7 @@ use crate::{
 	utility::{TakeSeekable, TakeSeekableExt},
 };
 
-use super::{
-	cache::{PatchCache, SqPackSpecifier},
-	temp_sqpack::read_block,
-};
+use super::{lookup::SqPackSpecifier, temp_sqpack::read_block, zipatch::ZiPatchData};
 
 // TODO: These (and path_metadata itself) should be moved into sqpack proper once and for all
 const REPOSITORIES: &[&str] = &[
@@ -46,12 +43,12 @@ const CATEGORIES: &[Option<&str>] = &[
 
 #[derive(Debug)]
 pub struct Version {
-	cache: Arc<PatchCache>,
+	data: Arc<ZiPatchData>,
 }
 
 impl Version {
-	pub(super) fn new(cache: Arc<PatchCache>) -> Self {
-		Self { cache }
+	pub(super) fn new(data: Arc<ZiPatchData>) -> Self {
+		Self { data }
 	}
 }
 
@@ -93,17 +90,17 @@ impl sqpack::Resource for Version {
 		let mut empty = true;
 		let mut cursor = Cursor::new(Vec::<u8>::new());
 
-		for maybe_metadata in self.cache.todonameme(repository)? {
+		for maybe_lookup in self.data.patch_lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
-			let metadata = maybe_metadata?;
-			let commands = match metadata.index_commands.get(&target_specifier) {
+			let lookup = maybe_lookup?;
+			let commands = match lookup.index_commands.get(&target_specifier) {
 				Some(commands) => commands,
 				None => continue,
 			};
 
 			// Read the commands for this patch.
 			// TODO: This construction of a file reader here is _very_ janky. Should be removed, and pulled from the cache in some way.
-			let mut file = BufReader::new(fs::File::open(&metadata.path)?);
+			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
 			for command in commands {
 				empty = false;
 				cursor.set_position(command.target_offset());
@@ -162,14 +159,14 @@ impl sqpack::Resource for Version {
 			location.offset(),
 		);
 
-		for maybe_metadata in self.cache.todonameme(repository)? {
-			let metadata = maybe_metadata?;
-			let command = match metadata.add_commands.get(&target) {
+		for maybe_lookup in self.data.patch_lookups(repository)? {
+			let lookup = maybe_lookup?;
+			let command = match lookup.add_commands.get(&target) {
 				Some(command) => command,
 				None => continue,
 			};
 
-			let mut file = BufReader::new(fs::File::open(&metadata.path)?);
+			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
 			file.seek(SeekFrom::Start(command.source_offset()))?;
 			let out = file.take_seekable(command.data_size().into())?;
 
