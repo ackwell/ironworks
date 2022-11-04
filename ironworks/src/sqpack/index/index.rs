@@ -30,6 +30,7 @@ pub struct Index {
 
 impl Index {
 	pub fn new<R: Resource>(repository: u8, category: u8, resource: &R) -> Result<Self> {
+		// TODO: This eager chunk lookup causes ZiPatch to eagerly parse every single prior patch to check if it exists. Is it possible to lazy this?
 		let chunks = (0u8..=255)
 			.map_while(
 				|chunk_id| match IndexChunk::new(repository, category, chunk_id, resource) {

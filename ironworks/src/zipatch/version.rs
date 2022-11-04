@@ -1,6 +1,6 @@
 use std::{
 	fs,
-	io::{self, BufReader, Cursor},
+	io::{self, BufReader, Cursor, Seek, SeekFrom},
 	sync::Arc,
 };
 
@@ -8,6 +8,7 @@ use crate::{
 	error::{Error, ErrorValue, Result},
 	file::patch::FileOperation,
 	sqpack,
+	utility::{TakeSeekable, TakeSeekableExt},
 };
 
 use super::{
@@ -80,7 +81,7 @@ impl sqpack::Resource for Version {
 		todo!("version({repository})")
 	}
 
-	type Index = io::Cursor<Vec<u8>>;
+	type Index = Cursor<Vec<u8>>;
 	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
 		let target_specifier = SqPackSpecifier {
 			repository,
@@ -149,8 +150,35 @@ impl sqpack::Resource for Version {
 		)))
 	}
 
-	type File = io::Empty;
+	type File = TakeSeekable<BufReader<fs::File>>;
 	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
-		todo!("file({repository}, {category}, {location:?})")
+		let target = (
+			SqPackSpecifier {
+				repository,
+				category,
+				chunk: location.chunk(),
+				extension: location.data_file(),
+			},
+			location.offset(),
+		);
+
+		for maybe_metadata in self.cache.todonameme(repository)? {
+			let metadata = maybe_metadata?;
+			let command = match metadata.add_commands.get(&target) {
+				Some(command) => command,
+				None => continue,
+			};
+
+			let mut file = BufReader::new(fs::File::open(&metadata.path)?);
+			file.seek(SeekFrom::Start(command.source_offset()))?;
+			let out = file.take_seekable(command.data_size().into())?;
+
+			return Ok(out);
+		}
+
+		Err(Error::NotFound(ErrorValue::Other(format!(
+			"zipatch target {:?}",
+			target.0
+		))))
 	}
 }

@@ -11,7 +11,10 @@ use std::{
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{
-		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
+		patch::{
+			AddCommand, Chunk, FileOperation, FileOperationCommand, SqPackChunk,
+			ZiPatch as ZiPatchFile,
+		},
 		File,
 	},
 	utility::{HashMapCache, HashMapCacheExt},
@@ -69,6 +72,8 @@ pub struct PatchMetadata {
 
 	// TODO: consider storing a slightly more ergonomic struct instead of commands
 	pub index_commands: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
+	// (specifier, offset)
+	pub add_commands: HashMap<(SqPackSpecifier, u32), AddCommand>,
 }
 
 fn read_metadata(path: &Path) -> Result<PatchMetadata> {
@@ -83,6 +88,7 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 		PatchMetadata {
 			path: path.to_owned(),
 			index_commands: Default::default(),
+			add_commands: Default::default(),
 		},
 		|mut metadata, chunk| -> Result<_> {
 			match chunk? {
@@ -95,6 +101,29 @@ fn read_metadata(path: &Path) -> Result<PatchMetadata> {
 						.or_insert_with(Vec::new)
 						.push(command)
 				}
+
+				Chunk::SqPack(SqPackChunk::Add(command)) => {
+					let file = command.file();
+					let specifier = SqPackSpecifier {
+						repository: (file.sub_id() >> 8).try_into().unwrap(),
+						category: file.main_id().try_into().unwrap(),
+						chunk: (file.sub_id() & 0xFF).try_into().unwrap(),
+						extension: file.file_id().try_into().unwrap(),
+					};
+
+					// ASSUMPTION: Square seemingly never breaks new files up across multiple
+					// chunks - an entire file can be read by looking for the single add
+					// command starting at the precise offset we're looking for.
+
+					let old_value = metadata
+						.add_commands
+						.insert((specifier, command.target_offset()), command);
+
+					if old_value.is_some() {
+						panic!("Assumption broken! Multiple chunks in one patch file writing to same offset.")
+					}
+				}
+
 				_ => {}
 			};
 			Ok(metadata)
