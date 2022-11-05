@@ -13,7 +13,7 @@ pub struct PatchRepository {
 }
 
 impl PatchRepository {
-	pub fn from_directory(repository_path: &Path) -> Result<Self> {
+	pub fn at(repository_path: &Path) -> Result<Self> {
 		let mut patches = fs::read_dir(repository_path)?
 			.filter_map(|entry| {
 				let patch_path = match entry {
@@ -50,22 +50,5 @@ fn sort_patches(a: &str, b: &str) -> Ordering {
 
 		// The primary "version" portion of the patch name is string-sortable (Y.M.D.P.Rp, where [P]art, [R]evision, [p]art-but-for-HISTs).
 		order => order,
-	}
-}
-
-// Dumb trait helper because TryFrom's blanket impl prevents me using it.
-pub trait IntoPatchRepository {
-	fn into_repository(self) -> Result<PatchRepository>;
-}
-
-impl IntoPatchRepository for PatchRepository {
-	fn into_repository(self) -> Result<PatchRepository> {
-		Ok(self)
-	}
-}
-
-impl<P: AsRef<Path>> IntoPatchRepository for P {
-	fn into_repository(self) -> Result<PatchRepository> {
-		PatchRepository::from_directory(self.as_ref())
 	}
 }

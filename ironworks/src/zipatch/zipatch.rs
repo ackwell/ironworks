@@ -5,11 +5,7 @@ use std::{
 
 use crate::error::Result;
 
-use super::{
-	lookup::PatchLookup,
-	repository::{IntoPatchRepository, PatchRepository},
-	version::Version,
-};
+use super::{lookup::PatchLookup, repository::PatchRepository, version::Version};
 
 #[derive(Debug)]
 pub struct ZiPatch {
@@ -26,15 +22,13 @@ impl ZiPatch {
 		}
 	}
 
-	pub fn with_repository(mut self, id: u8, repository: impl IntoPatchRepository) -> Result<Self> {
-		self.add_repository(id, repository)?;
-		Ok(self)
+	pub fn with_repository(mut self, id: u8, repository: PatchRepository) -> Self {
+		self.add_repository(id, repository);
+		self
 	}
 
-	pub fn add_repository(&mut self, id: u8, repository: impl IntoPatchRepository) -> Result<()> {
-		let repository = repository.into_repository()?;
+	pub fn add_repository(&mut self, id: u8, repository: PatchRepository) {
 		self.repositories.insert(id, Arc::new(repository));
-		Ok(())
 	}
 
 	// TODO: API. Assuming going with the latter from new()'s comment, this should accept some "version" concept that declares the patch point for each repository.
