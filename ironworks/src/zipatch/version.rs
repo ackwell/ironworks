@@ -1,4 +1,5 @@
 use std::{
+	collections::HashMap,
 	fs,
 	io::{self, BufReader, Cursor, Seek, SeekFrom},
 	sync::Arc,
@@ -11,7 +12,12 @@ use crate::{
 	utility::{TakeSeekable, TakeSeekableExt},
 };
 
-use super::{lookup::SqPackSpecifier, temp_sqpack::read_block, zipatch::ZiPatchData};
+use super::{
+	lookup::{PatchLookup, SqPackSpecifier},
+	repository::PatchRepository,
+	temp_sqpack::read_block,
+	zipatch::LookupCache,
+};
 
 // TODO: These (and path_metadata itself) should be moved into sqpack proper once and for all
 const REPOSITORIES: &[&str] = &[
@@ -43,12 +49,39 @@ const CATEGORIES: &[Option<&str>] = &[
 
 #[derive(Debug)]
 pub struct Version {
-	data: Arc<ZiPatchData>,
+	repositories: HashMap<u8, Arc<PatchRepository>>,
+	cache: Arc<LookupCache>,
 }
 
 impl Version {
-	pub(super) fn new(data: Arc<ZiPatchData>) -> Self {
-		Self { data }
+	pub(super) fn new(
+		repositories: HashMap<u8, Arc<PatchRepository>>,
+		cache: Arc<LookupCache>,
+	) -> Self {
+		Self {
+			repositories,
+			cache,
+		}
+	}
+
+	fn lookups(
+		&self,
+		repository_id: u8,
+	) -> Result<impl Iterator<Item = Result<Arc<PatchLookup>>> + '_> {
+		let repository = self.repositories.get(&repository_id).ok_or_else(|| {
+			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
+		})?;
+
+		// We're operating at a patch-by-patch granularity here, with the (very safe)
+		// assumption that a game version is at minimum one patch.
+		// TODO: this needs to skip_while patches prior to the conf'd version
+		let iterator = repository
+			.patches
+			.iter()
+			.rev()
+			.map(move |patch| self.cache.lookup(repository_id, repository, patch));
+
+		Ok(iterator)
 	}
 }
 
@@ -90,7 +123,7 @@ impl sqpack::Resource for Version {
 		let mut empty = true;
 		let mut cursor = Cursor::new(Vec::<u8>::new());
 
-		for maybe_lookup in self.data.patch_lookups(repository)? {
+		for maybe_lookup in self.lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
 			let lookup = maybe_lookup?;
 			let commands = match lookup.index_commands.get(&target_specifier) {
@@ -159,7 +192,7 @@ impl sqpack::Resource for Version {
 			location.offset(),
 		);
 
-		for maybe_lookup in self.data.patch_lookups(repository)? {
+		for maybe_lookup in self.lookups(repository)? {
 			let lookup = maybe_lookup?;
 			let command = match lookup.add_commands.get(&target) {
 				Some(command) => command,
