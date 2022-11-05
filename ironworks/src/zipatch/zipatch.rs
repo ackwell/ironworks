@@ -1,9 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
-
-use crate::{
-	error::{Error, ErrorValue, Result},
-	utility::{HashMapCache, HashMapCacheExt},
+use std::{
+	collections::HashMap,
+	sync::{Arc, RwLock},
 };
+
+use crate::error::{Error, ErrorValue, Result};
 
 use super::{lookup::PatchLookup, repository::PatchRepository, version::Version};
 
@@ -32,7 +32,7 @@ impl ZiPatch {
 #[derive(Debug)]
 pub struct ZiPatchData {
 	repositories: HashMap<u8, PatchRepository>,
-	cache: HashMapCache<(u8, String), PatchLookup>,
+	cache: RwLock<HashMap<(u8, String), Arc<PatchLookup>>>,
 }
 
 impl ZiPatchData {
@@ -56,11 +56,26 @@ impl ZiPatchData {
 		// We're operating at a patch-by-patch granularity here, with the (very safe)
 		// assumption that a game version is at minimum one patch.
 		let iterator = repository.patches.iter().rev().map(move |patch| {
-			// TODO: this will lock the cache for the entire time it's building the cache for a patch - consider if that should be resolved.
-			self.cache
-				.try_get_or_insert((repository_id, patch.clone()), || {
-					PatchLookup::new(&repository.base_directory.join(format!("{patch}.patch")))
-				})
+			// TODO: Can I avoid the clone on the string? Seems shit.
+			let key = (repository_id, patch.clone());
+
+			// TODO: honestly this might make sense as an alternate impl of the hashmapcache
+			// Grab a read guard and try to get an existing lookup.
+			let cache_read = self.cache.read().unwrap();
+			if let Some(lookup) = cache_read.get(&key) {
+				return Ok(Arc::clone(lookup));
+			};
+			drop(cache_read);
+
+			// Build a new lookup for this patch.
+			let lookup = Arc::new(PatchLookup::new(
+				&repository.base_directory.join(format!("{patch}.patch")),
+			)?);
+
+			// Write the new lookup to the cache.
+			let mut cache_write = self.cache.write().unwrap();
+			let lookup = cache_write.entry(key).or_insert(lookup);
+			Ok(Arc::clone(lookup))
 		});
 		Ok(iterator)
 	}
