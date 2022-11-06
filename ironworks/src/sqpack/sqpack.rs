@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -13,9 +13,9 @@ use super::{file::File, index::Index};
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
 pub struct SqPack<R> {
-	resource: R,
+	resource: Arc<R>,
 
-	indexes: HashMapCache<(u8, u8), Index>,
+	indexes: HashMapCache<(u8, u8), Index<R>>,
 }
 
 impl<R: sqpack::Resource> SqPack<R> {
@@ -23,7 +23,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 	/// queried for lookups as required to fulfil SqPack requests.
 	pub fn new(resource: R) -> Self {
 		Self {
-			resource,
+			resource: resource.into(),
 
 			indexes: Default::default(),
 		}
@@ -46,7 +46,7 @@ impl<R: sqpack::Resource> SqPack<R> {
 		let location = self
 			.indexes
 			.try_get_or_insert((repository, category), || {
-				Index::new(repository, category, &self.resource)
+				Index::new(repository, category, self.resource.clone())
 			})?
 			.find(&path)?;
 
