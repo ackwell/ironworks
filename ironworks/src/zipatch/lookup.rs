@@ -17,11 +17,17 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
+pub enum SqPackFileExtension {
+	Index(u8),
+	Dat(u8),
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct SqPackSpecifier {
 	pub repository: u8,
 	pub category: u8,
 	pub chunk: u8,
-	pub extension: u8,
+	pub extension: SqPackFileExtension,
 }
 
 #[derive(Debug)]
@@ -30,7 +36,7 @@ pub struct PatchLookup {
 	pub path: PathBuf,
 
 	// TODO: consider storing a slightly more ergonomic struct instead of commands
-	pub index_commands: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
+	pub add_operations: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
 	// (specifier, offset)
 	pub add_commands: HashMap<(SqPackSpecifier, u32), AddCommand>,
 }
@@ -53,17 +59,16 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	zipatch.chunks().try_fold(
 		PatchLookup {
 			path: path.to_owned(),
-			index_commands: Default::default(),
+			add_operations: Default::default(),
 			add_commands: Default::default(),
 		},
 		|mut lookup, chunk| -> Result<_> {
 			match chunk? {
-				// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
 				Chunk::SqPack(SqPackChunk::FileOperation(command))
-					if is_index_command(&command) =>
+					if is_sqpack_command(&command) =>
 				{
 					lookup
-						.index_commands
+						.add_operations
 						.entry(path_to_specifier(&command.path().to_string())?)
 						.or_insert_with(Vec::new)
 						.push(command)
@@ -75,7 +80,7 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 						repository: (file.sub_id() >> 8).try_into().unwrap(),
 						category: file.main_id().try_into().unwrap(),
 						chunk: (file.sub_id() & 0xFF).try_into().unwrap(),
-						extension: file.file_id().try_into().unwrap(),
+						extension: SqPackFileExtension::Dat(file.file_id().try_into().unwrap()),
 					};
 
 					// ASSUMPTION: Square seemingly never breaks new files up across multiple
@@ -93,17 +98,15 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 
 				_ => {}
 			};
+
 			Ok(lookup)
 		},
 	)
 }
 
-fn is_index_command(command: &FileOperationCommand) -> bool {
-	// TODO: do i want index2 as well?
-	static TARGET_EXTENSION: &str = ".index";
-
+fn is_sqpack_command(command: &FileOperationCommand) -> bool {
 	matches!(command.operation(), FileOperation::AddFile(_))
-		&& command.path().to_string().ends_with(TARGET_EXTENSION)
+		&& command.path().to_string().starts_with("sqpack/")
 }
 
 fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {
@@ -129,10 +132,14 @@ fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {
 		.map_err(|err| path_error(&path, &format!("{err}")))?;
 
 	let extension = match path.extension().and_then(|osstr| osstr.to_str()) {
-		Some("index") => 1,
-		Some(dat) if dat.starts_with("dat") => dat[3..]
-			.parse::<u8>()
-			.map_err(|_err| path_error(&path, "unhandled file extension"))?,
+		Some("index") => SqPackFileExtension::Index(1),
+		Some("index2") => SqPackFileExtension::Index(2),
+		Some(dat) if dat.starts_with("dat") => {
+			let dat_number = dat[3..]
+				.parse::<u8>()
+				.map_err(|_err| path_error(&path, "unhandled file extension"))?;
+			SqPackFileExtension::Dat(dat_number)
+		}
 		_ => return Err(path_error(&path, "unhandled file extension")),
 	};
 

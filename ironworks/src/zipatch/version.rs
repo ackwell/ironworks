@@ -7,13 +7,13 @@ use std::{
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	file::patch::FileOperation,
+	file::patch::{AddCommand, FileOperation},
 	sqpack,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
 
 use super::{
-	lookup::{PatchLookup, SqPackSpecifier},
+	lookup::{PatchLookup, SqPackFileExtension, SqPackSpecifier},
 	repository::PatchRepository,
 	temp_sqpack::read_block,
 	zipatch::LookupCache,
@@ -140,13 +140,14 @@ impl sqpack::Resource for Version {
 		todo!("version({repository})")
 	}
 
+	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
 	type Index = Cursor<Vec<u8>>;
 	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
 		let target_specifier = SqPackSpecifier {
 			repository,
 			category,
 			chunk,
-			extension: 1,
+			extension: SqPackFileExtension::Index(1),
 		};
 
 		let mut empty = true;
@@ -155,7 +156,7 @@ impl sqpack::Resource for Version {
 		for maybe_lookup in self.lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
 			let lookup = maybe_lookup?;
-			let commands = match lookup.index_commands.get(&target_specifier) {
+			let commands = match lookup.add_operations.get(&target_specifier) {
 				Some(commands) => commands,
 				None => continue,
 			};
@@ -216,28 +217,33 @@ impl sqpack::Resource for Version {
 				repository,
 				category,
 				chunk: location.chunk(),
-				extension: location.data_file(),
+				extension: SqPackFileExtension::Dat(location.data_file()),
 			},
 			location.offset(),
 		);
 
 		for maybe_lookup in self.lookups(repository)? {
 			let lookup = maybe_lookup?;
-			let command = match lookup.add_commands.get(&target) {
-				Some(command) => command,
-				None => continue,
+
+			// Try to get the file from the add commands first.
+			if let Some(command) = lookup.add_commands.get(&target) {
+				return read_add_command(&lookup, command);
 			};
-
-			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
-			file.seek(SeekFrom::Start(command.source_offset()))?;
-			let out = file.take_seekable(command.data_size().into())?;
-
-			return Ok(out);
 		}
 
 		Err(Error::NotFound(ErrorValue::Other(format!(
 			"zipatch target {:?}",
-			target.0
+			target
 		))))
 	}
+}
+
+fn read_add_command(
+	lookup: &PatchLookup,
+	command: &AddCommand,
+) -> Result<TakeSeekable<BufReader<fs::File>>> {
+	let mut file = BufReader::new(fs::File::open(&lookup.path)?);
+	file.seek(SeekFrom::Start(command.source_offset()))?;
+	let out = file.take_seekable(command.data_size().into())?;
+	Ok(out)
 }
