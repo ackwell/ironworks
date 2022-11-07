@@ -7,4 +7,8 @@ mod temp_sqpack;
 mod version;
 mod zipatch;
 
-pub use {repository::PatchRepository, version::Version, zipatch::ZiPatch};
+pub use {
+	repository::PatchRepository,
+	version::{Version, VersionSpecifier},
+	zipatch::ZiPatch,
+};

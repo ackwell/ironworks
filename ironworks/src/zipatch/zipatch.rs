@@ -5,7 +5,11 @@ use std::{
 
 use crate::error::Result;
 
-use super::{lookup::PatchLookup, repository::PatchRepository, version::Version};
+use super::{
+	lookup::PatchLookup,
+	repository::PatchRepository,
+	version::{Version, VersionSpecifier},
+};
 
 #[derive(Debug)]
 pub struct ZiPatch {
@@ -31,10 +35,9 @@ impl ZiPatch {
 		self.repositories.insert(id, Arc::new(repository));
 	}
 
-	// TODO: API. Assuming going with the latter from new()'s comment, this should accept some "version" concept that declares the patch point for each repository.
-	pub fn version(&self) -> Version {
+	pub fn version(&self, specifier: VersionSpecifier) -> Version {
 		// note; snapshotting repositories state here is intentional. doc it.
-		Version::new(self.repositories.clone(), self.data.clone())
+		Version::new(specifier, self.repositories.clone(), self.data.clone())
 	}
 }
 

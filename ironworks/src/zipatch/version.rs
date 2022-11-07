@@ -48,17 +48,37 @@ const CATEGORIES: &[Option<&str>] = &[
 ];
 
 #[derive(Debug)]
+pub struct VersionSpecifier {
+	patches: HashMap<u8, String>,
+}
+
+impl VersionSpecifier {
+	pub fn latest() -> Self {
+		Self {
+			patches: HashMap::new(),
+		}
+	}
+
+	pub fn with_patches(patches: HashMap<u8, String>) -> Self {
+		Self { patches }
+	}
+}
+
+#[derive(Debug)]
 pub struct Version {
+	specifier: VersionSpecifier,
 	repositories: HashMap<u8, Arc<PatchRepository>>,
 	cache: Arc<LookupCache>,
 }
 
 impl Version {
 	pub(super) fn new(
+		specifier: VersionSpecifier,
 		repositories: HashMap<u8, Arc<PatchRepository>>,
 		cache: Arc<LookupCache>,
 	) -> Self {
 		Self {
+			specifier,
 			repositories,
 			cache,
 		}
@@ -72,13 +92,22 @@ impl Version {
 			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
 		})?;
 
+		let target_patch = self.specifier.patches.get(&repository_id);
+
 		// We're operating at a patch-by-patch granularity here, with the (very safe)
 		// assumption that a game version is at minimum one patch.
-		// TODO: this needs to skip_while patches prior to the conf'd version
 		let iterator = repository
 			.patches
 			.iter()
 			.rev()
+			.skip_while(move |patch| {
+				match target_patch {
+					// None implies the latest patch available, never skip.
+					None => false,
+					// Skip while the patch doesn't match.
+					Some(target) => *patch != target,
+				}
+			})
 			.map(move |patch| self.cache.lookup(repository_id, repository, patch));
 
 		Ok(iterator)
