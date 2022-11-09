@@ -51,8 +51,11 @@ impl<S: io::Seek> io::Seek for TakeSeekable<S> {
 	fn seek(&mut self, position: io::SeekFrom) -> io::Result<u64> {
 		let (base, position) = match position {
 			io::SeekFrom::Start(position) => {
-				self.current = position;
-				return Ok(position);
+				let inner_offset = self
+					.inner
+					.seek(io::SeekFrom::Start(self.offset + position))?;
+				self.current = inner_offset - self.offset;
+				return Ok(self.current);
 			}
 			io::SeekFrom::Current(position) => (self.current, position),
 			io::SeekFrom::End(position) => (self.limit, position),
@@ -78,9 +81,7 @@ impl<S: io::Seek> io::Seek for TakeSeekable<S> {
 			self.offset + u64::try_from(ioffset).unwrap(),
 		))?;
 
-		let offset = inner_offset - self.offset;
-
-		self.current = offset;
-		Ok(offset)
+		self.current = inner_offset - self.offset;
+		Ok(self.current)
 	}
 }
