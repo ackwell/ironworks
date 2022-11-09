@@ -1,7 +1,4 @@
-use std::{
-	fmt::Display,
-	io::{self, Read, Seek, SeekFrom},
-};
+use std::io::{self, Read, Seek, SeekFrom};
 
 use binrw::{binread, BinRead};
 use flate2::read::DeflateDecoder;
@@ -40,10 +37,6 @@ struct BlockHeader {
 	#[br(pad_before = 4)]
 	compressed_size: u32,
 	decompressed_size: u32,
-}
-
-pub fn read_failed(item: impl Display, expected: impl Display, got: impl Display) -> String {
-	format!("Failed to read {item}. Expected {expected} bytes, got {got}.",)
 }
 
 // TODO: move this into a block struct of some kind if we do lazy reading?

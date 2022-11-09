@@ -38,7 +38,7 @@ impl<R: Read + Seek> File<R> {
 #[derive(Debug)]
 enum FileStreamKind<R> {
 	Empty(Empty),
-	Standard(standard::FileStream<R>),
+	Standard(standard::BlockStream<R>),
 	Model(Cursor<Vec<u8>>),
 	Texture(Cursor<Vec<u8>>),
 }
