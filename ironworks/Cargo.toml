@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
 ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
-zipatch = ["dep:flate2", "patch", "sqpack"]
+zipatch = ["patch", "sqpack"]
 
 # File types
 eqdp = ["dep:modular-bitfield"]
