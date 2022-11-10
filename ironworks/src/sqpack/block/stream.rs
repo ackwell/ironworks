@@ -2,14 +2,20 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 use super::block::BlockPayload;
 
+/// Metadata about a block that comprises part of a data stream.
 #[derive(Debug)]
 pub struct BlockMetadata {
+	/// The offset within the input reader that the block payload begins.
 	pub input_offset: usize,
+	/// The size, in bytes, of the block payload in the input reader.
 	pub input_size: usize,
+	/// The offset within the output that the block payload begins.
 	pub output_offset: usize,
+	/// The size, in bytes, of the block payload in the output.
 	pub output_size: usize,
 }
 
+/// Reader adapter that transforms a source data stream containing blocks into a continuous output stream.
 #[derive(Debug)]
 pub struct BlockStream<R> {
 	/// Reader for the full dat file that the sqpack file is being read from.
@@ -31,6 +37,7 @@ impl<R> BlockStream<R>
 where
 	R: Read + Seek,
 {
+	/// Create a new block stream reader.
 	pub fn new(dat_reader: R, origin: usize, metadata: Vec<BlockMetadata>) -> Self {
 		// TODO: i can probably omit any metadata that exists purely prior to the origin. that said, I control all consumers - so only bother doing this if it would actually be useful.
 
