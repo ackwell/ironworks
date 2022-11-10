@@ -1,6 +1,7 @@
 use std::io::{self, Read, Seek, SeekFrom, Take};
 
 use binrw::{binread, BinRead};
+use either::Either;
 use flate2::read::DeflateDecoder;
 
 const MAX_COMPRESSED_BLOCK_SIZE: u32 = 16_000;
@@ -30,7 +31,7 @@ pub fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<Blo
 }
 
 pub struct BlockPayload<'a, R> {
-	block_reader: BlockReader<'a, R>,
+	block_reader: Either<Take<&'a mut R>, DeflateDecoder<Take<&'a mut R>>>,
 }
 
 impl<'a, R: Read + Seek> BlockPayload<'a, R> {
@@ -38,8 +39,8 @@ impl<'a, R: Read + Seek> BlockPayload<'a, R> {
 		// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 
 		let block_reader = match input_size > MAX_COMPRESSED_BLOCK_SIZE {
-			true => BlockReader::Loose(reader.take(output_size.into())),
-			false => BlockReader::Compressed(DeflateDecoder::new(reader.take(input_size.into()))),
+			true => Either::Left(reader.take(output_size.into())),
+			false => Either::Right(DeflateDecoder::new(reader.take(input_size.into()))),
 		};
 
 		Self { block_reader }
@@ -49,20 +50,5 @@ impl<'a, R: Read + Seek> BlockPayload<'a, R> {
 impl<R: Read> Read for BlockPayload<'_, R> {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
 		self.block_reader.read(buf)
-	}
-}
-
-// TODO: this can probably be Either<>
-pub enum BlockReader<'a, R> {
-	Loose(Take<&'a mut R>),
-	Compressed(DeflateDecoder<Take<&'a mut R>>),
-}
-
-impl<R: Read> Read for BlockReader<'_, R> {
-	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-		match self {
-			Self::Loose(reader) => reader.read(buf),
-			Self::Compressed(reader) => reader.read(buf),
-		}
 	}
 }

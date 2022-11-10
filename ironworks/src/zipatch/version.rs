@@ -5,9 +5,11 @@ use std::{
 	sync::Arc,
 };
 
+use either::Either;
+
 use crate::{
 	error::{Error, ErrorValue, Result},
-	file::patch::{AddCommand, FileOperation},
+	file::patch::{AddCommand, FileOperation, FileOperationCommand},
 	sqpack,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
@@ -46,6 +48,9 @@ const CATEGORIES: &[Option<&str>] = &[
 	/* 0x12 */ Some("sqpack_test"),
 	/* 0x13 */ Some("debug"),
 ];
+
+type FileReader =
+	Either<TakeSeekable<BufReader<fs::File>>, sqpack::BlockStream<BufReader<fs::File>>>;
 
 #[derive(Debug)]
 pub struct VersionSpecifier {
@@ -210,7 +215,7 @@ impl sqpack::Resource for Version {
 		)))
 	}
 
-	type File = TakeSeekable<BufReader<fs::File>>;
+	type File = FileReader;
 	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
 		let target = (
 			SqPackSpecifier {
@@ -229,6 +234,16 @@ impl sqpack::Resource for Version {
 			if let Some(command) = lookup.add_commands.get(&target) {
 				return read_add_command(&lookup, command);
 			};
+
+			// Check if the file could be found in the file operations.
+			// ASSUMPTION: Target sqpack files read from a FileCommand-provided .dat
+			// file will not be split across a patch file boundary. While this is
+			// realistically possible, the chances of it occuring are vanishingly
+			// remote. If everything has blown up in your face because of this and you
+			// find this comment, bap me.
+			if let Some(commands) = lookup.add_operations.get(&target.0) {
+				return read_file_commands(&lookup, target.1, commands);
+			};
 		}
 
 		Err(Error::NotFound(ErrorValue::Other(format!(
@@ -238,12 +253,59 @@ impl sqpack::Resource for Version {
 	}
 }
 
-fn read_add_command(
-	lookup: &PatchLookup,
-	command: &AddCommand,
-) -> Result<TakeSeekable<BufReader<fs::File>>> {
+fn read_add_command(lookup: &PatchLookup, command: &AddCommand) -> Result<FileReader> {
 	let mut file = BufReader::new(fs::File::open(&lookup.path)?);
 	file.seek(SeekFrom::Start(command.source_offset()))?;
 	let out = file.take_seekable(command.data_size().into())?;
-	Ok(out)
+	Ok(Either::Left(out))
+}
+
+fn read_file_commands(
+	lookup: &PatchLookup,
+	offset: u32,
+	commands: &[FileOperationCommand],
+) -> Result<FileReader> {
+	// Build an iterator over the commands. We're skipping any commands that sit
+	// entirely before the target offset to minimise how much needs to be read.
+	let commands_iter = commands
+		.iter()
+		.skip_while(|command| (command.target_offset() + command.target_size()) < offset.into());
+
+	// Extract the metadata for each block in each command.
+	let block_iter = commands_iter.flat_map(|command| {
+		let blocks = match command.operation() {
+			FileOperation::AddFile(blocks) => blocks,
+			other => panic!("unexpected {other:?}"),
+		};
+
+		blocks.iter().scan(0u64, |file_offset, block| {
+			let current_offset = *file_offset;
+			*file_offset += u64::from(block.decompressed_size());
+
+			Some(sqpack::BlockMetadata {
+				input_offset: block.offset().try_into().unwrap(),
+				input_size: block.compressed_size().try_into().unwrap(),
+				output_offset: (command.target_offset() + current_offset)
+					.try_into()
+					.unwrap(),
+				output_size: block.decompressed_size().try_into().unwrap(),
+			})
+		})
+	});
+
+	// ASSUMPTION: FileOperation commands will apply their data in sequential order.
+
+	// Do another skip pass, filtering out any remaining metadata (from AddFile
+	// blocks) that fall entirely before the target offset.
+	let metadata = block_iter
+		.skip_while(|meta| {
+			(meta.output_offset + meta.output_size) < usize::try_from(offset).unwrap()
+		})
+		.collect::<Vec<_>>();
+
+	// Build the readers & complete
+	let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
+	let block_stream = sqpack::BlockStream::new(file_reader, offset.try_into().unwrap(), metadata);
+
+	Ok(Either::Right(block_stream))
 }
