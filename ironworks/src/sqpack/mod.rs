@@ -7,7 +7,7 @@ mod resource;
 mod sqpack;
 
 pub use {
-	block::{BlockMetadata, BlockStream},
+	block::{BlockMetadata, BlockPayload, BlockStream},
 	file::File,
 	index::Location,
 	resource::Resource,

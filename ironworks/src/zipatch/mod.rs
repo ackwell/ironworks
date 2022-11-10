@@ -3,7 +3,6 @@
 
 mod lookup;
 mod repository;
-mod temp_sqpack;
 mod version;
 mod zipatch;
 

@@ -17,7 +17,6 @@ use crate::{
 use super::{
 	lookup::{PatchLookup, SqPackFileExtension, SqPackSpecifier},
 	repository::PatchRepository,
-	temp_sqpack::read_block,
 	zipatch::LookupCache,
 };
 
@@ -179,7 +178,12 @@ impl sqpack::Resource for Version {
 
 				// TODO: this should be brought in from sqpack proper
 				for block in blocks {
-					let mut reader = read_block(&mut file, block)?;
+					file.seek(SeekFrom::Start(block.offset()))?;
+					let mut reader = sqpack::BlockPayload::new(
+						&mut file,
+						block.compressed_size(),
+						block.decompressed_size(),
+					);
 					io::copy(&mut reader, &mut cursor)?;
 				}
 			}
