@@ -141,7 +141,16 @@ impl sqpack::Resource for Version {
 	}
 
 	fn version(&self, repository: u8) -> Result<String> {
-		todo!("version({repository})")
+		self.specifier
+			.patches
+			.get(&repository)
+			.cloned()
+			.ok_or_else(|| {
+				Error::Invalid(
+					ErrorValue::Other(format!("repository {repository}")),
+					"unspecified repository version".to_string(),
+				)
+			})
 	}
 
 	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
