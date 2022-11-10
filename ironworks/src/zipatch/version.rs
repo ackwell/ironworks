@@ -116,51 +116,19 @@ impl Version {
 
 		Ok(iterator)
 	}
-}
 
-impl sqpack::Resource for Version {
-	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
-		let split = path.split('/').take(2).collect::<Vec<_>>();
-
-		match split[..] {
-			[path_category, path_repository] => Some((
-				REPOSITORIES
-					.iter()
-					.position(|repository| repository == &path_repository)
-					.unwrap_or(0)
-					.try_into()
-					.unwrap(),
-				CATEGORIES
-					.iter()
-					.position(|category| category == &Some(path_category))?
-					.try_into()
-					.unwrap(),
-			)),
-			_ => None,
-		}
-	}
-
-	fn version(&self, repository: u8) -> Result<String> {
-		self.specifier
-			.patches
-			.get(&repository)
-			.cloned()
-			.ok_or_else(|| {
-				Error::Invalid(
-					ErrorValue::Other(format!("repository {repository}")),
-					"unspecified repository version".to_string(),
-				)
-			})
-	}
-
-	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
-	type Index = Cursor<Vec<u8>>;
-	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+	fn read_index(
+		&self,
+		repository: u8,
+		category: u8,
+		chunk: u8,
+		index_version: u8,
+	) -> Result<Cursor<Vec<u8>>> {
 		let target_specifier = SqPackSpecifier {
 			repository,
 			category,
 			chunk,
-			extension: SqPackFileExtension::Index(1),
+			extension: SqPackFileExtension::Index(index_version),
 		};
 
 		let mut empty = true;
@@ -218,12 +186,52 @@ impl sqpack::Resource for Version {
 		cursor.set_position(0);
 		Ok(cursor)
 	}
+}
 
-	type Index2 = io::Empty;
-	fn index2(&self, _repository: u8, _category: u8, _chunk: u8) -> Result<Self::Index2> {
-		Err(Error::NotFound(ErrorValue::Other(
-			"TODO: zipatch .index2 lookup".to_string(),
-		)))
+impl sqpack::Resource for Version {
+	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
+		let split = path.split('/').take(2).collect::<Vec<_>>();
+
+		match split[..] {
+			[path_category, path_repository] => Some((
+				REPOSITORIES
+					.iter()
+					.position(|repository| repository == &path_repository)
+					.unwrap_or(0)
+					.try_into()
+					.unwrap(),
+				CATEGORIES
+					.iter()
+					.position(|category| category == &Some(path_category))?
+					.try_into()
+					.unwrap(),
+			)),
+			_ => None,
+		}
+	}
+
+	fn version(&self, repository: u8) -> Result<String> {
+		self.specifier
+			.patches
+			.get(&repository)
+			.cloned()
+			.ok_or_else(|| {
+				Error::Invalid(
+					ErrorValue::Other(format!("repository {repository}")),
+					"unspecified repository version".to_string(),
+				)
+			})
+	}
+
+	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
+	type Index = Cursor<Vec<u8>>;
+	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+		self.read_index(repository, category, chunk, 1)
+	}
+
+	type Index2 = Cursor<Vec<u8>>;
+	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
+		self.read_index(repository, category, chunk, 2)
 	}
 
 	type File = FileReader;
