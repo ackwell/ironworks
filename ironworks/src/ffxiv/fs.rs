@@ -37,8 +37,8 @@ const CATEGORIES: &[Option<&str>] = &[
 	/* 0x0f */ None,
 	/* 0x10 */ None,
 	/* 0x11 */ None,
-	/* 0x12 */ Some("sqpack_test"),
-	/* 0x13 */ Some("debug"),
+	/* 0x12 */ Some("_sqpack_test"),
+	/* 0x13 */ Some("_debug"),
 ];
 
 #[allow(dead_code)]
