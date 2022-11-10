@@ -2,7 +2,7 @@ use std::io::{Cursor, Empty, Read, Seek, SeekFrom};
 
 use binrw::BinRead;
 
-use crate::error::Result;
+use crate::{error::Result, sqpack::block::BlockStream};
 
 use super::{
 	empty, model,
@@ -38,7 +38,7 @@ impl<R: Read + Seek> File<R> {
 #[derive(Debug)]
 enum FileStreamKind<R> {
 	Empty(Empty),
-	Standard(standard::BlockStream<R>),
+	Standard(BlockStream<R>),
 	Model(Cursor<Vec<u8>>),
 	Texture(Cursor<Vec<u8>>),
 }

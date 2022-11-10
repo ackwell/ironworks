@@ -2,9 +2,9 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
 
 use binrw::{binread, BinRead, BinWriterExt, VecArgs};
 
-use crate::error::Result;
+use crate::{error::Result, sqpack::block::read_block};
 
-use super::shared::{read_block, Header};
+use super::shared::Header;
 
 const MAX_LODS: usize = 3;
 
