@@ -4,7 +4,7 @@ use binrw::{binread, BinRead, VecArgs};
 
 use crate::error::Result;
 
-use super::shared::{read_block, Header};
+use super::shared::{BlockHeader, BlockPayload, Header};
 
 #[binread]
 #[derive(Debug)]
@@ -25,27 +25,40 @@ pub fn read<R: Read + Seek>(mut reader: R, offset: u32, header: Header) -> Resul
 		},
 	)?;
 
+	// Closure for subsequent scan to allow cleaner error handling.
+	let mut read_block_metadata = |previous: &mut usize, info: &BlockInfo| -> Result<_> {
+		let output_offset = *previous;
+		*previous += usize::from(info.output_size);
+
+		let header_offset = offset + info.offset;
+		reader.seek(SeekFrom::Start(header_offset.into()))?;
+		let header = BlockHeader::read(&mut reader)?;
+
+		Ok(BlockMetadata {
+			input_offset: (header_offset + header.size).try_into().unwrap(),
+			input_size: header.compressed_size.try_into().unwrap(),
+			output_offset,
+			output_size: info.output_size.into(),
+		})
+	};
+
+	// Read in the block headers to build the metadata needed for the reader.
 	let metadata = blocks
 		.iter()
 		.scan(0usize, |previous, info| {
-			let output_offset = *previous;
-			*previous += usize::from(info.output_size);
-			Some(BlockMetadata {
-				input_offset: (offset + info.offset).try_into().unwrap(),
-				output_offset,
-				output_size: info.output_size.into(),
-			})
+			Some(read_block_metadata(previous, info))
 		})
-		.collect::<Vec<_>>();
+		.collect::<Result<Vec<_>>>()?;
 
 	Ok(BlockStream::new(reader, 0, metadata))
 }
 
 #[derive(Debug)]
-struct BlockMetadata {
-	input_offset: usize,
-	output_offset: usize,
-	output_size: usize,
+pub struct BlockMetadata {
+	pub input_offset: usize,
+	pub input_size: usize,
+	pub output_offset: usize,
+	pub output_size: usize,
 }
 
 #[derive(Debug)]
@@ -69,7 +82,9 @@ impl<R> BlockStream<R>
 where
 	R: Read + Seek,
 {
-	fn new(dat_reader: R, origin: usize, metadata: Vec<BlockMetadata>) -> Self {
+	pub fn new(dat_reader: R, origin: usize, metadata: Vec<BlockMetadata>) -> Self {
+		// TODO: i can probably omit any metadata that exists purely prior to the origin. that said, I control all consumers - so only bother doing this if it would actually be useful.
+
 		Self {
 			dat_reader,
 			origin,
@@ -129,10 +144,14 @@ where
 		let block = match &mut self.block_data {
 			Some(value) => value,
 			None => {
-				let mut reader = read_block(
+				// Seek to the start of the payload and read it in.
+				self.dat_reader
+					.seek(SeekFrom::Start(meta.input_offset.try_into().unwrap()))?;
+				let mut reader = BlockPayload::new(
 					&mut self.dat_reader,
-					u32::try_from(meta.input_offset).unwrap(),
-				)?;
+					meta.input_size.try_into().unwrap(),
+					meta.output_size.try_into().unwrap(),
+				);
 
 				let mut buffer = Vec::with_capacity(meta.output_size);
 				let count = reader.read_to_end(&mut buffer)?;

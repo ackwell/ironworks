@@ -31,34 +31,51 @@ pub enum FileKind {
 #[binread]
 #[derive(Debug)]
 #[br(little)]
-struct BlockHeader {
-	_size: u32,
+pub struct BlockHeader {
+	pub size: u32,
 	// unknown1: u32,
 	#[br(pad_before = 4)]
-	compressed_size: u32,
-	decompressed_size: u32,
+	pub compressed_size: u32,
+	pub decompressed_size: u32,
 }
 
-// TODO: move this into a block struct of some kind if we do lazy reading?
-pub fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<BlockReader<R>> {
+pub fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<BlockPayload<R>> {
 	// Seek to the block and read its header so we know how much to expect in the rest of the block.
 	reader.seek(SeekFrom::Start(offset.into()))?;
 	let block_header =
 		BlockHeader::read(reader).map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
-	// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
-
-	// Build a reader for the block.
-	let reader = match block_header.compressed_size > MAX_COMPRESSED_BLOCK_SIZE {
-		true => BlockReader::Loose(reader.take(block_header.decompressed_size.into())),
-		false => BlockReader::Compressed(DeflateDecoder::new(
-			reader.take(block_header.compressed_size.into()),
-		)),
-	};
-
-	Ok(reader)
+	Ok(BlockPayload::new(
+		reader,
+		block_header.compressed_size,
+		block_header.decompressed_size,
+	))
 }
 
+pub struct BlockPayload<'a, R> {
+	block_reader: BlockReader<'a, R>,
+}
+
+impl<'a, R: Read + Seek> BlockPayload<'a, R> {
+	pub fn new(reader: &'a mut R, input_size: u32, output_size: u32) -> Self {
+		// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
+
+		let block_reader = match input_size > MAX_COMPRESSED_BLOCK_SIZE {
+			true => BlockReader::Loose(reader.take(output_size.into())),
+			false => BlockReader::Compressed(DeflateDecoder::new(reader.take(input_size.into()))),
+		};
+
+		Self { block_reader }
+	}
+}
+
+impl<R: Read> Read for BlockPayload<'_, R> {
+	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		self.block_reader.read(buf)
+	}
+}
+
+// TODO: this can probably be Either<>
 pub enum BlockReader<'a, R> {
 	Loose(io::Take<&'a mut R>),
 	Compressed(DeflateDecoder<io::Take<&'a mut R>>),
