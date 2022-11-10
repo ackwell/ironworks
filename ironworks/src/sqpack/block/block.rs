@@ -30,11 +30,15 @@ pub fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<Blo
 	))
 }
 
+/// Reader for a single potentially-compressed block payload.
+#[derive(Debug)]
 pub struct BlockPayload<'a, R> {
 	block_reader: Either<Take<&'a mut R>, DeflateDecoder<Take<&'a mut R>>>,
 }
 
 impl<'a, R: Read + Seek> BlockPayload<'a, R> {
+	/// Construct a new block payload reader, reading from the provided reader at
+	/// it's current position. The reader will be advanced to the end of the payload.
 	pub fn new(reader: &'a mut R, input_size: u32, output_size: u32) -> Self {
 		// TODO: Look into the padding on compressed blocks, there's some funky stuff going on in some cases. Ref. Coinach/IO/File & Lumina.
 

@@ -175,7 +175,6 @@ impl sqpack::Resource for Version {
 			};
 
 			// Read the commands for this patch.
-			// TODO: This construction of a file reader here is _very_ janky. Should be removed, and pulled from the cache in some way.
 			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
 			for command in commands {
 				empty = false;
@@ -185,7 +184,6 @@ impl sqpack::Resource for Version {
 					_ => unreachable!(),
 				};
 
-				// TODO: this should be brought in from sqpack proper
 				for block in blocks {
 					file.seek(SeekFrom::Start(block.offset()))?;
 					let mut reader = sqpack::BlockPayload::new(

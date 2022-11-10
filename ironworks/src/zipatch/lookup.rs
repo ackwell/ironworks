@@ -32,7 +32,6 @@ pub struct SqPackSpecifier {
 
 #[derive(Debug)]
 pub struct PatchLookup {
-	// TODO: if i move the reader generation to consumer-provided in some manner; this can probably be a ref or w/e to that. As-is, this is horrid.
 	pub path: PathBuf,
 
 	// TODO: consider storing a slightly more ergonomic struct instead of commands
@@ -42,16 +41,12 @@ pub struct PatchLookup {
 }
 
 impl PatchLookup {
-	// TODO: clean this up a bit
 	pub fn new(path: &Path) -> Result<Self> {
 		read_lookup(path)
 	}
 }
 
 fn read_lookup(path: &Path) -> Result<PatchLookup> {
-	// TODO: this should be log:: or something
-	println!("reading patch: {path:?}");
-
 	let file = BufReader::new(fs::File::open(path)?);
 	let zipatch = ZiPatchFile::read(file)?;
 
