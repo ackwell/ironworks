@@ -250,6 +250,9 @@ impl sqpack::Resource for Version {
 			let lookup = maybe_lookup?;
 
 			// Try to get the file from the add commands first.
+			// ASSUMPTION: Square seemingly never breaks new files up across multiple
+			// chunks - an entire file can be read by looking for the single add
+			// command starting at the precise offset we're looking for.
 			if let Some(command) = lookup.add_commands.get(&target) {
 				return read_add_command(&lookup, command);
 			};
@@ -261,7 +264,7 @@ impl sqpack::Resource for Version {
 			// remote. If everything has blown up in your face because of this and you
 			// find this comment, bap me.
 			if let Some(commands) = lookup.add_operations.get(&target.0) {
-				return read_file_commands(&lookup, target.1, commands);
+				return read_file_commands(&lookup, &location, commands);
 			};
 		}
 
@@ -281,14 +284,29 @@ fn read_add_command(lookup: &PatchLookup, command: &AddCommand) -> Result<FileRe
 
 fn read_file_commands(
 	lookup: &PatchLookup,
-	offset: u32,
+	location: &sqpack::Location,
 	commands: &[FileOperationCommand],
 ) -> Result<FileReader> {
-	// Build an iterator over the commands. We're skipping any commands that sit
-	// entirely before the target offset to minimise how much needs to be read.
+	let offset = location.offset();
+
+	let outside_target = |offset: u64, size: u64| {
+		// If the size is available, filter out commands that sit beyond that size -
+		// otherwise, assume the file could be infintely long.
+		let before_end = location
+			.size()
+			.map(|size| offset < (location.offset() + size).into())
+			.unwrap_or(true);
+
+		let after_start = (offset + size) > location.offset().into();
+
+		after_start && before_end
+	};
+
+	// Build an iterator over the commands. We're filtering any commands that sit
+	// outside the target range to minimise further processing.
 	let commands_iter = commands
 		.iter()
-		.skip_while(|command| (command.target_offset() + command.target_size()) < offset.into());
+		.filter(|command| outside_target(command.target_offset(), command.target_size()));
 
 	// Extract the metadata for each block in each command.
 	let block_iter = commands_iter.flat_map(|command| {
@@ -314,11 +332,14 @@ fn read_file_commands(
 
 	// ASSUMPTION: FileOperation commands will apply their data in sequential order.
 
-	// Do another skip pass, filtering out any remaining metadata (from AddFile
-	// blocks) that fall entirely before the target offset.
+	// Do another pass, filtering out any remaining metadata (from AddFile blocks)
+	// that fall entirely outside the target range.
 	let metadata = block_iter
-		.skip_while(|meta| {
-			(meta.output_offset + meta.output_size) < usize::try_from(offset).unwrap()
+		.filter(|meta| {
+			outside_target(
+				meta.output_offset.try_into().unwrap(),
+				meta.output_size.try_into().unwrap(),
+			)
 		})
 		.collect::<Vec<_>>();
 

@@ -78,10 +78,6 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 						extension: SqPackFileExtension::Dat(file.file_id().try_into().unwrap()),
 					};
 
-					// ASSUMPTION: Square seemingly never breaks new files up across multiple
-					// chunks - an entire file can be read by looking for the single add
-					// command starting at the precise offset we're looking for.
-
 					let old_value = lookup
 						.add_commands
 						.insert((specifier, command.target_offset()), command);
