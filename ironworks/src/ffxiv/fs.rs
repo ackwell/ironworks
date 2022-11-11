@@ -181,11 +181,9 @@ impl Resource for FsResource {
 		let offset = u64::from(location.offset());
 		// Resolve the size early in case we need to seek to find the end. Using
 		// longhand here so I can shortcut seek failures.
-		let size = if let Some(size) = location.size() {
-			u64::from(size)
-		} else {
-			let end_pos = file.seek(io::SeekFrom::End(0))?;
-			offset - end_pos
+		let size = match location.size() {
+			Some(size) => u64::from(size),
+			None => offset - file.seek(io::SeekFrom::End(0))?,
 		};
 
 		file.seek(io::SeekFrom::Start(offset))?;

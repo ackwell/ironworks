@@ -11,6 +11,7 @@ use super::{
 	version::{Version, VersionSpecifier},
 };
 
+/// A struct providing access to data contained in ZiPatch-formatted patch files.
 #[derive(Debug)]
 pub struct ZiPatch {
 	repositories: HashMap<u8, Arc<PatchRepository>>,
@@ -19,6 +20,7 @@ pub struct ZiPatch {
 }
 
 impl ZiPatch {
+	/// Create a blank ZiPatch instance.
 	pub fn new() -> Self {
 		Self {
 			repositories: HashMap::default(),
@@ -26,18 +28,29 @@ impl ZiPatch {
 		}
 	}
 
+	/// Add a patch repository for the given SqPack repository ID.
 	pub fn with_repository(mut self, id: u8, repository: PatchRepository) -> Self {
 		self.add_repository(id, repository);
 		self
 	}
 
+	/// Add a patch repository for the given SqPack repository ID.
 	pub fn add_repository(&mut self, id: u8, repository: PatchRepository) {
 		self.repositories.insert(id, Arc::new(repository));
 	}
 
+	/// Create a view into the patch data at the specified version. Repositories
+	/// configured with this instance will be snapshot at the point in time the
+	/// version is created.
 	pub fn version(&self, specifier: VersionSpecifier) -> Version {
 		// note; snapshotting repositories state here is intentional. doc it.
 		Version::new(specifier, self.repositories.clone(), self.data.clone())
+	}
+}
+
+impl Default for ZiPatch {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 

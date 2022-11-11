@@ -6,13 +6,18 @@ use std::{
 
 use crate::error::Result;
 
+/// Representation of a folder containing patch files.
 #[derive(Debug)]
 pub struct PatchRepository {
+	/// The filesystem path to the folder containing the patch files.
 	pub base_directory: PathBuf,
+	/// List of patch names. This should _not_ include the `.patch` suffix.
 	pub patches: Vec<String>,
 }
 
 impl PatchRepository {
+	/// Read a patch repository from the specified path. Patches will be sorted
+	/// following the FFXIV patch ordering.
 	pub fn at(repository_path: &Path) -> Result<Self> {
 		let mut patches = fs::read_dir(repository_path)?
 			.filter_map(|entry| {

@@ -51,23 +51,29 @@ const CATEGORIES: &[Option<&str>] = &[
 type FileReader =
 	Either<TakeSeekable<BufReader<fs::File>>, sqpack::BlockStream<BufReader<fs::File>>>;
 
+/// Specifier of a mapping between repositories and patches within them that
+/// together represent a single cohesive cross-repository version.
 #[derive(Debug)]
 pub struct VersionSpecifier {
 	patches: HashMap<u8, String>,
 }
 
 impl VersionSpecifier {
+	/// Create a VersionSpecifier that will pull from the newest patches available.
 	pub fn latest() -> Self {
 		Self {
 			patches: HashMap::new(),
 		}
 	}
 
+	/// Create a VersionSpecifier that will read from, at latest, the specified
+	/// patches. Omitted repository IDs will read from the most recent patch available.
 	pub fn with_patches(patches: HashMap<u8, String>) -> Self {
 		Self { patches }
 	}
 }
 
+/// A snapshot into the data available in patch files as of a specified set of patches.
 #[derive(Debug)]
 pub struct Version {
 	specifier: VersionSpecifier,

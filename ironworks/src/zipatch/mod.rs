@@ -1,5 +1,4 @@
-// Temp
-#![allow(missing_docs, clippy::new_without_default)]
+//! Adapters to allow working with game data directly out of ZiPatch files.
 
 mod lookup;
 mod repository;
