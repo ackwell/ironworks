@@ -17,6 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
 ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
+zipatch = ["patch", "sqpack"]
 
 # File types
 eqdp = ["dep:modular-bitfield"]
@@ -33,6 +34,7 @@ tex = ["dep:modular-bitfield", "dep:num_enum"]
 [dependencies]
 binrw = "0.10.0"
 derivative = "2.2.0"
+either = "1.8.0"
 getset = "0.1.2"
 thiserror = "1.0.30"
 

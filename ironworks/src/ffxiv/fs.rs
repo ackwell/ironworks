@@ -1,10 +1,15 @@
 use std::{
 	ffi::OsStr,
-	fs, io,
+	fs,
+	io::{self, Seek},
 	path::{Path, PathBuf},
 };
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	sqpack::Location,
+	utility::{TakeSeekable, TakeSeekableExt},
+};
 
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
@@ -164,10 +169,27 @@ impl Resource for FsResource {
 		read_index(self.build_file_path(repository, category, chunk, "index2")?)
 	}
 
-	type Dat = fs::File;
-	fn dat(&self, repository: u8, category: u8, chunk: u8, dat: u8) -> Result<Self::Dat> {
-		let path = self.build_file_path(repository, category, chunk, &format!("dat{dat}"))?;
-		Ok(fs::File::open(path)?)
+	type File = TakeSeekable<io::BufReader<fs::File>>;
+	fn file(&self, repository: u8, category: u8, location: Location) -> Result<Self::File> {
+		let path = self.build_file_path(
+			repository,
+			category,
+			location.chunk(),
+			&format!("dat{}", location.data_file()),
+		)?;
+		let mut file = io::BufReader::new(fs::File::open(path)?);
+
+		let offset = u64::from(location.offset());
+		// Resolve the size early in case we need to seek to find the end. Using
+		// longhand here so I can shortcut seek failures.
+		let size = match location.size() {
+			Some(size) => u64::from(size),
+			None => offset - file.seek(io::SeekFrom::End(0))?,
+		};
+
+		file.seek(io::SeekFrom::Start(offset))?;
+
+		Ok(file.take_seekable(size)?)
 	}
 }
 

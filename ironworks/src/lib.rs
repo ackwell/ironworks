@@ -18,6 +18,8 @@ pub mod file;
 pub mod sestring;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
+#[cfg(feature = "zipatch")]
+pub mod zipatch;
 
 pub use {
 	crate::ironworks::{FileStream, Ironworks, Resource},

@@ -1,11 +1,18 @@
 //! Tools for working with the SqPack package format.
 
+mod block;
 mod file;
 mod index;
 mod resource;
 mod sqpack;
 
-pub use {file::File, resource::Resource, sqpack::SqPack};
+pub use {
+	block::{BlockMetadata, BlockPayload, BlockStream},
+	file::File,
+	index::Location,
+	resource::Resource,
+	sqpack::SqPack,
+};
 
 #[cfg(test)]
 mod test {

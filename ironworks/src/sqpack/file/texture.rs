@@ -2,9 +2,9 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 use binrw::{binread, BinRead, VecArgs};
 
-use crate::error::Result;
+use crate::{error::Result, sqpack::block::read_block};
 
-use super::shared::{read_block, Header};
+use super::shared::Header;
 
 #[binread]
 #[br(little)]

@@ -1,4 +1,4 @@
-use std::io::SeekFrom;
+use std::{collections::BTreeSet, io::SeekFrom};
 
 use binrw::binread;
 
@@ -38,10 +38,13 @@ pub struct Index1 {
 		count = index_header.index_data.size / Entry::SIZE,
 	)]
 	indexes: Vec<Entry>,
+
+	#[br(calc = indexes.iter().map(|entry| entry.file_metadata.offset).collect())]
+	offsets: BTreeSet<u32>,
 }
 
 impl Index1 {
-	pub fn find(&self, path: &str) -> Result<FileMetadata> {
+	pub fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
 		// Calculate the Index1 hash of the path
 		let hashed_segments = path
 			.rsplitn(2, '/')
@@ -64,7 +67,18 @@ impl Index1 {
 		self.indexes
 			.iter()
 			.find(|entry| entry.hash == hash)
-			.map(|entry| entry.file_metadata.clone())
+			.map(|entry| {
+				let metadata = entry.file_metadata.clone();
+
+				// Look up the offset after this meta, if any exists.
+				let size = self
+					.offsets
+					.range(metadata.offset + 1..)
+					.next()
+					.map(|stop| stop - metadata.offset);
+
+				(metadata, size)
+			})
 			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.into())))
 	}
 }
