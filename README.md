@@ -29,7 +29,7 @@ ironworks = {version = "0.4.1", features = ["excel", "sqpack"]}
 ```
 
 ```rust
-use ironworks::{excel::Excel, ffxiv, file::exl, sqpack::SqPack, Error, Ironworks};
+use ironworks::{excel::{Excel, Language}, file::exl, sqpack::SqPack, Error, Ironworks};
 
 fn main() -> Result<(), Error> {
   // Build the core ironworks instance. Additional resources can be registered
@@ -43,8 +43,8 @@ fn main() -> Result<(), Error> {
 
   // Read fields out of excel.
   let excel = Excel::with()
-    .language(ffxiv::Language::English)
-    .build(&ironworks, ffxiv::Mapper::new());
+    .language(Language::English)
+    .build(&ironworks);
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())

@@ -2,7 +2,7 @@ use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::{borrowed::Borrowed, mapper::Mapper, metadata::SheetMetadata, row::Row},
+	excel::{borrowed::Borrowed, language::Language, metadata::SheetMetadata, path, row::Row},
 	file::{exd, exh},
 	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 	Ironworks,
@@ -13,24 +13,20 @@ use super::{
 	SheetIterator,
 };
 
-// TODO: Where should this go? It's also effectively used by the main Excel struct.
-const LANGUAGE_NONE: u8 = 0;
-
 // TODO: how much should be in this? Arguably the mapper &co might be relevant given that the mapper is required to fill the caches, etc.
 /// Data cache for raw values, decoupled from mapping/metadata concerns.
 #[derive(Debug, Default)]
 pub struct SheetCache {
 	header: OptionCache<exh::ExcelHeader>,
-	pages: HashMapCache<(u32, u8), exd::ExcelData>,
+	pages: HashMapCache<(u32, Language), exd::ExcelData>,
 }
 
 /// A sheet within an Excel database.
 pub struct Sheet<'i, S> {
 	sheet_metadata: S,
-	default_language: u8,
+	default_language: Language,
 
 	ironworks: Borrowed<'i, Ironworks>,
-	mapper: &'i dyn Mapper,
 
 	cache: Arc<SheetCache>,
 }
@@ -47,9 +43,8 @@ impl<S: Debug> Debug for Sheet<'_, S> {
 impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	pub(crate) fn new(
 		sheet_metadata: S,
-		default_language: u8,
+		default_language: Language,
 		ironworks: Borrowed<'i, Ironworks>,
-		mapper: &'i dyn Mapper,
 		cache: Arc<SheetCache>,
 	) -> Self {
 		Self {
@@ -57,7 +52,6 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			default_language,
 
 			ironworks,
-			mapper,
 
 			cache,
 		}
@@ -139,7 +133,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
 		self.cache.header.try_get_or_insert(|| {
-			let path = self.mapper.exh(&self.sheet_metadata.name());
+			let path = path::exh(&self.sheet_metadata.name());
 			self.ironworks.file(&path)
 		})
 	}
@@ -149,21 +143,22 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		&self,
 		row_id: u32,
 		subrow_id: u16,
-		language: Option<u8>,
+		language: Option<Language>,
 	) -> Result<Arc<exd::ExcelData>> {
 		let header = self.header()?;
 
 		// Get the language to load, or NONE if the language is not supported by this sheet.
 		// TODO: Should an explicit language request fail hard on miss?
 		let requested_language = language.unwrap_or(self.default_language);
-		let language = *header
-			.languages()
-			.get(&requested_language)
-			.or_else(|| header.languages().get(&LANGUAGE_NONE))
+		let language = [requested_language, Language::None]
+			.into_iter()
+			.find(|&language| header.languages().contains(&language.into()))
 			// TODO: Should this be Invalid or NotFound?
 			// TODO: Should we have an explicit ErrorValue for language?
 			.ok_or_else(|| {
-				Error::NotFound(ErrorValue::Other(format!("language {requested_language}")))
+				Error::NotFound(ErrorValue::Other(format!(
+					"language {requested_language:?}"
+				)))
 			})?;
 
 		let start_id = header
@@ -183,9 +178,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		self.cache
 			.pages
 			.try_get_or_insert((start_id, language), || {
-				let path = self
-					.mapper
-					.exd(&self.sheet_metadata.name(), start_id, language);
+				let path = path::exd(&self.sheet_metadata.name(), start_id, language);
 				self.ironworks.file(&path)
 			})
 	}

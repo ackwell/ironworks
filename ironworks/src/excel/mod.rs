@@ -3,15 +3,16 @@
 mod borrowed;
 mod excel;
 mod field;
-mod mapper;
+mod language;
 mod metadata;
+mod path;
 mod row;
 mod sheet;
 
 pub use {
 	excel::{Excel, ExcelOptions},
 	field::Field,
-	mapper::Mapper,
+	language::Language,
 	metadata::SheetMetadata,
 	row::Row,
 	sheet::{RowOptions, Sheet, SheetIterator},
@@ -27,6 +28,7 @@ mod test {
 		assert_send::<Excel>();
 		assert_send::<ExcelOptions>();
 		assert_send::<Field>();
+		assert_send::<Language>();
 		assert_send::<Row>();
 		assert_send::<RowOptions<()>>();
 		assert_send::<Sheet<()>>();
@@ -39,6 +41,7 @@ mod test {
 		assert_sync::<Excel>();
 		assert_sync::<ExcelOptions>();
 		assert_sync::<Field>();
+		assert_sync::<Language>();
 		assert_sync::<Row>();
 		assert_sync::<RowOptions<()>>();
 		assert_sync::<Sheet<()>>();

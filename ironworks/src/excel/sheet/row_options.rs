@@ -1,4 +1,7 @@
-use crate::{error::Result, excel::metadata::SheetMetadata};
+use crate::{
+	error::Result,
+	excel::{language::Language, metadata::SheetMetadata},
+};
 
 use super::{sheet::Sheet, SheetIterator};
 
@@ -12,7 +15,7 @@ pub struct RowOptions<'s, S> {
 
 #[derive(Debug, Default, Clone)]
 pub struct RowConfig {
-	pub language: Option<u8>,
+	pub language: Option<Language>,
 }
 
 impl<'s, S: SheetMetadata> RowOptions<'s, S> {
@@ -24,8 +27,8 @@ impl<'s, S: SheetMetadata> RowOptions<'s, S> {
 	}
 
 	/// Set the language to fetch.
-	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
-		self.config.language = Some(language.into());
+	pub fn language(&mut self, language: Language) -> &mut Self {
+		self.config.language = Some(language);
 		self
 	}
 
