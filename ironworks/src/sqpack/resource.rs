@@ -6,10 +6,6 @@ use super::index::Location;
 
 /// Resource adapter to fetch information and data on request for a SqPack instance.
 pub trait Resource {
-	/// Retrieve the `(repository, category)` for a given SqPack path, or `None` if
-	/// the path is invalid or does not conform to valid formatting for this resource.
-	fn path_metadata(&self, path: &str) -> Option<(u8, u8)>;
-
 	/// Get the version string for a given repository.
 	fn version(&self, repository: u8) -> Result<String>;
 

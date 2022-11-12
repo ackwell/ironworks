@@ -10,6 +10,34 @@ use crate::{
 
 use super::{file::File, index::Index};
 
+const CATEGORIES: &[Option<&str>] = &[
+	/* 0x00 */ Some("common"),
+	/* 0x01 */ Some("bgcommon"),
+	/* 0x02 */ Some("bg"),
+	/* 0x03 */ Some("cut"),
+	/* 0x04 */ Some("chara"),
+	/* 0x05 */ Some("shader"),
+	/* 0x06 */ Some("ui"),
+	/* 0x07 */ Some("sound"),
+	/* 0x08 */ Some("vfx"),
+	/* 0x09 */ Some("ui_script"),
+	/* 0x0a */ Some("exd"),
+	/* 0x0b */ Some("game_script"),
+	/* 0x0c */ Some("music"),
+	/* 0x0d */ None,
+	/* 0x0e */ None,
+	/* 0x0f */ None,
+	/* 0x10 */ None,
+	/* 0x11 */ None,
+	/* 0x12 */ Some("_sqpack_test"),
+	/* 0x13 */ Some("_debug"),
+];
+
+// While this is pretty trivially computed, even just going to ex9 gives us a lead time of a good 10 years or so.
+const REPOSITORIES: &[&str] = &[
+	"ffxiv", "ex1", "ex2", "ex3", "ex4", "ex5", "ex6", "ex7", "ex8", "ex9",
+];
+
 /// Representation of a group of SqPack package files forming a single data set.
 #[derive(Debug)]
 pub struct SqPack<R> {
@@ -58,9 +86,30 @@ impl<R: sqpack::Resource> SqPack<R> {
 	}
 
 	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
-		self.resource
-			.path_metadata(path)
-			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.to_string())))
+		// NOTE: This could be technically-faster by doing that cursed logic the
+		// game does, checking the first 3 characters for category and such - but I
+		// think this is cleaner; especially to read.
+
+		let path_not_found = || Error::NotFound(ErrorValue::Path(path.to_string()));
+
+		// TODO: Whoooooole lotta chances for let else here.
+		let (category_segment, repository_segment) =
+			match path.split('/').take(2).collect::<Vec<_>>()[..] {
+				[category, repository] => (category, repository),
+				_ => return Err(path_not_found()),
+			};
+
+		let repository = REPOSITORIES
+			.iter()
+			.position(|&repository| repository == repository_segment)
+			.unwrap_or(0);
+
+		let category = CATEGORIES
+			.iter()
+			.position(|&category| category == Some(category_segment))
+			.ok_or_else(path_not_found)?;
+
+		Ok((repository.try_into().unwrap(), category.try_into().unwrap()))
 	}
 }
 
