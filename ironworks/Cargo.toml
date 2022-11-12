@@ -15,7 +15,6 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 # Modules
 excel = ["dep:enum-as-inner", "dep:num_enum", "exd", "exh", "exl"]
-ffxiv = ["dep:num_enum"]
 sqpack = ["dep:flate2"]
 zipatch = ["patch", "sqpack"]
 

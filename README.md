@@ -16,7 +16,6 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 | Feature   | Description                                                             |
 | --------- | ----------------------------------------------------------------------- |
 | `excel`   | Read data from Excel databases.                                         |
-| `ffxiv`   | Bindings for using ironworks with FFXIV.                                |
 | `sqpack`  | Navigate and extract files from the SqPack package format.              |
 | `zipatch` | Adapters to allow working with game data directly out of ZiPatch files. |
 
@@ -26,7 +25,7 @@ Additionally, file type readers are opt-in. The feature modules above will autom
 
 ```toml
 [dependencies]
-ironworks = {version = "0.4.1", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.4.1", features = ["excel", "sqpack"]}
 ```
 
 ```rust
