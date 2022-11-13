@@ -16,7 +16,6 @@ To minimise unused code & dependencies, ironworks is split into a number of disc
 | Feature   | Description                                                             |
 | --------- | ----------------------------------------------------------------------- |
 | `excel`   | Read data from Excel databases.                                         |
-| `ffxiv`   | Bindings for using ironworks with FFXIV.                                |
 | `sqpack`  | Navigate and extract files from the SqPack package format.              |
 | `zipatch` | Adapters to allow working with game data directly out of ZiPatch files. |
 
@@ -26,26 +25,28 @@ Additionally, file type readers are opt-in. The feature modules above will autom
 
 ```toml
 [dependencies]
-ironworks = {version = "0.4.1", features = ["excel", "ffxiv", "sqpack"]}
+ironworks = {version = "0.4.1", features = ["excel", "sqpack"]}
 ```
 
 ```rust
-use ironworks::{excel::Excel, ffxiv, file::exl, sqpack::SqPack, Error, Ironworks};
+use ironworks::{
+  excel::{Excel, Language},
+  file::exl,
+  sqpack::{Install, SqPack},
+  Error, Ironworks,
+};
 
 fn main() -> Result<(), Error> {
   // Build the core ironworks instance. Additional resources can be registered
   // for more complicated file layouts.
-  let ironworks = Ironworks::new()
-    .with_resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+  let ironworks = Ironworks::new().with_resource(SqPack::new(Install::search().unwrap()));
 
   // Read out files as raw bytes or structured data.
   let bytes = ironworks.file::<Vec<u8>>("exd/root.exl")?;
   let list = ironworks.file::<exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
-  let excel = Excel::with()
-    .language(ffxiv::Language::English)
-    .build(&ironworks, ffxiv::Mapper::new());
+  let excel = Excel::with().language(Language::English).build(&ironworks);
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())

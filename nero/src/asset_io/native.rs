@@ -3,7 +3,7 @@ use bevy::{
 	tasks::{AsyncComputeTaskPool, Task},
 };
 use futures_lite::future;
-use ironworks::{ffxiv, sqpack::SqPack};
+use ironworks::sqpack::{Install, SqPack};
 use iyes_loopless::prelude::*;
 use rfd::{AsyncFileDialog, FileHandle};
 
@@ -16,7 +16,7 @@ impl Plugin for NativeIronworksPlugin {
 		let ironworks = app.world.get_resource::<IronworksResource>().unwrap();
 
 		// Try to find a game install, skipping straight to ready if one was found.
-		let state = match ffxiv::FsResource::search() {
+		let state = match Install::search() {
 			Some(resource) => {
 				ironworks
 					.write()
@@ -55,7 +55,7 @@ fn poll_path_selection(
 				// A path was selected, add it as a resource and mark ready.
 				// TODO: try to sanity check the path somehow? Wrong path will just blow up. Might be able to query if one of the .ver files exists?
 				Some(file_handle) => {
-					let resource = ffxiv::FsResource::at(file_handle.path());
+					let resource = Install::at(file_handle.path());
 					ironworks
 						.write()
 						.unwrap()

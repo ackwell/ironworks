@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
+use ironworks::{
+	excel::{Excel, Language},
+	sqpack::{Install, SqPack},
+	Ironworks,
+};
 
 pub struct Data {
 	// TODO: this should be a lazy map of some kind once this is using real data
@@ -32,11 +36,10 @@ pub struct Version {
 impl Version {
 	fn new() -> Self {
 		// TODO: Work out how to handle languages
-		let ironworks =
-			Ironworks::new().with_resource(SqPack::new(ffxiv::FsResource::search().unwrap()));
+		let ironworks = Ironworks::new().with_resource(SqPack::new(Install::search().unwrap()));
 		let excel = Excel::with()
-			.language(ffxiv::Language::English)
-			.build(Arc::new(ironworks), ffxiv::Mapper::new());
+			.language(Language::English)
+			.build(Arc::new(ironworks));
 
 		Version {
 			excel: Arc::new(excel),

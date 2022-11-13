@@ -7,9 +7,10 @@ use std::{
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	sqpack::Location,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
+
+use super::{Location, Resource};
 
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
@@ -23,29 +24,6 @@ const WSL_PREFIX: &[&str] = &["/mnt", "c"];
 
 const SQPACK_PATH: &[&str] = &["game", "sqpack"];
 
-const CATEGORIES: &[Option<&str>] = &[
-	/* 0x00 */ Some("common"),
-	/* 0x01 */ Some("bgcommon"),
-	/* 0x02 */ Some("bg"),
-	/* 0x03 */ Some("cut"),
-	/* 0x04 */ Some("chara"),
-	/* 0x05 */ Some("shader"),
-	/* 0x06 */ Some("ui"),
-	/* 0x07 */ Some("sound"),
-	/* 0x08 */ Some("vfx"),
-	/* 0x09 */ Some("ui_script"),
-	/* 0x0a */ Some("exd"),
-	/* 0x0b */ Some("game_script"),
-	/* 0x0c */ Some("music"),
-	/* 0x0d */ None,
-	/* 0x0e */ None,
-	/* 0x0f */ None,
-	/* 0x10 */ None,
-	/* 0x11 */ None,
-	/* 0x12 */ Some("_sqpack_test"),
-	/* 0x13 */ Some("_debug"),
-];
-
 #[allow(dead_code)]
 #[derive(Debug)]
 enum Platform {
@@ -54,17 +32,15 @@ enum Platform {
 	PS4 = 2,
 }
 
-/// Resource adapter pre-configured to work with on-disk sqpack packages laid
-/// out in the FFXIV format.
+/// SqPack resource for reading game data from an on-disk FFXIV installation.
 #[derive(Debug)]
-pub struct FsResource {
+pub struct Install {
 	path: PathBuf,
 	repositories: Vec<Option<String>>,
 	platform: Platform,
 }
 
-impl FsResource {
-	// TODO: should this error instead of option? i'm tempted to say it should for the sake of consumers
+impl Install {
 	/// Search for a FFXIV install in common locations, configuring a resource
 	/// instance with the found install, if any.
 	pub fn search() -> Option<Self> {
@@ -119,32 +95,7 @@ impl FsResource {
 	}
 }
 
-#[cfg(feature = "sqpack")]
-use crate::sqpack::Resource;
-
-#[cfg(feature = "sqpack")]
-impl Resource for FsResource {
-	fn path_metadata(&self, path: &str) -> Option<(u8, u8)> {
-		let split = path.split('/').take(2).collect::<Vec<_>>();
-
-		match split[..] {
-			[path_category, path_repository] => Some((
-				self.repositories
-					.iter()
-					.position(|repository| repository.as_deref() == Some(path_repository))
-					.unwrap_or(0)
-					.try_into()
-					.unwrap(),
-				CATEGORIES
-					.iter()
-					.position(|category| category == &Some(path_category))?
-					.try_into()
-					.unwrap(),
-			)),
-			_ => None,
-		}
-	}
-
+impl Resource for Install {
 	fn version(&self, repository: u8) -> Result<String> {
 		let path = match repository {
 			0 => self.path.join("..").join("ffxivgame.ver"),
@@ -212,17 +163,12 @@ fn find_install() -> Option<PathBuf> {
 fn find_repositories(path: &Path) -> Vec<Option<String>> {
 	(0..=9)
 		.map(|index| {
-			let name = if index == 0 {
-				"ffxiv".into()
-			} else {
-				format!("ex{}", index)
+			let name = match index {
+				0 => "ffxiv".into(),
+				other => format!("ex{other}"),
 			};
 
-			if path.join(&name).exists() {
-				Some(name)
-			} else {
-				None
-			}
+			path.join(&name).exists().then_some(name)
 		})
 		.collect()
 }

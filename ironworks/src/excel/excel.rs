@@ -9,40 +9,36 @@ use crate::{
 
 use super::{
 	borrowed::Borrowed,
-	mapper::Mapper,
+	language::Language,
 	metadata::SheetMetadata,
+	path,
 	sheet::{Sheet, SheetCache},
 };
 
 /// Options for the root Excel database.
 #[derive(Debug, Default)]
 pub struct ExcelOptions {
-	pub(super) language: Option<u8>,
+	pub(super) language: Option<Language>,
 }
 
 impl<'i> ExcelOptions {
 	/// Set the default language of the database
-	pub fn language(&mut self, language: impl Into<u8>) -> &mut Self {
-		self.language = Some(language.into());
+	pub fn language(&mut self, language: Language) -> &mut Self {
+		self.language = Some(language);
 		self
 	}
 
 	/// Build the configured Excel database.
-	pub fn build(
-		&self,
-		ironworks: impl Into<Borrowed<'i, Ironworks>>,
-		mapper: impl Mapper + 'static,
-	) -> Excel<'i> {
-		Excel::with_options(ironworks, mapper, self)
+	pub fn build(&self, ironworks: impl Into<Borrowed<'i, Ironworks>>) -> Excel<'i> {
+		Excel::with_options(ironworks, self)
 	}
 }
 
 /// An Excel database.
 pub struct Excel<'i> {
-	default_language: u8,
+	default_language: Language,
 
 	ironworks: Borrowed<'i, Ironworks>,
-	mapper: Box<dyn Mapper>,
 
 	list: OptionCache<file::exl::ExcelList>,
 	sheets: HashMapCache<String, SheetCache>,
@@ -58,28 +54,20 @@ impl Debug for Excel<'_> {
 
 impl<'i> Excel<'i> {
 	/// Build an Excel database.
-	pub fn new(
-		ironworks: impl Into<Borrowed<'i, Ironworks>>,
-		mapper: impl Mapper + 'static,
-	) -> Self {
-		Self::with().build(ironworks, mapper)
+	pub fn new(ironworks: impl Into<Borrowed<'i, Ironworks>>) -> Self {
+		Self::with().build(ironworks)
 	}
 
 	/// Build an Excel database with additional options.
 	pub fn with() -> ExcelOptions {
-		Default::default()
+		ExcelOptions::default()
 	}
 
-	fn with_options(
-		ironworks: impl Into<Borrowed<'i, Ironworks>>,
-		mapper: impl Mapper + 'static,
-		options: &ExcelOptions,
-	) -> Self {
+	fn with_options(ironworks: impl Into<Borrowed<'i, Ironworks>>, options: &ExcelOptions) -> Self {
 		Self {
-			default_language: options.language.unwrap_or(0),
+			default_language: options.language.unwrap_or(Language::None),
 
 			ironworks: ironworks.into(),
-			mapper: Box::new(mapper),
 
 			list: Default::default(),
 			sheets: Default::default(),
@@ -88,13 +76,13 @@ impl<'i> Excel<'i> {
 
 	/// Get the version string of the database.
 	pub fn version(&self) -> Result<String> {
-		self.ironworks.version(&self.mapper.exl())
+		self.ironworks.version(path::exl())
 	}
 
 	/// Fetch the authoritative list of sheets in the database.
 	pub fn list(&self) -> Result<Arc<file::exl::ExcelList>> {
 		self.list
-			.try_get_or_insert(|| self.ironworks.file(&self.mapper.exl()))
+			.try_get_or_insert(|| self.ironworks.file(path::exl()))
 	}
 
 	/// Fetch a sheet from the database.
@@ -117,7 +105,6 @@ impl<'i> Excel<'i> {
 			sheet_metadata,
 			self.default_language,
 			self.ironworks.clone(),
-			self.mapper.as_ref(),
 			cache,
 		))
 	}
