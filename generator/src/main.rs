@@ -6,7 +6,11 @@ use std::{
 use anyhow::{Context, Result};
 use clap::Parser;
 use generate::generate_sheet;
-use ironworks::{excel::Excel, ffxiv, sqpack::SqPack, Ironworks};
+use ironworks::{
+	excel::Excel,
+	sqpack::{Install, SqPack},
+	Ironworks,
+};
 use ironworks_schema::{saint_coinach::Provider, Schema, Sheet as SchemaSheet};
 use quote::{format_ident, quote};
 use rust_embed::RustEmbed;
@@ -45,11 +49,11 @@ fn main() -> Result<()> {
 
 	// We'll need a live Excel DB to generate sheets, set one up.
 	let fs_resource = match args.game_path {
-		Some(path) => ffxiv::FsResource::at(&path),
-		None => ffxiv::FsResource::search().context("Game path search failed.")?,
+		Some(path) => Install::at(&path),
+		None => Install::search().context("Game path search failed.")?,
 	};
 	let ironworks = Ironworks::new().with_resource(SqPack::new(fs_resource));
-	let excel = Excel::new(&ironworks, ffxiv::Mapper::new());
+	let excel = Excel::new(&ironworks);
 
 	let (provider, version, schemas) = saint_coinach()?;
 	let src_dir = build_scaffold(provider, version, excel.version()?, &out_dir)?;
