@@ -7,9 +7,10 @@ use std::{
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	sqpack::Location,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
+
+use super::{Location, Resource};
 
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
@@ -31,17 +32,15 @@ enum Platform {
 	PS4 = 2,
 }
 
-/// Resource adapter pre-configured to work with on-disk sqpack packages laid
-/// out in the FFXIV format.
+/// SqPack resource for reading game data from an on-disk FFXIV installation.
 #[derive(Debug)]
-pub struct FsResource {
+pub struct Install {
 	path: PathBuf,
 	repositories: Vec<Option<String>>,
 	platform: Platform,
 }
 
-impl FsResource {
-	// TODO: should this error instead of option? i'm tempted to say it should for the sake of consumers
+impl Install {
 	/// Search for a FFXIV install in common locations, configuring a resource
 	/// instance with the found install, if any.
 	pub fn search() -> Option<Self> {
@@ -96,11 +95,7 @@ impl FsResource {
 	}
 }
 
-#[cfg(feature = "sqpack")]
-use crate::sqpack::Resource;
-
-#[cfg(feature = "sqpack")]
-impl Resource for FsResource {
+impl Resource for Install {
 	fn version(&self, repository: u8) -> Result<String> {
 		let path = match repository {
 			0 => self.path.join("..").join("ffxivgame.ver"),
@@ -168,17 +163,12 @@ fn find_install() -> Option<PathBuf> {
 fn find_repositories(path: &Path) -> Vec<Option<String>> {
 	(0..=9)
 		.map(|index| {
-			let name = if index == 0 {
-				"ffxiv".into()
-			} else {
-				format!("ex{}", index)
+			let name = match index {
+				0 => "ffxiv".into(),
+				other => format!("ex{other}"),
 			};
 
-			if path.join(&name).exists() {
-				Some(name)
-			} else {
-				None
-			}
+			path.join(&name).exists().then_some(name)
 		})
 		.collect()
 }

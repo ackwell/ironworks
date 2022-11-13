@@ -3,6 +3,7 @@
 mod block;
 mod file;
 mod index;
+mod install;
 mod resource;
 mod sqpack;
 
@@ -10,6 +11,7 @@ pub use {
 	block::{BlockMetadata, BlockPayload, BlockStream},
 	file::File,
 	index::Location,
+	install::Install,
 	resource::Resource,
 	sqpack::SqPack,
 };
