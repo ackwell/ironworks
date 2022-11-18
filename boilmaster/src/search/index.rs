@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use anyhow::Result;
 use either::Either;
-use ironworks::excel::Excel;
+use ironworks::excel::Sheet;
 use tantivy::{
 	collector::TopDocs, directory::MmapDirectory, query::QueryParser, schema::FieldType,
 	ReloadPolicy,
@@ -11,33 +11,23 @@ use tantivy::{
 use super::ingest::ingest_sheet;
 
 pub struct Index {
-	sheet_name: String,
 	// Do i actually need a reference to the index at all?
 	index: tantivy::Index,
 	reader: tantivy::IndexReader,
 }
 
 impl Index {
-	pub fn new(sheet_name: &str, version_path: &Path, excel: &Excel) -> Result<Self> {
-		let path = version_path.join(sheet_name);
-		fs::create_dir_all(&path)?;
-		let directory = MmapDirectory::open(&path)?;
+	// TODO: creating a new index requires a schema, which in turn requires columns, which requires an .exh. For now, I'm keeping the creation bundled to avoid that read - consider how it might be done to split new/ingest
+	pub fn ingest(path: &Path, sheet: &Sheet<&str>) -> Result<Self> {
+		fs::create_dir_all(path)?;
+		let directory = MmapDirectory::open(path)?;
 
-		// TODO: this should likely be the part of the path that gets joined onto the base or similar
 		let index = match tantivy::Index::exists(&directory)? {
-			// NOTE: this assumes that the schema will be effectively immutable
-			true => {
-				tracing::debug!("Opening index {path:?}");
-				tantivy::Index::open(directory)?
-			}
+			true => tantivy::Index::open(directory)?,
+			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
+			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
 			false => {
-				tracing::debug!("Building index {path:?}");
-				let sheet = excel.sheet(sheet_name)?;
-				// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
-				// TODO: maybe rayon for executing the blocking init?
-				// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
-				ingest_sheet(&sheet, directory)
-					.expect("TODO: error handling for ingestion failures")
+				ingest_sheet(sheet, directory).expect("TODO: error handling for ingestion failures")
 			}
 		};
 
@@ -47,11 +37,7 @@ impl Index {
 			.reload_policy(ReloadPolicy::Manual)
 			.try_into()?;
 
-		Ok(Self {
-			sheet_name: sheet_name.to_string(),
-			index,
-			reader,
-		})
+		Ok(Self { index, reader })
 	}
 
 	// TODO: probably need some form of typedef for the id pair - where does that live? should it be a struct?

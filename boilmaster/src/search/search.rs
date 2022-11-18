@@ -29,14 +29,14 @@ impl Search {
 		}
 	}
 
-	// TODO: who "owns" data ref? - i don't think search needs data outside the init step?
-	// is there any point in this being seperate from new(), really?
-	pub fn initialize(&mut self, data: &Data) -> Result<()> {
-		// ... do... i want to pass this shit to version and let it pin down, or do i want to pin down here and pass shit down to version? like i guess if anything the index needs the sheet name so it can lazy init an excel sheet for ingest so keeping that up for the other shit makes sense?
-		let version = Version::new("TODO VERSION", &self.path, data)?;
+	// TODO: name. ensure_ingested()? is it worth naming it to flag that ingestion may not occur?
+	pub fn ingest(&mut self, data: &Data, version: Option<&str>) -> Result<()> {
+		let data_version = data.version(version);
+		let mut search_version = Version::new(self.path.join(version.unwrap_or("__NONE")));
 
-		// TODO: I'm tempted to say that indexing versions should be lazy but... idk. check how long it takes to index a full gamever - if it's a notable duration on my computer it'll probably be glacial on a server.
-		self.temp_version = Some(Arc::new(version));
+		search_version.ingest(data_version)?;
+
+		self.temp_version = Some(Arc::new(search_version));
 
 		Ok(())
 	}
@@ -50,5 +50,7 @@ impl Search {
 		self.temp_version
 			.clone()
 			.expect("todo: how do i handle search not being instantiated?")
+		// ^ probably return Option<T> from this function, and let the http side return a "this version is not searchable" error or something
+		// ... ingestion will likely take Some Time:tm: per version - either ingest() should only add to the map when it's complete, or alternatively versions will need to mark when they've finished ingesting so this can avoid returning incomplete ones.
 	}
 }

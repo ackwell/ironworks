@@ -1,38 +1,47 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+	collections::{hash_map::Entry, HashMap},
+	path::PathBuf,
+};
 
 use anyhow::Result;
 
-use crate::data::Data;
+use crate::data::Version as DataVersion;
 
 use super::index::Index;
 
 pub struct Version {
-	// this should probably be the canonical version struct or something?
-	version: String,
+	path: PathBuf,
 
-	// some tables like custom/ and quest/ are going to have a name that isn't a valid file path - what do we want to use for the keys here, and should it be considered the canonical name for indices?
 	indices: HashMap<String, Index>,
 }
 
 impl Version {
-	pub(super) fn new(version: &str, search_path: &Path, data: &Data) -> Result<Self> {
-		let path = search_path.join(version);
-		// TODO: THIS SHOULD BE USING THE VERSION FROM THE ARGUMENTS. Doing so will need fixing up on the data side; which in turn will need a structured version system. should probably add that hey.
-		let data_version = data.version(None);
-		let excel = data_version.excel();
+	pub(super) fn new(path: PathBuf) -> Self {
+		Self {
+			path,
+			indices: Default::default(),
+		}
+	}
+
+	pub(super) fn ingest(&mut self, data: &DataVersion) -> Result<()> {
+		let excel = data.excel();
 
 		// NOTE: should probably record which sheets contain strings so we can immediately ignore the rest when there's a query string
-		let mut indices = HashMap::new();
-		for name in excel.list()?.iter() {
-			// TODO: if this is async; how do i run them all at the same time?
-			let index = Index::new(name.as_ref(), &path, excel)?;
-			indices.insert(name.to_string(), index);
+
+		// TODO: on zipatch-backed data instances, accessing .list() could block for quite some time - how do i want to handle that?
+		// let list = excel.list()?;
+		let list = ["Action"];
+		for sheet_name in list.into_iter() {
+			match self.indices.entry(sheet_name.to_string()) {
+				Entry::Occupied(entry) => entry.into_mut(),
+				Entry::Vacant(entry) => entry.insert(Index::ingest(
+					&self.path.join(sheet_name.replace('/', "!DIR!")),
+					&excel.sheet(sheet_name)?,
+				)?),
+			};
 		}
 
-		Ok(Self {
-			version: version.to_string(),
-			indices,
-		})
+		Ok(())
 	}
 
 	// TODO: index specifier?

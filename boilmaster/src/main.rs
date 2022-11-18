@@ -12,7 +12,7 @@ async fn main() {
 	let data = Data::new();
 
 	let mut search = Search::new();
-	search.initialize(&data).expect("TODO: Error handling here");
+	search.ingest(&data, None).expect("TODO: Error handling");
 
 	http::serve(data, search).await
 }
