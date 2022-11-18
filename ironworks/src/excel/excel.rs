@@ -86,7 +86,7 @@ impl<'i> Excel<'i> {
 	}
 
 	/// Fetch a sheet from the database.
-	pub fn sheet<S: SheetMetadata>(&self, sheet_metadata: S) -> Result<Sheet<S>> {
+	pub fn sheet<S: SheetMetadata>(&self, sheet_metadata: S) -> Result<Sheet<'i, S>> {
 		let sheet_name = sheet_metadata.name();
 
 		let list = self.list()?;
