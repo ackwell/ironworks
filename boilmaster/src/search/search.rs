@@ -1,4 +1,8 @@
-use std::{env::current_exe, path::PathBuf, sync::Arc};
+use std::{
+	env::current_exe,
+	path::PathBuf,
+	sync::{Arc, Mutex},
+};
 
 use anyhow::Result;
 
@@ -10,7 +14,7 @@ pub struct Search {
 	path: PathBuf,
 
 	// TODO: this should be a map of version keys to search::Version instances
-	temp_version: Option<Arc<Version>>,
+	temp_version: Mutex<Option<Arc<Version>>>,
 }
 
 impl Search {
@@ -25,18 +29,20 @@ impl Search {
 
 		Self {
 			path,
-			temp_version: None,
+			temp_version: Default::default(),
 		}
 	}
 
 	// TODO: name. ensure_ingested()? is it worth naming it to flag that ingestion may not occur?
-	pub fn ingest(&mut self, data: &Data, version: Option<&str>) -> Result<()> {
+	pub async fn ingest(self: Arc<Self>, data: &Data, version: Option<&str>) -> Result<()> {
 		let data_version = data.version(version);
 		let mut search_version = Version::new(self.path.join(version.unwrap_or("__NONE")));
 
-		search_version.ingest(data_version)?;
+		search_version.ingest(data_version).await?;
 
-		self.temp_version = Some(Arc::new(search_version));
+		// self.temp_version = Some(Arc::new(search_version)).into();
+		let mut guard = self.temp_version.lock().unwrap();
+		*guard = Some(Arc::new(search_version));
 
 		Ok(())
 	}
@@ -48,6 +54,8 @@ impl Search {
 		}
 
 		self.temp_version
+			.lock()
+			.unwrap()
 			.clone()
 			.expect("todo: how do i handle search not being instantiated?")
 		// ^ probably return Option<T> from this function, and let the http side return a "this version is not searchable" error or something

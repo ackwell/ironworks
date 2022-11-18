@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use boilmaster::{data::Data, http, search::Search};
 use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
@@ -15,10 +17,15 @@ async fn main() {
 		.with(filter)
 		.init();
 
-	let data = Data::new();
+	let data = Arc::new(Data::new());
+	let search = Arc::new(Search::new());
 
-	let mut search = Search::new();
-	search.ingest(&data, None).expect("TODO: Error handling");
+	// TODO: At the moment, this results in the shutdown signal killing the server, but not effecting the search ingestion
+	let (ingest_result, _) = tokio::join!(
+		search.clone().ingest(&data, None),
+		http::serve(data.clone(), search),
+	);
 
-	http::serve(data, search).await
+	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
+	ingest_result.expect("TODO: Error handling")
 }

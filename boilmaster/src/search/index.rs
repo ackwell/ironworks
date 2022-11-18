@@ -18,7 +18,7 @@ pub struct Index {
 
 impl Index {
 	// TODO: creating a new index requires a schema, which in turn requires columns, which requires an .exh. For now, I'm keeping the creation bundled to avoid that read - consider how it might be done to split new/ingest
-	pub fn ingest(path: &Path, sheet: &Sheet<&str>) -> Result<Self> {
+	pub async fn ingest(path: &Path, sheet: Sheet<'static, String>) -> Result<Self> {
 		fs::create_dir_all(path)?;
 		let directory = MmapDirectory::open(path)?;
 
@@ -26,10 +26,9 @@ impl Index {
 			true => tantivy::Index::open(directory)?,
 			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
-			false => {
-				tracing::info!("ingesting {path:?}");
-				ingest_sheet(sheet, directory).expect("TODO: error handling for ingestion failures")
-			}
+			false => ingest_sheet(sheet, directory)
+				.await
+				.expect("TODO: error handling for ingestion failures"),
 		};
 
 		let reader = index

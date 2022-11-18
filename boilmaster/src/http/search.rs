@@ -8,10 +8,10 @@ use crate::{data::Data, search::Search};
 
 use super::error::Result;
 
-pub fn router(search_service: Search) -> Router {
+pub fn router(search_service: Arc<Search>) -> Router {
 	Router::new()
 		.route("/", get(search))
-		.layer(Extension(Arc::new(search_service)))
+		.layer(Extension(search_service))
 }
 
 #[derive(Debug, Deserialize)]

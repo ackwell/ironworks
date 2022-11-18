@@ -23,21 +23,22 @@ impl Version {
 		}
 	}
 
-	pub(super) fn ingest(&mut self, data: &DataVersion) -> Result<()> {
+	pub(super) async fn ingest(&mut self, data: &DataVersion) -> Result<()> {
 		let excel = data.excel();
 
 		// NOTE: should probably record which sheets contain strings so we can immediately ignore the rest when there's a query string
 
 		// TODO: on zipatch-backed data instances, accessing .list() could block for quite some time - how do i want to handle that?
-		// let list = excel.list()?;
-		let list = ["Action"];
-		for sheet_name in list.into_iter() {
+		for sheet_name in excel.list()?.iter() {
 			match self.indices.entry(sheet_name.to_string()) {
 				Entry::Occupied(entry) => entry.into_mut(),
-				Entry::Vacant(entry) => entry.insert(Index::ingest(
-					&self.path.join(sheet_name.replace('/', "!DIR!")),
-					&excel.sheet(sheet_name)?,
-				)?),
+				Entry::Vacant(entry) => entry.insert(
+					Index::ingest(
+						&self.path.join(sheet_name.replace('/', "!DIR!")),
+						excel.sheet(sheet_name.to_string())?,
+					)
+					.await?,
+				),
 			};
 		}
 
