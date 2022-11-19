@@ -1,8 +1,8 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 
 use heck::ToSnakeCase;
 use ironworks::file::exh;
-use ironworks_schema::{Node, Order, ReferenceTarget, Sheet};
+use ironworks_schema::{Node, Order, ReferenceTarget, Sheet, StructField};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
@@ -17,12 +17,11 @@ pub struct Module {
 }
 
 #[derive(Debug)]
-struct Context {
+struct Context<'a> {
 	path: Vec<String>,
-	columns: Vec<(usize, exh::ColumnDefinition)>,
-	column_index: usize,
+	columns: &'a [(usize, exh::ColumnDefinition)],
 	items: Vec<TokenStream>,
-	uses: HashSet<&'static str>,
+	uses: BTreeSet<&'static str>,
 }
 
 #[derive(Debug)]
@@ -42,8 +41,7 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<exh::ColumnDefinition>) -> Modu
 	// Run the recursive generation.
 	let mut context = Context {
 		path: vec![sheet_name.clone()],
-		columns: columns.into_iter().enumerate().collect(),
-		column_index: 0,
+		columns: &columns.into_iter().enumerate().collect::<Vec<_>>(),
 		items: vec![],
 		uses: Default::default(),
 	};
@@ -96,6 +94,14 @@ fn generate_node(context: &mut Context, node: &Node) -> NodeResult {
 }
 
 fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult {
+	// Limit the columns to the first iteration's columns, to avoid any sub-structs
+	// trying to generate fields for subsequent indexes.
+	// NOTE: This assumes that the schema actually is correct. If it's not, consumers will catch on fire.
+	context.columns = context
+		.columns
+		.get(0..node.size().try_into().unwrap())
+		.unwrap_or(&[]);
+
 	let NodeResult {
 		type_: identifier,
 		reader,
@@ -107,7 +113,6 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 	// NOTE: This assumes the array count is correct.
 	let count_usize = usize::try_from(*count).unwrap();
 	let node_size = usize::try_from(node.size()).unwrap();
-	context.column_index += node_size * (count_usize - 1);
 
 	context.uses.extend([
 		"std::result::Result",
@@ -134,15 +139,13 @@ fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> No
 }
 
 fn generate_scalar(context: &mut Context) -> NodeResult {
-	let (field_index, column) = match context.columns.get(context.column_index) {
+	let (field_index, column) = match context.columns.get(0) {
 		Some(column) => column,
 		None => {
 			// Definitions include columns that do not exist - represent them as impossible options.
 			log::warn!(
-				"Path {} resolves to invalid column {} (Expected 0..{}).",
+				"Path {} resolves to invalid column index.",
 				context.path.join("/"),
-				context.column_index,
-				context.columns.len()
 			);
 			context.uses.extend(["std::convert::Infallible"]);
 			return NodeResult {
@@ -151,8 +154,6 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 			};
 		}
 	};
-
-	context.column_index += 1;
 
 	use exh::ColumnKind as K;
 	let (scalar_type, converter) = match column.kind() {
@@ -190,33 +191,63 @@ fn generate_scalar(context: &mut Context) -> NodeResult {
 	}
 }
 
-fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResult {
+struct FieldResult {
+	identifier: Ident,
+	type_: TokenStream,
+	reader: TokenStream,
+}
+
+fn generate_struct(context: &mut Context, fields: &[StructField]) -> NodeResult {
 	let struct_ident = format_ident!("{}", context.path.join("_"));
 
-	// Walk fields to build the reading logic for them.
-	struct FieldResult {
-		identifier: Ident,
-		type_: TokenStream,
-		reader: TokenStream,
+	let original_columns = context.columns;
+
+	// Walk through the available columns on this struct, generating fields for them.
+	let mut field_results = vec![];
+	let mut offset = 0u32;
+	while offset < u32::try_from(original_columns.len()).unwrap() {
+		// TODO: not a fan of this lookup, but... i mean how bad can it be really?
+		let field = fields.iter().find(|&field| field.offset == offset);
+
+		// TODO: handle none as an unknown field
+		let field_result = match field {
+			// A schema field was found - generate a full schema-backed field definition.
+			Some(field) => {
+				offset += field.node.size();
+				generate_struct_field(context, field, original_columns)
+			}
+
+			// There's no schema entry for this offset, generate an unknown placeholder field.
+			None => {
+				let name = format!("unknown{offset}");
+				let index = usize::try_from(offset).unwrap();
+
+				offset += 1;
+
+				context.path.push(name.clone());
+				context.columns = &original_columns[index..=index];
+				let NodeResult { type_, reader } = generate_scalar(context);
+				context.path.pop();
+
+				FieldResult {
+					identifier: format_ident!("r#{name}"),
+					type_,
+					reader,
+				}
+			}
+		};
+
+		field_results.push(field_result);
 	}
 
-	let field_results = fields
+	// There may be fields in the schema that exist outside the valid columns - generate them, letting them fall back to None.
+	let mut remaining_fields = fields
 		.iter()
-		.map(|(name, node)| {
-			let name_cleaned = sanitize(name.clone());
-			let identifier = format_ident!("r#{}", name_cleaned.to_snake_case());
-
-			context.path.push(name_cleaned);
-			let NodeResult { type_, reader } = generate_node(context, node);
-			context.path.pop();
-
-			FieldResult {
-				identifier,
-				type_,
-				reader,
-			}
-		})
+		.filter(|field| field.offset >= original_columns.len().try_into().unwrap())
+		.map(|field| generate_struct_field(context, field, original_columns))
 		.collect::<Vec<_>>();
+
+	field_results.append(&mut remaining_fields);
 
 	// Build out the containing struct.
 	let identifiers = field_results
@@ -255,6 +286,29 @@ fn generate_struct(context: &mut Context, fields: &[(String, Node)]) -> NodeResu
 	NodeResult {
 		type_: quote! { #struct_ident },
 		reader: quote! { #struct_ident::populate(row, offset)? },
+	}
+}
+
+fn generate_struct_field<'a>(
+	context: &mut Context<'a>,
+	field: &StructField,
+	columns: &'a [(usize, exh::ColumnDefinition)],
+) -> FieldResult {
+	let name_cleaned = sanitize(field.name.clone());
+	let identifier = format_ident!("r#{}", name_cleaned.to_snake_case());
+
+	let offset = usize::try_from(field.offset).unwrap();
+	let size = usize::try_from(field.node.size()).unwrap();
+
+	context.path.push(name_cleaned);
+	context.columns = columns.get(offset..offset + size).unwrap_or(&[]);
+	let NodeResult { type_, reader } = generate_node(context, &field.node);
+	context.path.pop();
+
+	FieldResult {
+		identifier,
+		type_,
+		reader,
 	}
 }
 
