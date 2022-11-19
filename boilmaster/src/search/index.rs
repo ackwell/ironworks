@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use either::Either;
@@ -18,8 +18,8 @@ pub struct Index {
 
 impl Index {
 	// TODO: creating a new index requires a schema, which in turn requires columns, which requires an .exh. For now, I'm keeping the creation bundled to avoid that read - consider how it might be done to split new/ingest
-	pub async fn ingest(path: &Path, sheet: Sheet<'static, String>) -> Result<Self> {
-		fs::create_dir_all(path)?;
+	pub async fn ingest(path: PathBuf, sheet: Sheet<'static, String>) -> Result<Self> {
+		tokio::fs::create_dir_all(&path).await?;
 		let directory = MmapDirectory::open(path)?;
 
 		let index = match tantivy::Index::exists(&directory)? {

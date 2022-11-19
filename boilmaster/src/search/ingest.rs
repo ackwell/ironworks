@@ -19,21 +19,21 @@ pub async fn ingest_sheet(
 	// TODO: this should probably span the function so i get an end point
 	tracing::info!("ingesting {:?}", directory);
 
-	// TODO: seperate building the index from ingesting into it
-	let columns = sheet.columns()?;
-
-	let index = Index::create(
-		directory,
-		build_sheet_schema(&columns)?,
-		IndexSettings::default(),
-	)?;
-
-	// TODO: this should be configurable
-	let mut writer = index.writer(5 * 1024 * 1024)?;
-	let schema = index.schema();
-
 	// We have a permit - initiate a blocking task to ingest the sheet.
-	tokio::task::spawn_blocking(move || -> Result<()> {
+	let index = tokio::task::spawn_blocking(move || -> Result<_> {
+		// TODO: seperate building the index from ingesting into it
+		let columns = sheet.columns()?;
+
+		let index = Index::create(
+			directory,
+			build_sheet_schema(&columns)?,
+			IndexSettings::default(),
+		)?;
+
+		// TODO: this should be configurable
+		let mut writer = index.writer(5 * 1024 * 1024)?;
+		let schema = index.schema();
+
 		// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
 		for row in sheet.iter() {
 			let document = build_row_document(row, &columns, &schema)?;
@@ -42,7 +42,7 @@ pub async fn ingest_sheet(
 
 		writer.commit()?;
 
-		Ok(())
+		Ok(index)
 	})
 	.await
 	.unwrap()?;

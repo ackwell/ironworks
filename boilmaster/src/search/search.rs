@@ -36,13 +36,13 @@ impl Search {
 	// TODO: name. ensure_ingested()? is it worth naming it to flag that ingestion may not occur?
 	pub async fn ingest(self: Arc<Self>, data: &Data, version: Option<&str>) -> Result<()> {
 		let data_version = data.version(version);
-		let mut search_version = Version::new(self.path.join(version.unwrap_or("__NONE")));
+		let search_version = Arc::new(Version::new(self.path.join(version.unwrap_or("__NONE"))));
 
-		search_version.ingest(data_version).await?;
+		search_version.clone().ingest(data_version).await?;
 
 		// self.temp_version = Some(Arc::new(search_version)).into();
 		let mut guard = self.temp_version.lock().unwrap();
-		*guard = Some(Arc::new(search_version));
+		*guard = Some(search_version);
 
 		Ok(())
 	}
