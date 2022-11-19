@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::{
 	error::{Error, Result},
-	schema::{Node, ReferenceCondition, ReferenceTarget},
+	schema::{Node, ReferenceCondition, ReferenceTarget, StructField},
 };
 
 use super::lcs::longest_common_subsequence;
@@ -16,37 +16,26 @@ use super::lcs::longest_common_subsequence;
 /// - [SheetDefinition.cs#L157](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/SheetDefinition.cs#L157)
 /// - [PositionedDataDefinition.cs#L71](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/Definition/PositionedDataDefinition.cs#L71)
 pub fn parse_sheet_definition(value: &Value) -> Result<Node> {
-	let nodes = value
+	let fields = value
 		.iter_field("definitions")
-		.scan(0u32, |last_index, definition| {
+		.map(|definition| {
 			// Parse the PositionedDataDefinition
 			let index = definition.get("index").and_then(Value::as_u32).unwrap_or(0);
 			let (node, name) = match parse_data_definition(definition) {
 				Ok(value) => value,
-				Err(error) => return Some(Err(error)),
+				Err(error) => return Err(error),
 			};
-			let node_size = node.size();
 
-			// Backfill any gaps since the last position with scalars
-			let nodes = (*last_index..index)
-				.map(|index| (format!("Unknown{index}"), Node::Scalar))
-				.chain(once((
-					name.unwrap_or_else(|| format!("Unnamed{index}")),
-					node,
-				)));
-
-			// Update the scan with the most recent index.
-			*last_index = index + node_size;
-
-			// Chain the backfill onto the parsed schema
-			Some(Ok(nodes))
+			// Build field
+			Ok(StructField {
+				offset: index,
+				name: name.unwrap_or_else(|| format!("Unnamed{index}")),
+				node,
+			})
 		})
-		.try_fold(vec![], |mut vec, nodes| -> Result<_> {
-			vec.extend(nodes?);
-			Ok(vec)
-		})?;
+		.collect::<Result<Vec<_>>>()?;
 
-	Ok(Node::Struct(nodes))
+	Ok(Node::Struct(fields))
 }
 
 /// See also:
@@ -94,10 +83,20 @@ fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 	let nodes = value
 		.iter_field("members")
 		.enumerate()
-		.map(|(index, member)| {
-			let (node, name) = parse_data_definition(member)?;
+		.scan(0u32, |offset, (index, member)| {
+			let (node, name) = match parse_data_definition(member) {
+				Ok(value) => value,
+				Err(err) => return Some(Err(err)),
+			};
 
-			Ok((name.unwrap_or_else(|| format!("Unnamed{index}")), node))
+			let this_offset = *offset;
+			*offset += node.size();
+
+			Some(Ok(StructField {
+				offset: this_offset,
+				name: name.unwrap_or_else(|| format!("Unnamed{index}")),
+				node,
+			}))
 		})
 		.collect::<Result<Vec<_>>>()?;
 
@@ -105,7 +104,7 @@ fn parse_group_data_definition(value: &Value) -> Result<(Node, Option<String>)> 
 	// try to derive a name from the LCS of its keys
 	let name = nodes
 		.iter()
-		.map(|(name, _)| name.clone())
+		.map(|StructField { name, .. }| name.clone())
 		.reduce(|a, b| longest_common_subsequence(&a, &b))
 		.and_then(|lcs| match lcs.as_str() {
 			"" => None,

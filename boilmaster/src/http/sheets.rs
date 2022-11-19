@@ -52,8 +52,9 @@ async fn row(
 	}
 
 	let row = sheet.row(row_id)?;
+	let columns = sheet.columns()?;
 
-	let result = read_row(&sheet_name, &excel, &row)?;
+	let result = read_row(&sheet_name, &excel, &row, columns)?;
 
 	Ok(Json(result))
 }
@@ -73,13 +74,19 @@ async fn subrow(
 	}
 
 	let row = sheet.subrow(row_id, subrow_id)?;
+	let columns = sheet.columns()?;
 
-	let result = read_row(&sheet_name, &excel, &row)?;
+	let result = read_row(&sheet_name, &excel, &row, columns)?;
 
 	Ok(Json(result))
 }
 
-fn read_row(sheet_name: &str, excel: &Excel, row: &Row) -> Result<read::Value> {
+fn read_row(
+	sheet_name: &str,
+	excel: &Excel,
+	row: &Row,
+	columns: Vec<exh::ColumnDefinition>,
+) -> Result<read::Value> {
 	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request
 	// TODO: this would presumably be specified as a provider:version pair in some way
 	// TODO: as part of said shared resource, need a way to handle updating the repo
@@ -93,6 +100,7 @@ fn read_row(sheet_name: &str, excel: &Excel, row: &Row) -> Result<read::Value> {
 			schema: &version,
 			row,
 			limit: 1,
+			columns: &columns.into_iter().enumerate().collect::<Vec<_>>(),
 		},
 	)?;
 

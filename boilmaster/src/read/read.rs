@@ -13,6 +13,8 @@ pub struct ReaderContext<'a> {
 
 	pub row: &'a excel::Row,
 	pub limit: u8,
+
+	pub columns: &'a [(usize, exh::ColumnDefinition)],
 }
 
 // TODO: need some representation of filtering for this, preferably that will be constructable from reference filters, gql queries, and a get request for rest
@@ -23,30 +25,35 @@ pub fn read_sheet(sheet_name: &str, context: ReaderContext) -> Result<Value> {
 		todo!("sheet schema {:?} order", sheet.order);
 	}
 
-	read_node(0, &sheet.node, context)
+	read_node(&sheet.node, context)
 }
 
-fn read_node(index: u32, node: &schema::Node, context: ReaderContext) -> Result<Value> {
+fn read_node(node: &schema::Node, context: ReaderContext) -> Result<Value> {
 	use schema::Node as N;
 	match node {
-		N::Array { count, node } => read_array(index, *count, node, context),
-		N::Reference(targets) => read_reference(index, targets, context),
-		N::Scalar => read_scalar(index, context),
-		N::Struct(definition) => read_struct(index, definition, context),
+		N::Array { count, node } => read_array(*count, node, context),
+		N::Reference(targets) => read_reference(targets, context),
+		N::Scalar => read_scalar(context),
+		N::Struct(definition) => read_struct(definition, context),
 	}
 }
 
-fn read_array(
-	index: u32,
-	count: u32,
-	node: &schema::Node,
-	context: ReaderContext,
-) -> Result<Value> {
+fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result<Value> {
 	let size = node.size();
 	let vec = (0..count)
-		.scan(index, |index, _| {
-			let result = read_node(*index, node, context.clone());
-			*index += size;
+		.scan(0usize, |index, _| {
+			let size_usize = usize::try_from(size).unwrap();
+			let result = read_node(
+				node,
+				ReaderContext {
+					columns: context
+						.columns
+						.get(*index..*index + size_usize)
+						.unwrap_or(&[]),
+					..context
+				},
+			);
+			*index += size_usize;
 			Some(result)
 		})
 		.collect::<Result<Vec<_>>>()?;
@@ -54,13 +61,11 @@ fn read_array(
 	Ok(Value::Array(vec))
 }
 
-fn read_reference(
-	index: u32,
-	targets: &[schema::ReferenceTarget],
-	context: ReaderContext,
-) -> Result<Value> {
+fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -> Result<Value> {
+	let (index, _column) = context.columns.get(0).context("schema mismatch")?;
+
 	// Coerce the field to a i32
-	let field = context.row.field(index.try_into().unwrap())?;
+	let field = context.row.field(*index)?;
 	// TODO: i'd like to include the field in the context but it's really not worth copying the field for.
 	let target_value = field_to_index(field).context("failed to convert reference key to i32")?;
 
@@ -113,6 +118,11 @@ fn read_reference(
 				ReaderContext {
 					row: &row_data,
 					limit: context.limit - 1,
+					columns: &sheet_data
+						.columns()?
+						.into_iter()
+						.enumerate()
+						.collect::<Vec<_>>(),
 					..context
 				},
 			)?
@@ -141,24 +151,52 @@ fn field_to_index(field: excel::Field) -> Result<i32> {
 	Ok(result)
 }
 
-fn read_scalar(index: u32, context: ReaderContext) -> Result<Value> {
-	Ok(Value::Scalar(context.row.field(index.try_into().unwrap())?))
+fn read_scalar(context: ReaderContext) -> Result<Value> {
+	// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
+	let (index, _column) = context.columns.get(0).context("schema mismatch")?;
+	Ok(Value::Scalar(context.row.field(*index)?))
 }
 
-fn read_struct(
-	index: u32,
-	definition: &[(String, schema::Node)],
-	context: ReaderContext,
-) -> Result<Value> {
-	let map = definition
-		.iter()
-		.scan(index, |index, (key, node)| {
-			// TODO: this is wasteful, given it's going to recurse every child node to find the size - is that a problem? probably?
-			let result = read_node(*index, node, context.clone());
-			*index += node.size();
-			Some(result.map(|value| (key.clone(), value)))
-		})
-		.collect::<Result<BTreeMap<_, _>>>()?;
+fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result<Value> {
+	let mut map = BTreeMap::new();
+	let mut offset = 0usize;
+	while offset < context.columns.len() {
+		// TODO: this is yikes. Probably can improve with a .next-based thing given fields are ordered
+		let field = fields
+			.iter()
+			.find(|&field| field.offset == u32::try_from(offset).unwrap());
+
+		let (name, value) = match field {
+			Some(field) => {
+				let size = usize::try_from(field.node.size()).unwrap();
+				let value = read_node(
+					&field.node,
+					ReaderContext {
+						columns: context.columns.get(offset..offset + size).unwrap_or(&[]),
+						..context
+					},
+				)?;
+
+				offset += size;
+
+				(field.name.clone(), value)
+			}
+
+			None => {
+				let name = format!("unknown{offset}");
+				let value = read_scalar(ReaderContext {
+					columns: &context.columns[offset..=offset],
+					..context
+				})?;
+
+				offset += 1;
+
+				(name, value)
+			}
+		};
+
+		map.insert(name, value);
+	}
 
 	Ok(Value::Struct(map))
 }
