@@ -4,31 +4,50 @@ use ironworks::{
 	file::exh,
 };
 use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings};
+use tokio::sync::Semaphore;
 
-pub fn ingest_sheet(sheet: &Sheet<&str>, directory: MmapDirectory) -> Result<tantivy::Index> {
-	let columns = sheet.columns()?;
+// Is this how i want to do it? i mean... no, it's not. we need to accept config for how many sems should be available, and that's not static-able. considrer how the _fuck_ i'll do _that_.
+static INGEST_SEMAPHORE: Semaphore = Semaphore::const_new(10);
 
-	let index = Index::create(
-		directory,
-		build_sheet_schema(&columns)?,
-		IndexSettings::default(),
-	)?;
+pub async fn ingest_sheet(
+	sheet: Sheet<'static, String>,
+	directory: MmapDirectory,
+) -> Result<Index> {
+	// Wait for a semaphore permit to be available - this limits the number of parallel ingestions that can take place.
+	let permit = INGEST_SEMAPHORE.acquire().await.unwrap();
 
-	// Allocating 5mb for writer ingestion.
-	// TODO: Is this per index? (yes it is) A bulk version ingestion might be problematic @ 5mb/ea, test this behavior. there's ~6.5k sheets, so in the unlikely case all of them are being written at the same time, that's a gnarly amount of ram.
-	// TODO: probably should be configurable anyway.
-	// TODO: realistically, ingestion needs to be a queue system
-	let mut writer = index.writer(5 * 1024 * 1024)?;
+	// TODO: this should probably span the function so i get an end point
+	tracing::info!("ingesting {:?}", directory);
 
-	// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
-	for row in sheet.iter() {
-		let document = build_row_document(row, &columns, &index.schema())?;
+	// We have a permit - initiate a blocking task to ingest the sheet.
+	let index = tokio::task::spawn_blocking(move || -> Result<_> {
+		// TODO: seperate building the index from ingesting into it
+		let columns = sheet.columns()?;
 
-		// this can block; which suggests to me that at minimum, ingesting should be done on the side.
-		writer.add_document(document)?;
-	}
+		let index = Index::create(
+			directory,
+			build_sheet_schema(&columns)?,
+			IndexSettings::default(),
+		)?;
 
-	writer.commit()?;
+		// TODO: this should be configurable
+		let mut writer = index.writer(5 * 1024 * 1024)?;
+		let schema = index.schema();
+
+		// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
+		for row in sheet.iter() {
+			let document = build_row_document(row, &columns, &schema)?;
+			writer.add_document(document)?;
+		}
+
+		writer.commit()?;
+
+		Ok(index)
+	})
+	.await
+	.unwrap()?;
+
+	drop(permit);
 
 	Ok(index)
 }

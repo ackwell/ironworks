@@ -53,7 +53,7 @@ async fn row(
 
 	let row = sheet.row(row_id)?;
 
-	let result = read_row(&sheet_name, excel, &row)?;
+	let result = read_row(&sheet_name, &excel, &row)?;
 
 	Ok(Json(result))
 }
@@ -74,7 +74,7 @@ async fn subrow(
 
 	let row = sheet.subrow(row_id, subrow_id)?;
 
-	let result = read_row(&sheet_name, excel, &row)?;
+	let result = read_row(&sheet_name, &excel, &row)?;
 
 	Ok(Json(result))
 }

@@ -46,7 +46,7 @@ impl Version {
 		}
 	}
 
-	pub fn excel(&self) -> &Excel {
-		&self.excel
+	pub fn excel(&self) -> Arc<Excel<'static>> {
+		Arc::clone(&self.excel)
 	}
 }

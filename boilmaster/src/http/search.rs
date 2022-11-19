@@ -8,10 +8,10 @@ use crate::{data::Data, search::Search};
 
 use super::error::Result;
 
-pub fn router(search_service: Search) -> Router {
+pub fn router(search_service: Arc<Search>) -> Router {
 	Router::new()
 		.route("/", get(search))
-		.layer(Extension(Arc::new(search_service)))
+		.layer(Extension(search_service))
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,8 +30,9 @@ async fn search(
 
 	let results = search_version
 		.search(&search_query.string)?
+		.into_iter()
 		.map(|(score, (sheet_name, row_id, subrow_id))| -> Result<_> {
-			let temp_sheet = excel.sheet(sheet_name)?;
+			let temp_sheet = excel.sheet(&sheet_name)?;
 			let row = temp_sheet.subrow(row_id, subrow_id)?;
 			// TODO: parse properly
 			let name = row
@@ -39,7 +40,7 @@ async fn search(
 				.as_string()
 				.map(|se_string| se_string.to_string());
 
-			Ok((score, sheet_name.to_string(), name))
+			Ok((score, sheet_name, name))
 		})
 		.collect::<Result<Vec<_>>>()?;
 

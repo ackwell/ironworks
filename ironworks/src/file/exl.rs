@@ -15,6 +15,7 @@ pub struct ExcelList {
 	sheets: HashSet<String>,
 }
 
+// TODO: should there be an impl intoiter for this?
 impl ExcelList {
 	/// Iterate over known sheets in arbitrary order.
 	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
