@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
+use futures::Future;
 
 use crate::data::Data;
 
@@ -34,11 +35,19 @@ impl Search {
 	}
 
 	// TODO: name. ensure_ingested()? is it worth naming it to flag that ingestion may not occur?
-	pub async fn ingest(self: Arc<Self>, data: &Data, version: Option<&str>) -> Result<()> {
+	pub async fn ingest(
+		self: Arc<Self>,
+		shutdown: impl Future<Output = ()>,
+		data: &Data,
+		version: Option<&str>,
+	) -> Result<()> {
 		let data_version = data.version(version);
 		let search_version = Arc::new(Version::new(self.path.join(version.unwrap_or("__NONE"))));
 
-		search_version.clone().ingest(data_version).await?;
+		tokio::select! {
+			_ = shutdown => {},
+			result = search_version.clone().ingest(data_version) => { result? },
+		}
 
 		// self.temp_version = Some(Arc::new(search_version)).into();
 		let mut guard = self.temp_version.lock().unwrap();

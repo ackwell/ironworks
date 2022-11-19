@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use boilmaster::{data::Data, http, search::Search};
+use tokio::signal;
+use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -20,12 +22,57 @@ async fn main() {
 	let data = Arc::new(Data::new());
 	let search = Arc::new(Search::new());
 
-	// TODO: At the moment, this results in the shutdown signal killing the server, but not effecting the search ingestion
+	// Set up a cancellation token that will fire when a shutdown signal is recieved.
+	let shutdown_token = shutdown_token();
+
 	let (ingest_result, _) = tokio::join!(
-		search.clone().ingest(&data, None),
-		http::serve(data.clone(), search),
+		search
+			.clone()
+			.ingest(shutdown_token.cancelled(), &data, None),
+		http::serve(shutdown_token.cancelled(), data.clone(), search),
 	);
 
 	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
 	ingest_result.expect("TODO: Error handling")
+}
+
+fn shutdown_token() -> CancellationToken {
+	// Create a token to represent the shutdown signal.
+	let token = CancellationToken::new();
+
+	// Set up a background task to wait for the signal with a copy of the token.
+	let inner_token = token.clone();
+	tokio::spawn(async move {
+		shutdown_signal().await;
+		inner_token.cancel();
+	});
+
+	// Return the pending token for use.
+	token
+}
+
+async fn shutdown_signal() {
+	let ctrl_c = async {
+		signal::ctrl_c()
+			.await
+			.expect("Failed to install Ctrl+C handler.");
+	};
+
+	#[cfg(unix)]
+	let terminate = async {
+		signal::unix::signal(signal::unix::SignalKind::terminate())
+			.expect("Failed to install SIGTERM handler.")
+			.recv()
+			.await
+	};
+
+	#[cfg(not(unix))]
+	let terminate = std::future::pending::<()>();
+
+	tokio::select! {
+		_ = ctrl_c => {},
+		_ = terminate => {},
+	}
+
+	println!("Shutdown signal received.")
 }

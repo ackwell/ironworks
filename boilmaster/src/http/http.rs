@@ -2,17 +2,21 @@ use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::Result;
 use axum::{Extension, Router, Server};
-use tokio::signal;
+use futures::Future;
 use tower_http::trace::TraceLayer;
 
 use crate::{data::Data, search::Search};
 
 use super::{search, sheets};
 
-pub async fn serve(data: Arc<Data>, search: Arc<Search>) -> Result<()> {
+pub async fn serve(
+	shutdown: impl Future<Output = ()>,
+	data: Arc<Data>,
+	search: Arc<Search>,
+) -> Result<()> {
 	Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
 		.serve(router(data, search).into_make_service())
-		.with_graceful_shutdown(shutdown_signal())
+		.with_graceful_shutdown(shutdown)
 		.await
 		.unwrap();
 
@@ -26,31 +30,4 @@ fn router(data: Arc<Data>, search: Arc<Search>) -> Router {
 		// TODO: I'm not convinced by setting up the data layer this high, seems a bit magic so to speak
 		.layer(Extension(data))
 		.layer(TraceLayer::new_for_http())
-}
-
-// TODO: can I set this up in the main.rs and use it in multiple places?
-async fn shutdown_signal() {
-	let ctrl_c = async {
-		signal::ctrl_c()
-			.await
-			.expect("Failed to install Ctrl+C handler.");
-	};
-
-	#[cfg(unix)]
-	let terminate = async {
-		signal::unix::signal(signal::unix::SignalKind::terminate())
-			.expect("Failed to install SIGTERM handler.")
-			.recv()
-			.await
-	};
-
-	#[cfg(not(unix))]
-	let terminate = std::future::pending::<()>();
-
-	tokio::select! {
-		_ = ctrl_c => {},
-		_ = terminate => {},
-	}
-
-	println!("Shutdown signal received.")
 }
