@@ -45,7 +45,7 @@ pub enum Node {
 	Scalar,
 
 	/// A collection of named sub-schemas.
-	Struct(Vec<(String, Node)>),
+	Struct(Vec<StructField>),
 }
 
 impl Node {
@@ -55,9 +55,14 @@ impl Node {
 			Self::Array { count, node } => count * node.size(),
 			Self::Reference(_) => 1,
 			Self::Scalar => 1,
-			Self::Struct(fields) => fields
-				.iter()
-				.fold(0u32, |size, (_, schema)| size + schema.size()),
+			Self::Struct(fields) => {
+				let last_field = match fields.last() {
+					Some(value) => value,
+					None => return 0,
+				};
+
+				last_field.offset + last_field.node.size()
+			}
 		}
 	}
 }
@@ -85,4 +90,15 @@ pub struct ReferenceCondition {
 	// TODO: Technically this is an enum, but theoretically could be any value. Resolve?
 	/// Value that will be matched against.
 	pub value: u32,
+}
+
+/// A field of a Node::Struct.
+#[derive(Debug)]
+pub struct StructField {
+	/// The offset of this field _within_ the enclosing struct.
+	pub offset: u32,
+	/// Name of the field.
+	pub name: String,
+	/// Schema of the field.
+	pub node: Node,
 }
