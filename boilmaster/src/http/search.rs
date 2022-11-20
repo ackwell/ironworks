@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Context;
 use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
 use serde::Deserialize;
@@ -25,7 +26,8 @@ async fn search(
 	Extension(data): Extension<Arc<Data>>,
 	Query(search_query): Query<SearchQuery>,
 ) -> Result<impl IntoResponse> {
-	let search_version = search.version(None);
+	// TODO: this should expose a more useful error to the end user.
+	let search_version = search.version(None).context("search index not ready")?;
 	let excel = data.version(None).excel();
 
 	let results = search_version

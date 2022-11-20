@@ -49,25 +49,18 @@ impl Search {
 			result = search_version.clone().ingest(data_version) => { result? },
 		}
 
-		// self.temp_version = Some(Arc::new(search_version)).into();
 		let mut guard = self.temp_version.lock().unwrap();
 		*guard = Some(search_version);
 
 		Ok(())
 	}
 
-	pub fn version(&self, version: Option<&str>) -> Arc<Version> {
+	pub fn version(&self, version: Option<&str>) -> Option<Arc<Version>> {
 		// TODO: actual version handling
 		if version.is_some() {
 			todo!("search version handling");
 		}
 
-		self.temp_version
-			.lock()
-			.unwrap()
-			.clone()
-			.expect("todo: how do i handle search not being instantiated?")
-		// ^ probably return Option<T> from this function, and let the http side return a "this version is not searchable" error or something
-		// ... ingestion will likely take Some Time:tm: per version - either ingest() should only add to the map when it's complete, or alternatively versions will need to mark when they've finished ingesting so this can avoid returning incomplete ones.
+		self.temp_version.lock().unwrap().clone()
 	}
 }
