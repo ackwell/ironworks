@@ -14,7 +14,7 @@ pub struct ReaderContext<'a> {
 	pub row: &'a excel::Row,
 	pub limit: u8,
 
-	pub columns: &'a [(usize, exh::ColumnDefinition)],
+	pub columns: &'a [exh::ColumnDefinition],
 }
 
 // TODO: need some representation of filtering for this, preferably that will be constructable from reference filters, gql queries, and a get request for rest
@@ -62,10 +62,10 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 }
 
 fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -> Result<Value> {
-	let (index, _column) = context.columns.get(0).context("schema mismatch")?;
+	let column = context.columns.get(0).context("schema mismatch")?;
 
 	// Coerce the field to a i32
-	let field = context.row.field(*index)?;
+	let field = context.row.field(column)?;
 	// TODO: i'd like to include the field in the context but it's really not worth copying the field for.
 	let target_value = field_to_index(field).context("failed to convert reference key to i32")?;
 
@@ -118,11 +118,7 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 				ReaderContext {
 					row: &row_data,
 					limit: context.limit - 1,
-					columns: &sheet_data
-						.columns()?
-						.into_iter()
-						.enumerate()
-						.collect::<Vec<_>>(),
+					columns: &sheet_data.columns()?,
 					..context
 				},
 			)?
@@ -153,8 +149,8 @@ fn field_to_index(field: excel::Field) -> Result<i32> {
 
 fn read_scalar(context: ReaderContext) -> Result<Value> {
 	// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
-	let (index, _column) = context.columns.get(0).context("schema mismatch")?;
-	Ok(Value::Scalar(context.row.field(*index)?))
+	let column = context.columns.get(0).context("schema mismatch")?;
+	Ok(Value::Scalar(context.row.field(column)?))
 }
 
 fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result<Value> {

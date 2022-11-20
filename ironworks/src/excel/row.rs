@@ -8,9 +8,30 @@ use binrw::{BinReaderExt, BinResult};
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::field::Field,
-	file,
+	file::exh,
 	sestring::SeString,
 };
+
+/// Specifier for targeting a single column within a sheet.
+#[derive(Debug)]
+pub enum ColumnSpecifier<'a> {
+	/// Specifies the column at the Nth index within the sheet's column array.
+	Index(usize),
+	/// Specifies the column with the provided definition.
+	Definition(&'a exh::ColumnDefinition),
+}
+
+impl From<usize> for ColumnSpecifier<'_> {
+	fn from(index: usize) -> Self {
+		Self::Index(index)
+	}
+}
+
+impl<'a> From<&'a exh::ColumnDefinition> for ColumnSpecifier<'a> {
+	fn from(definition: &'a exh::ColumnDefinition) -> Self {
+		Self::Definition(definition)
+	}
+}
 
 /// A (sub)row within an Excel sheet.
 #[derive(Debug)]
@@ -18,7 +39,7 @@ pub struct Row {
 	row_id: u32,
 	subrow_id: u16,
 
-	header: Arc<file::exh::ExcelHeader>,
+	header: Arc<exh::ExcelHeader>,
 	data: Mutex<Cursor<Vec<u8>>>,
 }
 
@@ -26,7 +47,7 @@ impl Row {
 	pub(super) fn new(
 		row_id: u32,
 		subrow_id: u16,
-		header: Arc<file::exh::ExcelHeader>,
+		header: Arc<exh::ExcelHeader>,
 		data: Vec<u8>,
 	) -> Self {
 		Self {
@@ -47,19 +68,23 @@ impl Row {
 		&self.subrow_id
 	}
 
-	// TODO: Perhaps expose this as column: impl IntoColumn so i.e. a coldef can be passed by a theoretical pre-byte-sort'd host
 	/// Read the field at the specified column from this row.
-	pub fn field(&self, column_index: usize) -> Result<Field> {
-		let column = self.header.columns().get(column_index).ok_or_else(|| {
-			// TODO: should this have its own value type?
-			Error::NotFound(ErrorValue::Other(format!("Column {column_index}")))
-		})?;
+	pub fn field<'a>(&self, specifier: impl Into<ColumnSpecifier<'a>>) -> Result<Field> {
+		let column = match specifier.into() {
+			ColumnSpecifier::Definition(definition) => definition,
+			ColumnSpecifier::Index(index) => {
+				self.header.columns().get(index).ok_or_else(|| {
+					// TODO: should this have its own value type?
+					Error::NotFound(ErrorValue::Other(format!("Column {index}")))
+				})?
+			}
+		};
 
 		Ok(self.read_field(column)?)
 	}
 
-	fn read_field(&self, column: &file::exh::ColumnDefinition) -> BinResult<Field> {
-		use file::exh::ColumnKind as K;
+	fn read_field(&self, column: &exh::ColumnDefinition) -> BinResult<Field> {
+		use exh::ColumnKind as K;
 		use Field as F;
 
 		let mut cursor = self.data.lock().expect("Data mutex poisoned.");

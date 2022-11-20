@@ -14,7 +14,7 @@ pub use {
 	field::Field,
 	language::Language,
 	metadata::SheetMetadata,
-	row::Row,
+	row::{ColumnSpecifier, Row},
 	sheet::{RowOptions, Sheet, SheetIterator},
 };
 
@@ -25,6 +25,7 @@ mod test {
 	#[test]
 	fn test_send() {
 		fn assert_send<T: Send>() {}
+		assert_send::<ColumnSpecifier>();
 		assert_send::<Excel>();
 		assert_send::<ExcelOptions>();
 		assert_send::<Field>();
@@ -38,6 +39,7 @@ mod test {
 	#[test]
 	fn test_sync() {
 		fn assert_sync<T: Sync>() {}
+		assert_sync::<ColumnSpecifier>();
 		assert_sync::<Excel>();
 		assert_sync::<ExcelOptions>();
 		assert_sync::<Field>();

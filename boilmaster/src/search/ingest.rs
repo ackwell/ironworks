@@ -106,10 +106,9 @@ fn build_row_document(
 		(*row.subrow_id()).into(),
 	);
 
-	for (index, column) in columns.iter().enumerate() {
+	for column in columns {
 		let field = schema.get_field(&column_to_field_name(column)).unwrap();
-		// TODO: this would really value .field(impl intocolumn) or similar
-		let value = row.field(index)?;
+		let value = row.field(column)?;
 		// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
 		use Field as F;
 		match value {
