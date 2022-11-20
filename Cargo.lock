@@ -1011,6 +1011,7 @@ dependencies = [
  "futures",
  "ironworks",
  "ironworks_schema",
+ "nom",
  "serde",
  "tantivy",
  "thiserror",

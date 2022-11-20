@@ -1,16 +1,18 @@
 use std::sync::Arc;
 
-use axum::{response::IntoResponse, routing::get, Extension, Json, Router};
+use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
 use ironworks::{
 	excel::{Excel, Row},
 	file::exh,
 };
 use ironworks_schema::saint_coinach;
+use serde::Deserialize;
 
 use crate::{data::Data, read};
 
 use super::{
+	column_filter::ColumnFilter,
 	error::{Anyhow, Error, Result},
 	path::Path,
 };
@@ -22,6 +24,7 @@ pub fn router() -> Router {
 
 	Router::new()
 		.route("/", get(sheets))
+		.route("/column_test", get(column_test))
 		.nest("/:sheet_name/:row_id", row_router)
 }
 
@@ -35,6 +38,15 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 	let names = list.iter().map(|x| x.into_owned()).collect::<Vec<_>>();
 
 	Ok(Json(names))
+}
+
+#[derive(Deserialize)]
+struct ColumnTestQuery {
+	columns: ColumnFilter,
+}
+#[debug_handler]
+async fn column_test(Query(ctq): Query<ColumnTestQuery>) -> Result<impl IntoResponse> {
+	Ok(Json(format!("{:?}", ctq.columns)))
 }
 
 #[debug_handler]
