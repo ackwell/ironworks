@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{btree_map::Entry, BTreeMap};
 
 use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
@@ -165,6 +165,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 		let (name, value) = match field {
 			Some(field) => {
 				let size = usize::try_from(field.node.size()).unwrap();
+				let name = field.name.replace(['{', '}', '[', ']', '<', '>'], "");
 				let value = read_node(
 					&field.node,
 					ReaderContext {
@@ -175,7 +176,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 
 				offset += size;
 
-				(field.name.clone(), value)
+				(name, value)
 			}
 
 			None => {
@@ -191,7 +192,15 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 			}
 		};
 
-		map.insert(name, value);
+		match map.entry(name) {
+			Entry::Vacant(entry) => {
+				entry.insert(value);
+			}
+
+			Entry::Occupied(entry) => {
+				tracing::warn!(name = %entry.key(), "name collision");
+			}
+		};
 	}
 
 	Ok(Value::Struct(map))
