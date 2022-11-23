@@ -12,6 +12,7 @@ use serde::Deserialize;
 use crate::{data::Data, read};
 
 use super::{
+	column_filter::ColumnFilter,
 	error::{Anyhow, Error, Result},
 	path::Path,
 };
@@ -41,12 +42,11 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 
 #[derive(Deserialize)]
 struct ColumnTestQuery {
-	// columns: ColumnFilter,
-	columns: String,
+	columns: ColumnFilter,
 }
 #[debug_handler]
 async fn column_test(Query(ctq): Query<ColumnTestQuery>) -> Result<impl IntoResponse> {
-	Ok(Json(format!("{:?}", ctq.columns)))
+	Ok(format!("{:#?}", ctq.columns))
 }
 
 #[debug_handler]

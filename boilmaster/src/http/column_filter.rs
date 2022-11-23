@@ -8,12 +8,12 @@ use nom::{
 	sequence::{delimited, preceded, tuple},
 	IResult,
 };
-use serde::{Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer};
 
 type StructFilterTest = HashMap<String, Option<ColumnFilter>>;
 
 #[derive(Debug, PartialEq)]
-enum ColumnFilter {
+pub enum ColumnFilter {
 	Struct(HashMap<String, Option<ColumnFilter>>),
 
 	// can probably flesh out with more info as required
@@ -62,10 +62,16 @@ impl<'de> Deserialize<'de> for ColumnFilter {
 	{
 		let raw = String::deserialize(deserializer)?;
 
-		let processed = group(&raw);
-		tracing::info!("WIP {processed:#?}");
+		let (remaining, filter) = group(&raw)
+			.map_err(|error| de::Error::custom(format!("filter parse error: {error:?}")))?;
 
-		Ok(Self::Array)
+		if !remaining.is_empty() {
+			return Err(de::Error::custom(
+				"TODO: message. something broke and there's remaining characters.",
+			));
+		}
+
+		Ok(filter)
 	}
 }
 
@@ -115,9 +121,8 @@ mod test {
 	}
 
 	#[test]
-	fn parse_simple() {
+	fn parse_struct_simple() {
 		let out = test_parse("a");
-
 		let expected = struct_filter([("a", None)]);
 		assert_eq!(out, expected);
 	}
@@ -125,7 +130,6 @@ mod test {
 	#[test]
 	fn parse_struct_nested() {
 		let out = test_parse("a.b");
-
 		let expected = struct_filter([("a", Some(struct_filter([("b", None)])))]);
 		assert_eq!(out, expected);
 	}
@@ -134,7 +138,6 @@ mod test {
 	#[test]
 	fn merge_struct_simple() {
 		let out = test_parse("a,b");
-
 		let expected = struct_filter([("a", None), ("b", None)]);
 		assert_eq!(out, expected);
 	}
@@ -143,7 +146,6 @@ mod test {
 	#[test]
 	fn merge_struct_widen() {
 		let out = test_parse("a,a.b");
-
 		let expected = struct_filter([("a", None)]);
 		assert_eq!(out, expected);
 	}
@@ -152,7 +154,6 @@ mod test {
 	#[test]
 	fn merge_struct_nested() {
 		let out = test_parse("a.b,a.c");
-
 		let expected = struct_filter([("a", Some(struct_filter([("b", None), ("c", None)])))]);
 		assert_eq!(out, expected);
 	}
@@ -161,7 +162,6 @@ mod test {
 	#[test]
 	fn merge_nested_group() {
 		let out = test_parse("a.(b,c),a.d");
-
 		let expected = struct_filter([(
 			"a",
 			Some(struct_filter([("b", None), ("c", None), ("d", None)])),
