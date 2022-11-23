@@ -1,48 +1,15 @@
 use std::collections::HashMap;
 
 use nom::{
+	branch::alt,
 	bytes::complete::{tag, take_while1},
+	combinator::{map, opt},
 	multi::separated_list1,
+	sequence::{preceded, tuple},
 	IResult,
 };
 use serde::{Deserialize, Deserializer};
 
-#[derive(Debug)]
-pub struct ColumnFilter {}
-
-impl<'de> Deserialize<'de> for ColumnFilter {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		let raw = String::deserialize(deserializer)?;
-
-		let processed = paths(&raw);
-		tracing::info!("WIP {processed:#?}");
-
-		Ok(Self {})
-	}
-}
-
-fn paths(input: &str) -> IResult<&str, Vec<Path>> {
-	separated_list1(tag(","), path)(input)
-}
-
-type Path<'a> = Vec<Field<'a>>;
-
-fn path(input: &str) -> IResult<&str, Path> {
-	separated_list1(tag("."), field)(input)
-}
-
-// TODO: lmao
-type Field<'a> = &'a str;
-
-fn field(input: &str) -> IResult<&str, Field> {
-	// TODO: ascii safe to use here? i'd hope?
-	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
-}
-
-// ----- thoughts -----
 type StructFilterTest = HashMap<String, Option<FilterTest>>;
 
 #[derive(Debug, PartialEq)]
@@ -88,10 +55,62 @@ fn merge_struct(mut target: StructFilterTest, source: StructFilterTest) -> Struc
 	target
 }
 
+impl<'de> Deserialize<'de> for FilterTest {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let raw = String::deserialize(deserializer)?;
+
+		let processed = group(&raw);
+		tracing::info!("WIP {processed:#?}");
+
+		Ok(Self::Array)
+	}
+}
+
+fn group(input: &str) -> IResult<&str, FilterTest> {
+	map(
+		separated_list1(tag(","), filter),
+		// Unwrap is safe here, as `reduce` only returns `None` on 0-entry iterators, and `separated_list1` guarantees >=1 entries.
+		|filters| filters.into_iter().reduce(|a, b| a.merge(b)).unwrap(),
+	)(input)
+}
+
+fn filter(input: &str) -> IResult<&str, FilterTest> {
+	alt((struct_entry,))(input)
+}
+
+fn struct_entry(input: &str) -> IResult<&str, FilterTest> {
+	map(
+		tuple((field_name, opt(preceded(tag("."), group)))),
+		|(key, child)| FilterTest::Struct(HashMap::from([(key.into(), child)])),
+	)(input)
+}
+
+fn field_name(input: &str) -> IResult<&str, &str> {
+	// TODO: ascii safe to use here? i'd hope?
+	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
+}
+
 // TODO: tests can use string reading instead of manual construction, probably
 #[cfg(test)]
 mod test {
 	use super::*;
+
+	fn test_parse(input: &str) -> FilterTest {
+		let (remaining, output) = group(input).expect("parse should not fail");
+		assert_eq!(remaining, "");
+		output
+	}
+
+	#[test]
+	fn parse_simple() {
+		let out = test_parse("a");
+
+		let expected = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		assert_eq!(out, expected);
+	}
 
 	// a,b -> {a, b}
 	#[test]
@@ -135,5 +154,3 @@ mod test {
 		assert!(out == expected, "{out:?} == {expected:?}");
 	}
 }
-
-// "a.b" should be thinged bottom-up so we can create struct, read down, and add the result as a
