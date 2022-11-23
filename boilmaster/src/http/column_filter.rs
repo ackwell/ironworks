@@ -5,7 +5,7 @@ use nom::{
 	bytes::complete::{tag, take_while1},
 	combinator::{map, opt},
 	multi::separated_list1,
-	sequence::{preceded, tuple},
+	sequence::{delimited, preceded, tuple},
 	IResult,
 };
 use serde::{Deserialize, Deserializer};
@@ -78,7 +78,7 @@ fn group(input: &str) -> IResult<&str, ColumnFilter> {
 }
 
 fn filter(input: &str) -> IResult<&str, ColumnFilter> {
-	alt((struct_entry,))(input)
+	alt((struct_entry, delimited(tag("("), group, tag(")"))))(input)
 }
 
 fn struct_entry(input: &str) -> IResult<&str, ColumnFilter> {
@@ -112,6 +112,17 @@ mod test {
 		assert_eq!(out, expected);
 	}
 
+	#[test]
+	fn parse_struct_nested() {
+		let out = test_parse("a.b");
+
+		let expected = ColumnFilter::Struct(HashMap::from([(
+			"a".into(),
+			Some(ColumnFilter::Struct(HashMap::from([("b".into(), None)]))),
+		)]));
+		assert_eq!(out, expected);
+	}
+
 	// a,b -> {a, b}
 	#[test]
 	fn merge_struct_simple() {
@@ -141,6 +152,22 @@ mod test {
 			Some(ColumnFilter::Struct(HashMap::from([
 				("b".into(), None),
 				("c".into(), None),
+			]))),
+		)]));
+		assert_eq!(out, expected);
+	}
+
+	// a.(b,c),a.d -> {a: {b, c, d}}
+	#[test]
+	fn merge_nested_group() {
+		let out = test_parse("a.(b,c),a.d");
+
+		let expected = ColumnFilter::Struct(HashMap::from([(
+			"a".into(),
+			Some(ColumnFilter::Struct(HashMap::from([
+				("b".into(), None),
+				("c".into(), None),
+				("d".into(), None),
 			]))),
 		)]));
 		assert_eq!(out, expected);
