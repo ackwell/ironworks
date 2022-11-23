@@ -119,7 +119,7 @@ mod test {
 
 		let expected =
 			ColumnFilter::Struct(HashMap::from([("a".into(), None), ("b".into(), None)]));
-		assert!(out == expected, "{out:?} == {expected:?}");
+		assert_eq!(out, expected);
 	}
 
 	// a,a.b -> {a}
@@ -128,7 +128,7 @@ mod test {
 		let out = test_parse("a,a.b");
 
 		let expected = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
-		assert!(out == expected, "{out:?} == {expected:?}");
+		assert_eq!(out, expected);
 	}
 
 	// a.b,a.c -> {a: {b, c}}
@@ -143,6 +143,6 @@ mod test {
 				("c".into(), None),
 			]))),
 		)]));
-		assert!(out == expected, "{out:?} == {expected:?}");
+		assert_eq!(out, expected);
 	}
 }
