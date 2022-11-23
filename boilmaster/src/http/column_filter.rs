@@ -16,9 +16,8 @@ type StructFilterTest = HashMap<String, Option<ColumnFilter>>;
 pub enum ColumnFilter {
 	Struct(HashMap<String, Option<ColumnFilter>>),
 
-	// can probably flesh out with more info as required
 	// due to multiple slices, probably easiest to halt merges at arrays and only start merging again on index access
-	Array,
+	Array(Option<Box<ColumnFilter>>),
 	// do i want seperate syntax for references?
 	// Reference
 }
@@ -84,19 +83,34 @@ fn group(input: &str) -> IResult<&str, ColumnFilter> {
 }
 
 fn filter(input: &str) -> IResult<&str, ColumnFilter> {
-	alt((struct_entry, delimited(tag("("), group, tag(")"))))(input)
+	alt((
+		struct_entry,
+		array_index,
+		delimited(tag("("), group, tag(")")),
+	))(input)
+}
+
+fn chained_filter(input: &str) -> IResult<&str, Option<ColumnFilter>> {
+	opt(preceded(tag("."), filter))(input)
 }
 
 fn struct_entry(input: &str) -> IResult<&str, ColumnFilter> {
-	map(
-		tuple((field_name, opt(preceded(tag("."), filter)))),
-		|(key, child)| ColumnFilter::Struct(HashMap::from([(key.into(), child)])),
-	)(input)
+	map(tuple((field_name, chained_filter)), |(key, child)| {
+		ColumnFilter::Struct(HashMap::from([(key.into(), child)]))
+	})(input)
 }
 
 fn field_name(input: &str) -> IResult<&str, &str> {
 	// TODO: ascii safe to use here? i'd hope?
 	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
+}
+
+fn array_index(input: &str) -> IResult<&str, ColumnFilter> {
+	map(
+		tuple((tag("[]"), chained_filter)),
+		// TODO: actually parse an index
+		|(_, child)| ColumnFilter::Array(child.map(Box::new)),
+	)(input)
 }
 
 // TODO: tests can use string reading instead of manual construction, probably
@@ -120,6 +134,10 @@ mod test {
 		ColumnFilter::Struct(map)
 	}
 
+	fn array_filter(child: Option<ColumnFilter>) -> ColumnFilter {
+		ColumnFilter::Array(child.map(Box::new))
+	}
+
 	#[test]
 	fn parse_struct_simple() {
 		let out = test_parse("a");
@@ -131,6 +149,25 @@ mod test {
 	fn parse_struct_nested() {
 		let out = test_parse("a.b");
 		let expected = struct_filter([("a", Some(struct_filter([("b", None)])))]);
+		assert_eq!(out, expected);
+	}
+
+	#[test]
+	fn parse_array_simple() {
+		let out = test_parse("[]");
+		let expected = ColumnFilter::Array(None);
+		assert_eq!(out, expected);
+	}
+
+	#[test]
+	fn parse_array_nested() {
+		let out = test_parse("a.[].[].b");
+		let expected = struct_filter([(
+			"a",
+			Some(array_filter(Some(array_filter(Some(struct_filter([(
+				"b", None,
+			)])))))),
+		)]);
 		assert_eq!(out, expected);
 	}
 
