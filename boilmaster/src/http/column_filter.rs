@@ -10,11 +10,11 @@ use nom::{
 };
 use serde::{Deserialize, Deserializer};
 
-type StructFilterTest = HashMap<String, Option<FilterTest>>;
+type StructFilterTest = HashMap<String, Option<ColumnFilter>>;
 
 #[derive(Debug, PartialEq)]
-enum FilterTest {
-	Struct(HashMap<String, Option<FilterTest>>),
+enum ColumnFilter {
+	Struct(HashMap<String, Option<ColumnFilter>>),
 
 	// can probably flesh out with more info as required
 	// due to multiple slices, probably easiest to halt merges at arrays and only start merging again on index access
@@ -23,7 +23,7 @@ enum FilterTest {
 	// Reference
 }
 
-impl FilterTest {
+impl ColumnFilter {
 	fn merge(self, other: Self) -> Self {
 		match (self, other) {
 			(Self::Struct(struct_1), Self::Struct(struct_2)) => {
@@ -55,7 +55,7 @@ fn merge_struct(mut target: StructFilterTest, source: StructFilterTest) -> Struc
 	target
 }
 
-impl<'de> Deserialize<'de> for FilterTest {
+impl<'de> Deserialize<'de> for ColumnFilter {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where
 		D: Deserializer<'de>,
@@ -69,7 +69,7 @@ impl<'de> Deserialize<'de> for FilterTest {
 	}
 }
 
-fn group(input: &str) -> IResult<&str, FilterTest> {
+fn group(input: &str) -> IResult<&str, ColumnFilter> {
 	map(
 		separated_list1(tag(","), filter),
 		// Unwrap is safe here, as `reduce` only returns `None` on 0-entry iterators, and `separated_list1` guarantees >=1 entries.
@@ -77,14 +77,14 @@ fn group(input: &str) -> IResult<&str, FilterTest> {
 	)(input)
 }
 
-fn filter(input: &str) -> IResult<&str, FilterTest> {
+fn filter(input: &str) -> IResult<&str, ColumnFilter> {
 	alt((struct_entry,))(input)
 }
 
-fn struct_entry(input: &str) -> IResult<&str, FilterTest> {
+fn struct_entry(input: &str) -> IResult<&str, ColumnFilter> {
 	map(
 		tuple((field_name, opt(preceded(tag("."), group)))),
-		|(key, child)| FilterTest::Struct(HashMap::from([(key.into(), child)])),
+		|(key, child)| ColumnFilter::Struct(HashMap::from([(key.into(), child)])),
 	)(input)
 }
 
@@ -98,7 +98,7 @@ fn field_name(input: &str) -> IResult<&str, &str> {
 mod test {
 	use super::*;
 
-	fn test_parse(input: &str) -> FilterTest {
+	fn test_parse(input: &str) -> ColumnFilter {
 		let (remaining, output) = group(input).expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
@@ -108,45 +108,46 @@ mod test {
 	fn parse_simple() {
 		let out = test_parse("a");
 
-		let expected = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		let expected = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
 		assert_eq!(out, expected);
 	}
 
 	// a,b -> {a, b}
 	#[test]
-	fn simple_merge() {
-		let a = FilterTest::Struct(HashMap::from([("a".into(), None)]));
-		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
+	fn merge_simple() {
+		let a = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
+		let b = ColumnFilter::Struct(HashMap::from([("b".into(), None)]));
 		let out = a.merge(b);
 
-		let expected = FilterTest::Struct(HashMap::from([("a".into(), None), ("b".into(), None)]));
+		let expected =
+			ColumnFilter::Struct(HashMap::from([("a".into(), None), ("b".into(), None)]));
 		assert!(out == expected, "{out:?} == {expected:?}");
 	}
 
 	// a,a.b -> {a}
 	#[test]
-	fn struct_widen() {
-		let a = FilterTest::Struct(HashMap::from([("a".into(), None)]));
-		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
-		let ab = FilterTest::Struct(HashMap::from([("a".into(), Some(b))]));
+	fn merge_struct_widen() {
+		let a = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
+		let b = ColumnFilter::Struct(HashMap::from([("b".into(), None)]));
+		let ab = ColumnFilter::Struct(HashMap::from([("a".into(), Some(b))]));
 		let out = a.merge(ab);
 
-		let expected = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		let expected = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
 		assert!(out == expected, "{out:?} == {expected:?}");
 	}
 
 	// a.b,a.c -> {a: {b, c}}
 	#[test]
-	fn nested_merge() {
-		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
-		let ab = FilterTest::Struct(HashMap::from([("a".into(), Some(b))]));
-		let c = FilterTest::Struct(HashMap::from([("c".into(), None)]));
-		let ac = FilterTest::Struct(HashMap::from([("a".into(), Some(c))]));
+	fn merge_struct_nested() {
+		let b = ColumnFilter::Struct(HashMap::from([("b".into(), None)]));
+		let ab = ColumnFilter::Struct(HashMap::from([("a".into(), Some(b))]));
+		let c = ColumnFilter::Struct(HashMap::from([("c".into(), None)]));
+		let ac = ColumnFilter::Struct(HashMap::from([("a".into(), Some(c))]));
 		let out = ab.merge(ac);
 
-		let expected = FilterTest::Struct(HashMap::from([(
+		let expected = ColumnFilter::Struct(HashMap::from([(
 			"a".into(),
-			Some(FilterTest::Struct(HashMap::from([
+			Some(ColumnFilter::Struct(HashMap::from([
 				("b".into(), None),
 				("c".into(), None),
 			]))),
