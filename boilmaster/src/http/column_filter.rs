@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 
 use nom::{
 	bytes::complete::{tag, take_while1},
@@ -57,87 +57,73 @@ enum FilterTest {
 }
 
 impl FilterTest {
-	// TODO: &mut self or self->self??????
-	fn merge(&mut self, other: Self) {
+	fn merge(self, other: Self) -> Self {
 		match (self, other) {
-			(Self::Struct(struct_1), Self::Struct(struct_2)) => merge_struct(struct_1, struct_2),
+			(Self::Struct(struct_1), Self::Struct(struct_2)) => {
+				Self::Struct(merge_struct(struct_1, struct_2))
+			}
 
 			(fallback_1, fallback_2) => todo!("unhandled merge {fallback_1:?} <-> {fallback_2:?}"),
 		}
 	}
 }
 
-fn merge_struct(target: &mut StructFilterTest, source: StructFilterTest) {
+fn merge_struct(mut target: StructFilterTest, source: StructFilterTest) -> StructFilterTest {
 	for (key, value) in source {
-		use std::collections::hash_map::Entry;
-
-		match target.entry(key) {
-			Entry::Vacant(entry) => {
-				entry.insert(value);
-			}
-
-			Entry::Occupied(mut entry) => {
-				match (entry.get_mut(), value) {
-					(Some(target), Some(source)) => target.merge(source),
-					_ => todo!("any none propagates"),
-				};
-			}
+		let merged = match target.remove(&key) {
+			// The target didn't contain this key yet, use the incoming value
+			None => value,
+			// We already had this key, perform a merge
+			Some(ev) => match (ev, value) {
+				// If both sides already had filters for this key, merge recursively
+				(Some(target), Some(source)) => Some(target.merge(source)),
+				// If either side had None, which acts as an "All" value, propagate the None.
+				_ => None,
+			},
 		};
+
+		target.insert(key, merged);
 	}
 
-	// let a = target.into_iter().chain(source.into_iter()).fold(
-	// 	HashMap::new(),
-	// 	|mut map, (key, value)| {
-	// 		map.entry(key)
-	// 			.and_modify(|ev| match (value, ev) {
-	// 				(Some(a), Some(b)) => todo!("call merge"),
-	// 				_ => todo!("any none propagates a none"),
-	// 			})
-	// 			.or_insert(value);
-	// 		map
-	// 	},
-	// );
-
-	// a
-
-	// TODO: is mutation okay? i mean we own it, so...
-	// target.extend(other);
-	// target
+	target
 }
 
 // TODO: tests can use string reading instead of manual construction, probably
 #[cfg(test)]
 mod test {
-
 	use super::*;
 
 	// a,b -> {a, b}
 	#[test]
 	fn simple_merge() {
-		let mut a = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		let a = FilterTest::Struct(HashMap::from([("a".into(), None)]));
 		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
 		let out = a.merge(b);
-		let out = a;
 
 		let expected = FilterTest::Struct(HashMap::from([("a".into(), None), ("b".into(), None)]));
 		assert!(out == expected, "{out:?} == {expected:?}");
 	}
 
-	// a,a.c -> {a}
+	// a,a.b -> {a}
 	#[test]
 	fn struct_widen() {
-		todo!()
+		let a = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
+		let ab = FilterTest::Struct(HashMap::from([("a".into(), Some(b))]));
+		let out = a.merge(ab);
+
+		let expected = FilterTest::Struct(HashMap::from([("a".into(), None)]));
+		assert!(out == expected, "{out:?} == {expected:?}");
 	}
 
 	// a.b,a.c -> {a: {b, c}}
 	#[test]
 	fn nested_merge() {
 		let b = FilterTest::Struct(HashMap::from([("b".into(), None)]));
-		let mut ab = FilterTest::Struct(HashMap::from([("a".into(), Some(b))]));
-		let c = FilterTest::Struct(HashMap::from([("b".into(), None)]));
+		let ab = FilterTest::Struct(HashMap::from([("a".into(), Some(b))]));
+		let c = FilterTest::Struct(HashMap::from([("c".into(), None)]));
 		let ac = FilterTest::Struct(HashMap::from([("a".into(), Some(c))]));
 		let out = ab.merge(ac);
-		let out = ab;
 
 		let expected = FilterTest::Struct(HashMap::from([(
 			"a".into(),
