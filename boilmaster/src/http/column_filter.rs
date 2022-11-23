@@ -104,11 +104,21 @@ mod test {
 		output
 	}
 
+	fn struct_filter(
+		entries: impl IntoIterator<Item = (&'static str, Option<ColumnFilter>)>,
+	) -> ColumnFilter {
+		let map = entries
+			.into_iter()
+			.map(|(key, value)| (key.to_string(), value))
+			.collect::<HashMap<_, _>>();
+		ColumnFilter::Struct(map)
+	}
+
 	#[test]
 	fn parse_simple() {
 		let out = test_parse("a");
 
-		let expected = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
+		let expected = struct_filter([("a", None)]);
 		assert_eq!(out, expected);
 	}
 
@@ -116,10 +126,7 @@ mod test {
 	fn parse_struct_nested() {
 		let out = test_parse("a.b");
 
-		let expected = ColumnFilter::Struct(HashMap::from([(
-			"a".into(),
-			Some(ColumnFilter::Struct(HashMap::from([("b".into(), None)]))),
-		)]));
+		let expected = struct_filter([("a", Some(struct_filter([("b", None)])))]);
 		assert_eq!(out, expected);
 	}
 
@@ -128,8 +135,7 @@ mod test {
 	fn merge_struct_simple() {
 		let out = test_parse("a,b");
 
-		let expected =
-			ColumnFilter::Struct(HashMap::from([("a".into(), None), ("b".into(), None)]));
+		let expected = struct_filter([("a", None), ("b", None)]);
 		assert_eq!(out, expected);
 	}
 
@@ -138,7 +144,7 @@ mod test {
 	fn merge_struct_widen() {
 		let out = test_parse("a,a.b");
 
-		let expected = ColumnFilter::Struct(HashMap::from([("a".into(), None)]));
+		let expected = struct_filter([("a", None)]);
 		assert_eq!(out, expected);
 	}
 
@@ -147,13 +153,7 @@ mod test {
 	fn merge_struct_nested() {
 		let out = test_parse("a.b,a.c");
 
-		let expected = ColumnFilter::Struct(HashMap::from([(
-			"a".into(),
-			Some(ColumnFilter::Struct(HashMap::from([
-				("b".into(), None),
-				("c".into(), None),
-			]))),
-		)]));
+		let expected = struct_filter([("a", Some(struct_filter([("b", None), ("c", None)])))]);
 		assert_eq!(out, expected);
 	}
 
@@ -162,14 +162,10 @@ mod test {
 	fn merge_nested_group() {
 		let out = test_parse("a.(b,c),a.d");
 
-		let expected = ColumnFilter::Struct(HashMap::from([(
-			"a".into(),
-			Some(ColumnFilter::Struct(HashMap::from([
-				("b".into(), None),
-				("c".into(), None),
-				("d".into(), None),
-			]))),
-		)]));
+		let expected = struct_filter([(
+			"a",
+			Some(struct_filter([("b", None), ("c", None), ("d", None)])),
+		)]);
 		assert_eq!(out, expected);
 	}
 }
