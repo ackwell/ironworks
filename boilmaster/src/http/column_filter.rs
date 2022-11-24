@@ -10,23 +10,28 @@ use nom::{
 };
 use serde::{de, Deserialize, Deserializer};
 
-type StructFilterTest = HashMap<String, Option<ColumnFilter>>;
+type StructFilter = HashMap<String, Option<ColumnFilter>>;
+type ArrayFilter = Option<Box<ColumnFilter>>;
 
 #[derive(Debug, PartialEq)]
 pub enum ColumnFilter {
-	Struct(HashMap<String, Option<ColumnFilter>>),
+	Struct(StructFilter),
 
 	// due to multiple slices, probably easiest to halt merges at arrays and only start merging again on index access
-	Array(Option<Box<ColumnFilter>>),
+	Array(ArrayFilter),
 	// do i want seperate syntax for references?
 	// Reference
 }
 
 impl ColumnFilter {
-	fn merge(self, other: Self) -> Self {
-		match (self, other) {
-			(Self::Struct(struct_1), Self::Struct(struct_2)) => {
-				Self::Struct(merge_struct(struct_1, struct_2))
+	fn merge(self, source: Self) -> Self {
+		match (self, source) {
+			(Self::Struct(target_struct), Self::Struct(source_struct)) => {
+				Self::Struct(merge_struct(target_struct, source_struct))
+			}
+
+			(Self::Array(target_array), Self::Array(source_array)) => {
+				Self::Array(merge_array(target_array, source_array))
 			}
 
 			(fallback_1, fallback_2) => todo!("unhandled merge {fallback_1:?} <-> {fallback_2:?}"),
@@ -34,15 +39,17 @@ impl ColumnFilter {
 	}
 }
 
-fn merge_struct(mut target: StructFilterTest, source: StructFilterTest) -> StructFilterTest {
-	for (key, value) in source {
+fn merge_struct(mut target: StructFilter, source: StructFilter) -> StructFilter {
+	for (key, source_value) in source {
 		let merged = match target.remove(&key) {
 			// The target didn't contain this key yet, use the incoming value
-			None => value,
+			None => source_value,
 			// We already had this key, perform a merge
-			Some(ev) => match (ev, value) {
+			Some(target_value) => match (target_value, source_value) {
 				// If both sides already had filters for this key, merge recursively
-				(Some(target), Some(source)) => Some(target.merge(source)),
+				(Some(target_filter), Some(source_filter)) => {
+					Some(target_filter.merge(source_filter))
+				}
 				// If either side had None, which acts as an "All" value, propagate the None.
 				_ => None,
 			},
@@ -52,6 +59,16 @@ fn merge_struct(mut target: StructFilterTest, source: StructFilterTest) -> Struc
 	}
 
 	target
+}
+
+fn merge_array(target: ArrayFilter, source: ArrayFilter) -> ArrayFilter {
+	match (target, source) {
+		(Some(target_filter), Some(source_filter)) => {
+			Some(target_filter.merge(*source_filter).into())
+		}
+
+		_ => None,
+	}
 }
 
 impl<'de> Deserialize<'de> for ColumnFilter {
@@ -113,7 +130,7 @@ fn array_index(input: &str) -> IResult<&str, ColumnFilter> {
 	)(input)
 }
 
-// TODO: tests can use string reading instead of manual construction, probably
+// TODO: need to add tests for error paths - and at that, add error handling. a lot of error cases (like mismatched types on a merge) can soft fail, but i should still surface warnings that they did soft fail. need to work out how that would work
 #[cfg(test)]
 mod test {
 	use super::*;
@@ -203,6 +220,14 @@ mod test {
 			"a",
 			Some(struct_filter([("b", None), ("c", None), ("d", None)])),
 		)]);
+		assert_eq!(out, expected);
+	}
+
+	// [].a,[].b -> [{a, b}]
+	#[test]
+	fn merge_array_children() {
+		let out = test_parse("[].a,[].b");
+		let expected = array_filter(Some(struct_filter([("a", None), ("b", None)])));
 		assert_eq!(out, expected);
 	}
 }
