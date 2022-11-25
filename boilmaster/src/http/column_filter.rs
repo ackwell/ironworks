@@ -24,17 +24,18 @@ pub enum ColumnFilter {
 }
 
 impl ColumnFilter {
-	fn merge(self, source: Self) -> Self {
+	fn merge(self, source: Self) -> Option<Self> {
 		match (self, source) {
 			(Self::Struct(target_struct), Self::Struct(source_struct)) => {
-				Self::Struct(merge_struct(target_struct, source_struct))
+				Some(Self::Struct(merge_struct(target_struct, source_struct)))
 			}
 
 			(Self::Array(target_array), Self::Array(source_array)) => {
-				Self::Array(merge_array(target_array, source_array))
+				Some(Self::Array(merge_array(target_array, source_array)))
 			}
 
-			(fallback_1, fallback_2) => todo!("unhandled merge {fallback_1:?} <-> {fallback_2:?}"),
+			// TODO: this will need a "path", i think?
+			(fallback_1, fallback_2) => None,
 		}
 	}
 }
@@ -47,9 +48,7 @@ fn merge_struct(mut target: StructFilter, source: StructFilter) -> StructFilter 
 			// We already had this key, perform a merge
 			Some(target_value) => match (target_value, source_value) {
 				// If both sides already had filters for this key, merge recursively
-				(Some(target_filter), Some(source_filter)) => {
-					Some(target_filter.merge(source_filter))
-				}
+				(Some(target_filter), Some(source_filter)) => target_filter.merge(source_filter),
 				// If either side had None, which acts as an "All" value, propagate the None.
 				_ => None,
 			},
@@ -64,7 +63,7 @@ fn merge_struct(mut target: StructFilter, source: StructFilter) -> StructFilter 
 fn merge_array(target: ArrayFilter, source: ArrayFilter) -> ArrayFilter {
 	match (target, source) {
 		(Some(target_filter), Some(source_filter)) => {
-			Some(target_filter.merge(*source_filter).into())
+			target_filter.merge(*source_filter).map(Box::new)
 		}
 
 		_ => None,
@@ -88,28 +87,36 @@ impl<'de> Deserialize<'de> for ColumnFilter {
 			));
 		}
 
+		let filter = match filter {
+			Some(filter) => filter,
+			None => return Err(de::Error::custom("TODO: filter returned none - which implies absolutely nothing was gained from the filter. should this be a warning, or will the inner warnings be enough?"))
+		};
+
 		Ok(filter)
 	}
 }
 
-fn group(input: &str) -> IResult<&str, ColumnFilter> {
+fn group(input: &str) -> IResult<&str, Option<ColumnFilter>> {
 	map(
 		separated_list1(tag(","), filter),
-		// Unwrap is safe here, as `reduce` only returns `None` on 0-entry iterators, and `separated_list1` guarantees >=1 entries.
-		|filters| filters.into_iter().reduce(|a, b| a.merge(b)).unwrap(),
+		// If a group merge fails, None is returned to signal no filter should be applied.
+		|filters| {
+			let mut iterator = filters.into_iter().flatten();
+			let first = iterator.next()?;
+			iterator.try_fold(first, |a, b| a.merge(b))
+		},
 	)(input)
 }
 
-fn filter(input: &str) -> IResult<&str, ColumnFilter> {
+fn filter(input: &str) -> IResult<&str, Option<ColumnFilter>> {
 	alt((
-		struct_entry,
-		array_index,
+		map(alt((struct_entry, array_index)), |filter| Some(filter)),
 		delimited(tag("("), group, tag(")")),
 	))(input)
 }
 
 fn chained_filter(input: &str) -> IResult<&str, Option<ColumnFilter>> {
-	opt(preceded(tag("."), filter))(input)
+	map(opt(preceded(tag("."), filter)), |filter| filter.flatten())(input)
 }
 
 fn struct_entry(input: &str) -> IResult<&str, ColumnFilter> {
@@ -136,7 +143,7 @@ fn array_index(input: &str) -> IResult<&str, ColumnFilter> {
 mod test {
 	use super::*;
 
-	fn test_parse(input: &str) -> ColumnFilter {
+	fn test_parse(input: &str) -> Option<ColumnFilter> {
 		let (remaining, output) = group(input).finish().expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
@@ -159,33 +166,47 @@ mod test {
 	#[test]
 	fn parse_struct_simple() {
 		let out = test_parse("a");
-		let expected = struct_filter([("a", None)]);
+		let expected = Some(struct_filter([("a", None)]));
 		assert_eq!(out, expected);
 	}
 
 	#[test]
 	fn parse_struct_nested() {
 		let out = test_parse("a.b");
-		let expected = struct_filter([("a", Some(struct_filter([("b", None)])))]);
+		let expected = Some(struct_filter([("a", Some(struct_filter([("b", None)])))]));
 		assert_eq!(out, expected);
 	}
 
 	#[test]
 	fn parse_array_simple() {
 		let out = test_parse("[]");
-		let expected = ColumnFilter::Array(None);
+		let expected = Some(ColumnFilter::Array(None));
 		assert_eq!(out, expected);
 	}
 
 	#[test]
 	fn parse_array_nested() {
 		let out = test_parse("a.[].[].b");
-		let expected = struct_filter([(
+		let expected = Some(struct_filter([(
 			"a",
 			Some(array_filter(Some(array_filter(Some(struct_filter([(
 				"b", None,
 			)])))))),
-		)]);
+		)]));
+		assert_eq!(out, expected);
+	}
+
+	#[test]
+	fn merge_fail() {
+		let out = test_parse("a,[]");
+		assert_eq!(out, None);
+	}
+
+	// a.[],a.b -> {a}
+	#[test]
+	fn merge_nested_fail() {
+		let out = test_parse("a.[],a.b");
+		let expected = Some(struct_filter([("a", None)]));
 		assert_eq!(out, expected);
 	}
 
@@ -193,7 +214,7 @@ mod test {
 	#[test]
 	fn merge_struct_simple() {
 		let out = test_parse("a,b");
-		let expected = struct_filter([("a", None), ("b", None)]);
+		let expected = Some(struct_filter([("a", None), ("b", None)]));
 		assert_eq!(out, expected);
 	}
 
@@ -201,7 +222,7 @@ mod test {
 	#[test]
 	fn merge_struct_widen() {
 		let out = test_parse("a,a.b");
-		let expected = struct_filter([("a", None)]);
+		let expected = Some(struct_filter([("a", None)]));
 		assert_eq!(out, expected);
 	}
 
@@ -209,7 +230,10 @@ mod test {
 	#[test]
 	fn merge_struct_nested() {
 		let out = test_parse("a.b,a.c");
-		let expected = struct_filter([("a", Some(struct_filter([("b", None), ("c", None)])))]);
+		let expected = Some(struct_filter([(
+			"a",
+			Some(struct_filter([("b", None), ("c", None)])),
+		)]));
 		assert_eq!(out, expected);
 	}
 
@@ -217,10 +241,10 @@ mod test {
 	#[test]
 	fn merge_nested_group() {
 		let out = test_parse("a.(b,c),a.d");
-		let expected = struct_filter([(
+		let expected = Some(struct_filter([(
 			"a",
 			Some(struct_filter([("b", None), ("c", None), ("d", None)])),
-		)]);
+		)]));
 		assert_eq!(out, expected);
 	}
 
@@ -228,7 +252,10 @@ mod test {
 	#[test]
 	fn merge_array_children() {
 		let out = test_parse("[].a,[].b");
-		let expected = array_filter(Some(struct_filter([("a", None), ("b", None)])));
+		let expected = Some(array_filter(Some(struct_filter([
+			("a", None),
+			("b", None),
+		]))));
 		assert_eq!(out, expected);
 	}
 }
