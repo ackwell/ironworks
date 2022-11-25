@@ -6,7 +6,7 @@ use nom::{
 	combinator::{map, opt},
 	multi::separated_list1,
 	sequence::{delimited, preceded, tuple},
-	IResult,
+	Finish, IResult,
 };
 use serde::{de, Deserialize, Deserializer};
 
@@ -79,6 +79,7 @@ impl<'de> Deserialize<'de> for ColumnFilter {
 		let raw = String::deserialize(deserializer)?;
 
 		let (remaining, filter) = group(&raw)
+			.finish()
 			.map_err(|error| de::Error::custom(format!("filter parse error: {error:?}")))?;
 
 		if !remaining.is_empty() {
@@ -136,7 +137,7 @@ mod test {
 	use super::*;
 
 	fn test_parse(input: &str) -> ColumnFilter {
-		let (remaining, output) = group(input).expect("parse should not fail");
+		let (remaining, output) = group(input).finish().expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
 	}
