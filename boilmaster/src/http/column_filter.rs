@@ -24,50 +24,61 @@ pub enum ColumnFilter {
 }
 
 impl ColumnFilter {
-	fn merge(self, source: Self) -> Option<Self> {
+	fn merge(self, source: Self) -> Warnings<Option<Self>> {
 		match (self, source) {
 			(Self::Struct(target_struct), Self::Struct(source_struct)) => {
-				Some(Self::Struct(merge_struct(target_struct, source_struct)))
+				merge_struct(target_struct, source_struct)
+					.map(|struct_filter| Some(Self::Struct(struct_filter)))
 			}
 
 			(Self::Array(target_array), Self::Array(source_array)) => {
-				Some(Self::Array(merge_array(target_array, source_array)))
+				merge_array(target_array, source_array)
+					.map(|array_filter| Some(Self::Array(array_filter)))
 			}
 
 			// TODO: this will need a "path", i think?
-			(fallback_1, fallback_2) => None,
+			(fallback_1, fallback_2) => Warnings::new(None).with_warning(format!(
+				"invalid merge at [TODO] of {fallback_1:?} & {fallback_2:?}"
+			)),
 		}
 	}
 }
 
-fn merge_struct(mut target: StructFilter, source: StructFilter) -> StructFilter {
-	for (key, source_value) in source {
-		let merged = match target.remove(&key) {
-			// The target didn't contain this key yet, use the incoming value
-			None => source_value,
-			// We already had this key, perform a merge
-			Some(target_value) => match (target_value, source_value) {
-				// If both sides already had filters for this key, merge recursively
-				(Some(target_filter), Some(source_filter)) => target_filter.merge(source_filter),
-				// If either side had None, which acts as an "All" value, propagate the None.
-				_ => None,
-			},
-		};
-
-		target.insert(key, merged);
-	}
-
-	target
+fn merge_struct(target: StructFilter, source: StructFilter) -> Warnings<StructFilter> {
+	// Fold entries in the source into the target, collecting warnings along the way.
+	source.into_iter().fold(
+		Warnings::new(target),
+		|target, (source_key, source_maybe_filter)| {
+			target.and_then(|target_map| {
+				merge_struct_field(target_map, source_key, source_maybe_filter)
+			})
+		},
+	)
 }
 
-fn merge_array(target: ArrayFilter, source: ArrayFilter) -> ArrayFilter {
-	match (target, source) {
-		(Some(target_filter), Some(source_filter)) => {
-			target_filter.merge(*source_filter).map(Box::new)
-		}
+fn merge_struct_field(
+	mut target: StructFilter,
+	key: String,
+	source_value: Option<ColumnFilter>,
+) -> Warnings<StructFilter> {
+	// This uses remove->insert rather than the entry API, as merging requires an owned value, not a mutable reference
+	// TODO: is it worth trying to refactor all this to actually use mutable references? I'm not convinced...
+	let new_child = match target.remove(&key) {
+		// Target didn't contain the key at all, so source value can go straight in.
+		None => Warnings::new(source_value),
 
-		_ => None,
-	}
+		// There's a collision, we might need to merge.
+		Some(target_maybe_filter) => merge_optional_filters(target_maybe_filter, source_value),
+	};
+
+	new_child.map(|child| {
+		target.insert(key, child);
+		target
+	})
+}
+
+fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
+	merge_optional_filters(left.map(|x| *x), right.map(|x| *x)).map(|output| output.map(Box::new))
 }
 
 impl<'de> Deserialize<'de> for ColumnFilter {
@@ -87,7 +98,7 @@ impl<'de> Deserialize<'de> for ColumnFilter {
 			));
 		}
 
-		let filter = match filter {
+		let filter = match filter.value {
 			Some(filter) => filter,
 			None => return Err(de::Error::custom("TODO: filter returned none - which implies absolutely nothing was gained from the filter. should this be a warning, or will the inner warnings be enough?"))
 		};
@@ -96,32 +107,57 @@ impl<'de> Deserialize<'de> for ColumnFilter {
 	}
 }
 
-fn group(input: &str) -> IResult<&str, Option<ColumnFilter>> {
+fn group(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
 	map(
 		separated_list1(tag(","), filter),
-		// If a group merge fails, None is returned to signal no filter should be applied.
-		|filters| {
-			let mut iterator = filters.into_iter().flatten();
-			let first = iterator.next()?;
-			iterator.try_fold(first, |a, b| a.merge(b))
-		},
+		// .reduce only returns None when there was 0 inputs, which is impossible due to _list1
+		|filters| filters.into_iter().reduce(merge_warning_filters).unwrap(),
 	)(input)
 }
 
-fn filter(input: &str) -> IResult<&str, Option<ColumnFilter>> {
+fn merge_warning_filters(
+	left: Warnings<Option<ColumnFilter>>,
+	right: Warnings<Option<ColumnFilter>>,
+) -> Warnings<Option<ColumnFilter>> {
+	// Step into the left and right warnings to prep merging them.
+	left.and_then(|maybe_filter_left| {
+		right.and_then(|maybe_filter_right| {
+			merge_optional_filters(maybe_filter_left, maybe_filter_right)
+		})
+	})
+}
+
+fn merge_optional_filters(
+	left: Option<ColumnFilter>,
+	right: Option<ColumnFilter>,
+) -> Warnings<Option<ColumnFilter>> {
+	match (left, right) {
+		// If both sides have an active filter, merge them and lift any warnings.
+		(Some(filter_left), Some(filter_right)) => filter_left.merge(filter_right),
+		// Otherwise, a None filter in a group should clear the group.
+		(other_left, other_right) => Warnings::new(None).with_warning(format!(
+			"filter {:?} ignored as another branch selected all values",
+			other_left.or(other_right).unwrap()
+		)),
+	}
+}
+
+fn filter(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
 	alt((
-		map(alt((struct_entry, array_index)), |filter| Some(filter)),
+		map(alt((struct_entry, array_index)), |filter| filter.map(Some)),
 		delimited(tag("("), group, tag(")")),
 	))(input)
 }
 
-fn chained_filter(input: &str) -> IResult<&str, Option<ColumnFilter>> {
-	map(opt(preceded(tag("."), filter)), |filter| filter.flatten())(input)
+fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
+	map(opt(preceded(tag("."), filter)), |filter| {
+		filter.unwrap_or_else(|| Warnings::new(None))
+	})(input)
 }
 
-fn struct_entry(input: &str) -> IResult<&str, ColumnFilter> {
+fn struct_entry(input: &str) -> IResult<&str, Warnings<ColumnFilter>> {
 	map(tuple((field_name, chained_filter)), |(key, child)| {
-		ColumnFilter::Struct(HashMap::from([(key.into(), child)]))
+		child.map(|filter| ColumnFilter::Struct(HashMap::from([(key.into(), filter)])))
 	})(input)
 }
 
@@ -130,11 +166,11 @@ fn field_name(input: &str) -> IResult<&str, &str> {
 	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
 }
 
-fn array_index(input: &str) -> IResult<&str, ColumnFilter> {
+fn array_index(input: &str) -> IResult<&str, Warnings<ColumnFilter>> {
 	map(
 		tuple((tag("[]"), chained_filter)),
 		// TODO: actually parse an index
-		|(_, child)| ColumnFilter::Array(child.map(Box::new)),
+		|(_, child)| child.map(|filter| ColumnFilter::Array(filter.map(Box::new))),
 	)(input)
 }
 
@@ -144,6 +180,16 @@ mod test {
 	use super::*;
 
 	fn test_parse(input: &str) -> Option<ColumnFilter> {
+		let output = test_warning_parse(input);
+		assert!(
+			output.warnings.is_empty(),
+			"unexpected warnings: {:?}",
+			output.warnings
+		);
+		output.value
+	}
+
+	fn test_warning_parse(input: &str) -> Warnings<Option<ColumnFilter>> {
 		let (remaining, output) = group(input).finish().expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
@@ -198,16 +244,28 @@ mod test {
 
 	#[test]
 	fn merge_fail() {
-		let out = test_parse("a,[]");
-		assert_eq!(out, None);
+		let out = test_warning_parse("a,[]");
+		assert_eq!(out.value, None);
+		assert_eq!(
+			out.warnings,
+			vec![String::from(
+				"invalid merge at [TODO] of Struct({\"a\": None}) & Array(None)"
+			)]
+		);
 	}
 
 	// a.[],a.b -> {a}
 	#[test]
 	fn merge_nested_fail() {
-		let out = test_parse("a.[],a.b");
+		let out = test_warning_parse("a.[],a.b");
 		let expected = Some(struct_filter([("a", None)]));
-		assert_eq!(out, expected);
+		assert_eq!(out.value, expected);
+		assert_eq!(
+			out.warnings,
+			vec![String::from(
+				"invalid merge at [TODO] of Array(None) & Struct({\"b\": None})"
+			)]
+		);
 	}
 
 	// a,b -> {a, b}
@@ -221,9 +279,15 @@ mod test {
 	// a,a.b -> {a}
 	#[test]
 	fn merge_struct_widen() {
-		let out = test_parse("a,a.b");
+		let out = test_warning_parse("a,a.b");
 		let expected = Some(struct_filter([("a", None)]));
-		assert_eq!(out, expected);
+		assert_eq!(out.value, expected);
+		assert_eq!(
+			out.warnings,
+			vec![String::from(
+				"filter Struct({\"b\": None}) ignored as another branch selected all values"
+			)]
+		);
 	}
 
 	// a.b,a.c -> {a: {b, c}}
@@ -257,5 +321,59 @@ mod test {
 			("b", None),
 		]))));
 		assert_eq!(out, expected);
+	}
+}
+
+// ------
+// testing ideas
+
+struct Warnings<T> {
+	value: T,
+	warnings: Vec<String>,
+}
+
+impl<T> Warnings<T> {
+	fn new(value: T) -> Self {
+		Self {
+			value,
+			warnings: vec![],
+		}
+	}
+
+	#[must_use]
+	fn with_warning(mut self, warning: impl Into<String>) -> Self {
+		self.add_warning(warning);
+		self
+	}
+
+	fn add_warning(&mut self, warning: impl Into<String>) {
+		self.warnings.push(warning.into());
+	}
+
+	#[must_use]
+	fn with_warnings(mut self, warnings: impl IntoIterator<Item = String>) -> Self {
+		self.add_warnings(warnings);
+		self
+	}
+
+	fn add_warnings(&mut self, warnings: impl IntoIterator<Item = String>) {
+		self.warnings.extend(warnings.into_iter())
+	}
+
+	fn map<U, F>(self, function: F) -> Warnings<U>
+	where
+		F: FnOnce(T) -> U,
+	{
+		Warnings {
+			value: function(self.value),
+			warnings: self.warnings,
+		}
+	}
+
+	fn and_then<U, F>(self, function: F) -> Warnings<U>
+	where
+		F: FnOnce(T) -> Warnings<U>,
+	{
+		function(self.value).with_warnings(self.warnings)
 	}
 }
