@@ -10,6 +10,8 @@ use nom::{
 };
 use serde::{de, Deserialize, Deserializer};
 
+use crate::util::warnings::{SoftDeserialize, Warnings};
+
 type StructFilter = HashMap<String, Option<ColumnFilter>>;
 type ArrayFilter = Option<Box<ColumnFilter>>;
 
@@ -48,6 +50,27 @@ impl fmt::Display for ColumnFilter {
 			}
 		}
 		Ok(())
+	}
+}
+
+impl<'de> SoftDeserialize<'de> for Option<ColumnFilter> {
+	fn deserialize<D>(deserializer: D) -> Result<Warnings<Self>, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let raw = String::deserialize(deserializer)?;
+
+		let (remaining, filter) = group(&raw)
+			.finish()
+			.map_err(|error| de::Error::custom(format!("column filter parse error: {error}")))?;
+
+		if !remaining.is_empty() {
+			return Err(de::Error::custom(format!(
+				"column filter parse error: trailing characters found {remaining:?}"
+			)));
+		}
+
+		Ok(filter)
 	}
 }
 
@@ -107,32 +130,6 @@ fn merge_struct_field(
 
 fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
 	merge_optional_filters(left.map(|x| *x), right.map(|x| *x)).map(|output| output.map(Box::new))
-}
-
-impl<'de> Deserialize<'de> for ColumnFilter {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where
-		D: Deserializer<'de>,
-	{
-		let raw = String::deserialize(deserializer)?;
-
-		let (remaining, filter) = group(&raw)
-			.finish()
-			.map_err(|error| de::Error::custom(format!("filter parse error: {error:?}")))?;
-
-		if !remaining.is_empty() {
-			return Err(de::Error::custom(
-				"TODO: message. something broke and there's remaining characters.",
-			));
-		}
-
-		let filter = match filter.value {
-			Some(filter) => filter,
-			None => return Err(de::Error::custom("TODO: filter returned none - which implies absolutely nothing was gained from the filter. should this be a warning, or will the inner warnings be enough?"))
-		};
-
-		Ok(filter)
-	}
 }
 
 fn group(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
@@ -208,13 +205,9 @@ mod test {
 	use super::*;
 
 	fn test_parse(input: &str) -> Option<ColumnFilter> {
-		let output = test_warning_parse(input);
-		assert!(
-			output.warnings.is_empty(),
-			"unexpected warnings: {:?}",
-			output.warnings
-		);
-		output.value
+		let (value, warnings) = test_warning_parse(input).decompose();
+		assert!(warnings.is_empty(), "unexpected warnings: {:?}", warnings);
+		value
 	}
 
 	fn test_warning_parse(input: &str) -> Warnings<Option<ColumnFilter>> {
@@ -272,10 +265,10 @@ mod test {
 
 	#[test]
 	fn merge_fail() {
-		let out = test_warning_parse("a,[]");
-		assert_eq!(out.value, None);
+		let (value, warnings) = test_warning_parse("a,[]").decompose();
+		assert_eq!(value, None);
 		assert_eq!(
-			out.warnings,
+			warnings,
 			vec![String::from(
 				"filters `{a}` and `[]` cannot be merged, and have been ignored"
 			)]
@@ -285,11 +278,11 @@ mod test {
 	// a.[],a.b -> {a}
 	#[test]
 	fn merge_nested_fail() {
-		let out = test_warning_parse("a.[],a.b");
+		let (value, warnings) = test_warning_parse("a.[],a.b").decompose();
 		let expected = Some(struct_filter([("a", None)]));
-		assert_eq!(out.value, expected);
+		assert_eq!(value, expected);
 		assert_eq!(
-			out.warnings,
+			warnings,
 			vec![String::from(
 				"filters `[]` and `{b}` cannot be merged, and have been ignored"
 			)]
@@ -307,11 +300,11 @@ mod test {
 	// a,a.b -> {a}
 	#[test]
 	fn merge_struct_widen() {
-		let out = test_warning_parse("a,a.b");
+		let (value, warnings) = test_warning_parse("a,a.b").decompose();
 		let expected = Some(struct_filter([("a", None)]));
-		assert_eq!(out.value, expected);
+		assert_eq!(value, expected);
 		assert_eq!(
-			out.warnings,
+			warnings,
 			vec![String::from(
 				"filter `{b}` ignored as another branch selected all values"
 			)]
@@ -349,48 +342,5 @@ mod test {
 			("b", None),
 		]))));
 		assert_eq!(out, expected);
-	}
-}
-
-struct Warnings<T> {
-	value: T,
-	warnings: Vec<String>,
-}
-
-impl<T> Warnings<T> {
-	fn new(value: T) -> Self {
-		Self {
-			value,
-			warnings: vec![],
-		}
-	}
-
-	#[must_use]
-	fn with_warning(mut self, warning: impl Into<String>) -> Self {
-		self.warnings.push(warning.into());
-		self
-	}
-
-	#[must_use]
-	fn with_warnings(mut self, warnings: impl IntoIterator<Item = String>) -> Self {
-		self.warnings.extend(warnings.into_iter());
-		self
-	}
-
-	fn map<U, F>(self, function: F) -> Warnings<U>
-	where
-		F: FnOnce(T) -> U,
-	{
-		Warnings {
-			value: function(self.value),
-			warnings: self.warnings,
-		}
-	}
-
-	fn and_then<U, F>(self, function: F) -> Warnings<U>
-	where
-		F: FnOnce(T) -> Warnings<U>,
-	{
-		function(self.value).with_warnings(self.warnings)
 	}
 }

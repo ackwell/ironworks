@@ -9,7 +9,7 @@ use ironworks::{
 use ironworks_schema::saint_coinach;
 use serde::Deserialize;
 
-use crate::{data::Data, read};
+use crate::{data::Data, read, util::warnings::Warnings};
 
 use super::{
 	column_filter::ColumnFilter,
@@ -42,7 +42,7 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 
 #[derive(Deserialize)]
 struct ColumnTestQuery {
-	columns: ColumnFilter,
+	columns: Warnings<Option<ColumnFilter>>,
 }
 #[debug_handler]
 async fn column_test(Query(ctq): Query<ColumnTestQuery>) -> Result<impl IntoResponse> {
