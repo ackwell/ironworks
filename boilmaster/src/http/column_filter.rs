@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
 use nom::{
 	branch::alt,
@@ -23,6 +23,34 @@ pub enum ColumnFilter {
 	// Reference
 }
 
+impl fmt::Display for ColumnFilter {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Struct(fields) => {
+				formatter.write_str("{")?;
+				let fields = fields
+					.iter()
+					.map(|(key, value)| match value {
+						Some(filter) => format!("{key}: {filter}"),
+						None => key.to_string(),
+					})
+					.reduce(|left, right| format!("{left}, {right}"))
+					.unwrap_or_default();
+				formatter.write_str(&fields)?;
+				formatter.write_str("}")?;
+			}
+
+			Self::Array(inner) => {
+				formatter.write_str("[]")?;
+				if let Some(filter) = inner {
+					formatter.write_fmt(format_args!(".{filter}"))?;
+				}
+			}
+		}
+		Ok(())
+	}
+}
+
 impl ColumnFilter {
 	fn merge(self, source: Self) -> Warnings<Option<Self>> {
 		match (self, source) {
@@ -38,7 +66,7 @@ impl ColumnFilter {
 
 			// TODO: this will need a "path", i think?
 			(fallback_1, fallback_2) => Warnings::new(None).with_warning(format!(
-				"invalid merge at [TODO] of {fallback_1:?} & {fallback_2:?}"
+				"filters `{fallback_1}` and `{fallback_2}` cannot be merged, and have been ignored"
 			)),
 		}
 	}
@@ -136,7 +164,7 @@ fn merge_optional_filters(
 		(Some(filter_left), Some(filter_right)) => filter_left.merge(filter_right),
 		// Otherwise, a None filter in a group should clear the group.
 		(other_left, other_right) => Warnings::new(None).with_warning(format!(
-			"filter {:?} ignored as another branch selected all values",
+			"filter `{}` ignored as another branch selected all values",
 			other_left.or(other_right).unwrap()
 		)),
 	}
@@ -249,7 +277,7 @@ mod test {
 		assert_eq!(
 			out.warnings,
 			vec![String::from(
-				"invalid merge at [TODO] of Struct({\"a\": None}) & Array(None)"
+				"filters `{a}` and `[]` cannot be merged, and have been ignored"
 			)]
 		);
 	}
@@ -263,7 +291,7 @@ mod test {
 		assert_eq!(
 			out.warnings,
 			vec![String::from(
-				"invalid merge at [TODO] of Array(None) & Struct({\"b\": None})"
+				"filters `[]` and `{b}` cannot be merged, and have been ignored"
 			)]
 		);
 	}
@@ -285,7 +313,7 @@ mod test {
 		assert_eq!(
 			out.warnings,
 			vec![String::from(
-				"filter Struct({\"b\": None}) ignored as another branch selected all values"
+				"filter `{b}` ignored as another branch selected all values"
 			)]
 		);
 	}
@@ -324,9 +352,6 @@ mod test {
 	}
 }
 
-// ------
-// testing ideas
-
 struct Warnings<T> {
 	value: T,
 	warnings: Vec<String>,
@@ -342,22 +367,14 @@ impl<T> Warnings<T> {
 
 	#[must_use]
 	fn with_warning(mut self, warning: impl Into<String>) -> Self {
-		self.add_warning(warning);
-		self
-	}
-
-	fn add_warning(&mut self, warning: impl Into<String>) {
 		self.warnings.push(warning.into());
+		self
 	}
 
 	#[must_use]
 	fn with_warnings(mut self, warnings: impl IntoIterator<Item = String>) -> Self {
-		self.add_warnings(warnings);
+		self.warnings.extend(warnings.into_iter());
 		self
-	}
-
-	fn add_warnings(&mut self, warnings: impl IntoIterator<Item = String>) {
-		self.warnings.extend(warnings.into_iter())
 	}
 
 	fn map<U, F>(self, function: F) -> Warnings<U>
