@@ -9,7 +9,7 @@ use ironworks::{
 use ironworks_schema::saint_coinach;
 use serde::Deserialize;
 
-use crate::{column_filter::ColumnFilter, data::Data, read, util::warnings::Warnings};
+use crate::{data::Data, field_filter::FieldFilter, read, util::warnings::Warnings};
 
 use super::{
 	error::{Anyhow, Error, Result},
@@ -40,15 +40,15 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 
 // TODO: this probably should be generally accessible across all sheet endpoints? and search?
 #[derive(Deserialize)]
-struct ColumnFilterQuery {
+struct FieldFilterQuery {
 	// this is a bit jank with the double option, improve? is it even possible to improve?
-	columns: Option<Warnings<Option<ColumnFilter>>>,
+	fields: Option<Warnings<Option<FieldFilter>>>,
 }
 
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
-	Query(column_filter_query): Query<ColumnFilterQuery>,
+	Query(field_filter_query): Query<FieldFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
@@ -63,15 +63,15 @@ async fn row(
 	let row = sheet.row(row_id)?;
 	let columns = sheet.columns()?;
 
-	let (column_filter, warnings) = column_filter_query
-		.columns
+	let (field_filter, warnings) = field_filter_query
+		.fields
 		.unwrap_or_else(|| Warnings::new(None))
 		.decompose();
 	if !warnings.is_empty() {
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(&sheet_name, &excel, &row, column_filter.as_ref(), &columns)?;
+	let result = read_row(&sheet_name, &excel, &row, field_filter.as_ref(), &columns)?;
 
 	Ok(Json(result))
 }
@@ -79,7 +79,7 @@ async fn row(
 #[debug_handler]
 async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
-	Query(column_filter_query): Query<ColumnFilterQuery>,
+	Query(field_filter_query): Query<FieldFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
@@ -94,15 +94,15 @@ async fn subrow(
 	let row = sheet.subrow(row_id, subrow_id)?;
 	let columns = sheet.columns()?;
 
-	let (column_filter, warnings) = column_filter_query
-		.columns
+	let (field_filter, warnings) = field_filter_query
+		.fields
 		.unwrap_or_else(|| Warnings::new(None))
 		.decompose();
 	if !warnings.is_empty() {
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(&sheet_name, &excel, &row, column_filter.as_ref(), &columns)?;
+	let result = read_row(&sheet_name, &excel, &row, field_filter.as_ref(), &columns)?;
 
 	Ok(Json(result))
 }
@@ -111,7 +111,7 @@ fn read_row(
 	sheet_name: &str,
 	excel: &Excel,
 	row: &Row,
-	filter: Option<&ColumnFilter>,
+	filter: Option<&FieldFilter>,
 	columns: &[exh::ColumnDefinition],
 ) -> Result<read::Value> {
 	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request

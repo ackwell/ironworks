@@ -14,11 +14,11 @@ use crate::util::warnings::{SoftDeserialize, Warnings};
 
 // TODO: should this be in a top level filter module? will depend if there's other types of filters i guess. also semantics...
 
-type StructFilter = HashMap<String, Option<ColumnFilter>>;
-type ArrayFilter = Option<Box<ColumnFilter>>;
+type StructFilter = HashMap<String, Option<FieldFilter>>;
+type ArrayFilter = Option<Box<FieldFilter>>;
 
 #[derive(Debug, PartialEq)]
-pub enum ColumnFilter {
+pub enum FieldFilter {
 	Struct(StructFilter),
 
 	// due to multiple slices, probably easiest to halt merges at arrays and only start merging again on index access
@@ -27,7 +27,7 @@ pub enum ColumnFilter {
 	// Reference
 }
 
-impl fmt::Display for ColumnFilter {
+impl fmt::Display for FieldFilter {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::Struct(fields) => {
@@ -55,7 +55,7 @@ impl fmt::Display for ColumnFilter {
 	}
 }
 
-impl<'de> SoftDeserialize<'de> for Option<ColumnFilter> {
+impl<'de> SoftDeserialize<'de> for Option<FieldFilter> {
 	fn deserialize<D>(deserializer: D) -> Result<Warnings<Self>, D::Error>
 	where
 		D: Deserializer<'de>,
@@ -64,11 +64,11 @@ impl<'de> SoftDeserialize<'de> for Option<ColumnFilter> {
 
 		let (remaining, filter) = group(&raw)
 			.finish()
-			.map_err(|error| de::Error::custom(format!("column filter parse error: {error}")))?;
+			.map_err(|error| de::Error::custom(format!("field filter parse error: {error}")))?;
 
 		if !remaining.is_empty() {
 			return Err(de::Error::custom(format!(
-				"column filter parse error: trailing characters found {remaining:?}"
+				"field filter parse error: trailing characters found {remaining:?}"
 			)));
 		}
 
@@ -76,7 +76,7 @@ impl<'de> SoftDeserialize<'de> for Option<ColumnFilter> {
 	}
 }
 
-impl ColumnFilter {
+impl FieldFilter {
 	fn merge(self, source: Self) -> Warnings<Option<Self>> {
 		match (self, source) {
 			(Self::Struct(target_struct), Self::Struct(source_struct)) => {
@@ -112,7 +112,7 @@ fn merge_struct(target: StructFilter, source: StructFilter) -> Warnings<StructFi
 fn merge_struct_field(
 	mut target: StructFilter,
 	key: String,
-	source_value: Option<ColumnFilter>,
+	source_value: Option<FieldFilter>,
 ) -> Warnings<StructFilter> {
 	// This uses remove->insert rather than the entry API, as merging requires an owned value, not a mutable reference
 	// TODO: is it worth trying to refactor all this to actually use mutable references? I'm not convinced...
@@ -134,7 +134,7 @@ fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
 	merge_optional_filters(left.map(|x| *x), right.map(|x| *x)).map(|output| output.map(Box::new))
 }
 
-fn group(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
+fn group(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	map(
 		separated_list1(tag(","), filter),
 		// .reduce only returns None when there was 0 inputs, which is impossible due to _list1
@@ -143,9 +143,9 @@ fn group(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
 }
 
 fn merge_warning_filters(
-	left: Warnings<Option<ColumnFilter>>,
-	right: Warnings<Option<ColumnFilter>>,
-) -> Warnings<Option<ColumnFilter>> {
+	left: Warnings<Option<FieldFilter>>,
+	right: Warnings<Option<FieldFilter>>,
+) -> Warnings<Option<FieldFilter>> {
 	// Step into the left and right warnings to prep merging them.
 	left.and_then(|maybe_filter_left| {
 		right.and_then(|maybe_filter_right| {
@@ -155,9 +155,9 @@ fn merge_warning_filters(
 }
 
 fn merge_optional_filters(
-	left: Option<ColumnFilter>,
-	right: Option<ColumnFilter>,
-) -> Warnings<Option<ColumnFilter>> {
+	left: Option<FieldFilter>,
+	right: Option<FieldFilter>,
+) -> Warnings<Option<FieldFilter>> {
 	match (left, right) {
 		// If both sides have an active filter, merge them and lift any warnings.
 		(Some(filter_left), Some(filter_right)) => filter_left.merge(filter_right),
@@ -169,22 +169,22 @@ fn merge_optional_filters(
 	}
 }
 
-fn filter(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
+fn filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	alt((
 		map(alt((struct_entry, array_index)), |filter| filter.map(Some)),
 		delimited(tag("("), group, tag(")")),
 	))(input)
 }
 
-fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<ColumnFilter>>> {
+fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	map(opt(preceded(tag("."), filter)), |filter| {
 		filter.unwrap_or_else(|| Warnings::new(None))
 	})(input)
 }
 
-fn struct_entry(input: &str) -> IResult<&str, Warnings<ColumnFilter>> {
+fn struct_entry(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
 	map(tuple((field_name, chained_filter)), |(key, child)| {
-		child.map(|filter| ColumnFilter::Struct(HashMap::from([(key.into(), filter)])))
+		child.map(|filter| FieldFilter::Struct(HashMap::from([(key.into(), filter)])))
 	})(input)
 }
 
@@ -193,11 +193,11 @@ fn field_name(input: &str) -> IResult<&str, &str> {
 	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
 }
 
-fn array_index(input: &str) -> IResult<&str, Warnings<ColumnFilter>> {
+fn array_index(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
 	map(
 		tuple((tag("[]"), chained_filter)),
 		// TODO: actually parse an index
-		|(_, child)| child.map(|filter| ColumnFilter::Array(filter.map(Box::new))),
+		|(_, child)| child.map(|filter| FieldFilter::Array(filter.map(Box::new))),
 	)(input)
 }
 
@@ -206,30 +206,30 @@ fn array_index(input: &str) -> IResult<&str, Warnings<ColumnFilter>> {
 mod test {
 	use super::*;
 
-	fn test_parse(input: &str) -> Option<ColumnFilter> {
+	fn test_parse(input: &str) -> Option<FieldFilter> {
 		let (value, warnings) = test_warning_parse(input).decompose();
 		assert!(warnings.is_empty(), "unexpected warnings: {:?}", warnings);
 		value
 	}
 
-	fn test_warning_parse(input: &str) -> Warnings<Option<ColumnFilter>> {
+	fn test_warning_parse(input: &str) -> Warnings<Option<FieldFilter>> {
 		let (remaining, output) = group(input).finish().expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
 	}
 
 	fn struct_filter(
-		entries: impl IntoIterator<Item = (&'static str, Option<ColumnFilter>)>,
-	) -> ColumnFilter {
+		entries: impl IntoIterator<Item = (&'static str, Option<FieldFilter>)>,
+	) -> FieldFilter {
 		let map = entries
 			.into_iter()
 			.map(|(key, value)| (key.to_string(), value))
 			.collect::<HashMap<_, _>>();
-		ColumnFilter::Struct(map)
+		FieldFilter::Struct(map)
 	}
 
-	fn array_filter(child: Option<ColumnFilter>) -> ColumnFilter {
-		ColumnFilter::Array(child.map(Box::new))
+	fn array_filter(child: Option<FieldFilter>) -> FieldFilter {
+		FieldFilter::Array(child.map(Box::new))
 	}
 
 	#[test]
@@ -249,7 +249,7 @@ mod test {
 	#[test]
 	fn parse_array_simple() {
 		let out = test_parse("[]");
-		let expected = Some(ColumnFilter::Array(None));
+		let expected = Some(FieldFilter::Array(None));
 		assert_eq!(out, expected);
 	}
 

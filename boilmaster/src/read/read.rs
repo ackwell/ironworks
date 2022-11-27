@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::column_filter::ColumnFilter;
+use crate::field_filter::FieldFilter;
 
 use super::value::{Reference, Value};
 
@@ -16,7 +16,7 @@ const FIELD_STRIP_CHARACTERS: &[char] = &['{', '}', '[', ']', '<', '>'];
 pub struct ReaderContext<'a> {
 	pub excel: &'a excel::Excel<'a>,
 	pub schema: &'a dyn schema::Schema,
-	pub filter: Option<&'a ColumnFilter>,
+	pub filter: Option<&'a FieldFilter>,
 
 	pub row: &'a excel::Row,
 	pub limit: u8,
@@ -47,7 +47,7 @@ fn read_node(node: &schema::Node, context: ReaderContext) -> Result<Value> {
 
 fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result<Value> {
 	let inner_filter = match context.filter {
-		Some(ColumnFilter::Array(inner)) => inner.as_ref().map(|x| x.as_ref()),
+		Some(FieldFilter::Array(inner)) => inner.as_ref().map(|x| x.as_ref()),
 		// TODO: should this be a warning?
 		Some(other) => return Err(anyhow!("unexpected filter {other}")),
 		None => None,
@@ -172,7 +172,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 	let mut map = BTreeMap::new();
 
 	let filter = match context.filter {
-		Some(ColumnFilter::Struct(map)) => Some(map),
+		Some(FieldFilter::Struct(map)) => Some(map),
 		// TODO: should this be a warning?
 		Some(other) => return Err(anyhow!("unexpected filter {other}")),
 		None => None,
