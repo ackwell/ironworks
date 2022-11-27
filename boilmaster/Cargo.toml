@@ -12,6 +12,7 @@ either = "1.8.0"
 futures = "0.3.25"
 ironworks = {path = "../ironworks", features = ["excel", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
+nom = "7.1.1"
 serde = {version = "1.0.137", features = ["derive"]}
 tantivy = "0.18.0"
 thiserror = "1.0.30"
