@@ -23,7 +23,6 @@ pub fn router() -> Router {
 
 	Router::new()
 		.route("/", get(sheets))
-		.route("/column_test", get(column_test))
 		.nest("/:sheet_name/:row_id", row_router)
 }
 
@@ -39,18 +38,17 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 	Ok(Json(names))
 }
 
+// TODO: this probably should be generally accessible across all sheet endpoints? and search?
 #[derive(Deserialize)]
-struct ColumnTestQuery {
-	columns: Warnings<Option<ColumnFilter>>,
-}
-#[debug_handler]
-async fn column_test(Query(ctq): Query<ColumnTestQuery>) -> Result<impl IntoResponse> {
-	Ok(format!("{:#?}", ctq.columns))
+struct ColumnFilterQuery {
+	// this is a bit jank with the double option, improve? is it even possible to improve?
+	columns: Option<Warnings<Option<ColumnFilter>>>,
 }
 
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
+	Query(column_filter_query): Query<ColumnFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
@@ -65,7 +63,15 @@ async fn row(
 	let row = sheet.row(row_id)?;
 	let columns = sheet.columns()?;
 
-	let result = read_row(&sheet_name, &excel, &row, &columns)?;
+	let (column_filter, warnings) = column_filter_query
+		.columns
+		.unwrap_or_else(|| Warnings::new(None))
+		.decompose();
+	if !warnings.is_empty() {
+		todo!("handle warnings in http layer");
+	}
+
+	let result = read_row(&sheet_name, &excel, &row, column_filter.as_ref(), &columns)?;
 
 	Ok(Json(result))
 }
@@ -73,6 +79,7 @@ async fn row(
 #[debug_handler]
 async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
+	Query(column_filter_query): Query<ColumnFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
@@ -87,7 +94,15 @@ async fn subrow(
 	let row = sheet.subrow(row_id, subrow_id)?;
 	let columns = sheet.columns()?;
 
-	let result = read_row(&sheet_name, &excel, &row, &columns)?;
+	let (column_filter, warnings) = column_filter_query
+		.columns
+		.unwrap_or_else(|| Warnings::new(None))
+		.decompose();
+	if !warnings.is_empty() {
+		todo!("handle warnings in http layer");
+	}
+
+	let result = read_row(&sheet_name, &excel, &row, column_filter.as_ref(), &columns)?;
 
 	Ok(Json(result))
 }
@@ -96,6 +111,7 @@ fn read_row(
 	sheet_name: &str,
 	excel: &Excel,
 	row: &Row,
+	filter: Option<&ColumnFilter>,
 	columns: &[exh::ColumnDefinition],
 ) -> Result<read::Value> {
 	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request
@@ -109,6 +125,7 @@ fn read_row(
 		read::ReaderContext {
 			excel,
 			schema: &version,
+			filter,
 			row,
 			limit: 1,
 			columns,

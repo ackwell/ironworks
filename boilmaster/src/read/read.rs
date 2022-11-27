@@ -4,12 +4,19 @@ use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
+use crate::column_filter::ColumnFilter;
+
 use super::value::{Reference, Value};
+
+// Characters to strip from schema struct keys
+// TODO: this is potentially a bit saint-specific; but i'm very hesitant to put this logic in stc parsing, as that's technically "wrong". probably best shot is to keep this logic in tune with what BM requires as an output data format.
+const FIELD_STRIP_CHARACTERS: &[char] = &['{', '}', '[', ']', '<', '>'];
 
 #[derive(Clone)]
 pub struct ReaderContext<'a> {
 	pub excel: &'a excel::Excel<'a>,
 	pub schema: &'a dyn schema::Schema,
+	pub filter: Option<&'a ColumnFilter>,
 
 	pub row: &'a excel::Row,
 	pub limit: u8,
@@ -39,6 +46,13 @@ fn read_node(node: &schema::Node, context: ReaderContext) -> Result<Value> {
 }
 
 fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result<Value> {
+	let inner_filter = match context.filter {
+		Some(ColumnFilter::Array(inner)) => inner.as_ref().map(|x| x.as_ref()),
+		// TODO: should this be a warning?
+		Some(other) => return Err(anyhow!("unexpected filter {other}")),
+		None => None,
+	};
+
 	let size = node.size();
 	let vec = (0..count)
 		.scan(0usize, |index, _| {
@@ -50,6 +64,7 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 						.columns
 						.get(*index..*index + size_usize)
 						.unwrap_or(&[]),
+					filter: inner_filter,
 					..context
 				},
 			);
@@ -155,6 +170,14 @@ fn read_scalar(context: ReaderContext) -> Result<Value> {
 
 fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result<Value> {
 	let mut map = BTreeMap::new();
+
+	let filter = match context.filter {
+		Some(ColumnFilter::Struct(map)) => Some(map),
+		// TODO: should this be a warning?
+		Some(other) => return Err(anyhow!("unexpected filter {other}")),
+		None => None,
+	};
+
 	let mut offset = 0usize;
 	while offset < context.columns.len() {
 		// TODO: this is yikes. Probably can improve with a .next-based thing given fields are ordered
@@ -162,35 +185,39 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 			.iter()
 			.find(|&field| field.offset == u32::try_from(offset).unwrap());
 
-		let (name, value) = match field {
+		let (name, size, read): (_, _, Box<dyn FnOnce(_) -> _>) = match field {
 			Some(field) => {
 				let size = usize::try_from(field.node.size()).unwrap();
-				let name = field.name.replace(['{', '}', '[', ']', '<', '>'], "");
-				let value = read_node(
-					&field.node,
-					ReaderContext {
-						columns: context.columns.get(offset..offset + size).unwrap_or(&[]),
-						..context
-					},
-				)?;
-
-				offset += size;
-
-				(name, value)
+				let name = field.name.replace(FIELD_STRIP_CHARACTERS, "");
+				let read = |context| read_node(&field.node, context);
+				(name, size, Box::new(read))
 			}
 
-			None => {
-				let name = format!("unknown{offset}");
-				let value = read_scalar(ReaderContext {
-					columns: &context.columns[offset..=offset],
-					..context
-				})?;
-
-				offset += 1;
-
-				(name, value)
-			}
+			None => (format!("unknown{offset}"), 1, Box::new(read_scalar)),
 		};
+
+		let range = offset..offset + size;
+		offset += size;
+
+		let child_filter = match filter {
+			// No filter is present, select all.
+			None => None,
+			Some(map) => match map.get(&name) {
+				// A filter exists, grab the child filter to pass down.
+				Some(inner_filter) => inner_filter.as_ref(),
+				// The filter doesn't contain this key, skip it.
+				None => {
+					continue;
+				}
+			},
+		};
+
+		let value = read(ReaderContext {
+			columns: context.columns.get(range).unwrap_or(&[]),
+			// TODO: filter
+			filter: child_filter,
+			..context
+		})?;
 
 		match map.entry(name) {
 			Entry::Vacant(entry) => {
