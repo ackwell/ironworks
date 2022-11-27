@@ -9,10 +9,9 @@ use ironworks::{
 use ironworks_schema::saint_coinach;
 use serde::Deserialize;
 
-use crate::{data::Data, read, util::warnings::Warnings};
+use crate::{column_filter::ColumnFilter, data::Data, read, util::warnings::Warnings};
 
 use super::{
-	column_filter::ColumnFilter,
 	error::{Anyhow, Error, Result},
 	path::Path,
 };

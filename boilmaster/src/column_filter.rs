@@ -12,6 +12,8 @@ use serde::{de, Deserialize, Deserializer};
 
 use crate::util::warnings::{SoftDeserialize, Warnings};
 
+// TODO: should this be in a top level filter module? will depend if there's other types of filters i guess. also semantics...
+
 type StructFilter = HashMap<String, Option<ColumnFilter>>;
 type ArrayFilter = Option<Box<ColumnFilter>>;
 
