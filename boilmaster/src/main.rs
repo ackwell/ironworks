@@ -21,7 +21,7 @@ async fn main() {
 	// Load configuration
 	// TODO: is it worth having a cli flag to specify the config path or is that just immense overkill?
 	let config = Figment::new()
-		.merge(Toml::file("config.toml"))
+		.merge(Toml::file("boilmaster.toml"))
 		.extract::<Config>()
 		.expect("TODO: Error handling");
 
