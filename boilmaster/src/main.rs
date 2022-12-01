@@ -1,13 +1,31 @@
 use std::sync::Arc;
 
 use boilmaster::{data::Data, http, search::Search};
+use figment::{
+	providers::{Format, Toml},
+	Figment,
+};
+use serde::Deserialize;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
+#[derive(Debug, Deserialize)]
+struct TempConfigTest {
+	thing: String,
+}
+
 #[tokio::main]
 async fn main() {
+	// Load configuration
+	// TODO: is it worth having a cli flag to specify the config path or is that just immense overkill?
+	let config = Figment::new()
+		.merge(Toml::file("config.toml"))
+		.extract::<TempConfigTest>()
+		.expect("TODO: Error handling");
+	println!("config: {config:#?}");
+
 	// Set up tracing
 	// TODO: env filter (will need feature enabled). consider enabling pulling from log! too. do i try and read config from a file manually ala asp config or go all in with a dotenv?
 	let filter = filter::Targets::new()

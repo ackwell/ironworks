@@ -9,6 +9,7 @@ anyhow = "1.0.55"
 axum = "0.5.3"
 axum-macros = "0.2.0"
 either = "1.8.0"
+figment = {version = "0.10.8", features = ["toml"]}
 futures = "0.3.25"
 ironworks = {path = "../ironworks", features = ["excel", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
