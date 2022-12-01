@@ -12,8 +12,8 @@ use tracing::Level;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Debug, Deserialize)]
-struct TempConfigTest {
-	thing: String,
+pub struct Config {
+	http: http::Config,
 }
 
 #[tokio::main]
@@ -22,9 +22,8 @@ async fn main() {
 	// TODO: is it worth having a cli flag to specify the config path or is that just immense overkill?
 	let config = Figment::new()
 		.merge(Toml::file("config.toml"))
-		.extract::<TempConfigTest>()
+		.extract::<Config>()
 		.expect("TODO: Error handling");
-	println!("config: {config:#?}");
 
 	// Set up tracing
 	// TODO: env filter (will need feature enabled). consider enabling pulling from log! too. do i try and read config from a file manually ala asp config or go all in with a dotenv?
@@ -47,7 +46,12 @@ async fn main() {
 		search
 			.clone()
 			.ingest(shutdown_token.cancelled(), &data, None),
-		http::serve(shutdown_token.cancelled(), data.clone(), search),
+		http::serve(
+			shutdown_token.cancelled(),
+			config.http,
+			data.clone(),
+			search
+		),
 	);
 
 	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them

@@ -4,4 +4,4 @@ mod path;
 mod search;
 mod sheets;
 
-pub use http::serve;
+pub use http::{serve, Config};

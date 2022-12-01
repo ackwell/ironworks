@@ -1,20 +1,38 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+	net::{IpAddr, Ipv4Addr, SocketAddr},
+	sync::Arc,
+};
 
 use anyhow::Result;
 use axum::{Extension, Router, Server};
 use futures::Future;
+use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
 use crate::{data::Data, search::Search};
 
 use super::{search, sheets};
 
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	address: Option<IpAddr>,
+	port: u16,
+}
+
 pub async fn serve(
 	shutdown: impl Future<Output = ()>,
+	config: Config,
 	data: Arc<Data>,
 	search: Arc<Search>,
 ) -> Result<()> {
-	Server::bind(&SocketAddr::from(([0, 0, 0, 0], 8080)))
+	let bind_address = SocketAddr::new(
+		config.address.unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED)),
+		config.port,
+	);
+
+	tracing::info!("http binding to {bind_address:?}");
+
+	Server::bind(&bind_address)
 		.serve(router(data, search).into_make_service())
 		.with_graceful_shutdown(shutdown)
 		.await
