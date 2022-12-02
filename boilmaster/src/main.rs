@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use boilmaster::{data::Data, http, search::Search, tracing};
+use boilmaster::{data::Data, http, search, tracing};
 use figment::{
 	providers::{Format, Toml},
 	Figment,
@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 struct Config {
 	tracing: tracing::Config,
 	http: http::Config,
+	search: search::Config,
 }
 
 #[tokio::main]
@@ -28,7 +29,7 @@ async fn main() {
 	tracing::init(config.tracing);
 
 	let data = Arc::new(Data::new());
-	let search = Arc::new(Search::new());
+	let search = Arc::new(search::Search::new(config.search));
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
