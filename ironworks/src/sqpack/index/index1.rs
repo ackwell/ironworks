@@ -39,8 +39,11 @@ pub struct Index1 {
 	)]
 	indexes: Vec<Entry>,
 
-	#[br(calc = indexes.iter().map(|entry| entry.file_metadata.offset).collect())]
-	offsets: BTreeSet<u32>,
+	#[br(calc = indexes.iter().map(|entry| (
+		entry.file_metadata.data_file_id,
+		entry.file_metadata.offset
+	)).collect())]
+	offsets: BTreeSet<(u8, u32)>,
 }
 
 impl Index1 {
@@ -70,12 +73,18 @@ impl Index1 {
 			.map(|entry| {
 				let metadata = entry.file_metadata.clone();
 
-				// Look up the offset after this meta, if any exists.
+				// Look up the offset after this meta, if any exists. The result's data
+				// file ID is double checked to ensure we don't return cross-dat offsets
+				// - this could occur if the requested file is the last file in a dat,
+				// but further dats exist.
 				let size = self
 					.offsets
-					.range(metadata.offset + 1..)
+					.range((metadata.data_file_id, metadata.offset + 1)..)
 					.next()
-					.map(|stop| stop - metadata.offset);
+					.and_then(|(dat_id, offset)| match *dat_id == metadata.data_file_id {
+						true => Some(offset - metadata.offset),
+						false => None,
+					});
 
 				(metadata, size)
 			})
