@@ -8,7 +8,7 @@ use tantivy::{
 	ReloadPolicy,
 };
 
-use super::ingest::ingest_sheet;
+use super::ingest::Ingester;
 
 pub struct Index {
 	// Do i actually need a reference to the index at all?
@@ -18,7 +18,11 @@ pub struct Index {
 
 impl Index {
 	// TODO: creating a new index requires a schema, which in turn requires columns, which requires an .exh. For now, I'm keeping the creation bundled to avoid that read - consider how it might be done to split new/ingest
-	pub async fn ingest(path: PathBuf, sheet: Sheet<'static, String>) -> Result<Self> {
+	pub async fn ingest(
+		ingester: &Ingester,
+		path: PathBuf,
+		sheet: Sheet<'static, String>,
+	) -> Result<Self> {
 		tokio::fs::create_dir_all(&path).await?;
 		let directory = MmapDirectory::open(path)?;
 
@@ -26,7 +30,8 @@ impl Index {
 			true => tantivy::Index::open(directory)?,
 			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
-			false => ingest_sheet(sheet, directory)
+			false => ingester
+				.ingest_sheet(sheet, directory)
 				.await
 				.expect("TODO: error handling for ingestion failures"),
 		};

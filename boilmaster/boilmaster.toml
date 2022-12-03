@@ -8,3 +8,7 @@ port = 8080
 
 [search]
 index_directory = "search"
+
+[search.ingest]
+concurrency = 10
+memory = 52428800 # 50MiB
