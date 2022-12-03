@@ -58,6 +58,13 @@ where
 	R: Read + Seek,
 {
 	fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+		// If there is no metadata at all, signal EOF. This can occur when an index
+		// contains an entry for a file with no blocks - seemingly used for files
+		// that exist in other regional distributions?
+		if self.metadata.is_empty() {
+			return Ok(0);
+		}
+
 		// Get a ref to the expected current block metadata.
 		let mut meta = &self.metadata[self.current_block];
 
