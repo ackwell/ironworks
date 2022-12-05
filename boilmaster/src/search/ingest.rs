@@ -3,53 +3,76 @@ use ironworks::{
 	excel::{Field, Row, Sheet},
 	file::exh,
 };
+use serde::Deserialize;
 use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings};
 use tokio::sync::Semaphore;
 
-// Is this how i want to do it? i mean... no, it's not. we need to accept config for how many sems should be available, and that's not static-able. considrer how the _fuck_ i'll do _that_.
-static INGEST_SEMAPHORE: Semaphore = Semaphore::const_new(10);
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	concurrency: usize,
+	memory: usize,
+}
 
-pub async fn ingest_sheet(
-	sheet: Sheet<'static, String>,
-	directory: MmapDirectory,
-) -> Result<Index> {
-	// Wait for a semaphore permit to be available - this limits the number of parallel ingestions that can take place.
-	let permit = INGEST_SEMAPHORE.acquire().await.unwrap();
+#[derive(Debug)]
+pub struct Ingester {
+	semaphore: Semaphore,
+	writer_memory: usize,
+}
 
-	// TODO: this should probably span the function so i get an end point
-	tracing::info!("ingesting {:?}", directory);
-
-	// We have a permit - initiate a blocking task to ingest the sheet.
-	let index = tokio::task::spawn_blocking(move || -> Result<_> {
-		// TODO: seperate building the index from ingesting into it
-		let columns = sheet.columns()?;
-
-		let index = Index::create(
-			directory,
-			build_sheet_schema(&columns)?,
-			IndexSettings::default(),
-		)?;
-
-		// TODO: this should be configurable
-		let mut writer = index.writer(5 * 1024 * 1024)?;
-		let schema = index.schema();
-
-		// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
-		for row in sheet.iter() {
-			let document = build_row_document(row, &columns, &schema)?;
-			writer.add_document(document)?;
+impl Ingester {
+	pub fn new(config: Config) -> Self {
+		Self {
+			semaphore: Semaphore::new(config.concurrency),
+			// Memory limit represents the total available across all writers.
+			writer_memory: config.memory / config.concurrency,
 		}
+	}
 
-		writer.commit()?;
+	pub async fn ingest_sheet(
+		&self,
+		sheet: Sheet<'static, String>,
+		directory: MmapDirectory,
+	) -> Result<Index> {
+		// Wait for a semaphore permit to be available - this limits the number of parallel ingestions that can take place.
+		let permit = self.semaphore.acquire().await.unwrap();
+
+		// TODO: this should probably span the function so i get an end point
+		tracing::info!("ingesting {:?}", directory);
+
+		let writer_memory = self.writer_memory;
+
+		// We have a permit - initiate a blocking task to ingest the sheet.
+		let index = tokio::task::spawn_blocking(move || -> Result<_> {
+			// TODO: seperate building the index from ingesting into it
+			let columns = sheet.columns()?;
+
+			let index = Index::create(
+				directory,
+				build_sheet_schema(&columns)?,
+				IndexSettings::default(),
+			)?;
+
+			// TODO: this should be configurable
+			let mut writer = index.writer(writer_memory)?;
+			let schema = index.schema();
+
+			// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
+			for row in sheet.iter() {
+				let document = build_row_document(row, &columns, &schema)?;
+				writer.add_document(document)?;
+			}
+
+			writer.commit()?;
+
+			Ok(index)
+		})
+		.await
+		.unwrap()?;
+
+		drop(permit);
 
 		Ok(index)
-	})
-	.await
-	.unwrap()?;
-
-	drop(permit);
-
-	Ok(index)
+	}
 }
 
 fn build_sheet_schema(columns: &[exh::ColumnDefinition]) -> Result<schema::Schema> {

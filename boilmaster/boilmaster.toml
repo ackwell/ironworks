@@ -1,0 +1,14 @@
+[tracing.filters]
+default = "debug"
+tantivy = "warn"
+
+[http]
+# address = "0.0.0.0"
+port = 8080
+
+[search.index]
+directory = "search"
+
+[search.ingest]
+concurrency = 10
+memory = 52428800 # 50MiB

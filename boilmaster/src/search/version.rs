@@ -9,7 +9,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 
 use crate::data::Version as DataVersion;
 
-use super::index::Index;
+use super::{index::Index, ingest::Ingester};
 
 pub struct Version {
 	path: PathBuf,
@@ -25,7 +25,11 @@ impl Version {
 		}
 	}
 
-	pub(super) async fn ingest(self: Arc<Self>, data: &DataVersion) -> Result<()> {
+	pub(super) async fn ingest(
+		self: Arc<Self>,
+		ingester: &Ingester,
+		data: &DataVersion,
+	) -> Result<()> {
 		let excel = data.excel();
 
 		// NOTE: should probably record which sheets contain strings so we can immediately ignore the rest when there's a query string
@@ -45,9 +49,12 @@ impl Version {
 						Err(err) => anyhow::bail!(err),
 					};
 
-					let index =
-						Index::ingest(this.path.join(sheet_name.replace('/', "!DIR!")), sheet)
-							.await?;
+					let index = Index::ingest(
+						ingester,
+						this.path.join(sheet_name.replace('/', "!DIR!")),
+						sheet,
+					)
+					.await?;
 					Ok((sheet_name, index))
 				}
 			})

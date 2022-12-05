@@ -1,26 +1,36 @@
 use std::sync::Arc;
 
-use boilmaster::{data::Data, http, search::Search};
+use boilmaster::{data::Data, http, search, tracing};
+use figment::{
+	providers::{Env, Format, Toml},
+	Figment,
+};
+use serde::Deserialize;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
-use tracing::Level;
-use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
+
+#[derive(Debug, Deserialize)]
+struct Config {
+	tracing: tracing::Config,
+	http: http::Config,
+	search: search::Config,
+}
 
 #[tokio::main]
 async fn main() {
-	// Set up tracing
-	// TODO: env filter (will need feature enabled). consider enabling pulling from log! too. do i try and read config from a file manually ala asp config or go all in with a dotenv?
-	let filter = filter::Targets::new()
-		.with_default(Level::DEBUG)
-		.with_target("tantivy", Level::WARN);
+	// Load configuration
+	// TODO: is it worth having a cli flag to specify the config path or is that just immense overkill?
+	let config = Figment::new()
+		.merge(Toml::file("boilmaster.toml"))
+		.merge(Env::prefixed("BM_").split("_"))
+		.extract::<Config>()
+		.expect("TODO: Error handling");
 
-	tracing_subscriber::registry()
-		.with(tracing_subscriber::fmt::layer())
-		.with(filter)
-		.init();
+	// Initialise tracing before getting too far into bootstrapping the rest of the application
+	tracing::init(config.tracing);
 
 	let data = Arc::new(Data::new());
-	let search = Arc::new(Search::new());
+	let search = Arc::new(search::Search::new(config.search));
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
@@ -29,7 +39,12 @@ async fn main() {
 		search
 			.clone()
 			.ingest(shutdown_token.cancelled(), &data, None),
-		http::serve(shutdown_token.cancelled(), data.clone(), search),
+		http::serve(
+			shutdown_token.cancelled(),
+			config.http,
+			data.clone(),
+			search
+		),
 	);
 
 	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them

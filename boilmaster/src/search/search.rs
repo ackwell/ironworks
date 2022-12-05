@@ -1,18 +1,33 @@
 use std::{
-	env::current_exe,
 	path::PathBuf,
 	sync::{Arc, Mutex},
 };
 
 use anyhow::Result;
+use figment::value::magic::RelativePathBuf;
 use futures::Future;
+use serde::Deserialize;
 
 use crate::data::Data;
 
-use super::version::Version;
+use super::{ingest, version::Version};
+
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	ingest: ingest::Config,
+
+	index: IndexConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct IndexConfig {
+	directory: RelativePathBuf,
+}
 
 pub struct Search {
-	path: PathBuf,
+	ingester: ingest::Ingester,
+
+	index_directory: PathBuf,
 
 	// TODO: this should be a map of version keys to search::Version instances
 	temp_version: Mutex<Option<Arc<Version>>>,
@@ -20,16 +35,10 @@ pub struct Search {
 
 impl Search {
 	#[allow(clippy::new_without_default)]
-	pub fn new() -> Self {
-		// TODO: configurable directory, this shouldn't be touching current exe at all
-		let path = current_exe()
-			.expect("could not resolve current executable")
-			.parent()
-			.expect("current path has no parent")
-			.join("search");
-
+	pub fn new(config: Config) -> Self {
 		Self {
-			path,
+			ingester: ingest::Ingester::new(config.ingest),
+			index_directory: config.index.directory.relative(),
 			temp_version: Default::default(),
 		}
 	}
@@ -42,11 +51,13 @@ impl Search {
 		version: Option<&str>,
 	) -> Result<()> {
 		let data_version = data.version(version);
-		let search_version = Arc::new(Version::new(self.path.join(version.unwrap_or("__NONE"))));
+		let search_version = Arc::new(Version::new(
+			self.index_directory.join(version.unwrap_or("__NONE")),
+		));
 
 		tokio::select! {
 			_ = shutdown => {},
-			result = search_version.clone().ingest(data_version) => { result? },
+			result = search_version.clone().ingest(&self.ingester, data_version) => { result? },
 		}
 
 		let mut guard = self.temp_version.lock().unwrap();
