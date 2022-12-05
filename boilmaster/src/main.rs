@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use boilmaster::{data::Data, http, search, tracing};
 use figment::{
-	providers::{Format, Toml},
+	providers::{Env, Format, Toml},
 	Figment,
 };
 use serde::Deserialize;
@@ -22,6 +22,7 @@ async fn main() {
 	// TODO: is it worth having a cli flag to specify the config path or is that just immense overkill?
 	let config = Figment::new()
 		.merge(Toml::file("boilmaster.toml"))
+		.merge(Env::prefixed("BM_").split("_"))
 		.extract::<Config>()
 		.expect("TODO: Error handling");
 
