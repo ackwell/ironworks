@@ -16,8 +16,12 @@ use super::{ingest, version::Version};
 pub struct Config {
 	ingest: ingest::Config,
 
-	// TODO: the underscore in this could make env var based config ugly. is there multiple config items for indexes? if there is, might be worth splitting index/ingestion config and using index.directory
-	index_directory: RelativePathBuf,
+	index: IndexConfig,
+}
+
+#[derive(Debug, Deserialize)]
+struct IndexConfig {
+	directory: RelativePathBuf,
 }
 
 pub struct Search {
@@ -34,7 +38,7 @@ impl Search {
 	pub fn new(config: Config) -> Self {
 		Self {
 			ingester: ingest::Ingester::new(config.ingest),
-			index_directory: config.index_directory.relative(),
+			index_directory: config.index.directory.relative(),
 			temp_version: Default::default(),
 		}
 	}
