@@ -11,6 +11,15 @@ use crate::data::Version as DataVersion;
 
 use super::{index::Index, ingest::Ingester};
 
+#[derive(Debug)]
+pub struct SearchResult {
+	pub score: f32,
+	// TODO: `String` here necessitates a copy of the sheet name for every result, which seems wasteful. consider using a ref or cow for this - can probably tie the lifetime to the version which is possibly okay.
+	pub sheet: String,
+	pub row_id: u32,
+	pub subrow_id: u16,
+}
+
 pub struct Version {
 	path: PathBuf,
 
@@ -80,16 +89,19 @@ impl Version {
 	// TODO: continuation?
 	// TODO: Nicer type (that struct would be real handy around about now)
 	#[allow(clippy::type_complexity)]
-	pub fn search(&self, query: &str) -> Result<Vec<(f32, (String, u32, u16))>> {
+	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>> {
 		let indices = self.indices.read().expect("TODO error poisoned");
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
 		let index_results = indices
 			.iter()
 			.map(|(name, index)| {
-				let tagged_results = index
-					.search(query)?
-					.map(|(score, (row, subrow))| (score, (name.to_owned(), row, subrow)));
+				let tagged_results = index.search(query)?.map(|result| SearchResult {
+					score: result.score,
+					sheet: name.to_owned(),
+					row_id: result.row_id,
+					subrow_id: result.subrow_id,
+				});
 				Ok(tagged_results)
 			})
 			.collect::<Result<Vec<_>>>()?;

@@ -10,6 +10,13 @@ use tantivy::{
 
 use super::ingest::Ingester;
 
+#[derive(Debug)]
+pub struct IndexResult {
+	pub score: f32,
+	pub row_id: u32,
+	pub subrow_id: u16,
+}
+
 pub struct Index {
 	// Do i actually need a reference to the index at all?
 	index: tantivy::Index,
@@ -46,7 +53,7 @@ impl Index {
 	}
 
 	// TODO: probably need some form of typedef for the id pair - where does that live? should it be a struct?
-	pub fn search(&self, query_string: &str) -> Result<impl Iterator<Item = (f32, (u32, u16))>> {
+	pub fn search(&self, query_string: &str) -> Result<impl Iterator<Item = IndexResult>> {
 		let searcher = self.reader.searcher();
 
 		// this is cloning the schema every search - should i just store a single copy of it on the struct?
@@ -97,8 +104,12 @@ impl Index {
 				.unwrap()
 				.try_into()
 				.unwrap();
-			// todo: this should probably convert rowid to u32, and also obtain u16 subrow id i assume?
-			(score, (row_id, subrow_id))
+
+			IndexResult {
+				score,
+				row_id,
+				subrow_id,
+			}
 		});
 
 		Ok(Either::Left(todo_result))
