@@ -1,5 +1,5 @@
 use std::{
-	collections::HashMap,
+	collections::{HashMap, HashSet},
 	path::PathBuf,
 	sync::{Arc, RwLock},
 };
@@ -90,11 +90,21 @@ impl Version {
 	// TODO: Nicer type (that struct would be real handy around about now)
 	#[allow(clippy::type_complexity)]
 	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>> {
+		// TODO: arg
+		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
+
 		let indices = self.indices.read().expect("TODO error poisoned");
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
 		let index_results = indices
 			.iter()
+			// Filter to the requested indexes if any sheet filer is specified.
+			.filter(|(name, _)| {
+				sheet_filter
+					.as_ref()
+					.map_or(true, |sheets| sheets.contains(name.as_str()))
+			})
+			// Execute the query on each matching index
 			.map(|(name, index)| {
 				let tagged_results = index.search(query)?.map(|result| SearchResult {
 					score: result.score,

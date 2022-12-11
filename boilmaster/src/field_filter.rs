@@ -13,6 +13,7 @@ use serde::{de, Deserialize, Deserializer};
 use crate::util::warnings::{SoftDeserialize, Warnings};
 
 // TODO: should this be in a top level filter module? will depend if there's other types of filters i guess. also semantics...
+//       might make sense as read::Filter to go alongside i.e. search::Filter
 
 type StructFilter = HashMap<String, Option<FieldFilter>>;
 type ArrayFilter = Option<Box<FieldFilter>>;
