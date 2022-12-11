@@ -4,7 +4,10 @@ use anyhow::Result;
 use either::Either;
 use ironworks::excel::Sheet;
 use tantivy::{
-	collector::TopDocs, directory::MmapDirectory, query::QueryParser, schema::FieldType,
+	collector::TopDocs,
+	directory::MmapDirectory,
+	query::{QueryParser, RangeQuery},
+	schema::FieldType,
 	ReloadPolicy,
 };
 
@@ -56,8 +59,7 @@ impl Index {
 	pub fn search(&self, query_string: &str) -> Result<impl Iterator<Item = IndexResult>> {
 		let searcher = self.reader.searcher();
 
-		// this is cloning the schema every search - should i just store a single copy of it on the struct?
-		let schema = self.index.schema();
+		let schema = searcher.schema();
 
 		// so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
 		// TODO: this should probably be precomputed
@@ -84,6 +86,16 @@ impl Index {
 		let query_parser = QueryParser::for_index(&self.index, string_fields);
 		let query = query_parser.parse_query(query_string)?;
 
+		// TODO: argument for this shit
+		let query = RangeQuery::new_u64(
+			schema
+				// Level{Item} is currently offset 138
+				.get_field("138")
+				.unwrap(),
+			635..636,
+		);
+
+		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
 		let top_docs = searcher.search(&query, &TopDocs::with_limit(100))?;
 		let todo_result = top_docs.into_iter().map(move |(score, doc_address)| {
 			let doc = searcher.doc(doc_address).expect(
