@@ -9,7 +9,11 @@ use futures::{stream::FuturesUnordered, StreamExt};
 
 use crate::data::Version as DataVersion;
 
-use super::{index::Index, ingest::Ingester};
+use super::{
+	index::Index,
+	ingest::Ingester,
+	query::{Leaf, Node, Operation, Value},
+};
 
 #[derive(Debug)]
 pub struct SearchResult {
@@ -93,7 +97,11 @@ impl Version {
 		// TODO: arg
 		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
 
-		let indices = self.indices.read().expect("TODO error poisoned");
+		// TODO: arg
+		let query_node = Node::Leaf(Leaf {
+			offset: 138,
+			operation: Operation::Equal(Value::UInt(635)),
+		});
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
 		let index_results = indices
@@ -106,7 +114,7 @@ impl Version {
 			})
 			// Execute the query on each matching index
 			.map(|(name, index)| {
-				let tagged_results = index.search(query)?.map(|result| SearchResult {
+				let tagged_results = index.search(&query_node)?.map(|result| SearchResult {
 					score: result.score,
 					sheet: name.to_owned(),
 					row_id: result.row_id,

@@ -1,19 +1,15 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use either::Either;
 use ironworks::excel::Sheet;
 use tantivy::{
-	collector::TopDocs,
-	directory::MmapDirectory,
-	query::{BooleanQuery, Occur, QueryParser, TermQuery},
-	schema::{FieldType, IndexRecordOption},
+	collector::TopDocs, directory::MmapDirectory, query::TermQuery, schema::IndexRecordOption,
 	ReloadPolicy, Term,
 };
 
 use super::{
 	ingest::Ingester,
-	query::{Clause, Node},
+	query::{Node, Operation, Value},
 };
 
 #[derive(Debug)]
@@ -59,24 +55,28 @@ impl Index {
 	}
 
 	// TODO: probably need some form of typedef for the id pair - where does that live? should it be a struct?
-	pub fn search(&self, query_string: &str) -> Result<impl Iterator<Item = IndexResult>> {
+	pub fn search(
+		&self,
+		// query_string: &str,
+		query_node: &Node,
+	) -> Result<impl Iterator<Item = IndexResult>> {
 		let searcher = self.reader.searcher();
 
 		let schema = searcher.schema();
 
-		// so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
-		// TODO: this should probably be precomputed
-		let string_fields = schema
-			.fields()
-			.filter(|(_field, entry)| matches!(entry.field_type(), FieldType::Str(_)))
-			.map(|(field, _entry)| field)
-			.collect::<Vec<_>>();
+		// // so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
+		// // TODO: this should probably be precomputed
+		// let string_fields = schema
+		// 	.fields()
+		// 	.filter(|(_field, entry)| matches!(entry.field_type(), FieldType::Str(_)))
+		// 	.map(|(field, _entry)| field)
+		// 	.collect::<Vec<_>>();
 
-		// No string fields means a query string will never match (it'll throw an error, even).
-		// TODO: this condition does not hold when further filters are added
-		if string_fields.is_empty() {
-			return Ok(Either::Right(std::iter::empty()));
-		}
+		// // No string fields means a query string will never match (it'll throw an error, even).
+		// // TODO: this condition does not hold when further filters are added
+		// if string_fields.is_empty() {
+		// 	return Ok(Either::Right(std::iter::empty()));
+		// }
 
 		// TODO: these string constants should be in a shared location.
 		let row_id_field = schema
@@ -86,16 +86,11 @@ impl Index {
 			.get_field("subrow_id")
 			.expect("subrow_id field is specified on all indices");
 
-		let query_parser = QueryParser::for_index(&self.index, string_fields);
-		let query = query_parser.parse_query(query_string)?;
+		// let query_parser = QueryParser::for_index(&self.index, string_fields);
+		// let query = query_parser.parse_query(query_string)?;
 
-		// TODO: argument for this shit
-		let a = Node::Leaf(Leaf {
-			offset: 138,
-			operation: Operation::Equal(Value::UInt(635)),
-		});
-
-		let b = match a {
+		// TODO: this should be broken out across a few functions obviously
+		let b = match query_node {
 			Node::Clause(_) => todo!(),
 			Node::Leaf(leaf) => {
 				// TODO: this should use a schema-provided name fetcher or something, this is not stable
@@ -108,12 +103,12 @@ impl Index {
 				// let ty = fe.field_type();
 
 				// TermQuery::new(Term::from_field_u64(field, val))
-				match leaf.operation {
+				match &leaf.operation {
 					Operation::Relation(_) => todo!(),
 					Operation::Equal(value) => {
 						// TODO: this will likely need to check the _field's_ type, and try to coerce as nessecary. i'll... do that later.
 						let term = match value {
-							Value::UInt(value) => Term::from_field_u64(field, value),
+							Value::UInt(value) => Term::from_field_u64(field, *value),
 						};
 						TermQuery::new(term, IndexRecordOption::Basic)
 					}
@@ -154,6 +149,7 @@ impl Index {
 			}
 		});
 
-		Ok(Either::Left(todo_result))
+		// Ok(Either::Left(todo_result))
+		Ok(todo_result)
 	}
 }
