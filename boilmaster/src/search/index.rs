@@ -6,12 +6,15 @@ use ironworks::excel::Sheet;
 use tantivy::{
 	collector::TopDocs,
 	directory::MmapDirectory,
-	query::{QueryParser, RangeQuery},
-	schema::FieldType,
-	ReloadPolicy,
+	query::{BooleanQuery, Occur, QueryParser, TermQuery},
+	schema::{FieldType, IndexRecordOption},
+	ReloadPolicy, Term,
 };
 
-use super::ingest::Ingester;
+use super::{
+	ingest::Ingester,
+	query::{Clause, Node},
+};
 
 #[derive(Debug)]
 pub struct IndexResult {
@@ -87,13 +90,24 @@ impl Index {
 		let query = query_parser.parse_query(query_string)?;
 
 		// TODO: argument for this shit
-		let query = RangeQuery::new_u64(
-			schema
-				// Level{Item} is currently offset 138
-				.get_field("138")
-				.unwrap(),
-			635..636,
-		);
+		let a = Clause {
+			nodes: vec![(
+				Occur::Must,
+				Node::Query(Box::new(TermQuery::new(
+					Term::from_field_u64(schema.get_field("138").unwrap(), 635),
+					IndexRecordOption::Basic,
+				))),
+			)],
+		};
+
+		let b = a.nodes.into_iter().map(|(occur, query)| match query {
+			Node::Query(query) => (occur, query),
+			Node::Clause(_) => todo!(),
+			Node::Relation(_) => todo!(),
+		});
+
+		// TODO: in tantivy 0.19 i can throw a const scorer on this to make it worth nothing or something? i imagine the actual strings are the important bits
+		let query = BooleanQuery::new(b.collect());
 
 		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
 		let top_docs = searcher.search(&query, &TopDocs::with_limit(100))?;
