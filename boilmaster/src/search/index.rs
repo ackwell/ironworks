@@ -90,24 +90,40 @@ impl Index {
 		let query = query_parser.parse_query(query_string)?;
 
 		// TODO: argument for this shit
-		let a = Clause {
-			nodes: vec![(
-				Occur::Must,
-				Node::Query(Box::new(TermQuery::new(
-					Term::from_field_u64(schema.get_field("138").unwrap(), 635),
-					IndexRecordOption::Basic,
-				))),
-			)],
-		};
-
-		let b = a.nodes.into_iter().map(|(occur, query)| match query {
-			Node::Query(query) => (occur, query),
-			Node::Clause(_) => todo!(),
-			Node::Relation(_) => todo!(),
+		let a = Node::Leaf(Leaf {
+			offset: 138,
+			operation: Operation::Equal(Value::UInt(635)),
 		});
 
+		let b = match a {
+			Node::Clause(_) => todo!(),
+			Node::Leaf(leaf) => {
+				// TODO: this should use a schema-provided name fetcher or something, this is not stable
+				let field = schema
+					.get_field(&leaf.offset.to_string())
+					.expect("this should probably be a warning of some kind");
+
+				// will i need these?
+				// let fe = schema.get_field_entry(field);
+				// let ty = fe.field_type();
+
+				// TermQuery::new(Term::from_field_u64(field, val))
+				match leaf.operation {
+					Operation::Relation(_) => todo!(),
+					Operation::Equal(value) => {
+						// TODO: this will likely need to check the _field's_ type, and try to coerce as nessecary. i'll... do that later.
+						let term = match value {
+							Value::UInt(value) => Term::from_field_u64(field, value),
+						};
+						TermQuery::new(term, IndexRecordOption::Basic)
+					}
+				}
+			}
+		};
+
 		// TODO: in tantivy 0.19 i can throw a const scorer on this to make it worth nothing or something? i imagine the actual strings are the important bits
-		let query = BooleanQuery::new(b.collect());
+		// let query = BooleanQuery::new(b.collect());
+		let query = b;
 
 		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
 		let top_docs = searcher.search(&query, &TopDocs::with_limit(100))?;
