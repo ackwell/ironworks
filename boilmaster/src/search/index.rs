@@ -3,13 +3,16 @@ use std::path::PathBuf;
 use anyhow::Result;
 use ironworks::excel::Sheet;
 use tantivy::{
-	collector::TopDocs, directory::MmapDirectory, query::TermQuery, schema::IndexRecordOption,
+	collector::TopDocs,
+	directory::MmapDirectory,
+	query::{BooleanQuery, Query, TermQuery},
+	schema::{Field, FieldType, IndexRecordOption, Schema},
 	ReloadPolicy, Term,
 };
 
 use super::{
 	ingest::Ingester,
-	query::{Node, Operation, Value},
+	query::{Clause, Leaf, Node, Operation, Value},
 };
 
 #[derive(Debug)]
@@ -64,6 +67,9 @@ impl Index {
 
 		let schema = searcher.schema();
 
+		let query_resolver = QueryResolver { schema };
+		let query = query_resolver.resolve(query_node);
+
 		// // so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
 		// // TODO: this should probably be precomputed
 		// let string_fields = schema
@@ -89,36 +95,8 @@ impl Index {
 		// let query_parser = QueryParser::for_index(&self.index, string_fields);
 		// let query = query_parser.parse_query(query_string)?;
 
-		// TODO: this should be broken out across a few functions obviously
-		let b = match query_node {
-			Node::Clause(_) => todo!(),
-			Node::Leaf(leaf) => {
-				// TODO: this should use a schema-provided name fetcher or something, this is not stable
-				let field = schema
-					.get_field(&leaf.offset.to_string())
-					.expect("this should probably be a warning of some kind");
-
-				// will i need these?
-				// let fe = schema.get_field_entry(field);
-				// let ty = fe.field_type();
-
-				// TermQuery::new(Term::from_field_u64(field, val))
-				match &leaf.operation {
-					Operation::Relation(_) => todo!(),
-					Operation::Equal(value) => {
-						// TODO: this will likely need to check the _field's_ type, and try to coerce as nessecary. i'll... do that later.
-						let term = match value {
-							Value::UInt(value) => Term::from_field_u64(field, *value),
-						};
-						TermQuery::new(term, IndexRecordOption::Basic)
-					}
-				}
-			}
-		};
-
 		// TODO: in tantivy 0.19 i can throw a const scorer on this to make it worth nothing or something? i imagine the actual strings are the important bits
 		// let query = BooleanQuery::new(b.collect());
-		let query = b;
 
 		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
 		let top_docs = searcher.search(&query, &TopDocs::with_limit(100))?;
@@ -151,5 +129,73 @@ impl Index {
 
 		// Ok(Either::Left(todo_result))
 		Ok(todo_result)
+	}
+}
+
+struct QueryResolver<'a> {
+	schema: &'a Schema,
+}
+
+impl QueryResolver<'_> {
+	fn resolve(&self, node: &Node) -> Box<dyn Query> {
+		match node {
+			Node::Clause(clause) => self.resolve_clause(clause),
+			Node::Leaf(leaf) => self.resolve_leaf(leaf),
+		}
+	}
+
+	fn resolve_clause(&self, clause: &Clause) -> Box<dyn Query> {
+		let subqueries = clause.nodes.iter().map(|(occur, node)| {
+			use super::query::Occur as BOccur;
+			use tantivy::query::Occur as TOccur;
+			let tantivy_occur = match occur {
+				BOccur::Must => TOccur::Must,
+				BOccur::Should => TOccur::Should,
+				BOccur::MustNot => TOccur::MustNot,
+			};
+
+			(tantivy_occur, self.resolve(node))
+		});
+
+		Box::new(BooleanQuery::new(subqueries.collect()))
+	}
+
+	fn resolve_leaf(&self, leaf: &Leaf) -> Box<dyn Query> {
+		// TODO: this should use a schema-provided name fetcher or something, this is not stable
+		let field = self
+			.schema
+			.get_field(&leaf.offset.to_string())
+			.expect("this should probably be a warning of some kind");
+
+		match &leaf.operation {
+			Operation::Relation(_) => todo!(),
+			Operation::Equal(value) => {
+				let term = self.value_to_term(value, field);
+				Box::new(TermQuery::new(term, IndexRecordOption::Basic))
+			}
+		}
+	}
+
+	fn value_to_term(&self, value: &Value, field: Field) -> Term {
+		let field_entry = self.schema.get_field_entry(field);
+		let field_type = field_entry.field_type();
+
+		match field_type {
+			FieldType::U64(_) => Term::from_field_u64(field, self.value_to_u64(value)),
+			FieldType::I64(_) => Term::from_field_i64(field, self.value_to_i64(value)),
+			other => todo!("{other:#?}"),
+		}
+	}
+
+	fn value_to_u64(&self, value: &Value) -> u64 {
+		match value {
+			Value::UInt(inner) => *inner,
+		}
+	}
+
+	fn value_to_i64(&self, value: &Value) -> i64 {
+		match value {
+			Value::UInt(inner) => (*inner).try_into().expect("TODO: this should also be a warning. i need a general purpose warning thing for invalid field types or something"),
+		}
 	}
 }

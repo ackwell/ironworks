@@ -91,16 +91,32 @@ impl Version {
 	// TODO: index specifier?
 	// TODO: non-string-query filters
 	// TODO: continuation?
-	// TODO: Nicer type (that struct would be real handy around about now)
-	#[allow(clippy::type_complexity)]
 	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>> {
 		// TODO: arg
 		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
 
 		// TODO: arg
-		let query_node = Node::Leaf(Leaf {
-			offset: 138,
-			operation: Operation::Equal(Value::UInt(635)),
+		// let query_node = Node::Leaf(Leaf {
+		// 	offset: 138,
+		// 	operation: Operation::Equal(Value::UInt(635)),
+		// });
+		let query_node = Node::Clause(Clause {
+			nodes: vec![
+				(
+					Occur::Must,
+					Node::Leaf(Leaf {
+						offset: 0x36,
+						operation: Operation::Equal(Value::UInt(358)),
+					}),
+				),
+				(
+					Occur::Must,
+					Node::Leaf(Leaf {
+						offset: 0x38,
+						operation: Operation::Equal(Value::UInt(389)),
+					}),
+				),
+			],
 		});
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.

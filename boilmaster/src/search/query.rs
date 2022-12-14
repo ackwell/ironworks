@@ -3,8 +3,9 @@ pub enum Node {
 	Leaf(Leaf),
 }
 
+// TODO: this might be worth collapsing into the parent node struct?
 pub struct Clause {
-	nodes: Vec<(Occur, Node)>,
+	pub nodes: Vec<(Occur, Node)>,
 }
 
 pub enum Occur {
@@ -27,5 +28,9 @@ pub enum Operation {
 pub struct Relation {
 	pub target: String,
 	pub condition: Option<Box<Node>>,
-	pub clause: Clause,
+	pub query: Box<Node>,
+}
+
+pub enum Value {
+	UInt(u64),
 }
