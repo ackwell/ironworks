@@ -10,9 +10,9 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use crate::data::Version as DataVersion;
 
 use super::{
-	index::Index,
+	index::{Index, IndexResult},
 	ingest::Ingester,
-	query::{Leaf, Node, Operation, Value},
+	query::{Clause, Leaf, Node, Occur, Operation, Relation, Value},
 };
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ pub struct SearchResult {
 pub struct Version {
 	path: PathBuf,
 
-	indices: RwLock<HashMap<String, Index>>,
+	indices: RwLock<Option<Arc<HashMap<String, Index>>>>,
 }
 
 impl Version {
@@ -74,16 +74,15 @@ impl Version {
 			.collect::<FuturesUnordered<_>>();
 
 		// Pull in all the futures as they complete, adding to the index map.
+		let mut indices = HashMap::new();
+
 		while let Some(result) = futures.next().await {
 			// TODO: Error handling - a failure here probably implies a failed ingestion, which is Not Good.
 			let (sheet_name, index) = result.expect("Ingestion failure, this is bad.");
-			self.indices
-				.write()
-				.unwrap()
-				.insert(sheet_name.to_string(), index);
+			indices.insert(sheet_name.to_string(), index);
 		}
 
-		// TODO: should we have some atomic bool in the version to mark when the full task is complete - we probably don't want partial completion.
+		*self.indices.write().unwrap() = Some(indices.into());
 
 		Ok(())
 	}
@@ -92,8 +91,14 @@ impl Version {
 	// TODO: non-string-query filters
 	// TODO: continuation?
 	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>> {
-		// TODO: arg
+		let option = self.indices.read().expect("TODO error poisoned");
+		let indices = option
+			.as_ref()
+			.expect("TODO handle case where indices are not eady yet");
+
+		// TODO: arg...?
 		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
+		// let sheet_filter: Option<HashSet<String>> = None;
 
 		// TODO: arg
 		// let query_node = Node::Leaf(Leaf {
@@ -116,8 +121,27 @@ impl Version {
 						operation: Operation::Equal(Value::UInt(389)),
 					}),
 				),
+				(
+					Occur::Must,
+					Node::Leaf(Leaf {
+						offset: 0x55,
+						operation: Operation::Relation(Relation {
+							target: "ClassJob".into(),
+							condition: None,
+							query: Box::new(Node::Leaf(Leaf {
+								offset: 0x58,
+								operation: Operation::Equal(Value::UInt(22)),
+							})),
+						}),
+					}),
+				),
 			],
 		});
+
+		// This effectively creates a snapshot of the indices at the time of creation.
+		let executor = Executor {
+			indices: indices.clone(),
+		};
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
 		let index_results = indices
@@ -130,7 +154,9 @@ impl Version {
 			})
 			// Execute the query on each matching index
 			.map(|(name, index)| {
-				let tagged_results = index.search(&query_node)?.map(|result| SearchResult {
+				// let results = index.search(&query_node)?;
+				let results = executor.search(name, &query_node)?;
+				let tagged_results = results.map(|result| SearchResult {
 					score: result.score,
 					sheet: name.to_owned(),
 					row_id: result.row_id,
@@ -145,5 +171,20 @@ impl Version {
 		let results = index_results.into_iter().flatten().collect::<Vec<_>>();
 
 		Ok(results)
+	}
+}
+
+pub struct Executor {
+	indices: Arc<HashMap<String, Index>>,
+}
+
+impl Executor {
+	pub fn search(&self, sheet: &str, query: &Node) -> Result<impl Iterator<Item = IndexResult>> {
+		let index = self
+			.indices
+			.get(sheet)
+			.expect("TODO: error handling. this should probably be a hard fail?");
+
+		index.search(self, query)
 	}
 }

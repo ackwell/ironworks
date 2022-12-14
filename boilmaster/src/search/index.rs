@@ -5,14 +5,15 @@ use ironworks::excel::Sheet;
 use tantivy::{
 	collector::TopDocs,
 	directory::MmapDirectory,
-	query::{BooleanQuery, Query, TermQuery},
+	query::{BooleanQuery, Query, TermQuery, TermSetQuery},
 	schema::{Field, FieldType, IndexRecordOption, Schema},
 	ReloadPolicy, Term,
 };
 
 use super::{
 	ingest::Ingester,
-	query::{Clause, Leaf, Node, Operation, Value},
+	query::{Clause, Leaf, Node, Operation, Relation, Value},
+	version::Executor,
 };
 
 #[derive(Debug)]
@@ -60,6 +61,7 @@ impl Index {
 	// TODO: probably need some form of typedef for the id pair - where does that live? should it be a struct?
 	pub fn search(
 		&self,
+		executor: &Executor,
 		// query_string: &str,
 		query_node: &Node,
 	) -> Result<impl Iterator<Item = IndexResult>> {
@@ -67,7 +69,7 @@ impl Index {
 
 		let schema = searcher.schema();
 
-		let query_resolver = QueryResolver { schema };
+		let query_resolver = QueryResolver { schema, executor };
 		let query = query_resolver.resolve(query_node);
 
 		// // so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
@@ -134,6 +136,7 @@ impl Index {
 
 struct QueryResolver<'a> {
 	schema: &'a Schema,
+	executor: &'a Executor,
 }
 
 impl QueryResolver<'_> {
@@ -168,12 +171,32 @@ impl QueryResolver<'_> {
 			.expect("this should probably be a warning of some kind");
 
 		match &leaf.operation {
-			Operation::Relation(_) => todo!(),
+			Operation::Relation(relation) => self.resolve_relation(relation, field),
 			Operation::Equal(value) => {
 				let term = self.value_to_term(value, field);
 				Box::new(TermQuery::new(term, IndexRecordOption::Basic))
 			}
 		}
+	}
+
+	fn resolve_relation(&self, relation: &Relation, field: Field) -> Box<dyn Query> {
+		// Run the inner query on the target index.
+		let results = self
+			.executor
+			.search(&relation.target, &relation.query)
+			.expect("TODO HANDLE: what does a failure here mean?");
+
+		// Map the results to terms for the query we're building.
+		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
+		// TODO: I have access to a score from the inside here. I should propagate that, somehow.
+		let terms =
+			results.map(|result| self.value_to_term(&Value::UInt(result.row_id.into()), field));
+
+		if relation.condition.is_some() {
+			todo!("handle relationship conditions")
+		}
+
+		Box::new(TermSetQuery::new(terms))
 	}
 
 	fn value_to_term(&self, value: &Value, field: Field) -> Term {
