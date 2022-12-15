@@ -111,14 +111,14 @@ impl Version {
 					Occur::Must,
 					Node::Leaf(Leaf {
 						offset: 0x36,
-						operation: Operation::Equal(Value::UInt(358)),
+						operation: Operation::Equal(Value::U64(358)),
 					}),
 				),
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
 						offset: 0x38,
-						operation: Operation::Equal(Value::UInt(389)),
+						operation: Operation::Equal(Value::U64(389)),
 					}),
 				),
 				(
@@ -130,7 +130,7 @@ impl Version {
 							condition: None,
 							query: Box::new(Node::Leaf(Leaf {
 								offset: 0x58,
-								operation: Operation::Equal(Value::UInt(22)),
+								operation: Operation::Equal(Value::U64(22)),
 							})),
 						}),
 					}),

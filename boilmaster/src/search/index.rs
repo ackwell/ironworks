@@ -6,7 +6,7 @@ use tantivy::{
 	collector::TopDocs,
 	directory::MmapDirectory,
 	query::{BooleanQuery, Query, TermQuery, TermSetQuery},
-	schema::{Field, FieldType, IndexRecordOption, Schema},
+	schema::{Field, IndexRecordOption, Schema, Type},
 	ReloadPolicy, Term,
 };
 
@@ -70,7 +70,7 @@ impl Index {
 		let schema = searcher.schema();
 
 		let query_resolver = QueryResolver { schema, executor };
-		let query = query_resolver.resolve(query_node);
+		let query = query_resolver.resolve(query_node)?;
 
 		// // so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
 		// // TODO: this should probably be precomputed
@@ -140,30 +140,34 @@ struct QueryResolver<'a> {
 }
 
 impl QueryResolver<'_> {
-	fn resolve(&self, node: &Node) -> Box<dyn Query> {
+	fn resolve(&self, node: &Node) -> Result<Box<dyn Query>, Error> {
 		match node {
 			Node::Clause(clause) => self.resolve_clause(clause),
 			Node::Leaf(leaf) => self.resolve_leaf(leaf),
 		}
 	}
 
-	fn resolve_clause(&self, clause: &Clause) -> Box<dyn Query> {
-		let subqueries = clause.nodes.iter().map(|(occur, node)| {
-			use super::query::Occur as BOccur;
-			use tantivy::query::Occur as TOccur;
-			let tantivy_occur = match occur {
-				BOccur::Must => TOccur::Must,
-				BOccur::Should => TOccur::Should,
-				BOccur::MustNot => TOccur::MustNot,
-			};
+	fn resolve_clause(&self, clause: &Clause) -> Result<Box<dyn Query>, Error> {
+		let subqueries = clause
+			.nodes
+			.iter()
+			.map(|(occur, node)| {
+				use super::query::Occur as BOccur;
+				use tantivy::query::Occur as TOccur;
+				let tantivy_occur = match occur {
+					BOccur::Must => TOccur::Must,
+					BOccur::Should => TOccur::Should,
+					BOccur::MustNot => TOccur::MustNot,
+				};
 
-			(tantivy_occur, self.resolve(node))
-		});
+				Ok((tantivy_occur, self.resolve(node)?))
+			})
+			.collect::<Result<Vec<_>, _>>()?;
 
-		Box::new(BooleanQuery::new(subqueries.collect()))
+		Ok(Box::new(BooleanQuery::new(subqueries)))
 	}
 
-	fn resolve_leaf(&self, leaf: &Leaf) -> Box<dyn Query> {
+	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, Error> {
 		// TODO: this should use a schema-provided name fetcher or something, this is not stable
 		let field = self
 			.schema
@@ -173,13 +177,13 @@ impl QueryResolver<'_> {
 		match &leaf.operation {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
 			Operation::Equal(value) => {
-				let term = self.value_to_term(value, field);
-				Box::new(TermQuery::new(term, IndexRecordOption::Basic))
+				let term = self.value_to_term(value, field)?;
+				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
 			}
 		}
 	}
 
-	fn resolve_relation(&self, relation: &Relation, field: Field) -> Box<dyn Query> {
+	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>, Error> {
 		// Run the inner query on the target index.
 		let results = self
 			.executor
@@ -189,36 +193,54 @@ impl QueryResolver<'_> {
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
 		// TODO: I have access to a score from the inside here. I should propagate that, somehow.
-		let terms =
-			results.map(|result| self.value_to_term(&Value::UInt(result.row_id.into()), field));
+		let terms = results
+			.map(|result| self.value_to_term(&Value::U64(result.row_id.into()), field))
+			.collect::<Result<Vec<_>, _>>()?;
 
 		if relation.condition.is_some() {
 			todo!("handle relationship conditions")
 		}
 
-		Box::new(TermSetQuery::new(terms))
+		Ok(Box::new(TermSetQuery::new(terms)))
 	}
 
-	fn value_to_term(&self, value: &Value, field: Field) -> Term {
+	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, Error> {
 		let field_entry = self.schema.get_field_entry(field);
-		let field_type = field_entry.field_type();
+		let field_type = field_entry.field_type().value_type();
 
-		match field_type {
-			FieldType::U64(_) => Term::from_field_u64(field, self.value_to_u64(value)),
-			FieldType::I64(_) => Term::from_field_i64(field, self.value_to_i64(value)),
+		(|| -> Option<_> {
+			Some(match field_type {
+				Type::U64 => Term::from_field_u64(field, self.value_to_u64(value)?),
+				Type::I64 => Term::from_field_i64(field, self.value_to_i64(value)?),
 			other => todo!("{other:#?}"),
+			})
+		})()
+		.ok_or_else(|| Error::FieldType {
+			field: format!("field {}", self.schema.get_field_name(field)),
+			expected: field_type.name().to_string(),
+			got: format!("{value:?}"),
+		})
+	}
+
+	fn value_to_u64(&self, value: &Value) -> Option<u64> {
+		match value {
+			Value::U64(inner) => Some(*inner),
 		}
 	}
 
-	fn value_to_u64(&self, value: &Value) -> u64 {
+	fn value_to_i64(&self, value: &Value) -> Option<i64> {
 		match value {
-			Value::UInt(inner) => *inner,
+			Value::U64(inner) => (*inner).try_into().ok(),
 		}
 	}
+}
 
-	fn value_to_i64(&self, value: &Value) -> i64 {
-		match value {
-			Value::UInt(inner) => (*inner).try_into().expect("TODO: this should also be a warning. i need a general purpose warning thing for invalid field types or something"),
-		}
-	}
+#[derive(thiserror::Error, Debug)]
+enum Error {
+	#[error("invalid field value on {field}: could not coerce {got} value to {expected}")]
+	FieldType {
+		field: String,
+		expected: String,
+		got: String,
+	},
 }

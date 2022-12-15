@@ -39,5 +39,5 @@ pub struct Relation {
 
 #[derive(Debug)]
 pub enum Value {
-	UInt(u64),
+	U64(u64),
 }
