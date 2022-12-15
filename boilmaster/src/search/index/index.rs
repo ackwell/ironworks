@@ -9,12 +9,13 @@ use tantivy::{
 	ReloadPolicy, Term,
 };
 
-use super::{
+use crate::search::{
 	error::{FieldTypeError, SearchError},
-	ingest::Ingester,
 	query::{Clause, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
 };
+
+use super::ingest::Ingester;
 
 #[derive(Debug)]
 pub struct IndexResult {
@@ -158,7 +159,7 @@ impl QueryResolver<'_> {
 			.nodes
 			.iter()
 			.map(|(occur, node)| {
-				use super::query::Occur as BOccur;
+				use crate::search::query::Occur as BOccur;
 				use tantivy::query::Occur as TOccur;
 				let tantivy_occur = match occur {
 					BOccur::Must => TOccur::Must,

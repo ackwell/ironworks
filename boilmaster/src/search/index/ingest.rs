@@ -8,7 +8,7 @@ use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings};
 use tokio::sync::Semaphore;
 
 #[derive(Debug, Deserialize)]
-pub struct Config {
+pub struct IngestConfig {
 	concurrency: usize,
 	memory: usize,
 }
@@ -20,7 +20,7 @@ pub struct Ingester {
 }
 
 impl Ingester {
-	pub fn new(config: Config) -> Self {
+	pub fn new(config: IngestConfig) -> Self {
 		Self {
 			semaphore: Semaphore::new(config.concurrency),
 			// Memory limit represents the total available across all writers.
