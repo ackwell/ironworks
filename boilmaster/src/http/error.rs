@@ -20,6 +20,16 @@ pub enum Error {
 	Other(#[from] anyhow::Error),
 }
 
+impl From<crate::search::SearchError> for Error {
+	fn from(error: crate::search::SearchError) -> Self {
+		use crate::search::SearchError as SE;
+		match error {
+			SE::FieldType(error) => Self::Invalid(error.to_string()),
+			SE::Failure(error) => Self::Other(error),
+		}
+	}
+}
+
 impl From<ironworks::Error> for Error {
 	fn from(error: ironworks::Error) -> Self {
 		use ironworks::Error as IE;

@@ -3,14 +3,13 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-use anyhow::Result;
 use figment::value::magic::RelativePathBuf;
 use futures::Future;
 use serde::Deserialize;
 
 use crate::data::Data;
 
-use super::{ingest, version::Version};
+use super::{error::SearchError, ingest, version::Version};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -49,7 +48,7 @@ impl Search {
 		shutdown: impl Future<Output = ()>,
 		data: &Data,
 		version: Option<&str>,
-	) -> Result<()> {
+	) -> Result<(), SearchError> {
 		let data_version = data.version(version);
 		let search_version = Arc::new(Version::new(
 			self.index_directory.join(version.unwrap_or("__NONE")),

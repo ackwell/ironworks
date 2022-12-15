@@ -4,12 +4,12 @@ use std::{
 	sync::{Arc, RwLock},
 };
 
-use anyhow::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
 
 use crate::data::Version as DataVersion;
 
 use super::{
+	error::SearchError,
 	index::{Index, IndexResult},
 	ingest::Ingester,
 	query::{Clause, Leaf, Node, Occur, Operation, Relation, Value},
@@ -42,14 +42,14 @@ impl Version {
 		self: Arc<Self>,
 		ingester: &Ingester,
 		data: &DataVersion,
-	) -> Result<()> {
+	) -> Result<(), SearchError> {
 		let excel = data.excel();
 
 		// NOTE: should probably record which sheets contain strings so we can immediately ignore the rest when there's a query string
 
 		// TODO: on zipatch-backed data instances, accessing .list() could block for quite some time - how do i want to handle that?
 		// Create a group of futures; one for each sheet that (should) exist in the index - indexes will be ingested if they do not yet exist.
-		let list = excel.list()?;
+		let list = excel.list().map_err(anyhow::Error::from)?;
 		let mut futures = list
 			.iter()
 			.map(|sheet_name| {
@@ -90,7 +90,7 @@ impl Version {
 	// TODO: index specifier?
 	// TODO: non-string-query filters
 	// TODO: continuation?
-	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>> {
+	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>, SearchError> {
 		let option = self.indices.read().expect("TODO error poisoned");
 		let indices = option
 			.as_ref()
@@ -164,7 +164,7 @@ impl Version {
 				});
 				Ok(tagged_results)
 			})
-			.collect::<Result<Vec<_>>>()?;
+			.collect::<Result<Vec<_>, SearchError>>()?;
 
 		// TODO: this just groups by index, effectively - should probably sort by score at this point
 		// Merge the results from each index into a single vector.
@@ -179,7 +179,11 @@ pub struct Executor {
 }
 
 impl Executor {
-	pub fn search(&self, sheet: &str, query: &Node) -> Result<impl Iterator<Item = IndexResult>> {
+	pub fn search(
+		&self,
+		sheet: &str,
+		query: &Node,
+	) -> Result<impl Iterator<Item = IndexResult>, SearchError> {
 		let index = self
 			.indices
 			.get(sheet)

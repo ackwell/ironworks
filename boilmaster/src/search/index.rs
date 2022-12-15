@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
 use ironworks::excel::Sheet;
 use tantivy::{
 	collector::TopDocs,
@@ -11,6 +10,7 @@ use tantivy::{
 };
 
 use super::{
+	error::{FieldTypeError, SearchError},
 	ingest::Ingester,
 	query::{Clause, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
@@ -35,12 +35,15 @@ impl Index {
 		ingester: &Ingester,
 		path: PathBuf,
 		sheet: Sheet<'static, String>,
-	) -> Result<Self> {
-		tokio::fs::create_dir_all(&path).await?;
-		let directory = MmapDirectory::open(path)?;
+	) -> Result<Self, SearchError> {
+		tokio::fs::create_dir_all(&path)
+			.await
+			.map_err(anyhow::Error::from)?;
+		let directory = MmapDirectory::open(path).map_err(anyhow::Error::from)?;
 
-		let index = match tantivy::Index::exists(&directory)? {
-			true => tantivy::Index::open(directory)?,
+		let exists = tantivy::Index::exists(&directory).map_err(anyhow::Error::from)?;
+		let index = match exists {
+			true => tantivy::Index::open(directory).map_err(anyhow::Error::from)?,
 			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
 			false => ingester
@@ -53,7 +56,8 @@ impl Index {
 			.reader_builder()
 			// TODO: this is set to manual 'cus technically an index is never updated in this setup. is that sane? i dunno?
 			.reload_policy(ReloadPolicy::Manual)
-			.try_into()?;
+			.try_into()
+			.map_err(anyhow::Error::from)?;
 
 		Ok(Self { index, reader })
 	}
@@ -64,7 +68,7 @@ impl Index {
 		executor: &Executor,
 		// query_string: &str,
 		query_node: &Node,
-	) -> Result<impl Iterator<Item = IndexResult>> {
+	) -> Result<impl Iterator<Item = IndexResult>, SearchError> {
 		let searcher = self.reader.searcher();
 
 		let schema = searcher.schema();
@@ -101,7 +105,9 @@ impl Index {
 		// let query = BooleanQuery::new(b.collect());
 
 		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
-		let top_docs = searcher.search(&query, &TopDocs::with_limit(100))?;
+		let top_docs = searcher
+			.search(&query, &TopDocs::with_limit(100))
+			.map_err(anyhow::Error::from)?;
 		let todo_result = top_docs.into_iter().map(move |(score, doc_address)| {
 			let doc = searcher.doc(doc_address).expect(
 				"TODO: error handling. is there any reasonable expectation this will fail?",
@@ -140,14 +146,14 @@ struct QueryResolver<'a> {
 }
 
 impl QueryResolver<'_> {
-	fn resolve(&self, node: &Node) -> Result<Box<dyn Query>, Error> {
+	fn resolve(&self, node: &Node) -> Result<Box<dyn Query>, SearchError> {
 		match node {
 			Node::Clause(clause) => self.resolve_clause(clause),
 			Node::Leaf(leaf) => self.resolve_leaf(leaf),
 		}
 	}
 
-	fn resolve_clause(&self, clause: &Clause) -> Result<Box<dyn Query>, Error> {
+	fn resolve_clause(&self, clause: &Clause) -> Result<Box<dyn Query>, SearchError> {
 		let subqueries = clause
 			.nodes
 			.iter()
@@ -162,12 +168,12 @@ impl QueryResolver<'_> {
 
 				Ok((tantivy_occur, self.resolve(node)?))
 			})
-			.collect::<Result<Vec<_>, _>>()?;
+			.collect::<Result<Vec<_>, SearchError>>()?;
 
 		Ok(Box::new(BooleanQuery::new(subqueries)))
 	}
 
-	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, Error> {
+	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
 		// TODO: this should use a schema-provided name fetcher or something, this is not stable
 		let field = self
 			.schema
@@ -183,7 +189,11 @@ impl QueryResolver<'_> {
 		}
 	}
 
-	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>, Error> {
+	fn resolve_relation(
+		&self,
+		relation: &Relation,
+		field: Field,
+	) -> Result<Box<dyn Query>, SearchError> {
 		// Run the inner query on the target index.
 		let results = self
 			.executor
@@ -204,7 +214,7 @@ impl QueryResolver<'_> {
 		Ok(Box::new(TermSetQuery::new(terms)))
 	}
 
-	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, Error> {
+	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, SearchError> {
 		let field_entry = self.schema.get_field_entry(field);
 		let field_type = field_entry.field_type().value_type();
 
@@ -212,13 +222,15 @@ impl QueryResolver<'_> {
 			Some(match field_type {
 				Type::U64 => Term::from_field_u64(field, self.value_to_u64(value)?),
 				Type::I64 => Term::from_field_i64(field, self.value_to_i64(value)?),
-			other => todo!("{other:#?}"),
+				other => todo!("{other:#?}"),
 			})
 		})()
-		.ok_or_else(|| Error::FieldType {
-			field: format!("field {}", self.schema.get_field_name(field)),
-			expected: field_type.name().to_string(),
-			got: format!("{value:?}"),
+		.ok_or_else(|| {
+			SearchError::FieldType(FieldTypeError {
+				field: format!("field {}", self.schema.get_field_name(field)),
+				expected: field_type.name().to_string(),
+				got: format!("{value:?}"),
+			})
 		})
 	}
 
@@ -233,14 +245,4 @@ impl QueryResolver<'_> {
 			Value::U64(inner) => (*inner).try_into().ok(),
 		}
 	}
-}
-
-#[derive(thiserror::Error, Debug)]
-enum Error {
-	#[error("invalid field value on {field}: could not coerce {got} value to {expected}")]
-	FieldType {
-		field: String,
-		expected: String,
-		got: String,
-	},
 }
