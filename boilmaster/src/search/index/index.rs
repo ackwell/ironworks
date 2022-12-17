@@ -5,7 +5,11 @@ use tantivy::{collector::TopDocs, directory::MmapDirectory, ReloadPolicy};
 
 use crate::search::{error::SearchError, query::Node, version::Executor};
 
-use super::{ingest::Ingester, resolve::QueryResolver};
+use super::{
+	ingest::Ingester,
+	resolve::QueryResolver,
+	schema::{ROW_ID, SUBROW_ID},
+};
 
 #[derive(Debug)]
 pub struct IndexResult {
@@ -81,13 +85,8 @@ impl Index {
 		// 	return Ok(Either::Right(std::iter::empty()));
 		// }
 
-		// TODO: these string constants should be in a shared location.
-		let row_id_field = schema
-			.get_field("row_id")
-			.expect("row_id field is specified on all indices");
-		let subrow_id_field = schema
-			.get_field("subrow_id")
-			.expect("subrow_id field is specified on all indices");
+		let row_id_field = schema.get_field(ROW_ID).unwrap();
+		let subrow_id_field = schema.get_field(SUBROW_ID).unwrap();
 
 		// let query_parser = QueryParser::for_index(&self.index, string_fields);
 		// let query = query_parser.parse_query(query_string)?;
@@ -99,6 +98,7 @@ impl Index {
 		let top_docs = searcher
 			.search(&query, &TopDocs::with_limit(100))
 			.map_err(anyhow::Error::from)?;
+
 		let todo_result = top_docs.into_iter().map(move |(score, doc_address)| {
 			let doc = searcher.doc(doc_address).expect(
 				"TODO: error handling. is there any reasonable expectation this will fail?",

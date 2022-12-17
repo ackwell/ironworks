@@ -100,6 +100,12 @@ pub struct ColumnDefinition {
 	offset: u16,
 }
 
+impl ColumnDefinition {
+	pub fn TEMP_new(kind: ColumnKind, offset: u16) -> Self {
+		Self { kind, offset }
+	}
+}
+
 /// The kind of data structure stored in a column.
 #[allow(missing_docs)]
 #[binread]

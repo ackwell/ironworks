@@ -25,6 +25,7 @@ impl From<crate::search::SearchError> for Error {
 		use crate::search::SearchError as SE;
 		match error {
 			SE::FieldType(error) => Self::Invalid(error.to_string()),
+			SE::SchemaMismatch(error) => Self::Invalid(error.to_string()),
 			SE::Failure(error) => Self::Other(error),
 		}
 	}

@@ -5,6 +5,7 @@ use std::{
 };
 
 use futures::{stream::FuturesUnordered, StreamExt};
+use ironworks::file::exh;
 
 use crate::data::Version as DataVersion;
 
@@ -104,31 +105,35 @@ impl Version {
 		// 	offset: 138,
 		// 	operation: Operation::Equal(Value::UInt(635)),
 		// });
+		// TODO: WHEN REMOVING THIS< REMOVE THE COLDEF CTOR
 		let query_node = Node::Clause(Clause {
 			nodes: vec![
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						offset: 0x36,
+						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
 						operation: Operation::Equal(Value::U64(358)),
 					}),
 				),
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						offset: 0x38,
+						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
 						operation: Operation::Equal(Value::U64(389)),
 					}),
 				),
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						offset: 0x55,
+						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
 						operation: Operation::Relation(Relation {
 							target: "ClassJob".into(),
 							condition: None,
 							query: Box::new(Node::Leaf(Leaf {
-								offset: 0x58,
+								column: exh::ColumnDefinition::TEMP_new(
+									exh::ColumnKind::UInt8,
+									0x58,
+								),
 								operation: Operation::Equal(Value::U64(22)),
 							})),
 						}),

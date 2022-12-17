@@ -5,10 +5,12 @@ use tantivy::{
 };
 
 use crate::search::{
+	error::{FieldTypeError, SchemaMismatchError, SearchError},
 	query::{Clause, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
-	FieldTypeError, SearchError,
 };
+
+use super::schema::column_field_name;
 
 pub struct QueryResolver<'a> {
 	pub schema: &'a Schema,
@@ -45,10 +47,13 @@ impl QueryResolver<'_> {
 
 	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
 		// TODO: this should use a schema-provided name fetcher or something, this is not stable
-		let field = self
-			.schema
-			.get_field(&leaf.offset.to_string())
-			.expect("this should probably be a warning of some kind");
+		let field_name = column_field_name(&leaf.column);
+		let field = self.schema.get_field(&field_name).ok_or_else(|| {
+			SearchError::SchemaMismatch(SchemaMismatchError {
+				field: format!("field {field_name}"),
+				reason: "field does not exist in search index".into(),
+			})
+		})?;
 
 		match &leaf.operation {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
@@ -65,10 +70,7 @@ impl QueryResolver<'_> {
 		field: Field,
 	) -> Result<Box<dyn Query>, SearchError> {
 		// Run the inner query on the target index.
-		let results = self
-			.executor
-			.search(&relation.target, &relation.query)
-			.expect("TODO HANDLE: what does a failure here mean?");
+		let results = self.executor.search(&relation.target, &relation.query)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?

@@ -1,3 +1,5 @@
+use ironworks::file::exh;
+
 #[derive(Debug)]
 pub enum Node {
 	Clause(Clause),
@@ -21,7 +23,7 @@ pub enum Occur {
 pub struct Leaf {
 	/// Column offset this leaf targets.
 	// TODO: this struct targets post-normalised data, so i'm acting under the assumption that the normalisation process will turn non-targeted queries into a group of queries targeting specific fields.
-	pub offset: u32,
+	pub column: exh::ColumnDefinition,
 	pub operation: Operation,
 }
 
