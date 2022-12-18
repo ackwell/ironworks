@@ -152,20 +152,27 @@ impl<'a> Normalizer<'a> {
 			// TODO: this should collect all scalars i think?
 			// TODO: this pattern will be pretty repetetive, make a utility that does this or something
 			pre::Operation::Equal(value) => {
-				let clauses = collect_scalars(schema, columns, vec![])
-					.into_iter()
-					.map(|column| {
-						(
+				let mut scalar_columns = collect_scalars(schema, columns, vec![]);
+				match scalar_columns.len() {
+					0 => todo!("guessing this should be like, a schema mismatch? maybe? TODO: work out what this means"),
+
+					1 => post::Node::Leaf(post::Leaf {
+						field: scalar_columns.swap_remove(0),
+						operation: post::Operation::Equal(value)
+					}),
+
+					_ => {
+						let clauses = scalar_columns.into_iter().map(|column| {(
 							post::Occur::Should,
 							post::Node::Leaf(post::Leaf {
 								field: column,
 								operation: post::Operation::Equal(value.clone()),
 							}),
-						)
-					})
-					.collect::<Vec<_>>();
+						)}).collect::<Vec<_>>();
 
-				post::Node::Group(post::Group { clauses })
+						post::Node::Group(post::Group { clauses })
+					}
+				}
 			}
 		}
 	}
@@ -191,10 +198,12 @@ fn collect_scalars(
 				collect_scalars(node, slice, output)
 			})
 		}
+
 		schema::Node::Reference(_references) => {
 			// ignore refs?
 			output
 		}
+
 		schema::Node::Scalar => {
 			output.push(
 				columns
@@ -204,6 +213,7 @@ fn collect_scalars(
 			);
 			output
 		}
+
 		schema::Node::Struct(fields) => fields.iter().fold(output, |output, field| {
 			let start = usize::try_from(field.offset).unwrap();
 			let end = start + usize::try_from(field.node.size()).unwrap();
