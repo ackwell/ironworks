@@ -6,7 +6,7 @@ use tantivy::{
 
 use crate::search::{
 	error::{FieldTypeError, SchemaMismatchError, SearchError},
-	query::post::{Clause, Leaf, Node, Operation, Relation, Value},
+	query::post::{Group, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
 };
 
@@ -20,14 +20,14 @@ pub struct QueryResolver<'a> {
 impl QueryResolver<'_> {
 	pub fn resolve(&self, node: &Node) -> Result<Box<dyn Query>, SearchError> {
 		match node {
-			Node::Clause(clause) => self.resolve_clause(clause),
+			Node::Group(group) => self.resolve_clause(group),
 			Node::Leaf(leaf) => self.resolve_leaf(leaf),
 		}
 	}
 
-	fn resolve_clause(&self, clause: &Clause) -> Result<Box<dyn Query>, SearchError> {
-		let subqueries = clause
-			.nodes
+	fn resolve_clause(&self, group: &Group) -> Result<Box<dyn Query>, SearchError> {
+		let subqueries = group
+			.clauses
 			.iter()
 			.map(|(occur, node)| {
 				use crate::search::query::post::Occur as BOccur;

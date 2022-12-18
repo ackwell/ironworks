@@ -12,7 +12,7 @@ use crate::data::Version as DataVersion;
 use super::{
 	error::SearchError,
 	index::{Index, IndexResult, Ingester},
-	query::post::{Clause, Leaf, Node, Occur, Operation, Relation, Value},
+	query::post::{Group, Leaf, Node, Occur, Operation, Relation, Value},
 };
 
 #[derive(Debug)]
@@ -106,8 +106,8 @@ impl Version {
 		// 	operation: Operation::Equal(Value::UInt(635)),
 		// });
 		// TODO: WHEN REMOVING THIS< REMOVE THE COLDEF CTOR
-		let query_node = Node::Clause(Clause {
-			nodes: vec![
+		let query_node = Node::Group(Group {
+			clauses: vec![
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {

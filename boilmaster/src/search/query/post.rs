@@ -2,14 +2,14 @@ use ironworks::file::exh;
 
 #[derive(Debug)]
 pub enum Node {
-	Clause(Clause),
+	Group(Group),
 	Leaf(Leaf),
 }
 
 // TODO: this might be worth collapsing into the parent node struct?
 #[derive(Debug)]
-pub struct Clause {
-	pub nodes: Vec<(Occur, Node)>,
+pub struct Group {
+	pub clauses: Vec<(Occur, Node)>,
 }
 
 #[derive(Debug)]
