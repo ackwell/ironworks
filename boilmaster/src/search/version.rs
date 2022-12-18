@@ -5,14 +5,15 @@ use std::{
 };
 
 use futures::{stream::FuturesUnordered, StreamExt};
-use ironworks::file::exh;
+use ironworks::excel;
+use ironworks_schema::saint_coinach;
 
 use crate::data::Version as DataVersion;
 
 use super::{
 	error::SearchError,
 	index::{Index, IndexResult, Ingester},
-	query::post::{Group, Leaf, Node, Occur, Operation, Relation, RelationTarget, Value},
+	query::{post, pre, Normalizer},
 };
 
 #[derive(Debug)]
@@ -90,7 +91,11 @@ impl Version {
 	// TODO: index specifier?
 	// TODO: non-string-query filters
 	// TODO: continuation?
-	pub fn search(&self, query: &str) -> Result<Vec<SearchResult>, SearchError> {
+	pub fn search(
+		&self,
+		query: &str,
+		excel: &excel::Excel,
+	) -> Result<Vec<SearchResult>, SearchError> {
 		let option = self.indices.read().expect("TODO error poisoned");
 		let indices = option
 			.as_ref()
@@ -106,43 +111,74 @@ impl Version {
 		// 	operation: Operation::Equal(Value::UInt(635)),
 		// });
 		// TODO: WHEN REMOVING THIS< REMOVE THE COLDEF CTOR
-		let query_node = Node::Group(Group {
+		// let query_node = Node::Group(Group {
+		// 	clauses: vec![
+		// 		(
+		// 			Occur::Must,
+		// 			Node::Leaf(Leaf {
+		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
+		// 				operation: Operation::Equal(Value::U64(358)),
+		// 			}),
+		// 		),
+		// 		(
+		// 			Occur::Must,
+		// 			Node::Leaf(Leaf {
+		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
+		// 				operation: Operation::Equal(Value::U64(389)),
+		// 			}),
+		// 		),
+		// 		(
+		// 			Occur::Must,
+		// 			Node::Leaf(Leaf {
+		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
+		// 				operation: Operation::Relation(Relation {
+		// 					target: RelationTarget {
+		// 						sheet: "ClassJob".into(),
+		// 						condition: None,
+		// 					},
+		// 					query: Box::new(Node::Leaf(Leaf {
+		// 						field: exh::ColumnDefinition::TEMP_new(
+		// 							exh::ColumnKind::UInt8,
+		// 							0x58,
+		// 						),
+		// 						operation: Operation::Equal(Value::U64(22)),
+		// 					})),
+		// 				}),
+		// 			}),
+		// 		),
+		// 	],
+		// });
+
+		// TODO: i'm gonna need to normalise the goddamn symbols out, aren't i. goddamn. fuck it. boring ass shit.
+		// can i reuse some of the fucking read:: logic for that or some bullshit
+		let query_node = pre::Node::Group(pre::Group {
 			clauses: vec![
 				(
-					Occur::Must,
-					Node::Leaf(Leaf {
-						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
-						operation: Operation::Equal(Value::U64(358)),
+					pre::Occur::Must,
+					pre::Node::Leaf(pre::Leaf {
+						field: Some(pre::FieldSpecifier::Struct("Level{Equip}".into())),
+						operation: pre::Operation::Equal(pre::Value::U64(90)),
 					}),
 				),
 				(
-					Occur::Must,
-					Node::Leaf(Leaf {
-						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
-						operation: Operation::Equal(Value::U64(389)),
-					}),
-				),
-				(
-					Occur::Must,
-					Node::Leaf(Leaf {
-						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
-						operation: Operation::Relation(Relation {
-							target: RelationTarget {
-								sheet: "ClassJob".into(),
-								condition: None,
-							},
-							query: Box::new(Node::Leaf(Leaf {
-								field: exh::ColumnDefinition::TEMP_new(
-									exh::ColumnKind::UInt8,
-									0x58,
-								),
-								operation: Operation::Equal(Value::U64(22)),
-							})),
-						}),
+					pre::Occur::Must,
+					pre::Node::Leaf(pre::Leaf {
+						field: Some(pre::FieldSpecifier::Struct("Damage{Phys}".into())),
+						operation: pre::Operation::Equal(pre::Value::U64(126)),
 					}),
 				),
 			],
 		});
+
+		// lol. lmao.
+		// TODO: do i keep excel on hand in the search version, or do i leave it up to the caller?
+		// TODO: delete the shit out of this schema bullshit;
+		let provider = saint_coinach::Provider::new().expect("TODO: lol.");
+		let version = provider.version("HEAD").expect("TODO: lmao.");
+		let normalizer = Normalizer::new(excel, &version);
+		let post_node = normalizer
+			.normalize(query_node, "Item")
+			.expect("TODO: fucking whatever.");
 
 		// This effectively creates a snapshot of the indices at the time of creation.
 		let executor = Executor {
@@ -161,7 +197,8 @@ impl Version {
 			// Execute the query on each matching index
 			.map(|(name, index)| {
 				// let results = index.search(&query_node)?;
-				let results = executor.search(name, &query_node)?;
+				// let results = executor.search(name, &query_node)?;
+				let results = executor.search(name, &post_node)?;
 				let tagged_results = results.map(|result| SearchResult {
 					score: result.score,
 					sheet: name.to_owned(),
@@ -188,7 +225,7 @@ impl Executor {
 	pub fn search(
 		&self,
 		sheet: &str,
-		query: &Node,
+		query: &post::Node,
 	) -> Result<impl Iterator<Item = IndexResult>, SearchError> {
 		let index = self
 			.indices

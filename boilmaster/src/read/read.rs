@@ -24,7 +24,6 @@ pub struct ReaderContext<'a> {
 	pub columns: &'a [exh::ColumnDefinition],
 }
 
-// TODO: need some representation of filtering for this, preferably that will be constructable from reference filters, gql queries, and a get request for rest
 pub fn read_sheet(sheet_name: &str, context: ReaderContext) -> Result<Value> {
 	let sheet = context.schema.sheet(sheet_name)?;
 

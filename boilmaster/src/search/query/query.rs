@@ -41,7 +41,7 @@ pub struct Relation<F, T> {
 }
 
 // TODO: this can probably be used on both sides of normalisation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
 	/// Represents any positive integer
 	U64(u64),

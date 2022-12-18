@@ -10,5 +10,11 @@ pub type Relation = query::Relation<LeafField, RelationTarget>;
 pub use query::{Occur, Value};
 
 // Types specific to pre-normalised queries
-pub type LeafField = Option<String>;
+pub type LeafField = Option<FieldSpecifier>;
 pub type RelationTarget = ();
+
+#[derive(Debug)]
+pub enum FieldSpecifier {
+	Struct(String),
+	Array,
+}
