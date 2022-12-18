@@ -12,7 +12,7 @@ use crate::data::Version as DataVersion;
 use super::{
 	error::SearchError,
 	index::{Index, IndexResult, Ingester},
-	query::post::{Group, Leaf, Node, Occur, Operation, Relation, Value},
+	query::post::{Group, Leaf, Node, Occur, Operation, Relation, RelationTarget, Value},
 };
 
 #[derive(Debug)]
@@ -111,26 +111,28 @@ impl Version {
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
+						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
 						operation: Operation::Equal(Value::U64(358)),
 					}),
 				),
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
+						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
 						operation: Operation::Equal(Value::U64(389)),
 					}),
 				),
 				(
 					Occur::Must,
 					Node::Leaf(Leaf {
-						column: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
+						field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
 						operation: Operation::Relation(Relation {
-							target: "ClassJob".into(),
-							condition: None,
+							target: RelationTarget {
+								sheet: "ClassJob".into(),
+								condition: None,
+							},
 							query: Box::new(Node::Leaf(Leaf {
-								column: exh::ColumnDefinition::TEMP_new(
+								field: exh::ColumnDefinition::TEMP_new(
 									exh::ColumnKind::UInt8,
 									0x58,
 								),

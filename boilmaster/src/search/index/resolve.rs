@@ -47,7 +47,7 @@ impl QueryResolver<'_> {
 
 	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
 		// TODO: this should use a schema-provided name fetcher or something, this is not stable
-		let field_name = column_field_name(&leaf.column);
+		let field_name = column_field_name(&leaf.field);
 		let field = self.schema.get_field(&field_name).ok_or_else(|| {
 			SearchError::SchemaMismatch(SchemaMismatchError {
 				field: format!("field {field_name}"),
@@ -70,7 +70,9 @@ impl QueryResolver<'_> {
 		field: Field,
 	) -> Result<Box<dyn Query>, SearchError> {
 		// Run the inner query on the target index.
-		let results = self.executor.search(&relation.target, &relation.query)?;
+		let results = self
+			.executor
+			.search(&relation.target.sheet, &relation.query)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
@@ -79,7 +81,7 @@ impl QueryResolver<'_> {
 			.map(|result| self.value_to_term(&Value::U64(result.row_id.into()), field))
 			.collect::<Result<Vec<_>, _>>()?;
 
-		if relation.condition.is_some() {
+		if relation.target.condition.is_some() {
 			todo!("handle relationship conditions")
 		}
 

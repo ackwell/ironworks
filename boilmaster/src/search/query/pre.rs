@@ -1,5 +1,3 @@
-use ironworks::file::exh;
-
 use super::query;
 
 // Re-export the query types, with assigned generics.
@@ -11,11 +9,6 @@ pub type Relation = query::Relation<LeafField, RelationTarget>;
 
 pub use query::{Occur, Value};
 
-// Types specific to post-normalised queries
-pub type LeafField = exh::ColumnDefinition;
-
-#[derive(Debug)]
-pub struct RelationTarget {
-	pub sheet: String,
-	pub condition: Option<Box<Node>>,
-}
+// Types specific to pre-normalised queries
+pub type LeafField = Option<String>;
+pub type RelationTarget = ();
