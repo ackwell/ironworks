@@ -6,7 +6,7 @@ use tantivy::{
 
 use crate::search::{
 	error::{FieldTypeError, SchemaMismatchError, SearchError},
-	query::{Clause, Leaf, Node, Operation, Relation, Value},
+	query::post::{Clause, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
 };
 
@@ -30,7 +30,7 @@ impl QueryResolver<'_> {
 			.nodes
 			.iter()
 			.map(|(occur, node)| {
-				use crate::search::query::Occur as BOccur;
+				use crate::search::query::post::Occur as BOccur;
 				use tantivy::query::Occur as TOccur;
 				let tantivy_occur = match occur {
 					BOccur::Must => TOccur::Must,

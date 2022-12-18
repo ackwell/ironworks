@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use ironworks::excel::Sheet;
 use tantivy::{collector::TopDocs, directory::MmapDirectory, ReloadPolicy};
 
-use crate::search::{error::SearchError, query::Node, version::Executor};
+use crate::search::{error::SearchError, query::post::Node, version::Executor};
 
 use super::{
 	ingest::Ingester,

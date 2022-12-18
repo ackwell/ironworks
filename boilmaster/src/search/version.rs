@@ -12,7 +12,7 @@ use crate::data::Version as DataVersion;
 use super::{
 	error::SearchError,
 	index::{Index, IndexResult, Ingester},
-	query::{Clause, Leaf, Node, Occur, Operation, Relation, Value},
+	query::post::{Clause, Leaf, Node, Occur, Operation, Relation, Value},
 };
 
 #[derive(Debug)]
