@@ -15,7 +15,11 @@ impl<'a> Normalizer<'a> {
 		Self { excel, schema }
 	}
 
-	pub fn normalize(&self, query: pre::Node, sheet_name: &str) -> Result<post::Node, SearchError> {
+	pub fn normalize(
+		&self,
+		query: &pre::Node,
+		sheet_name: &str,
+	) -> Result<post::Node, SearchError> {
 		let sheet_schema = self
 			.schema
 			.sheet(sheet_name)
@@ -37,7 +41,7 @@ impl<'a> Normalizer<'a> {
 
 	fn normalize_node(
 		&self,
-		node: pre::Node,
+		node: &pre::Node,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
@@ -49,22 +53,22 @@ impl<'a> Normalizer<'a> {
 
 	fn normalize_group(
 		&self,
-		group: pre::Group,
+		group: &pre::Group,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
 		post::Node::Group(post::Group {
 			clauses: group
 				.clauses
-				.into_iter()
-				.map(|(occur, node)| (occur, self.normalize_node(node, schema, columns)))
-				.collect(),
+				.iter()
+				.map(|(occur, node)| (occur.clone(), self.normalize_node(node, schema, columns)))
+				.collect::<Vec<_>>(),
 		})
 	}
 
 	fn normalize_leaf(
 		&self,
-		leaf: pre::Leaf,
+		leaf: &pre::Leaf,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
@@ -80,18 +84,18 @@ impl<'a> Normalizer<'a> {
 		// 	None => todo!("no specified field"),
 		// };
 
-		match leaf.field {
+		match &leaf.field {
 			Some(specifier) => {
-				self.normalize_leaf_bound(specifier, leaf.operation, schema, columns)
+				self.normalize_leaf_bound(specifier, &leaf.operation, schema, columns)
 			}
-			None => self.normalize_leaf_unbound(leaf.operation, schema, columns),
+			None => self.normalize_leaf_unbound(&leaf.operation, schema, columns),
 		}
 	}
 
 	fn normalize_leaf_bound(
 		&self,
-		specifier: pre::FieldSpecifier,
-		operation: pre::Operation,
+		specifier: &pre::FieldSpecifier,
+		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
@@ -100,7 +104,7 @@ impl<'a> Normalizer<'a> {
 			(pre::FieldSpecifier::Struct(field_name), schema::Node::Struct(fields)) => {
 				let field = fields
 					.iter()
-					.find(|field| field.name == field_name)
+					.find(|field| &field.name == field_name)
 					.expect("TODO: this should return schema mismatch");
 
 				// TODO: this will probably need to use field.offset and field.node.size to narrow the exh array
@@ -127,7 +131,7 @@ impl<'a> Normalizer<'a> {
 
 	fn normalize_leaf_unbound(
 		&self,
-		operation: pre::Operation,
+		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
@@ -137,7 +141,7 @@ impl<'a> Normalizer<'a> {
 
 	fn normalize_operation(
 		&self,
-		operation: pre::Operation,
+		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> post::Node {
@@ -158,7 +162,7 @@ impl<'a> Normalizer<'a> {
 
 					1 => post::Node::Leaf(post::Leaf {
 						field: scalar_columns.swap_remove(0),
-						operation: post::Operation::Equal(value)
+						operation: post::Operation::Equal(value.clone())
 					}),
 
 					_ => {

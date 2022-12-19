@@ -177,7 +177,7 @@ impl Version {
 		let version = provider.version("HEAD").expect("TODO: lmao.");
 		let normalizer = Normalizer::new(excel, &version);
 		let post_node = normalizer
-			.normalize(query_node, "Item")
+			.normalize(&query_node, "Item")
 			.expect("TODO: fucking whatever.");
 
 		// This effectively creates a snapshot of the indices at the time of creation.

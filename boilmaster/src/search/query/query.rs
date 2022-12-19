@@ -10,7 +10,7 @@ pub struct Group<F, T> {
 	pub clauses: Vec<(Occur, Node<F, T>)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Occur {
 	Must,
 	Should,
