@@ -164,7 +164,70 @@ impl<'a> Normalizer<'a> {
 			//       yeah, the callsite might have drilled into a struct, but this relation forms the basis of the next target, i think
 			// so tldr;
 			// for relations, if the schema is a reference, resolve the reference. if it's a struct, call down. if it's anything else, throw?
-			pre::Operation::Relation(relation) => todo!(),
+			pre::Operation::Relation(relation) => {
+				//
+				let node = match schema {
+					schema::Node::Struct(fields) => todo!(
+						"i think this is passing the entire schema node down to the subquery?"
+					),
+
+					schema::Node::Reference(targets) => {
+						// uuuuh. references are scalars with glitter - so on the parent sheet (where this is executing), we want the field for this leaf as a scalar... right?
+						let field = columns.get(0).expect("TODO: this is probably the same mismatch as the game data not enough coulumns thing");
+
+						//
+						let mut target_queries = targets
+							.iter()
+							.map(|target| {
+								// this seems to be used for _one_ use case across all of stc - look into if it's worth supporting
+								if target.selector.is_some() {
+									todo!("todo: normalise reference target selectors")
+								}
+
+								// this should be modelled as a boolean group (+condition +innerquery)
+								if target.condition.is_some() {
+									todo!("TODO: normalise reference target conditions")
+								}
+
+								// TODO: this needs to handle schema mismatches and discard those branches. error time? error time.
+								let query = self.normalize(&relation.query, &target.sheet)?;
+
+								let operation = post::Operation::Relation(post::Relation {
+									target: post::RelationTarget {
+										sheet: target.sheet.clone(),
+										condition: None, // todo
+									},
+									query: Box::new(query),
+								});
+
+								let node = post::Node::Leaf(post::Leaf {
+									field: field.clone(),
+									operation,
+								});
+
+								Ok((post::Occur::Should, node))
+							})
+							// Filter out schema mismatches to prune those branches - other errors will be raised.
+							.filter(|result| !matches!(result, Err(SearchError::SchemaMismatch(_))))
+							.collect::<Result<Vec<_>, _>>()?;
+
+						// TODO: this is basically exactly the same as what i'm doing for ::equal - helper it?
+						match target_queries.len() {
+							0 => todo!("mismatch?"),
+
+							1 => target_queries.swap_remove(0).1,
+
+							_ => post::Node::Group(post::Group {
+								clauses: target_queries,
+							}),
+						}
+					}
+
+					other => todo!("i think this is a schema mismatch {other:?}"),
+				};
+
+				Ok(node)
+			}
 
 			// TODO: this should collect all scalars i think?
 			// TODO: this pattern will be pretty repetetive, make a utility that does this or something

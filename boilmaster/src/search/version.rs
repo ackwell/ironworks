@@ -156,15 +156,28 @@ impl Version {
 				(
 					pre::Occur::Must,
 					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("Level{Equip}".into())),
-						operation: pre::Operation::Equal(pre::Value::U64(90)),
+						field: Some(pre::FieldSpecifier::Struct("Damage{Phys}".into())),
+						operation: pre::Operation::Equal(pre::Value::U64(126)),
 					}),
 				),
 				(
 					pre::Occur::Must,
 					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("Damage{Phys}".into())),
+						field: Some(pre::FieldSpecifier::Struct("Damage{Mag}".into())),
 						operation: pre::Operation::Equal(pre::Value::U64(126)),
+					}),
+				),
+				(
+					pre::Occur::Must,
+					pre::Node::Leaf(pre::Leaf {
+						field: Some(pre::FieldSpecifier::Struct("ClassJob{Use}".into())),
+						operation: pre::Operation::Relation(pre::Relation {
+							target: (),
+							query: Box::new(pre::Node::Leaf(pre::Leaf {
+								field: Some(pre::FieldSpecifier::Struct("UIPriority".into())),
+								operation: pre::Operation::Equal(pre::Value::U64(44)), // acn rather than smn
+							})),
+						}),
 					}),
 				),
 			],

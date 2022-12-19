@@ -3,6 +3,8 @@ pub enum SearchError {
 	#[error(transparent)]
 	FieldType(FieldTypeError),
 
+	// TODO: is it worth disambigurating between "sheet schema did not match search schema" and "sheet schema did not match exh schema"? Technically speaking both signal user-provided error (exh means the game version and schema mismatch, search means the schema and the query mismatch).
+	// i'm tempted to say that it is...
 	#[error(transparent)]
 	SchemaMismatch(SchemaMismatchError),
 
