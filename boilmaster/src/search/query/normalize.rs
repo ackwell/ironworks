@@ -1,7 +1,7 @@
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::search::SearchError;
+use crate::search::{SchemaMismatchError, SearchError};
 
 use super::{post, pre};
 
@@ -36,7 +36,7 @@ impl<'a> Normalizer<'a> {
 
 		let out = self.normalize_node(query, &sheet_schema.node, &columns);
 
-		Ok(out)
+		out
 	}
 
 	fn normalize_node(
@@ -44,7 +44,7 @@ impl<'a> Normalizer<'a> {
 		node: &pre::Node,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
+	) -> Result<post::Node, SearchError> {
 		match node {
 			pre::Node::Group(group) => self.normalize_group(group, schema, columns),
 			pre::Node::Leaf(leaf) => self.normalize_leaf(leaf, schema, columns),
@@ -56,14 +56,16 @@ impl<'a> Normalizer<'a> {
 		group: &pre::Group,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
-		post::Node::Group(post::Group {
+	) -> Result<post::Node, SearchError> {
+		Ok(post::Node::Group(post::Group {
 			clauses: group
 				.clauses
 				.iter()
-				.map(|(occur, node)| (occur.clone(), self.normalize_node(node, schema, columns)))
-				.collect::<Vec<_>>(),
-		})
+				.map(|(occur, node)| {
+					Ok((occur.clone(), self.normalize_node(node, schema, columns)?))
+				})
+				.collect::<Result<Vec<_>, SearchError>>()?,
+		}))
 	}
 
 	fn normalize_leaf(
@@ -71,7 +73,7 @@ impl<'a> Normalizer<'a> {
 		leaf: &pre::Leaf,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
+	) -> Result<post::Node, SearchError> {
 		// // let fsda = self.schema.sheet("fdsaf").unwrap().node;
 		// let fas = schema;
 
@@ -98,21 +100,32 @@ impl<'a> Normalizer<'a> {
 		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
+	) -> Result<post::Node, SearchError> {
 		match (specifier, schema) {
 			// A struct specifier into a struct schema narrows the field space
 			(pre::FieldSpecifier::Struct(field_name), schema::Node::Struct(fields)) => {
+				// Get the requested field from the struct, mismatch if no such field exists.
+				// Mismatch here implies the query and schema do not match.
 				let field = fields
 					.iter()
 					.find(|field| &field.name == field_name)
-					.expect("TODO: this should return schema mismatch");
+					.ok_or_else(|| {
+						SearchError::SchemaMismatch(SchemaMismatchError {
+							field: field_name.into(),
+							reason: "field does not exist".into(),
+						})
+					})?;
 
-				// TODO: this will probably need to use field.offset and field.node.size to narrow the exh array
+				// Narrow the column array to the columns relevant to the field, mismatch if those columns do not exist.
+				// Mismatch here implies the game data and schema do not match.
 				let start = usize::try_from(field.offset).unwrap();
 				let end = start + usize::try_from(field.node.size()).unwrap();
-				let narrowed_columns = columns
-					.get(start..end)
-					.expect("TODO: WHAT DOES THIS MEAAAAAAAAAAAAN?");
+				let narrowed_columns = columns.get(start..end).ok_or_else(|| {
+					SearchError::SchemaMismatch(SchemaMismatchError {
+						field: field_name.into(),
+						reason: "game data does not contain enough columns".into(),
+					})
+				})?;
 
 				self.normalize_operation(operation, &field.node, narrowed_columns)
 			}
@@ -134,7 +147,7 @@ impl<'a> Normalizer<'a> {
 		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
+	) -> Result<post::Node, SearchError> {
 		// TODO: if operation is in charge of "collecting" all the appropriate remaining fields to apply to, then perhaps unbound just passes directly to operation, given it's an unbounded selector?
 		todo!("normalize leaf unbound")
 	}
@@ -144,7 +157,7 @@ impl<'a> Normalizer<'a> {
 		operation: &pre::Operation,
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
-	) -> post::Node {
+	) -> Result<post::Node, SearchError> {
 		match operation {
 			// TODO: should this panic if it _isn't_ a 1:1 relation:reference pair?
 			//       no, it shouldn't - it could also be a struct... wait, can it?
@@ -160,10 +173,10 @@ impl<'a> Normalizer<'a> {
 				match scalar_columns.len() {
 					0 => todo!("guessing this should be like, a schema mismatch? maybe? TODO: work out what this means"),
 
-					1 => post::Node::Leaf(post::Leaf {
+					1 => Ok(post::Node::Leaf(post::Leaf {
 						field: scalar_columns.swap_remove(0),
 						operation: post::Operation::Equal(value.clone())
-					}),
+					})),
 
 					_ => {
 						let clauses = scalar_columns.into_iter().map(|column| {(
@@ -174,7 +187,7 @@ impl<'a> Normalizer<'a> {
 							}),
 						)}).collect::<Vec<_>>();
 
-						post::Node::Group(post::Group { clauses })
+						Ok(post::Node::Group(post::Group { clauses }))
 					}
 				}
 			}
