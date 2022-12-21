@@ -190,7 +190,7 @@ impl<'a> Normalizer<'a> {
 							}
 						};
 
-						let mut target_queries = targets
+						let target_queries = targets
 							.iter()
 							.map(|target| {
 								// this seems to be used for _one_ use case across all of stc - look into if it's worth supporting
@@ -219,22 +219,14 @@ impl<'a> Normalizer<'a> {
 									operation,
 								});
 
-								Ok((post::Occur::Should, node))
+								Ok(node)
 							})
 							// Filter out query mismatches to prune those branches - other errors will be raised.
 							.filter(|result| !matches!(result, Err(SearchError::QueryMismatch(_))))
 							.collect::<Result<Vec<_>, _>>()?;
 
-						// TODO: this is basically exactly the same as what i'm doing for ::equal - helper it?
-						match target_queries.len() {
-							0 => todo!("mismatch?"),
-
-							1 => target_queries.swap_remove(0).1,
-
-							_ => post::Node::Group(post::Group {
-								clauses: target_queries,
-							}),
-						}
+						// There might be multiple viable relation paths, group them together.
+						create_or_group(target_queries.into_iter())
 					}
 
 					other => todo!("i think this is a schema mismatch {other:?}"),
@@ -246,37 +238,34 @@ impl<'a> Normalizer<'a> {
 			// TODO: this should collect all scalars i think?
 			// TODO: this pattern will be pretty repetetive, make a utility that does this or something
 			pre::Operation::Equal(value) => {
-				let mut scalar_columns =
-					collect_scalars(schema, columns, vec![]).ok_or_else(|| {
-						SearchError::SchemaMismatch(MismatchError {
-							// TODO: i'll need to wire down the current query path for this field to be meaningful
-							field: "query".into(),
-							reason: "insufficient game data to satisfy schema".into(),
-						})
-					})?;
+				let scalar_columns = collect_scalars(schema, columns, vec![]).ok_or_else(|| {
+					SearchError::SchemaMismatch(MismatchError {
+						// TODO: i'll need to wire down the current query path for this field to be meaningful
+						field: "query".into(),
+						reason: "insufficient game data to satisfy schema".into(),
+					})
+				})?;
 
-				match scalar_columns.len() {
-					0 => todo!("guessing this should be like, a schema mismatch? maybe? TODO: work out what this means"),
+				let group = create_or_group(scalar_columns.into_iter().map(|column| {
+					post::Node::Leaf(post::Leaf {
+						field: column,
+						operation: post::Operation::Equal(value.clone()),
+					})
+				}));
 
-					1 => Ok(post::Node::Leaf(post::Leaf {
-						field: scalar_columns.swap_remove(0),
-						operation: post::Operation::Equal(value.clone())
-					})),
-
-					_ => {
-						let clauses = scalar_columns.into_iter().map(|column| {(
-							post::Occur::Should,
-							post::Node::Leaf(post::Leaf {
-								field: column,
-								operation: post::Operation::Equal(value.clone()),
-							}),
-						)}).collect::<Vec<_>>();
-
-						Ok(post::Node::Group(post::Group { clauses }))
-					}
-				}
+				Ok(group)
 			}
 		}
+	}
+}
+
+fn create_or_group(mut nodes: impl ExactSizeIterator<Item = post::Node>) -> post::Node {
+	match nodes.len() {
+		0 => todo!("what do i do for the zero case? it's possibly a schema mismatch but i'm not sure. consider callsites"),
+		1 => nodes.next().unwrap(),
+		_ => post::Node::Group(post::Group {
+			clauses: nodes.map(|node| (post::Occur::Should, node)).collect(),
+		})
 	}
 }
 
