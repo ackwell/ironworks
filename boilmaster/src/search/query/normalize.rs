@@ -20,23 +20,29 @@ impl<'a> Normalizer<'a> {
 		query: &pre::Node,
 		sheet_name: &str,
 	) -> Result<post::Node, SearchError> {
-		let sheet_schema = self
-			.schema
-			.sheet(sheet_name)
-			.expect("TODO: what does this mean?");
+		// Fetch the schema and columns for the requested sheet.
+		let sheet_schema = self.schema.sheet(sheet_name).map_err(|error| match error {
+			schema::Error::NotFound(inner) => SearchError::SchemaMismatch(MismatchError {
+				field: inner.to_string(),
+				reason: "not found".into(),
+			}),
+			other => SearchError::Failure(other.into()),
+		})?;
 
-		let sheet_data = self
-			.excel
-			.sheet(sheet_name)
-			.expect("TODO: What does this mean?");
+		let sheet_data = self.excel.sheet(sheet_name).map_err(|error| match error {
+			ironworks::Error::NotFound(ironworks::ErrorValue::Sheet(sheet)) => {
+				SearchError::SchemaMismatch(MismatchError {
+					field: sheet,
+					reason: "not found".into(),
+				})
+			}
+			other => SearchError::Failure(other.into()),
+		})?;
 
-		let columns = sheet_data
-			.columns()
-			.expect("TODO: what the fuck does this mean?");
+		let columns = sheet_data.columns().map_err(anyhow::Error::from)?;
 
-		let out = self.normalize_node(query, &sheet_schema.node, &columns);
-
-		out
+		// Start walking the node tree
+		self.normalize_node(query, &sheet_schema.node, &columns)
 	}
 
 	fn normalize_node(
@@ -165,17 +171,25 @@ impl<'a> Normalizer<'a> {
 			// so tldr;
 			// for relations, if the schema is a reference, resolve the reference. if it's a struct, call down. if it's anything else, throw?
 			pre::Operation::Relation(relation) => {
-				//
 				let node = match schema {
 					schema::Node::Struct(fields) => todo!(
 						"i think this is passing the entire schema node down to the subquery?"
 					),
 
 					schema::Node::Reference(targets) => {
-						// uuuuh. references are scalars with glitter - so on the parent sheet (where this is executing), we want the field for this leaf as a scalar... right?
-						let field = columns.get(0).expect("TODO: this is probably the same mismatch as the game data not enough coulumns thing");
+						let field = match columns {
+							[column] => column,
+							other => {
+								return Err(SearchError::SchemaMismatch(MismatchError {
+									field: "TODO: query path".into(),
+									reason: format!(
+										"cross-sheet references must have a single source (found {})",
+										other.len()
+									),
+								}))
+							}
+						};
 
-						//
 						let mut target_queries = targets
 							.iter()
 							.map(|target| {
@@ -232,7 +246,15 @@ impl<'a> Normalizer<'a> {
 			// TODO: this should collect all scalars i think?
 			// TODO: this pattern will be pretty repetetive, make a utility that does this or something
 			pre::Operation::Equal(value) => {
-				let mut scalar_columns = collect_scalars(schema, columns, vec![]);
+				let mut scalar_columns =
+					collect_scalars(schema, columns, vec![]).ok_or_else(|| {
+						SearchError::SchemaMismatch(MismatchError {
+							// TODO: i'll need to wire down the current query path for this field to be meaningful
+							field: "query".into(),
+							reason: "insufficient game data to satisfy schema".into(),
+						})
+					})?;
+
 				match scalar_columns.len() {
 					0 => todo!("guessing this should be like, a schema mismatch? maybe? TODO: work out what this means"),
 
@@ -263,43 +285,34 @@ fn collect_scalars(
 	schema: &schema::Node,
 	columns: &[exh::ColumnDefinition],
 	mut output: Vec<exh::ColumnDefinition>,
-) -> Vec<exh::ColumnDefinition> {
+) -> Option<Vec<exh::ColumnDefinition>> {
 	match schema {
 		schema::Node::Array { count, node } => {
 			// TODO: this is pretty silly, can technically derive the range from 1 call down.
 			let size = usize::try_from(node.size()).unwrap();
 			let count = usize::try_from(*count).unwrap();
-			(0..count).fold(output, |output, index| {
+			(0..count).try_fold(output, |output, index| {
 				let start = index * size;
 				let end = start + size;
-				let slice = columns
-					.get(start..end)
-					.expect("TODO: what's the failure mode here?");
+				let slice = columns.get(start..end)?;
 				collect_scalars(node, slice, output)
 			})
 		}
 
 		schema::Node::Reference(_references) => {
 			// ignore refs?
-			output
+			Some(output)
 		}
 
 		schema::Node::Scalar => {
-			output.push(
-				columns
-					.get(0)
-					.expect("TODO: what's the failure mode here?")
-					.clone(),
-			);
-			output
+			output.push(columns.get(0)?.clone());
+			Some(output)
 		}
 
-		schema::Node::Struct(fields) => fields.iter().fold(output, |output, field| {
+		schema::Node::Struct(fields) => fields.iter().try_fold(output, |output, field| {
 			let start = usize::try_from(field.offset).unwrap();
 			let end = start + usize::try_from(field.node.size()).unwrap();
-			let slice = columns
-				.get(start..end)
-				.expect("TODO: what's the failure mode here?");
+			let slice = columns.get(start..end)?;
 			collect_scalars(&field.node, slice, output)
 		}),
 	}
