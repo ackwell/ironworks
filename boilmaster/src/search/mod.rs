@@ -5,6 +5,6 @@ mod search;
 mod version;
 
 pub use {
-	error::{FieldTypeError, SchemaMismatchError, SearchError},
+	error::{FieldTypeError, MismatchError, SearchError},
 	search::{Config, Search},
 };

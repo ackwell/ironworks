@@ -1,7 +1,7 @@
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::search::{SchemaMismatchError, SearchError};
+use crate::search::{MismatchError, SearchError};
 
 use super::{post, pre};
 
@@ -110,7 +110,7 @@ impl<'a> Normalizer<'a> {
 					.iter()
 					.find(|field| &field.name == field_name)
 					.ok_or_else(|| {
-						SearchError::SchemaMismatch(SchemaMismatchError {
+						SearchError::QueryMismatch(MismatchError {
 							field: field_name.into(),
 							reason: "field does not exist".into(),
 						})
@@ -121,7 +121,7 @@ impl<'a> Normalizer<'a> {
 				let start = usize::try_from(field.offset).unwrap();
 				let end = start + usize::try_from(field.node.size()).unwrap();
 				let narrowed_columns = columns.get(start..end).ok_or_else(|| {
-					SearchError::SchemaMismatch(SchemaMismatchError {
+					SearchError::SchemaMismatch(MismatchError {
 						field: field_name.into(),
 						reason: "game data does not contain enough columns".into(),
 					})
@@ -207,8 +207,8 @@ impl<'a> Normalizer<'a> {
 
 								Ok((post::Occur::Should, node))
 							})
-							// Filter out schema mismatches to prune those branches - other errors will be raised.
-							.filter(|result| !matches!(result, Err(SearchError::SchemaMismatch(_))))
+							// Filter out query mismatches to prune those branches - other errors will be raised.
+							.filter(|result| !matches!(result, Err(SearchError::QueryMismatch(_))))
 							.collect::<Result<Vec<_>, _>>()?;
 
 						// TODO: this is basically exactly the same as what i'm doing for ::equal - helper it?

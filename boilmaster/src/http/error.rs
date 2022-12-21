@@ -24,9 +24,10 @@ impl From<crate::search::SearchError> for Error {
 	fn from(error: crate::search::SearchError) -> Self {
 		use crate::search::SearchError as SE;
 		match error {
-			SE::FieldType(error) => Self::Invalid(error.to_string()),
-			SE::SchemaMismatch(error) => Self::Invalid(error.to_string()),
-			SE::Failure(error) => Self::Other(error),
+			SE::FieldType(_) => Self::Invalid(error.to_string()),
+			SE::QueryMismatch(_) => Self::Invalid(error.to_string()),
+			SE::SchemaMismatch(_) => Self::Invalid(error.to_string()),
+			SE::Failure(inner) => Self::Other(inner),
 		}
 	}
 }

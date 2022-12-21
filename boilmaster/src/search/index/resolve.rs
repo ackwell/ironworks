@@ -5,7 +5,7 @@ use tantivy::{
 };
 
 use crate::search::{
-	error::{FieldTypeError, SchemaMismatchError, SearchError},
+	error::{FieldTypeError, MismatchError, SearchError},
 	query::post::{Group, Leaf, Node, Operation, Relation, Value},
 	version::Executor,
 };
@@ -46,10 +46,10 @@ impl QueryResolver<'_> {
 	}
 
 	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
-		// TODO: this should use a schema-provided name fetcher or something, this is not stable
 		let field_name = column_field_name(&leaf.field);
 		let field = self.schema.get_field(&field_name).ok_or_else(|| {
-			SearchError::SchemaMismatch(SchemaMismatchError {
+			SearchError::SchemaMismatch(MismatchError {
+				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
 				field: format!("field {field_name}"),
 				reason: "field does not exist in search index".into(),
 			})
@@ -101,6 +101,7 @@ impl QueryResolver<'_> {
 		})()
 		.ok_or_else(|| {
 			SearchError::FieldType(FieldTypeError {
+				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
 				field: format!("field {}", self.schema.get_field_name(field)),
 				expected: field_type.name().to_string(),
 				got: format!("{value:?}"),
