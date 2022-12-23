@@ -45,7 +45,6 @@ impl<'de> Deserialize<'de> for pre::Node {
 }
 
 fn node(input: &str) -> IResult<&str, pre::Node> {
-	tracing::debug!("node {input:?}");
 	alt((
 		map(delimited(tag("("), group, tag(")")), pre::Node::Group),
 		map(leaf, pre::Node::Leaf),
@@ -53,7 +52,6 @@ fn node(input: &str) -> IResult<&str, pre::Node> {
 }
 
 fn group(input: &str) -> IResult<&str, pre::Group> {
-	tracing::debug!("group {input:?}");
 	map(
 		separated_list1(multispace1, tuple((occur, node))),
 		|clauses| pre::Group { clauses },
@@ -61,7 +59,6 @@ fn group(input: &str) -> IResult<&str, pre::Group> {
 }
 
 fn occur(input: &str) -> IResult<&str, pre::Occur> {
-	tracing::debug!("occur {input:?}");
 	alt((
 		nom_value(pre::Occur::Must, tag("+")),
 		nom_value(pre::Occur::MustNot, tag("-")),
@@ -70,7 +67,6 @@ fn occur(input: &str) -> IResult<&str, pre::Occur> {
 }
 
 fn leaf(input: &str) -> IResult<&str, pre::Leaf> {
-	tracing::debug!("leaf {input:?}");
 	map(
 		tuple((opt(field_specifier), operation)),
 		|(field, operation)| pre::Leaf { field, operation },
@@ -78,12 +74,10 @@ fn leaf(input: &str) -> IResult<&str, pre::Leaf> {
 }
 
 fn field_specifier(input: &str) -> IResult<&str, pre::FieldSpecifier> {
-	tracing::debug!("field_specifier {input:?}");
 	alt((field_specifier_struct, field_specifier_array))(input)
 }
 
 fn field_specifier_struct(input: &str) -> IResult<&str, pre::FieldSpecifier> {
-	tracing::debug!("field_specifier_struct {input:?}");
 	map(
 		take_while1(|c: char| c.is_ascii_alphanumeric()),
 		|name: &str| pre::FieldSpecifier::Struct(name.into()),
@@ -91,12 +85,10 @@ fn field_specifier_struct(input: &str) -> IResult<&str, pre::FieldSpecifier> {
 }
 
 fn field_specifier_array(input: &str) -> IResult<&str, pre::FieldSpecifier> {
-	tracing::debug!("field_specifier_array {input:?}");
 	map(tag("[]"), |_| pre::FieldSpecifier::Array)(input)
 }
 
 fn operation(input: &str) -> IResult<&str, pre::Operation> {
-	tracing::debug!("operation {input:?}");
 	alt((
 		map(relation, pre::Operation::Relation),
 		map(preceded(tag("="), value), pre::Operation::Equal),
@@ -104,7 +96,6 @@ fn operation(input: &str) -> IResult<&str, pre::Operation> {
 }
 
 fn relation(input: &str) -> IResult<&str, pre::Relation> {
-	tracing::debug!("relation {input:?}");
 	map(preceded(tag("."), node), |node| pre::Relation {
 		target: (),
 		query: Box::new(node),
@@ -112,7 +103,6 @@ fn relation(input: &str) -> IResult<&str, pre::Relation> {
 }
 
 fn value(input: &str) -> IResult<&str, pre::Value> {
-	tracing::debug!("value {input:?}");
 	map(map_res(digit1, str::parse), |value: u64| {
 		pre::Value::U64(value)
 	})(input)
