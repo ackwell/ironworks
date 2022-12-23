@@ -9,7 +9,7 @@ use ironworks::{
 use ironworks_schema::saint_coinach;
 use serde::Deserialize;
 
-use crate::{data::Data, field_filter::FieldFilter, read, util::warnings::Warnings};
+use crate::{data::Data, field_filter::FieldFilter, read, utility::warnings::Warnings};
 
 use super::{
 	error::{Anyhow, Error, Result},
