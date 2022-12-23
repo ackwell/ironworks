@@ -93,7 +93,7 @@ impl Version {
 	// TODO: continuation?
 	pub fn search(
 		&self,
-		query: &str,
+		query: &pre::Node,
 		excel: &excel::Excel,
 	) -> Result<Vec<SearchResult>, SearchError> {
 		let option = self.indices.read().expect("TODO error poisoned");
@@ -105,84 +105,6 @@ impl Version {
 		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
 		// let sheet_filter: Option<HashSet<String>> = None;
 
-		// TODO: arg
-		// let query_node = Node::Leaf(Leaf {
-		// 	offset: 138,
-		// 	operation: Operation::Equal(Value::UInt(635)),
-		// });
-		// TODO: WHEN REMOVING THIS< REMOVE THE COLDEF CTOR
-		// let query_node = Node::Group(Group {
-		// 	clauses: vec![
-		// 		(
-		// 			Occur::Must,
-		// 			Node::Leaf(Leaf {
-		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x36),
-		// 				operation: Operation::Equal(Value::U64(358)),
-		// 			}),
-		// 		),
-		// 		(
-		// 			Occur::Must,
-		// 			Node::Leaf(Leaf {
-		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::Int16, 0x38),
-		// 				operation: Operation::Equal(Value::U64(389)),
-		// 			}),
-		// 		),
-		// 		(
-		// 			Occur::Must,
-		// 			Node::Leaf(Leaf {
-		// 				field: exh::ColumnDefinition::TEMP_new(exh::ColumnKind::UInt8, 0x55),
-		// 				operation: Operation::Relation(Relation {
-		// 					target: RelationTarget {
-		// 						sheet: "ClassJob".into(),
-		// 						condition: None,
-		// 					},
-		// 					query: Box::new(Node::Leaf(Leaf {
-		// 						field: exh::ColumnDefinition::TEMP_new(
-		// 							exh::ColumnKind::UInt8,
-		// 							0x58,
-		// 						),
-		// 						operation: Operation::Equal(Value::U64(22)),
-		// 					})),
-		// 				}),
-		// 			}),
-		// 		),
-		// 	],
-		// });
-
-		// TODO: i'm gonna need to normalise the goddamn symbols out, aren't i. goddamn. fuck it. boring ass shit.
-		// can i reuse some of the fucking read:: logic for that or some bullshit
-		let query_node = pre::Node::Group(pre::Group {
-			clauses: vec![
-				(
-					pre::Occur::Must,
-					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("DamagePhys".into())),
-						operation: pre::Operation::Equal(pre::Value::U64(126)),
-					}),
-				),
-				(
-					pre::Occur::Must,
-					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("DamageMag".into())),
-						operation: pre::Operation::Equal(pre::Value::U64(126)),
-					}),
-				),
-				(
-					pre::Occur::Must,
-					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("ClassJobUse".into())),
-						operation: pre::Operation::Relation(pre::Relation {
-							target: (),
-							query: Box::new(pre::Node::Leaf(pre::Leaf {
-								field: Some(pre::FieldSpecifier::Struct("UIPriority".into())),
-								operation: pre::Operation::Equal(pre::Value::U64(44)), // acn rather than smn
-							})),
-						}),
-					}),
-				),
-			],
-		});
-
 		// lol. lmao.
 		// TODO: do i keep excel on hand in the search version, or do i leave it up to the caller?
 		// TODO: delete the shit out of this schema bullshit;
@@ -190,7 +112,7 @@ impl Version {
 		let version = provider.version("HEAD").expect("TODO: lmao.");
 		let normalizer = Normalizer::new(excel, &version);
 		let post_node = normalizer
-			.normalize(&query_node, "Item")
+			.normalize(query, "Item")
 			.expect("TODO: fucking whatever.");
 
 		// This effectively creates a snapshot of the indices at the time of creation.

@@ -5,7 +5,10 @@ use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json
 use axum_macros::debug_handler;
 use serde::{Deserialize, Serialize};
 
-use crate::{data::Data, search::Search};
+use crate::{
+	data::Data,
+	search::{query, Search},
+};
 
 use super::error::Result;
 
@@ -17,7 +20,7 @@ pub fn router(search_service: Arc<Search>) -> Router {
 
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
-	string: String,
+	query: query::pre::Node,
 }
 
 // TODO: flesh this out - at the moment it's just a 1:1 of searchresult, pending ideas on how to field filter for search results across multiple indices
@@ -40,7 +43,7 @@ async fn search(
 	let excel = data.version(None).excel();
 
 	let results = search_version
-		.search(&search_query.string, &excel)?
+		.search(&search_query.query, &excel)?
 		.into_iter()
 		.map(|result| SearchResult {
 			score: result.score,

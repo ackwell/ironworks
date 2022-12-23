@@ -4,7 +4,6 @@ pub enum Node<F, T> {
 	Leaf(Leaf<F, T>),
 }
 
-// TODO: this might be worth collapsing into the parent node struct?
 #[derive(Debug)]
 pub struct Group<F, T> {
 	pub clauses: Vec<(Occur, Node<F, T>)>,
@@ -20,7 +19,6 @@ pub enum Occur {
 #[derive(Debug)]
 pub struct Leaf<F, T> {
 	/// Column offset this leaf targets.
-	// TODO: this struct targets post-normalised data, so i'm acting under the assumption that the normalisation process will turn non-targeted queries into a group of queries targeting specific fields.
 	pub field: F,
 	pub operation: Operation<F, T>,
 }
@@ -40,7 +38,6 @@ pub struct Relation<F, T> {
 	pub query: Box<Node<F, T>>,
 }
 
-// TODO: this can probably be used on both sides of normalisation
 #[derive(Debug, Clone)]
 pub enum Value {
 	/// Represents any positive integer
