@@ -1,7 +1,10 @@
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::search::{MismatchError, SearchError};
+use crate::{
+	search::{MismatchError, SearchError},
+	utility::field,
+};
 
 use super::{post, pre};
 
@@ -114,7 +117,8 @@ impl<'a> Normalizer<'a> {
 				// Mismatch here implies the query and schema do not match.
 				let field = fields
 					.iter()
-					.find(|field| &field.name == field_name)
+					// TODO: this is _really_ wasteful. see TODO in the utility file w/r/t sanitizing schema preemptively
+					.find(|field| &field::sanitize_name(&field.name) == field_name)
 					.ok_or_else(|| {
 						SearchError::QueryMismatch(MismatchError {
 							field: field_name.into(),

@@ -156,21 +156,21 @@ impl Version {
 				(
 					pre::Occur::Must,
 					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("Damage{Phys}".into())),
+						field: Some(pre::FieldSpecifier::Struct("DamagePhys".into())),
 						operation: pre::Operation::Equal(pre::Value::U64(126)),
 					}),
 				),
 				(
 					pre::Occur::Must,
 					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("Damage{Mag}".into())),
+						field: Some(pre::FieldSpecifier::Struct("DamageMag".into())),
 						operation: pre::Operation::Equal(pre::Value::U64(126)),
 					}),
 				),
 				(
 					pre::Occur::Must,
 					pre::Node::Leaf(pre::Leaf {
-						field: Some(pre::FieldSpecifier::Struct("ClassJob{Use}".into())),
+						field: Some(pre::FieldSpecifier::Struct("ClassJobUse".into())),
 						operation: pre::Operation::Relation(pre::Relation {
 							target: (),
 							query: Box::new(pre::Node::Leaf(pre::Leaf {
