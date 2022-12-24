@@ -88,12 +88,11 @@ impl Version {
 		Ok(())
 	}
 
-	// TODO: index specifier?
-	// TODO: non-string-query filters
 	// TODO: continuation?
 	pub fn search(
 		&self,
 		query: &pre::Node,
+		sheet_filter: Option<HashSet<String>>,
 		excel: &excel::Excel,
 		schema: &dyn Schema,
 	) -> Result<Warnings<Vec<SearchResult>>, SearchError> {
@@ -101,11 +100,6 @@ impl Version {
 		let indices = option
 			.as_ref()
 			.expect("TODO handle case where indices are not eady yet");
-
-		// TODO: arg...?
-		// let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
-		// let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Map".into()]));
-		let sheet_filter: Option<HashSet<String>> = None;
 
 		let normalizer = Normalizer::new(excel, schema);
 
@@ -115,6 +109,7 @@ impl Version {
 		};
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
+		// TODO: this can possibly be run in parallel to prevent queries that hit a lot of top-level sheets from blowing out response times
 		let index_results = indices
 			.keys()
 			// Filter to the requested indexes if any sheet filer is specified.
@@ -150,6 +145,7 @@ impl Version {
 				// TODO: ... right? i mean, it kind of sucks to not be able to say "oi this field doesn't exist" but... idk.
 				Err(SearchError::QueryMismatch(_)) => Ok(warnings),
 				// Other errors can be raised as warnings without halting the process.
+				// TODO: find some way to tag this with the sheet name because at the moment the warnings are entirely unactionable.
 				Err(error) => Ok(warnings.with_warning(error.to_string())),
 			})?;
 
