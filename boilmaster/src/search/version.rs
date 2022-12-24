@@ -6,9 +6,9 @@ use std::{
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use ironworks::excel;
-use ironworks_schema::saint_coinach;
+use ironworks_schema::Schema;
 
-use crate::data::Version as DataVersion;
+use crate::{data::Version as DataVersion, utility::warnings::Warnings};
 
 use super::{
 	error::SearchError,
@@ -95,25 +95,19 @@ impl Version {
 		&self,
 		query: &pre::Node,
 		excel: &excel::Excel,
-	) -> Result<Vec<SearchResult>, SearchError> {
+		schema: &dyn Schema,
+	) -> Result<Warnings<Vec<SearchResult>>, SearchError> {
 		let option = self.indices.read().expect("TODO error poisoned");
 		let indices = option
 			.as_ref()
 			.expect("TODO handle case where indices are not eady yet");
 
 		// TODO: arg...?
-		let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
-		// let sheet_filter: Option<HashSet<String>> = None;
+		// let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Item".into()]));
+		// let sheet_filter: Option<HashSet<String>> = Some(HashSet::from(["Map".into()]));
+		let sheet_filter: Option<HashSet<String>> = None;
 
-		// lol. lmao.
-		// TODO: do i keep excel on hand in the search version, or do i leave it up to the caller?
-		// TODO: delete the shit out of this schema bullshit;
-		let provider = saint_coinach::Provider::new().expect("TODO: lol.");
-		let version = provider.version("HEAD").expect("TODO: lmao.");
-		let normalizer = Normalizer::new(excel, &version);
-		let post_node = normalizer
-			.normalize(query, "Item")
-			.expect("TODO: fucking whatever.");
+		let normalizer = Normalizer::new(excel, schema);
 
 		// This effectively creates a snapshot of the indices at the time of creation.
 		let executor = Executor {
@@ -122,18 +116,20 @@ impl Version {
 
 		// Get an iterator for each of the indexes, lifting any errors from the initial search execution.
 		let index_results = indices
-			.iter()
+			.keys()
 			// Filter to the requested indexes if any sheet filer is specified.
-			.filter(|(name, _)| {
+			.filter(|name| {
 				sheet_filter
 					.as_ref()
 					.map_or(true, |sheets| sheets.contains(name.as_str()))
 			})
 			// Execute the query on each matching index
-			.map(|(name, index)| {
-				// let results = index.search(&query_node)?;
-				// let results = executor.search(name, &query_node)?;
-				let results = executor.search(name, &post_node)?;
+			.map(|name| {
+				// Normalise the query for each requested index using the provided schema.
+				let normalized_query = normalizer.normalize(query, name)?;
+
+				// Execute the query, tagging the results with the sheet the result is from.
+				let results = executor.search(name, &normalized_query)?;
 				let tagged_results = results.map(|result| SearchResult {
 					score: result.score,
 					sheet: name.to_owned(),
@@ -142,16 +138,33 @@ impl Version {
 				});
 				Ok(tagged_results)
 			})
-			.collect::<Result<Vec<_>, SearchError>>()?;
+			.try_fold(Warnings::new(vec![]), |warnings, result| match result {
+				// Successful search results can be pushed to the inner vector in the warnings.
+				Ok(results) => Ok(warnings.map(|mut vec| {
+					vec.push(results);
+					vec
+				})),
+				// Failures should short circuit completely.
+				Err(error @ SearchError::Failure(_)) => Err(error),
+				// Query mismatches will be raised for most sheets, and aren't particularly meaningful for end-users. Skip.
+				// TODO: ... right? i mean, it kind of sucks to not be able to say "oi this field doesn't exist" but... idk.
+				Err(SearchError::QueryMismatch(_)) => Ok(warnings),
+				// Other errors can be raised as warnings without halting the process.
+				Err(error) => Ok(warnings.with_warning(error.to_string())),
+			})?;
+
+		// TODO: a zero-length array here implies all indices were query mismatches, or no index was queried at all. disambiguate and error out.
+		// TODO: following the introduction of warnings; that's not quite right - it might all have ended up as warnings, too. While that's possibly _fine_ for i.e. a multi-sheet query, for a _single_ sheet query, it might be more-sane to raise as a top-level error. Think about it a bit, because... yeah. That's not exactly _consistent_ but maybe it's expected?
 
 		// TODO: this just groups by index, effectively - should probably sort by score at this point
 		// Merge the results from each index into a single vector.
-		let results = index_results.into_iter().flatten().collect::<Vec<_>>();
+		let results = index_results.map(|vec| vec.into_iter().flatten().collect::<Vec<_>>());
 
 		Ok(results)
 	}
 }
 
+// TODO: can probably store the number of search executions on this to feed into rate limiting
 pub struct Executor {
 	indices: Arc<HashMap<String, Index>>,
 }

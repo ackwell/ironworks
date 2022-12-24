@@ -94,6 +94,7 @@ impl QueryResolver<'_> {
 
 		(|| -> Option<_> {
 			Some(match field_type {
+				Type::Str => Term::from_field_text(field, self.value_to_str(value)?),
 				Type::U64 => Term::from_field_u64(field, self.value_to_u64(value)?),
 				Type::I64 => Term::from_field_i64(field, self.value_to_i64(value)?),
 				other => todo!("{other:#?}"),
@@ -107,6 +108,12 @@ impl QueryResolver<'_> {
 				got: format!("{value:?}"),
 			})
 		})
+	}
+
+	fn value_to_str(&self, value: &Value) -> Option<&str> {
+		match value {
+			Value::U64(_) => None,
+		}
 	}
 
 	fn value_to_u64(&self, value: &Value) -> Option<u64> {

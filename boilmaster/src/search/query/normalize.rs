@@ -25,7 +25,9 @@ impl<'a> Normalizer<'a> {
 	) -> Result<post::Node, SearchError> {
 		// Fetch the schema and columns for the requested sheet.
 		let sheet_schema = self.schema.sheet(sheet_name).map_err(|error| match error {
-			schema::Error::NotFound(inner) => SearchError::SchemaMismatch(MismatchError {
+			// A missing schema can be considered analogous to a missing field _in_ a
+			// schema, and is such a mismatch between the query and the schema.
+			schema::Error::NotFound(inner) => SearchError::QueryMismatch(MismatchError {
 				field: inner.to_string(),
 				reason: "not found".into(),
 			}),
@@ -228,6 +230,8 @@ impl<'a> Normalizer<'a> {
 							// Filter out query mismatches to prune those branches - other errors will be raised.
 							.filter(|result| !matches!(result, Err(SearchError::QueryMismatch(_))))
 							.collect::<Result<Vec<_>, _>>()?;
+
+						// TODO: target_queries.len() == 0 here means none of the relations matched, which should be raised as a query mismatch
 
 						// There might be multiple viable relation paths, group them together.
 						create_or_group(target_queries.into_iter())
