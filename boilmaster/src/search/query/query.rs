@@ -40,7 +40,12 @@ pub struct Relation<F, T> {
 
 #[derive(Debug, Clone)]
 pub enum Value {
-	/// Represents any positive integer
+	/// A positive integer.
 	U64(u64),
-	// TODO: other value types - we'll need something for negative ints (i64?), floats (f64?), and strings (String?) at minimum
+	/// A negative integer.
+	I64(i64),
+	/// A floating point number.
+	F64(f64),
+	/// A string.
+	String(String),
 }

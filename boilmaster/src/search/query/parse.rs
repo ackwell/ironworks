@@ -4,9 +4,10 @@ use nom::{
 	branch::alt,
 	bytes::complete::{tag, take_while1},
 	character::complete::{digit1, multispace1},
-	combinator::{map, map_res, opt, success, value as nom_value},
+	combinator::{map, map_res, not, opt, success, value as nom_value},
 	multi::separated_list1,
-	sequence::{delimited, preceded, tuple},
+	number::complete::double,
+	sequence::{delimited, preceded, terminated, tuple},
 	Finish, IResult,
 };
 use serde::{de, Deserialize};
@@ -103,7 +104,19 @@ fn relation(input: &str) -> IResult<&str, pre::Relation> {
 }
 
 fn value(input: &str) -> IResult<&str, pre::Value> {
-	map(map_res(digit1, str::parse), |value: u64| {
-		pre::Value::U64(value)
-	})(input)
+	alt((
+		// Try to parse the number as a potentially-signed integer. If it's followed by `.`, it'll fall through to the float check.
+		terminated(
+			alt((
+				map(map_res(digit1, str::parse), pre::Value::U64),
+				map(map_res(take_while1(is_signed), str::parse), pre::Value::I64),
+			)),
+			not(tag(".")),
+		),
+		map(double, pre::Value::F64),
+	))(input)
+}
+
+fn is_signed(char: char) -> bool {
+	char.is_ascii_digit() || char == '-'
 }

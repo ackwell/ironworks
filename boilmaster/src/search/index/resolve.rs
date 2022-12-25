@@ -58,6 +58,7 @@ impl QueryResolver<'_> {
 		match &leaf.operation {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
 			Operation::Equal(value) => {
+				// TODO: requirements for floats are pretty tight - should I translate float equality into a range around the epsilon or something, or leave that up to consumers to do?
 				let term = self.value_to_term(value, field)?;
 				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
 			}
@@ -97,6 +98,7 @@ impl QueryResolver<'_> {
 				Type::Str => Term::from_field_text(field, self.value_to_str(value)?),
 				Type::U64 => Term::from_field_u64(field, self.value_to_u64(value)?),
 				Type::I64 => Term::from_field_i64(field, self.value_to_i64(value)?),
+				Type::F64 => Term::from_field_f64(field, self.value_to_f64(value)?),
 				other => todo!("{other:#?}"),
 			})
 		})()
@@ -110,21 +112,50 @@ impl QueryResolver<'_> {
 		})
 	}
 
-	fn value_to_str(&self, value: &Value) -> Option<&str> {
+	fn value_to_str<'a>(&self, value: &'a Value) -> Option<&'a str> {
+		// Only string values can be reasonably treated as actual strings.
 		match value {
-			Value::U64(_) => None,
+			Value::String(value) => Some(value),
+			_ => None,
 		}
 	}
 
 	fn value_to_u64(&self, value: &Value) -> Option<u64> {
 		match value {
 			Value::U64(inner) => Some(*inner),
+			Value::I64(inner) => (*inner).try_into().ok(),
+			Value::F64(inner) => {
+				let rounded = inner.round();
+				if rounded != *inner {
+					return None;
+				}
+				Some(rounded as u64)
+			}
+			Value::String(_) => None,
 		}
 	}
 
 	fn value_to_i64(&self, value: &Value) -> Option<i64> {
 		match value {
 			Value::U64(inner) => (*inner).try_into().ok(),
+			Value::I64(inner) => Some(*inner),
+			Value::F64(inner) => {
+				let rounded = inner.round();
+				if rounded != *inner {
+					return None;
+				}
+				Some(rounded as i64)
+			}
+			Value::String(_) => None,
+		}
+	}
+
+	fn value_to_f64(&self, value: &Value) -> Option<f64> {
+		match value {
+			Value::U64(inner) => Some(*inner as f64),
+			Value::I64(inner) => Some(*inner as f64),
+			Value::F64(inner) => Some(*inner),
+			Value::String(_) => None,
 		}
 	}
 }
