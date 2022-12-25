@@ -134,7 +134,7 @@ pub enum ColumnKind {
 
 /// Metadata for a single sheet data page.
 #[binread]
-#[derive(Debug, CopyGetters)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
 #[br(big)]
 pub struct PageDefinition {
 	/// The first ID contained within the page.
