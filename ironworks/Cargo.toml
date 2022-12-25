@@ -21,7 +21,7 @@ zipatch = ["patch", "sqpack"]
 # File types
 eqdp = ["dep:modular-bitfield"]
 exd = []
-exh = []
+exh = ["dep:num_enum"]
 exl = []
 mdl = ["dep:half", "dep:modular-bitfield", "dep:num_enum"]
 mtrl = []
