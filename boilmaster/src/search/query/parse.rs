@@ -5,16 +5,19 @@ use nom::{
 	bytes::complete::{tag, take_while1},
 	character::complete::{char, digit1, multispace1},
 	combinator::{map, map_res, not, opt, success, value as nom_value},
+	error::convert_error,
 	multi::separated_list1,
 	number::complete::double,
 	sequence::{delimited, preceded, terminated, tuple},
-	Finish, IResult,
+	Finish,
 };
 use serde::{de, Deserialize};
 
 use crate::search::SearchError;
 
 use super::pre;
+
+type IResult<'a, I, O> = nom::IResult<I, O, nom::error::VerboseError<&'a str>>;
 
 impl FromStr for pre::Node {
 	type Err = SearchError;
@@ -23,7 +26,7 @@ impl FromStr for pre::Node {
 		// Root level of a query is an implicit group
 		let (remaining, group) = group(input)
 			.finish()
-			.map_err(|error| SearchError::MalformedQuery(error.to_string()))?;
+			.map_err(|error| SearchError::MalformedQuery(convert_error(input, error)))?;
 
 		if !remaining.is_empty() {
 			return Err(SearchError::MalformedQuery(format!(
