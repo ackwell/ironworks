@@ -1,7 +1,7 @@
 use tantivy::{
-	query::{BooleanQuery, Query, TermQuery, TermSetQuery},
+	query::{BooleanQuery, PhraseQuery, Query, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},
-	Term,
+	Index, TantivyError, Term,
 };
 
 use crate::search::{
@@ -13,6 +13,7 @@ use crate::search::{
 use super::schema::column_field_name;
 
 pub struct QueryResolver<'a> {
+	pub index: &'a Index,
 	pub schema: &'a Schema,
 	pub executor: &'a Executor,
 }
@@ -57,11 +58,7 @@ impl QueryResolver<'_> {
 
 		match &leaf.operation {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
-			Operation::Match(string) => {
-				// TODO: this should tokenise as a phrase search, i think? also need to consider tokenisation across different languages...
-				let term = Term::from_field_text(field, string);
-				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
-			}
+			Operation::Match(string) => self.resolve_match(string, field),
 			Operation::Equal(value) => {
 				if matches!(value, Value::String(_)) {
 					// TODO: term/phrase queries inherently don't handle exact equality. I might be able to handle strings as a ^regex$? will need to test.
@@ -96,6 +93,43 @@ impl QueryResolver<'_> {
 		}
 
 		Ok(Box::new(TermSetQuery::new(terms)))
+	}
+
+	fn resolve_match(&self, string: &str, field: Field) -> Result<Box<dyn Query>, SearchError> {
+		// Get the analyser for this field from the tokeniser manager.
+		let analyzer = self
+			.index
+			.tokenizer_for_field(field)
+			.map_err(|error| match error {
+				// Schema errors designate that the field isn't a text field, which is a consumer issue.
+				// TODO: the wording on this error leaves a lot to be desired in this particular case.
+				TantivyError::SchemaError(message) => SearchError::FieldType(FieldTypeError {
+					field: format!("TODO: field {}", self.schema.get_field_name(field)),
+					expected: "string field".into(),
+					got: message,
+				}),
+
+				other => SearchError::Failure(other.into()),
+			})?;
+
+		// Use the analyser to break the match string up into terms
+		let mut terms = vec![];
+		analyzer.token_stream(string).process(&mut |token| {
+			let term = Term::from_field_text(field, &token.text);
+			terms.push((token.position, term))
+		});
+
+		// If there's only one term, use a term query, otherwise a phrase query
+		match terms.len() {
+			0 => {
+				todo!("i'm not sure what a 0-term phrase query would mean. input: {string}")
+			}
+			1 => Ok(Box::new(TermQuery::new(
+				terms.swap_remove(0).1,
+				IndexRecordOption::Basic,
+			))),
+			_ => Ok(Box::new(PhraseQuery::new_with_offset(terms))),
+		}
 	}
 
 	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, SearchError> {

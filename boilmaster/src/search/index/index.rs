@@ -68,7 +68,11 @@ impl Index {
 
 		let schema = searcher.schema();
 
-		let query_resolver = QueryResolver { schema, executor };
+		let query_resolver = QueryResolver {
+			index: &self.index,
+			schema,
+			executor,
+		};
 		let query = query_resolver.resolve(query_node)?;
 
 		// // so immediate complication to deal with; need to specify the fields to search if the user (lmao as if) doesn't specify any. we... techncially want to search _every_thing. or, at least every string thing? idfk. all strings makes sense i guess?
