@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt};
 use nom::{
 	branch::alt,
 	bytes::complete::{tag, take_while1},
+	character::complete::char,
 	combinator::{map, opt},
 	multi::separated_list1,
 	sequence::{delimited, preceded, tuple},
@@ -137,7 +138,7 @@ fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
 
 fn group(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	map(
-		separated_list1(tag(","), filter),
+		separated_list1(char(','), filter),
 		// .reduce only returns None when there was 0 inputs, which is impossible due to _list1
 		|filters| filters.into_iter().reduce(merge_warning_filters).unwrap(),
 	)(input)
@@ -173,12 +174,12 @@ fn merge_optional_filters(
 fn filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	alt((
 		map(alt((struct_entry, array_index)), |filter| filter.map(Some)),
-		delimited(tag("("), group, tag(")")),
+		delimited(char('('), group, char(')')),
 	))(input)
 }
 
 fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
-	map(opt(preceded(tag("."), filter)), |filter| {
+	map(opt(preceded(char('.'), filter)), |filter| {
 		filter.unwrap_or_else(|| Warnings::new(None))
 	})(input)
 }

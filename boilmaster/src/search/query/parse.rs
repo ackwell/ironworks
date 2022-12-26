@@ -3,7 +3,7 @@ use std::str::FromStr;
 use nom::{
 	branch::alt,
 	bytes::complete::{tag, take_while1},
-	character::complete::{digit1, multispace1},
+	character::complete::{char, digit1, multispace1},
 	combinator::{map, map_res, not, opt, success, value as nom_value},
 	multi::separated_list1,
 	number::complete::double,
@@ -47,7 +47,7 @@ impl<'de> Deserialize<'de> for pre::Node {
 
 fn node(input: &str) -> IResult<&str, pre::Node> {
 	alt((
-		map(delimited(tag("("), group, tag(")")), pre::Node::Group),
+		map(delimited(char('('), group, char(')')), pre::Node::Group),
 		map(leaf, pre::Node::Leaf),
 	))(input)
 }
@@ -61,8 +61,8 @@ fn group(input: &str) -> IResult<&str, pre::Group> {
 
 fn occur(input: &str) -> IResult<&str, pre::Occur> {
 	alt((
-		nom_value(pre::Occur::Must, tag("+")),
-		nom_value(pre::Occur::MustNot, tag("-")),
+		nom_value(pre::Occur::Must, char('+')),
+		nom_value(pre::Occur::MustNot, char('-')),
 		success(pre::Occur::Should),
 	))(input)
 }
@@ -92,12 +92,12 @@ fn field_specifier_array(input: &str) -> IResult<&str, pre::FieldSpecifier> {
 fn operation(input: &str) -> IResult<&str, pre::Operation> {
 	alt((
 		map(relation, pre::Operation::Relation),
-		map(preceded(tag("="), value), pre::Operation::Equal),
+		map(preceded(char('='), value), pre::Operation::Equal),
 	))(input)
 }
 
 fn relation(input: &str) -> IResult<&str, pre::Relation> {
-	map(preceded(tag("."), node), |node| pre::Relation {
+	map(preceded(char('.'), node), |node| pre::Relation {
 		target: (),
 		query: Box::new(node),
 	})(input)
@@ -111,7 +111,7 @@ fn value(input: &str) -> IResult<&str, pre::Value> {
 				map(map_res(digit1, str::parse), pre::Value::U64),
 				map(map_res(take_while1(is_signed), str::parse), pre::Value::I64),
 			)),
-			not(tag(".")),
+			not(char('.')),
 		),
 		map(double, pre::Value::F64),
 	))(input)
