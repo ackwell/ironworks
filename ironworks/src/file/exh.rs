@@ -100,16 +100,10 @@ pub struct ColumnDefinition {
 	offset: u16,
 }
 
-impl ColumnDefinition {
-	pub fn TEMP_new(kind: ColumnKind, offset: u16) -> Self {
-		Self { kind, offset }
-	}
-}
-
 /// The kind of data structure stored in a column.
 #[allow(missing_docs)]
 #[binread]
-#[derive(Clone, Copy, Debug, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[br(big, repr = u16)]
 #[repr(u16)]
 pub enum ColumnKind {

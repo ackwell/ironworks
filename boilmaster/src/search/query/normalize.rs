@@ -243,6 +243,32 @@ impl<'a> Normalizer<'a> {
 				Ok(node)
 			}
 
+			pre::Operation::Match(string) => {
+				let scalar_columns = collect_scalars(schema, columns, vec![]).ok_or_else(|| {
+					SearchError::SchemaMismatch(MismatchError {
+						// TODO: i'll need to wire down the current query path for this field to be meaningful
+						field: "query".into(),
+						reason: "insufficient game data to satisfy schema".into(),
+					})
+				})?;
+
+				// NOTE: The collect is not actually needless - .filter precludes ExactSizeIterator
+				#[allow(clippy::needless_collect)]
+				let string_columns = scalar_columns
+					.into_iter()
+					.filter(|column| column.kind() == exh::ColumnKind::String)
+					.collect::<Vec<_>>();
+
+				let group = create_or_group(string_columns.into_iter().map(|column| {
+					post::Node::Leaf(post::Leaf {
+						field: column,
+						operation: post::Operation::Match(string.clone()),
+					})
+				}));
+
+				Ok(group)
+			}
+
 			// TODO: this should collect all scalars i think?
 			// TODO: this pattern will be pretty repetetive, make a utility that does this or something
 			pre::Operation::Equal(value) => {

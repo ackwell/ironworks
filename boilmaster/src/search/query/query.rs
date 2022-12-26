@@ -27,6 +27,8 @@ pub struct Leaf<F, T> {
 pub enum Operation<F, T> {
 	Relation(Relation<F, T>),
 
+	Match(String),
+
 	Equal(Value),
 	// TODO: all the other relevant leaf operations. will need both further math operations, as well as ranges and string ops (given i'm using this instead of generic string param)
 }

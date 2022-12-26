@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use nom::{
 	branch::alt,
-	bytes::complete::{tag, take_while1},
+	bytes::complete::{tag, take_till, take_while1},
 	character::complete::{char, digit1, multispace1},
 	combinator::{map, map_res, not, opt, success, value as nom_value},
 	error::convert_error,
@@ -78,7 +78,10 @@ fn leaf(input: &str) -> IResult<&str, pre::Leaf> {
 }
 
 fn field_specifier(input: &str) -> IResult<&str, pre::FieldSpecifier> {
-	alt((field_specifier_struct, field_specifier_array))(input)
+	terminated(
+		alt((field_specifier_struct, field_specifier_array)),
+		opt(char(':')),
+	)(input)
 }
 
 fn field_specifier_struct(input: &str) -> IResult<&str, pre::FieldSpecifier> {
@@ -96,6 +99,8 @@ fn operation(input: &str) -> IResult<&str, pre::Operation> {
 	alt((
 		map(relation, pre::Operation::Relation),
 		map(preceded(char('='), value), pre::Operation::Equal),
+		// An un-adorned string acts as a match query. This needs to be last to ensure other sigils take priority.
+		map(string, pre::Operation::Match),
 	))(input)
 }
 
@@ -117,7 +122,19 @@ fn value(input: &str) -> IResult<&str, pre::Value> {
 			not(char('.')),
 		),
 		map(double, pre::Value::F64),
+		map(string, pre::Value::String),
 	))(input)
+}
+
+fn string(input: &str) -> IResult<&str, String> {
+	map(
+		delimited(
+			char('"'),
+			take_till(|character| character == '"'),
+			char('"'),
+		),
+		|str: &str| str.to_string(),
+	)(input)
 }
 
 fn is_signed(char: char) -> bool {

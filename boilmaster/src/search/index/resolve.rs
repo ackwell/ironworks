@@ -57,7 +57,16 @@ impl QueryResolver<'_> {
 
 		match &leaf.operation {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
+			Operation::Match(string) => {
+				// TODO: this should tokenise as a phrase search, i think? also need to consider tokenisation across different languages...
+				let term = Term::from_field_text(field, string);
+				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
+			}
 			Operation::Equal(value) => {
+				if matches!(value, Value::String(_)) {
+					// TODO: term/phrase queries inherently don't handle exact equality. I might be able to handle strings as a ^regex$? will need to test.
+					todo!("exact string equal handling")
+				}
 				// TODO: requirements for floats are pretty tight - should I translate float equality into a range around the epsilon or something, or leave that up to consumers to do?
 				let term = self.value_to_term(value, field)?;
 				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
