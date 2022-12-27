@@ -3,18 +3,21 @@ use std::{
 	sync::{Arc, Mutex},
 };
 
-use anyhow::Result;
 use figment::value::magic::RelativePathBuf;
 use futures::Future;
 use serde::Deserialize;
 
 use crate::data::Data;
 
-use super::{ingest, version::Version};
+use super::{
+	error::SearchError,
+	index::{IngestConfig, Ingester},
+	version::Version,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-	ingest: ingest::Config,
+	ingest: IngestConfig,
 
 	index: IndexConfig,
 }
@@ -25,7 +28,7 @@ struct IndexConfig {
 }
 
 pub struct Search {
-	ingester: ingest::Ingester,
+	ingester: Ingester,
 
 	index_directory: PathBuf,
 
@@ -37,7 +40,7 @@ impl Search {
 	#[allow(clippy::new_without_default)]
 	pub fn new(config: Config) -> Self {
 		Self {
-			ingester: ingest::Ingester::new(config.ingest),
+			ingester: Ingester::new(config.ingest),
 			index_directory: config.index.directory.relative(),
 			temp_version: Default::default(),
 		}
@@ -49,7 +52,7 @@ impl Search {
 		shutdown: impl Future<Output = ()>,
 		data: &Data,
 		version: Option<&str>,
-	) -> Result<()> {
+	) -> Result<(), SearchError> {
 		let data_version = data.version(version);
 		let search_version = Arc::new(Version::new(
 			self.index_directory.join(version.unwrap_or("__NONE")),

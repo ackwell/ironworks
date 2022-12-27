@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt};
 use nom::{
 	branch::alt,
 	bytes::complete::{tag, take_while1},
+	character::complete::char,
 	combinator::{map, opt},
 	multi::separated_list1,
 	sequence::{delimited, preceded, tuple},
@@ -10,9 +11,10 @@ use nom::{
 };
 use serde::{de, Deserialize, Deserializer};
 
-use crate::util::warnings::{SoftDeserialize, Warnings};
+use crate::utility::warnings::{SoftDeserialize, Warnings};
 
 // TODO: should this be in a top level filter module? will depend if there's other types of filters i guess. also semantics...
+//       might make sense as read::Filter to go alongside i.e. search::Filter
 
 type StructFilter = HashMap<String, Option<FieldFilter>>;
 type ArrayFilter = Option<Box<FieldFilter>>;
@@ -136,7 +138,7 @@ fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
 
 fn group(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	map(
-		separated_list1(tag(","), filter),
+		separated_list1(char(','), filter),
 		// .reduce only returns None when there was 0 inputs, which is impossible due to _list1
 		|filters| filters.into_iter().reduce(merge_warning_filters).unwrap(),
 	)(input)
@@ -172,12 +174,12 @@ fn merge_optional_filters(
 fn filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 	alt((
 		map(alt((struct_entry, array_index)), |filter| filter.map(Some)),
-		delimited(tag("("), group, tag(")")),
+		delimited(char('('), group, char(')')),
 	))(input)
 }
 
 fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
-	map(opt(preceded(tag("."), filter)), |filter| {
+	map(opt(preceded(char('.'), filter)), |filter| {
 		filter.unwrap_or_else(|| Warnings::new(None))
 	})(input)
 }

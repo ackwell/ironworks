@@ -4,13 +4,9 @@ use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::field_filter::FieldFilter;
+use crate::{field_filter::FieldFilter, utility::field};
 
 use super::value::{Reference, Value};
-
-// Characters to strip from schema struct keys
-// TODO: this is potentially a bit saint-specific; but i'm very hesitant to put this logic in stc parsing, as that's technically "wrong". probably best shot is to keep this logic in tune with what BM requires as an output data format.
-const FIELD_STRIP_CHARACTERS: &[char] = &['{', '}', '[', ']', '<', '>'];
 
 #[derive(Clone)]
 pub struct ReaderContext<'a> {
@@ -24,7 +20,6 @@ pub struct ReaderContext<'a> {
 	pub columns: &'a [exh::ColumnDefinition],
 }
 
-// TODO: need some representation of filtering for this, preferably that will be constructable from reference filters, gql queries, and a get request for rest
 pub fn read_sheet(sheet_name: &str, context: ReaderContext) -> Result<Value> {
 	let sheet = context.schema.sheet(sheet_name)?;
 
@@ -188,7 +183,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 		let (name, size, read): (_, _, Box<dyn FnOnce(_) -> _>) = match field {
 			Some(field) => {
 				let size = usize::try_from(field.node.size()).unwrap();
-				let name = field.name.replace(FIELD_STRIP_CHARACTERS, "");
+				let name = field::sanitize_name(&field.name);
 				let read = |context| read_node(&field.node, context);
 				(name, size, Box::new(read))
 			}
