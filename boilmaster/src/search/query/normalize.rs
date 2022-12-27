@@ -85,18 +85,6 @@ impl<'a> Normalizer<'a> {
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> Result<post::Node, SearchError> {
-		// // let fsda = self.schema.sheet("fdsaf").unwrap().node;
-		// let fas = schema;
-
-		// // THOUGHTS
-		// // if the field is Some(value), then resolve that value to a column definition
-		// // if the field is None, then it becomes a group of every field possible, BUT
-		// //   we can probably "localise" that to a subset of columns in nested-but-not-relational structs
-		// let a = match leaf.field {
-		// 	Some(field_name) => todo!("specified {field_name:?}"),
-		// 	None => todo!("no specified field"),
-		// };
-
 		match &leaf.field {
 			Some(specifier) => {
 				self.normalize_leaf_bound(specifier, &leaf.operation, schema, columns)
@@ -160,7 +148,8 @@ impl<'a> Normalizer<'a> {
 		schema: &schema::Node,
 		columns: &[exh::ColumnDefinition],
 	) -> Result<post::Node, SearchError> {
-		// TODO: if operation is in charge of "collecting" all the appropriate remaining fields to apply to, then perhaps unbound just passes directly to operation, given it's an unbounded selector?
+		// TODO: notes; an unbound leaf only makes semantic sense on a structural schema node; were it pointing to a scalar node, it would be equivalent semantically to a bound leaf on that node. following from that; an unbound leaf should "fan out" to all of the current structural node's children as an or-group, in doing so effectively "consuming" the current node at the leaf point, which maintains consistency with bound leaf handling.
+
 		todo!("normalize leaf unbound")
 	}
 
@@ -304,6 +293,7 @@ fn create_or_group(mut nodes: impl ExactSizeIterator<Item = post::Node>) -> post
 }
 
 // The whole premise of this is that we want to _exclude_ references. If that premise does not hold, then the `columns` slice itself is basically exactly what we want.
+// TODO: On discussing, people(singular) seemed okay with a field being simultaneously scalar and a reference. I can't say I'm convinced, but it might be fine.
 fn collect_scalars(
 	schema: &schema::Node,
 	columns: &[exh::ColumnDefinition],
