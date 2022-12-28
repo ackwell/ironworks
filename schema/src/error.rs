@@ -1,7 +1,7 @@
 use core::fmt;
 
 /// An error that occured.
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
 	/// The requested value could not be found.
 	#[error("The {0} could not be found.")]
@@ -25,7 +25,7 @@ impl From<git2::Error> for Error {
 }
 
 /// A value associated with an error.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ErrorValue {
 	/// A value not represented by other variants.
 	///

@@ -1,14 +1,18 @@
 use std::{
 	borrow::Cow,
+	collections::HashMap,
 	env::current_exe,
 	path::{Path, PathBuf},
 	sync::{Arc, Mutex},
 };
 
 use derivative::Derivative;
-use git2::{build::RepoBuilder, Repository};
+use git2::{build::RepoBuilder, Oid, Repository};
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	Sheet,
+};
 
 use super::version::Version;
 
@@ -55,12 +59,18 @@ impl Default for ProviderOptions {
 	}
 }
 
+// TODO: per notes; look into allowing support for multiple readers without race conditions
+pub type SheetCache = Arc<Mutex<HashMap<(Oid, String), Result<Sheet>>>>;
+
 /// A schema provider sourcing data from the SaintCoinach schema repository.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
 	repository: Arc<Mutex<Repository>>,
+
+	// TODO: make this disable-able.
+	cache: SheetCache,
 }
 
 impl Provider {
@@ -91,14 +101,20 @@ impl Provider {
 
 		Ok(Self {
 			repository: Arc::new(Mutex::new(repository)),
+			cache: Arc::new(Mutex::new(HashMap::new())),
 		})
 	}
 
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, version: &str) -> Result<Version> {
 		let repository = self.repository.lock().unwrap();
-		let commit = repository.revparse_single(version)?.peel_to_commit()?;
-		Ok(Version::new(self.repository.clone(), commit.id()))
+		let commit_id = repository.revparse_single(version)?.peel_to_commit()?.id();
+
+		Ok(Version::new(
+			self.repository.clone(),
+			self.cache.clone(),
+			commit_id,
+		))
 	}
 }
 

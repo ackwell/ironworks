@@ -10,7 +10,7 @@ pub trait Schema {
 // TODO: consider making internals on these private with getters?
 
 /// Schema and metadata for a sheet within an Excel database.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Sheet {
 	/// Canonical name of the sheet.
 	pub name: String,
@@ -23,7 +23,7 @@ pub struct Sheet {
 }
 
 /// Ordering of column definitions.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Order {
 	/// Ordered by index of definition within Excel header file.
 	Index,
@@ -32,7 +32,7 @@ pub enum Order {
 }
 
 /// Node within a sheet schema.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Node {
 	/// An array of two or more sub-schemas.
 	#[allow(missing_docs)]
@@ -69,7 +69,7 @@ impl Node {
 
 // TODO: Should this all be public?
 /// Metadata for a reference to a row in another sheet.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ReferenceTarget {
 	/// The sheet this reference points to
 	pub sheet: String,
@@ -83,7 +83,7 @@ pub struct ReferenceTarget {
 }
 
 /// Selector/value pair used to limit the validity of a `ReferenceTarget`.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct ReferenceCondition {
 	/// Selector pointing to the column in this sheet that will be matched against.
 	pub selector: String,
@@ -93,7 +93,7 @@ pub struct ReferenceCondition {
 }
 
 /// A field of a Node::Struct.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StructField {
 	/// The offset of this field _within_ the enclosing struct.
 	pub offset: u32,
