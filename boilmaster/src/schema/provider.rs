@@ -5,7 +5,7 @@ use ironworks_schema::Schema;
 
 use super::saint_coinach::SaintCoinach;
 
-pub trait Source {
+pub trait Source: Send + Sync {
 	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema + '_>>;
 }
 
