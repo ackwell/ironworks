@@ -6,10 +6,10 @@ use ironworks::{
 	excel::{Excel, Row},
 	file::exh,
 };
-use ironworks_schema::saint_coinach;
+use ironworks_schema::Schema;
 use serde::Deserialize;
 
-use crate::{data::Data, field_filter::FieldFilter, read, utility::warnings::Warnings};
+use crate::{data::Data, field_filter::FieldFilter, read, schema, utility::warnings::Warnings};
 
 use super::{
 	error::{Anyhow, Error, Result},
@@ -50,6 +50,7 @@ async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
+	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
 
@@ -59,6 +60,9 @@ async fn row(
 			"Sheet {sheet_name:?} requires a sub-row ID."
 		)));
 	}
+
+	// TODO: this would presumably be specified as a provider:version pair in some way
+	let schema = schema_provider.schema("saint-coinach", None)?;
 
 	let row = sheet.row(row_id)?;
 	let columns = sheet.columns()?;
@@ -71,7 +75,14 @@ async fn row(
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(&sheet_name, &excel, &row, field_filter.as_ref(), &columns)?;
+	let result = read_row(
+		&sheet_name,
+		&excel,
+		schema.as_ref(),
+		&row,
+		field_filter.as_ref(),
+		&columns,
+	)?;
 
 	Ok(Json(result))
 }
@@ -81,6 +92,7 @@ async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Extension(data): Extension<Arc<Data>>,
+	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
 
@@ -90,6 +102,9 @@ async fn subrow(
 			"Sheet {sheet_name:?} does not support sub-rows."
 		)));
 	}
+
+	// TODO: this would presumably be specified as a provider:version pair in some way
+	let schema = schema_provider.schema("saint-coinach", None)?;
 
 	let row = sheet.subrow(row_id, subrow_id)?;
 	let columns = sheet.columns()?;
@@ -102,7 +117,14 @@ async fn subrow(
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(&sheet_name, &excel, &row, field_filter.as_ref(), &columns)?;
+	let result = read_row(
+		&sheet_name,
+		&excel,
+		schema.as_ref(),
+		&row,
+		field_filter.as_ref(),
+		&columns,
+	)?;
 
 	Ok(Json(result))
 }
@@ -110,21 +132,16 @@ async fn subrow(
 fn read_row(
 	sheet_name: &str,
 	excel: &Excel,
+	schema: &dyn Schema,
 	row: &Row,
 	filter: Option<&FieldFilter>,
 	columns: &[exh::ColumnDefinition],
 ) -> Result<read::Value> {
-	// TODO: schema should be a shared resource in some way so we don't need to check the git repo every request
-	// TODO: this would presumably be specified as a provider:version pair in some way
-	// TODO: as part of said shared resource, need a way to handle updating the repo
-	let provider = saint_coinach::Provider::new()?;
-	let version = provider.version("HEAD")?;
-
 	let value = read::read_sheet(
 		sheet_name,
 		read::ReaderContext {
 			excel,
-			schema: &version,
+			schema,
 			filter,
 			row,
 			limit: 1,
