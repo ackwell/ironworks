@@ -6,6 +6,9 @@ tantivy = "warn"
 # address = "0.0.0.0"
 port = 8080
 
+[schema.saint_coinach]
+directory = "saint_coinach"
+
 [search.index]
 directory = "search"
 

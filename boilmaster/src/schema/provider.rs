@@ -2,11 +2,17 @@ use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use ironworks_schema::Schema;
+use serde::Deserialize;
 
-use super::saint_coinach::SaintCoinach;
+use super::saint_coinach;
 
 pub trait Source: Send + Sync {
 	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema + '_>>;
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	saint_coinach: saint_coinach::Config,
 }
 
 // TODO: need a way to handle updating the repo
@@ -15,10 +21,13 @@ pub struct Provider {
 }
 
 impl Provider {
-	pub fn new() -> Result<Self> {
+	pub fn new(config: Config) -> Result<Self> {
 		// TODO: at the moment this will hard fail if any source fails - should i make sources soft fail?
 		Ok(Self {
-			sources: HashMap::from([("saint-coinach", boxed(SaintCoinach::new()?))]),
+			sources: HashMap::from([(
+				"saint-coinach",
+				boxed(saint_coinach::SaintCoinach::new(config.saint_coinach)?),
+			)]),
 		})
 	}
 

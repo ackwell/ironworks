@@ -38,19 +38,19 @@ impl ProviderOptions {
 	}
 
 	/// Set the git remote URL to fetch SaintCoinach from.
-	pub fn remote(&mut self, remote: impl ToString) -> &mut Self {
+	pub fn remote(mut self, remote: impl ToString) -> Self {
 		self.remote = Some(remote.to_string());
 		self
 	}
 
 	/// Set the local directory to clone SaintCoinach to.
-	pub fn directory(&mut self, directory: impl Into<PathBuf>) -> &mut Self {
+	pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
 		self.directory = Some(directory.into());
 		self
 	}
 
 	/// Enable or disable caching of sheet schemas.
-	pub fn cache(&mut self, cache: bool) -> &mut Self {
+	pub fn cache(mut self, cache: bool) -> Self {
 		self.cache = cache;
 		self
 	}

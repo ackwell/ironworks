@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 struct Config {
 	tracing: tracing::Config,
 	http: http::Config,
+	schema: schema::Config,
 	search: search::Config,
 }
 
@@ -30,7 +31,7 @@ async fn main() {
 	tracing::init(config.tracing);
 
 	let data = Arc::new(Data::new());
-	let schema = Arc::new(schema::Provider::new().expect("TODO: Error handling"));
+	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.

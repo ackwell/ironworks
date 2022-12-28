@@ -1,18 +1,30 @@
 use anyhow::Result;
+use figment::value::magic::RelativePathBuf;
 use ironworks_schema::{saint_coinach, Schema};
+use serde::Deserialize;
 
 use super::provider::Source;
 
-// TODO: this needs config like where to store the repo and such. can be passed to the inner provider
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	remote: Option<String>,
+	directory: RelativePathBuf,
+}
+
 pub struct SaintCoinach {
 	provider: saint_coinach::Provider,
 }
 
 impl SaintCoinach {
-	pub fn new() -> Result<Self> {
-		let provider = saint_coinach::Provider::new()?;
+	pub fn new(config: Config) -> Result<Self> {
+		let mut builder = saint_coinach::Provider::with().directory(config.directory.relative());
+		if let Some(remote) = config.remote {
+			builder = builder.remote(remote);
+		}
 
-		Ok(Self { provider })
+		Ok(Self {
+			provider: builder.build()?,
+		})
 	}
 }
 

@@ -1,4 +1,4 @@
 mod provider;
 mod saint_coinach;
 
-pub use provider::Provider;
+pub use provider::{Config, Provider};
