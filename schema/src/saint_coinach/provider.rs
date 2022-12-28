@@ -25,6 +25,7 @@ const REPOSITORY_DIRECTORY: &str = "saint_coinach";
 pub struct ProviderOptions {
 	remote: Option<String>,
 	directory: Option<PathBuf>,
+	cache: bool,
 }
 
 impl ProviderOptions {
@@ -32,6 +33,7 @@ impl ProviderOptions {
 		ProviderOptions {
 			remote: None,
 			directory: None,
+			cache: true,
 		}
 	}
 
@@ -44,6 +46,12 @@ impl ProviderOptions {
 	/// Set the local directory to clone SaintCoinach to.
 	pub fn directory(&mut self, directory: impl Into<PathBuf>) -> &mut Self {
 		self.directory = Some(directory.into());
+		self
+	}
+
+	/// Enable or disable caching of sheet schemas.
+	pub fn cache(&mut self, cache: bool) -> &mut Self {
+		self.cache = cache;
 		self
 	}
 
@@ -60,7 +68,7 @@ impl Default for ProviderOptions {
 }
 
 // TODO: per notes; look into allowing support for multiple readers without race conditions
-pub type SheetCache = Arc<Mutex<HashMap<(Oid, String), Result<Sheet>>>>;
+pub type SheetCache = Option<Arc<Mutex<HashMap<(Oid, String), Result<Sheet>>>>>;
 
 /// A schema provider sourcing data from the SaintCoinach schema repository.
 #[derive(Derivative)]
@@ -101,7 +109,7 @@ impl Provider {
 
 		Ok(Self {
 			repository: Arc::new(Mutex::new(repository)),
-			cache: Arc::new(Mutex::new(HashMap::new())),
+			cache: options.cache.then(|| Arc::new(Mutex::new(HashMap::new()))),
 		})
 	}
 

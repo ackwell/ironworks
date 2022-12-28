@@ -138,19 +138,25 @@ impl Version {
 
 impl Schema for Version {
 	fn sheet(&self, name: &str) -> Result<Sheet> {
-		let mut cache = self.cache.lock().unwrap();
-		let sheet = match cache.entry((self.commit_id, name.to_string())) {
-			Entry::Occupied(entry) => entry.get().clone(),
-			Entry::Vacant(entry) => {
-				// We store NotFound errors in the cache, so as to avoid continuously checking the repository for them.
-				let result = match self.read_sheet_schema(name) {
-					result @ Ok(_) | result @ Err(Error::NotFound(_)) => result,
-					Err(other_error) => return Err(other_error),
-				};
-				entry.insert(result).clone()
-			}
-		};
+		match &self.cache {
+			// No cache set up, read directly.
+			None => self.read_sheet_schema(name),
 
-		sheet
+			// A cache is available, try to read from it.
+			Some(cache_mutex) => {
+				let mut cache = cache_mutex.lock().unwrap();
+				match cache.entry((self.commit_id, name.to_string())) {
+					Entry::Occupied(entry) => entry.get().clone(),
+					Entry::Vacant(entry) => {
+						// We store NotFound errors in the cache, so as to avoid continuously checking the repository for them.
+						let result = match self.read_sheet_schema(name) {
+							result @ Ok(_) | result @ Err(Error::NotFound(_)) => result,
+							Err(other_error) => return Err(other_error),
+						};
+						entry.insert(result).clone()
+					}
+				}
+			}
+		}
 	}
 }
