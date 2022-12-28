@@ -2,6 +2,7 @@ use std::{
 	borrow::Cow,
 	env::current_exe,
 	path::{Path, PathBuf},
+	sync::{Arc, Mutex},
 };
 
 use derivative::Derivative;
@@ -59,7 +60,7 @@ impl Default for ProviderOptions {
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
-	repository: Repository,
+	repository: Arc<Mutex<Repository>>,
 }
 
 impl Provider {
@@ -88,13 +89,16 @@ impl Provider {
 			false => clone_repository(remote, &directory),
 		}?;
 
-		Ok(Self { repository })
+		Ok(Self {
+			repository: Arc::new(Mutex::new(repository)),
+		})
 	}
 
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, version: &str) -> Result<Version> {
-		let commit = self.repository.revparse_single(version)?.peel_to_commit()?;
-		Ok(Version::new(&self.repository, commit))
+		let repository = self.repository.lock().unwrap();
+		let commit = repository.revparse_single(version)?.peel_to_commit()?;
+		Ok(Version::new(self.repository.clone(), commit.id()))
 	}
 }
 
