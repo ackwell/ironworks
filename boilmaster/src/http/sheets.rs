@@ -45,10 +45,17 @@ struct FieldFilterQuery {
 	fields: Option<Warnings<Option<FieldFilter>>>,
 }
 
+// TODO: likewise with field filter, should be reuseable
+#[derive(Deserialize)]
+struct SchemaQuery {
+	schema: Option<schema::Specifier>,
+}
+
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
+	Query(schema_query): Query<SchemaQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
@@ -62,7 +69,7 @@ async fn row(
 	}
 
 	// TODO: this would presumably be specified as a provider:version pair in some way
-	let schema = schema_provider.schema("saint-coinach", None)?;
+	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let row = sheet.row(row_id)?;
 	let columns = sheet.columns()?;
@@ -91,6 +98,7 @@ async fn row(
 async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
+	Query(schema_query): Query<SchemaQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
@@ -104,7 +112,7 @@ async fn subrow(
 	}
 
 	// TODO: this would presumably be specified as a provider:version pair in some way
-	let schema = schema_provider.schema("saint-coinach", None)?;
+	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let row = sheet.subrow(row_id, subrow_id)?;
 	let columns = sheet.columns()?;

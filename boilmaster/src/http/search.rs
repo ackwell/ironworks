@@ -25,6 +25,12 @@ struct SearchQuery {
 	query: query::pre::Node,
 }
 
+// TODO: reuse this with sheets
+#[derive(Deserialize)]
+struct SchemaQuery {
+	schema: Option<schema::Specifier>,
+}
+
 // TODO: flesh this out - at the moment it's just a 1:1 of searchresult, pending ideas on how to field filter for search results across multiple indices
 #[derive(Debug, Serialize)]
 struct SearchResult {
@@ -37,6 +43,7 @@ struct SearchResult {
 #[debug_handler]
 async fn search(
 	Query(search_query): Query<SearchQuery>,
+	Query(schema_query): Query<SchemaQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 	Extension(search): Extension<Arc<Search>>,
@@ -54,7 +61,7 @@ async fn search(
 	});
 
 	// TODO: this would presumably be specified as a provider:version pair in some way
-	let schema = schema_provider.schema("saint-coinach", None)?;
+	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let (results, warnings) = search_version
 		.search(&search_query.query, sheets, &excel, schema.as_ref())?
