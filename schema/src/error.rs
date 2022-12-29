@@ -27,6 +27,10 @@ impl From<git2::Error> for Error {
 /// A value associated with an error.
 #[derive(Debug, Clone)]
 pub enum ErrorValue {
+	#[cfg(feature = "saint_coinach")]
+	/// A version of a Saint Coinach schema.
+	Version(String),
+
 	/// A value not represented by other variants.
 	///
 	/// `ErrorValue`s of the `Other` type should only be `match`ed on with a wildcard
@@ -38,6 +42,9 @@ pub enum ErrorValue {
 impl fmt::Display for ErrorValue {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
+			#[cfg(feature = "saint_coinach")]
+			Self::Version(value) => write!(formatter, "version {value}"),
+
 			Self::Other(value) => write!(formatter, "{value}"),
 		}
 	}

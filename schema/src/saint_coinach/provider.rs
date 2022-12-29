@@ -7,7 +7,7 @@ use std::{
 };
 
 use derivative::Derivative;
-use git2::{build::RepoBuilder, Oid, Repository};
+use git2::{build::RepoBuilder, ErrorCode, Oid, Repository};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -116,12 +116,23 @@ impl Provider {
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, version: &str) -> Result<Version> {
 		let repository = self.repository.lock().unwrap();
-		let commit_id = repository.revparse_single(version)?.peel_to_commit()?.id();
+
+		let commit = repository
+			.revparse_single(version)
+			.and_then(|object| object.peel_to_commit())
+			.map_err(|error| match error.code() {
+				// NotFound stems from invalid input to revparse, and InvalidSpec is
+				// from a valid object reference that did not point to a commit.
+				ErrorCode::NotFound | ErrorCode::InvalidSpec => {
+					Error::NotFound(ErrorValue::Version(version.into()))
+				}
+				_ => Error::from(error),
+			})?;
 
 		Ok(Version::new(
 			self.repository.clone(),
 			self.cache.clone(),
-			commit_id,
+			commit.id(),
 		))
 	}
 }

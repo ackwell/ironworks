@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use anyhow::{Context, Result};
 use ironworks_schema::Schema;
 use serde::Deserialize;
 
-use super::{saint_coinach, Specifier};
+use super::{error::Error, saint_coinach, Specifier};
 
 pub trait Source: Send + Sync {
-	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema + '_>>;
+	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema + '_>, Error>;
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +23,7 @@ pub struct Provider {
 }
 
 impl Provider {
-	pub fn new(config: Config) -> Result<Self> {
+	pub fn new(config: Config) -> Result<Self, Error> {
 		// TODO: at the moment this will hard fail if any source fails - should i make sources soft fail?
 		Ok(Self {
 			default: config.default,
@@ -35,14 +34,13 @@ impl Provider {
 		})
 	}
 
-	pub fn schema(&self, specifier: Option<&Specifier>) -> Result<Box<dyn Schema + '_>> {
+	pub fn schema(&self, specifier: Option<&Specifier>) -> Result<Box<dyn Schema + '_>, Error> {
 		let specifier = specifier.unwrap_or(&self.default);
 
 		let source = self
 			.sources
 			.get(specifier.source.as_str())
-			// TODO: this should be exposed to consumers.
-			.context("unknown schema source")?;
+			.ok_or_else(|| Error::UnknownSource(specifier.source.clone()))?;
 		source.version(specifier.version.as_deref())
 	}
 }
