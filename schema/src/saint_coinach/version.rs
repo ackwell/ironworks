@@ -1,7 +1,11 @@
-use std::path::{Path, PathBuf};
+use std::{
+	collections::hash_map::Entry,
+	path::{Path, PathBuf},
+	sync::{Arc, Mutex},
+};
 
 use derivative::Derivative;
-use git2::{Commit, Object, Repository};
+use git2::{Object, Oid, Repository};
 use lazy_static::lazy_static;
 use serde_json::Value;
 
@@ -11,7 +15,7 @@ use crate::{
 	Schema,
 };
 
-use super::parse::parse_sheet_definition;
+use super::{parse::parse_sheet_definition, provider::SheetCache};
 
 lazy_static! {
 	static ref DEFINITION_PATH: PathBuf = ["SaintCoinach", "Definitions"].iter().collect();
@@ -20,26 +24,40 @@ lazy_static! {
 /// A single version of the SaintCoinach schema.
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct Version<'repo> {
+pub struct Version {
 	#[derivative(Debug = "ignore")]
-	repository: &'repo Repository,
-	commit: Commit<'repo>,
+	repository: Arc<Mutex<Repository>>,
+
+	#[derivative(Debug = "ignore")]
+	cache: SheetCache,
+
+	commit_id: Oid,
 }
 
-impl<'repo> Version<'repo> {
-	pub(super) fn new(repository: &'repo Repository, commit: Commit<'repo>) -> Self {
-		Version { repository, commit }
+impl Version {
+	pub(super) fn new(
+		repository: Arc<Mutex<Repository>>,
+		cache: SheetCache,
+		commit_id: Oid,
+	) -> Self {
+		Version {
+			repository,
+			cache,
+			commit_id,
+		}
 	}
 
 	/// Get the canonical name for this version.
 	pub fn canonical(&self) -> String {
-		self.commit.id().to_string()
+		self.commit_id.to_string()
 	}
 
 	/// Get a list of all sheets supported by this version.
 	pub fn sheet_names(&self) -> Result<Vec<String>> {
+		let repository = self.repository.lock().unwrap();
+
 		// Get the tree containing sheet definitions.
-		let object = self.object_at_path(&DEFINITION_PATH)?;
+		let object = self.object_at_path(&repository, &DEFINITION_PATH)?;
 		let tree = object.into_tree().map_err(|object| {
 			Error::Repository(format!(
 				"Definition path {:?} should be a tree, got {:?}",
@@ -49,7 +67,7 @@ impl<'repo> Version<'repo> {
 		})?;
 
 		// Collect all json files in the tree.
-		let iter = tree
+		let sheet_names = tree
 			.iter()
 			.filter_map(|entry| {
 				let name = entry.name()?;
@@ -60,29 +78,23 @@ impl<'repo> Version<'repo> {
 			})
 			.collect::<Vec<_>>();
 
-		Ok(iter)
+		Ok(sheet_names)
 	}
 
-	fn object_at_path(&self, path: &Path) -> Result<Object, git2::Error> {
-		self.commit
-			.tree()?
-			.get_path(path)?
-			.to_object(self.repository)
-	}
-}
-
-impl Schema for Version<'_> {
-	fn sheet(&self, name: &str) -> Result<Sheet> {
+	// TODO: Do we ever expect StC to hold schemas for quest/ or custom/? If not, can probably short circuit those entirely.
+	fn read_sheet_schema(&self, name: &str) -> Result<Sheet> {
+		// TODO: This currently locks the repository for all consumers until it has completed parsing, with the benefit of not copying the blob data into memory before running the parse. If the potential contention on this proves problematic, pull blob data into memory and drop the guard early.
+		let repository = self.repository.lock().unwrap();
 		let path = DEFINITION_PATH.join(format!("{name}.json"));
 
-		let object = self
-			.object_at_path(&path)
-			.map_err(|error| match error.code() {
-				git2::ErrorCode::NotFound => {
-					Error::NotFound(ErrorValue::Other(format!("Sheet {name}")))
-				}
-				_ => Error::from(error),
-			})?;
+		let object =
+			self.object_at_path(&repository, &path)
+				.map_err(|error| match error.code() {
+					git2::ErrorCode::NotFound => {
+						Error::NotFound(ErrorValue::Other(format!("Sheet {name}")))
+					}
+					_ => Error::from(error),
+				})?;
 
 		let blob = object.into_blob().map_err(|object| {
 			Error::Repository(format!(
@@ -109,5 +121,42 @@ impl Schema for Version<'_> {
 		};
 
 		Ok(sheet)
+	}
+
+	fn object_at_path<'a>(
+		&self,
+		repository: &'a Repository,
+		path: &Path,
+	) -> Result<Object<'a>, git2::Error> {
+		repository
+			.find_commit(self.commit_id)?
+			.tree()?
+			.get_path(path)?
+			.to_object(repository)
+	}
+}
+
+impl Schema for Version {
+	fn sheet(&self, name: &str) -> Result<Sheet> {
+		match &self.cache {
+			// No cache set up, read directly.
+			None => self.read_sheet_schema(name),
+
+			// A cache is available, try to read from it.
+			Some(cache_mutex) => {
+				let mut cache = cache_mutex.lock().unwrap();
+				match cache.entry((self.commit_id, name.to_string())) {
+					Entry::Occupied(entry) => entry.get().clone(),
+					Entry::Vacant(entry) => {
+						// We store NotFound errors in the cache, so as to avoid continuously checking the repository for them.
+						let result = match self.read_sheet_schema(name) {
+							result @ Ok(_) | result @ Err(Error::NotFound(_)) => result,
+							Err(other_error) => return Err(other_error),
+						};
+						entry.insert(result).clone()
+					}
+				}
+			}
+		}
 	}
 }

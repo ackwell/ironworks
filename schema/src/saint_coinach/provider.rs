@@ -1,13 +1,18 @@
 use std::{
 	borrow::Cow,
+	collections::HashMap,
 	env::current_exe,
 	path::{Path, PathBuf},
+	sync::{Arc, Mutex},
 };
 
 use derivative::Derivative;
-use git2::{build::RepoBuilder, Repository};
+use git2::{build::RepoBuilder, ErrorCode, Oid, Repository};
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::{
+	error::{Error, ErrorValue, Result},
+	Sheet,
+};
 
 use super::version::Version;
 
@@ -20,6 +25,7 @@ const REPOSITORY_DIRECTORY: &str = "saint_coinach";
 pub struct ProviderOptions {
 	remote: Option<String>,
 	directory: Option<PathBuf>,
+	cache: bool,
 }
 
 impl ProviderOptions {
@@ -27,18 +33,25 @@ impl ProviderOptions {
 		ProviderOptions {
 			remote: None,
 			directory: None,
+			cache: true,
 		}
 	}
 
 	/// Set the git remote URL to fetch SaintCoinach from.
-	pub fn remote(&mut self, remote: impl ToString) -> &mut Self {
+	pub fn remote(mut self, remote: impl ToString) -> Self {
 		self.remote = Some(remote.to_string());
 		self
 	}
 
 	/// Set the local directory to clone SaintCoinach to.
-	pub fn directory(&mut self, directory: impl Into<PathBuf>) -> &mut Self {
+	pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
 		self.directory = Some(directory.into());
+		self
+	}
+
+	/// Enable or disable caching of sheet schemas.
+	pub fn cache(mut self, cache: bool) -> Self {
+		self.cache = cache;
 		self
 	}
 
@@ -54,12 +67,17 @@ impl Default for ProviderOptions {
 	}
 }
 
+// TODO: per notes; look into allowing support for multiple readers without race conditions
+pub type SheetCache = Option<Arc<Mutex<HashMap<(Oid, String), Result<Sheet>>>>>;
+
 /// A schema provider sourcing data from the SaintCoinach schema repository.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
-	repository: Repository,
+	repository: Arc<Mutex<Repository>>,
+
+	cache: SheetCache,
 }
 
 impl Provider {
@@ -88,13 +106,33 @@ impl Provider {
 			false => clone_repository(remote, &directory),
 		}?;
 
-		Ok(Self { repository })
+		Ok(Self {
+			repository: Arc::new(Mutex::new(repository)),
+			cache: options.cache.then(|| Arc::new(Mutex::new(HashMap::new()))),
+		})
 	}
 
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, version: &str) -> Result<Version> {
-		let commit = self.repository.revparse_single(version)?.peel_to_commit()?;
-		Ok(Version::new(&self.repository, commit))
+		let repository = self.repository.lock().unwrap();
+
+		let commit = repository
+			.revparse_single(version)
+			.and_then(|object| object.peel_to_commit())
+			.map_err(|error| match error.code() {
+				// NotFound stems from invalid input to revparse, and InvalidSpec is
+				// from a valid object reference that did not point to a commit.
+				ErrorCode::NotFound | ErrorCode::InvalidSpec => {
+					Error::NotFound(ErrorValue::Version(version.into()))
+				}
+				_ => Error::from(error),
+			})?;
+
+		Ok(Version::new(
+			self.repository.clone(),
+			self.cache.clone(),
+			commit.id(),
+		))
 	}
 }
 

@@ -9,7 +9,7 @@ use futures::Future;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
-use crate::{data::Data, search::Search};
+use crate::{data::Data, schema, search::Search};
 
 use super::{search, sheets};
 
@@ -23,6 +23,7 @@ pub async fn serve(
 	shutdown: impl Future<Output = ()>,
 	config: Config,
 	data: Arc<Data>,
+	schema: Arc<schema::Provider>,
 	search: Arc<Search>,
 ) -> Result<()> {
 	let bind_address = SocketAddr::new(
@@ -33,7 +34,7 @@ pub async fn serve(
 	tracing::info!("http binding to {bind_address:?}");
 
 	Server::bind(&bind_address)
-		.serve(router(data, search).into_make_service())
+		.serve(router(data, schema, search).into_make_service())
 		.with_graceful_shutdown(shutdown)
 		.await
 		.unwrap();
@@ -41,11 +42,12 @@ pub async fn serve(
 	Ok(())
 }
 
-fn router(data: Arc<Data>, search: Arc<Search>) -> Router {
+fn router(data: Arc<Data>, schema: Arc<schema::Provider>, search: Arc<Search>) -> Router {
 	Router::new()
 		.nest("/sheets", sheets::router())
 		.nest("/search", search::router(search))
-		// TODO: I'm not convinced by setting up the data layer this high, seems a bit magic so to speak
+		// TODO: I'm not convinced by setting up the extensions this high, seems a bit magic so to speak
 		.layer(Extension(data))
+		.layer(Extension(schema))
 		.layer(TraceLayer::new_for_http())
 }

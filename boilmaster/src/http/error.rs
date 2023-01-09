@@ -1,6 +1,8 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
 
+use crate::{schema, search};
+
 #[derive(Serialize)]
 pub struct ErrorResponse {
 	pub code: u16,
@@ -20,9 +22,19 @@ pub enum Error {
 	Other(#[from] anyhow::Error),
 }
 
-impl From<crate::search::SearchError> for Error {
-	fn from(error: crate::search::SearchError) -> Self {
-		use crate::search::SearchError as SE;
+impl From<schema::Error> for Error {
+	fn from(error: schema::Error) -> Self {
+		use schema::Error as SE;
+		match error {
+			SE::UnknownSource(_) | SE::InvalidVersion(_) => Self::Invalid(error.to_string()),
+			SE::Failure(inner) => Self::Other(inner),
+		}
+	}
+}
+
+impl From<search::SearchError> for Error {
+	fn from(error: search::SearchError) -> Self {
+		use search::SearchError as SE;
 		match error {
 			SE::FieldType(_)
 			| SE::MalformedQuery(_)

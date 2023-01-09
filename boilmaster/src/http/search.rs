@@ -3,11 +3,11 @@ use std::{collections::HashSet, sync::Arc};
 use anyhow::Context;
 use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks_schema::saint_coinach;
 use serde::{Deserialize, Serialize};
 
 use crate::{
 	data::Data,
+	schema,
 	search::{query, Search},
 };
 
@@ -25,6 +25,12 @@ struct SearchQuery {
 	query: query::pre::Node,
 }
 
+// TODO: reuse this with sheets
+#[derive(Deserialize)]
+struct SchemaQuery {
+	schema: Option<schema::Specifier>,
+}
+
 // TODO: flesh this out - at the moment it's just a 1:1 of searchresult, pending ideas on how to field filter for search results across multiple indices
 #[derive(Debug, Serialize)]
 struct SearchResult {
@@ -36,9 +42,11 @@ struct SearchResult {
 
 #[debug_handler]
 async fn search(
-	Extension(search): Extension<Arc<Search>>,
-	Extension(data): Extension<Arc<Data>>,
 	Query(search_query): Query<SearchQuery>,
+	Query(schema_query): Query<SchemaQuery>,
+	Extension(data): Extension<Arc<Data>>,
+	Extension(schema_provider): Extension<Arc<schema::Provider>>,
+	Extension(search): Extension<Arc<Search>>,
 ) -> Result<impl IntoResponse> {
 	// TODO: this should expose a more useful error to the end user.
 	let search_version = search.version(None).context("search index not ready")?;
@@ -52,12 +60,10 @@ async fn search(
 			.collect::<HashSet<_>>()
 	});
 
-	// TODO: this should, like with ./sheets.rs, be pulled from some shared resource with proper versioning.
-	let provider = saint_coinach::Provider::new()?;
-	let version = provider.version("HEAD")?;
+	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let (results, warnings) = search_version
-		.search(&search_query.query, sheets, &excel, &version)?
+		.search(&search_query.query, sheets, &excel, schema.as_ref())?
 		.decompose();
 
 	let http_results = results

@@ -5,6 +5,7 @@ pub mod data;
 mod field_filter;
 pub mod http;
 mod read;
+pub mod schema;
 pub mod search;
 pub mod tracing;
 mod utility;
