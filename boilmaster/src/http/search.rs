@@ -60,7 +60,6 @@ async fn search(
 			.collect::<HashSet<_>>()
 	});
 
-	// TODO: this would presumably be specified as a provider:version pair in some way
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let (results, warnings) = search_version

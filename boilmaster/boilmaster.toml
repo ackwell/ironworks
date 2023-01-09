@@ -10,6 +10,7 @@ port = 8080
 default = "saint-coinach"
 
 [schema.saint_coinach]
+# remote = "https://github.com/xivapi/SaintCoinach.git"
 directory = "saint_coinach"
 
 [search.index]

@@ -68,7 +68,6 @@ async fn row(
 		)));
 	}
 
-	// TODO: this would presumably be specified as a provider:version pair in some way
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let row = sheet.row(row_id)?;
@@ -111,7 +110,6 @@ async fn subrow(
 		)));
 	}
 
-	// TODO: this would presumably be specified as a provider:version pair in some way
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let row = sheet.subrow(row_id, subrow_id)?;

@@ -77,7 +77,6 @@ pub struct Provider {
 	#[derivative(Debug = "ignore")]
 	repository: Arc<Mutex<Repository>>,
 
-	// TODO: make this disable-able.
 	cache: SheetCache,
 }
 
