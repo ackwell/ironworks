@@ -117,6 +117,9 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 		let pages = header.pages();
 
 		// If we're past the end of the available pages, stop the iterator.
-		Ok(pages[self.page_index])
+		pages
+			.get(self.page_index)
+			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("Page {}", self.page_index))))
+			.copied()
 	}
 }
