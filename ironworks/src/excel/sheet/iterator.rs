@@ -1,9 +1,9 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, sync::Arc};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::SheetMetadata,
-	file::exh::{self, PageDefinition},
+	file::{exd, exh},
 };
 
 use super::{row_options::RowConfig, Sheet};
@@ -15,7 +15,7 @@ pub struct SheetIterator<'i, S> {
 	config: RowConfig,
 
 	page_index: usize,
-	row_offset: u32,
+	row_index: usize,
 	subrow_id: u16,
 
 	subrow_count: Option<u16>,
@@ -28,7 +28,7 @@ impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
 			config,
 
 			page_index: 0,
-			row_offset: 0,
+			row_index: 0,
 			subrow_id: 0,
 
 			subrow_count: None,
@@ -73,12 +73,12 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 		if self.subrow_id >= self.subrow_count()? {
 			self.subrow_id = 0;
 			self.subrow_count = None;
-			self.row_offset += 1;
+			self.row_index += 1;
 		}
 
 		// If the page bounds have been exceeded, move on to the next page.
-		if self.row_offset >= self.page_definition()?.row_count() {
-			self.row_offset = 0;
+		if self.row_index >= self.page()?.rows().len() {
+			self.row_index = 0;
 			self.page_index += 1;
 		}
 
@@ -91,14 +91,17 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 			exh::SheetKind::Subrows => match self.subrow_count {
 				Some(value) => value,
 				None => {
+					// TODO: this is reading the page out twice, which is really dumb. Expose more data via exd and move logic to excel to avoid this shit.
 					let row_id = self.row_id()?;
-					let page = self
-						.sheet
-						.page(row_id, self.subrow_id, self.config.language)
-						.expect("failed to read page while iterating");
-					let subrow_count = page
-						.subrow_count(row_id)
-						.expect("failed to read subrow count while iterating");
+					let page = self.page()?;
+
+					// If we get a row not found, we can assume that there are "zero" subrows, in an effort to skip this row.
+					let subrow_count = match page.subrow_count(row_id) {
+						Err(Error::NotFound(ErrorValue::Row { .. })) => Ok(0),
+						other => other,
+					}
+					.expect("failed to read subrow count while iterating");
+
 					*self.subrow_count.insert(subrow_count)
 				}
 			},
@@ -108,10 +111,15 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 	}
 
 	fn row_id(&self) -> Result<u32> {
-		Ok(self.page_definition()?.start_id() + self.row_offset)
+		Ok(self.page()?.rows()[self.row_index].id())
 	}
 
-	fn page_definition(&self) -> Result<PageDefinition> {
+	fn page(&self) -> Result<Arc<exd::ExcelData>> {
+		self.sheet
+			.page(self.page_definition()?.start_id(), self.config.language)
+	}
+
+	fn page_definition(&self) -> Result<exh::PageDefinition> {
 		// Get the metadata for this iteration.
 		let header = self.sheet.header()?;
 		let pages = header.pages();

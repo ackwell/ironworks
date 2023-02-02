@@ -118,7 +118,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		}
 
 		// Try to read in the page for the requested (sub)row.
-		let page = self.page(row_id, subrow_id, config.language)?;
+		let page = self.page_for_row(row_id, subrow_id, config.language)?;
 
 		let data = match header.kind() {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
@@ -139,27 +139,13 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 	}
 
 	// TODO: not a fan of the subrow id in this
-	pub(super) fn page(
+	fn page_for_row(
 		&self,
 		row_id: u32,
 		subrow_id: u16,
 		language: Option<Language>,
 	) -> Result<Arc<exd::ExcelData>> {
 		let header = self.header()?;
-
-		// Get the language to load, or NONE if the language is not supported by this sheet.
-		// TODO: Should an explicit language request fail hard on miss?
-		let requested_language = language.unwrap_or(self.default_language);
-		let language = [requested_language, Language::None]
-			.into_iter()
-			.find(|&language| header.languages().contains(&language.into()))
-			// TODO: Should this be Invalid or NotFound?
-			// TODO: Should we have an explicit ErrorValue for language?
-			.ok_or_else(|| {
-				Error::NotFound(ErrorValue::Other(format!(
-					"language {requested_language:?}"
-				)))
-			})?;
 
 		let start_id = header
 			.pages()
@@ -174,12 +160,40 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 			})?
 			.start_id();
 
+		self.page(start_id, language)
+	}
+
+	pub(super) fn page(
+		&self,
+		start_id: u32,
+		language: Option<Language>,
+	) -> Result<Arc<exd::ExcelData>> {
+		let language = self.resolve_language(language)?;
+
 		// Try to read in the page for the requested (sub)row.
 		self.cache
 			.pages
 			.try_get_or_insert((start_id, language), || {
 				let path = path::exd(&self.sheet_metadata.name(), start_id, language);
 				self.ironworks.file(&path)
+			})
+	}
+
+	fn resolve_language(&self, language: Option<Language>) -> Result<Language> {
+		let header = self.header()?;
+
+		// Get the language to load, or NONE if the language is not supported by this sheet.
+		// TODO: Should an explicit language request fail hard on miss?
+		let requested_language = language.unwrap_or(self.default_language);
+		[requested_language, Language::None]
+			.into_iter()
+			.find(|&language| header.languages().contains(&language.into()))
+			// TODO: Should this be Invalid or NotFound?
+			// TODO: Should we have an explicit ErrorValue for language?
+			.ok_or_else(|| {
+				Error::NotFound(ErrorValue::Other(format!(
+					"language {requested_language:?}"
+				)))
 			})
 	}
 }

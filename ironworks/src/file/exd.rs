@@ -3,6 +3,7 @@
 use std::io::{Cursor, Read, Seek};
 
 use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
+use getset::{CopyGetters, Getters};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -14,7 +15,7 @@ use super::file::File;
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, Getters)]
 #[br(big, magic = b"EXDF")]
 pub struct ExcelData {
 	_version: u16,
@@ -23,10 +24,12 @@ pub struct ExcelData {
 	index_size: u32,
 
 	// unknown2: [u16; 10],
+	/// Vector of rows contained within this page.
 	#[br(
     pad_before = 20,
     count = index_size / RowDefinition::SIZE,
   )]
+	#[get = "pub"]
 	rows: Vec<RowDefinition>,
 
 	#[br(parse_with = current_position)]
@@ -120,10 +123,13 @@ impl File for ExcelData {
 	}
 }
 
+/// Metadata of a row contained in a page.
 #[binread]
-#[derive(Debug)]
+#[derive(Debug, CopyGetters)]
 #[br(big)]
-struct RowDefinition {
+pub struct RowDefinition {
+	/// Primary key ID of this row.
+	#[get_copy = "pub"]
 	id: u32,
 	offset: u32,
 }
