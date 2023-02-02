@@ -111,7 +111,14 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 	}
 
 	fn row_id(&self) -> Result<u32> {
-		Ok(self.page()?.rows()[self.row_index].id())
+		let id = self
+			.page()?
+			.rows()
+			.get(self.row_index)
+			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("Row {}", self.row_index))))?
+			.id();
+
+		Ok(id)
 	}
 
 	fn page(&self) -> Result<Arc<exd::ExcelData>> {
