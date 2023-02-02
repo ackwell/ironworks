@@ -135,7 +135,7 @@ impl Resource for Install {
 		// longhand here so I can shortcut seek failures.
 		let size = match location.size() {
 			Some(size) => u64::from(size),
-			None => offset - file.seek(io::SeekFrom::End(0))?,
+			None => file.seek(io::SeekFrom::End(0))? - offset,
 		};
 
 		file.seek(io::SeekFrom::Start(offset))?;
