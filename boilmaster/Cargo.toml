@@ -11,9 +11,11 @@ axum-macros = "0.2.0"
 either = "1.8.0"
 figment = {version = "0.10.8", features = ["env", "toml"]}
 futures = "0.3.25"
+graphql_client = {version = "0.12.0"}
 ironworks = {path = "../ironworks", features = ["excel", "sqpack"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 nom = "7.1.1"
+reqwest = {version = "0.11.14", features = ["json"]}
 serde = {version = "1.0.137", features = ["derive"]}
 tantivy = "0.19.0"
 thiserror = "1.0.30"

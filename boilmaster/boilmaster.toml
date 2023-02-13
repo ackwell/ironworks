@@ -6,6 +6,14 @@ tantivy = "warn"
 # address = "0.0.0.0"
 port = 8080
 
+[patch]
+repositories = [
+  "4e9a232b", # ffxiv
+]
+
+[patch.thaliak]
+endpoint = "https://thaliak.xiv.dev/graphql/2022-08-14"
+
 [schema]
 default = "saint-coinach"
 
