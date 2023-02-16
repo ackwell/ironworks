@@ -6,13 +6,21 @@ use std::{
 
 use crate::error::Result;
 
+/// Representation of a single patch file.
+#[derive(Debug)]
+pub struct Patch {
+	/// Canonical name of the patch. Typically conforms to the format Y.M.D.P.Rp,
+	/// where \[Y]ear, \[M]onth, \[D]ay, \[P]art, \[R]evision, \[p]art-but-for-HISTs
+	pub name: String,
+	/// Path to the patch file on disk.
+	pub path: PathBuf,
+}
+
 /// Representation of a folder containing patch files.
 #[derive(Debug)]
 pub struct PatchRepository {
-	/// The filesystem path to the folder containing the patch files.
-	pub base_directory: PathBuf,
-	/// List of patch names. This should _not_ include the `.patch` suffix.
-	pub patches: Vec<String>,
+	/// List of patches in this repository
+	pub patches: Vec<Patch>,
 }
 
 impl PatchRepository {
@@ -27,33 +35,33 @@ impl PatchRepository {
 				};
 
 				let extension = patch_path.extension().and_then(|osstr| osstr.to_str());
-				match patch_path.is_file() && extension == Some("patch") {
-					// TODO: should this error if the string conversion fails? atm it just ->None's
-					true => patch_path
-						.file_stem()
-						.and_then(|osstr| osstr.to_str())
-						.map(|str| Ok(str.to_string())),
 
-					false => None,
+				if !(patch_path.is_file() && extension == Some("patch")) {
+					return None;
 				}
+
+				// TODO: should this error if the string conversion fails? atm it just ->None's
+				let name = patch_path.file_stem()?.to_str()?.to_string();
+
+				Some(Ok(Patch {
+					name,
+					path: patch_path,
+				}))
 			})
 			.collect::<Result<Vec<_>, _>>()?;
 
-		patches.sort_unstable_by(|a, b| sort_patches(a, b));
+		patches.sort_unstable_by(sort_patches);
 
-		Ok(Self {
-			base_directory: repository_path.to_owned(),
-			patches,
-		})
+		Ok(Self { patches })
 	}
 }
 
-fn sort_patches(a: &str, b: &str) -> Ordering {
+fn sort_patches(Patch { name: ref a, .. }: &Patch, Patch { name: ref b, .. }: &Patch) -> Ordering {
 	match a[1..].cmp(&b[1..]) {
 		// The prefix "type" character is only ever [D]IFF or [H]IST - HIST always sorts first.
 		Ordering::Equal => a[0..1].cmp(&b[0..1]).reverse(),
 
-		// The primary "version" portion of the patch name is string-sortable (Y.M.D.P.Rp, where [P]art, [R]evision, [p]art-but-for-HISTs).
+		// The primary "version" portion of the patch name is string-sortable.
 		order => order,
 	}
 }

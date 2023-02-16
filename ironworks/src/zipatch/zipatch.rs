@@ -7,7 +7,7 @@ use crate::error::Result;
 
 use super::{
 	lookup::PatchLookup,
-	repository::PatchRepository,
+	repository::{Patch, PatchRepository},
 	version::{Version, VersionSpecifier},
 };
 
@@ -66,15 +66,9 @@ impl LookupCache {
 		}
 	}
 
-	// TODO: Not a fan of both repo id and repo in this sig. Consider how that can be improved.
-	pub fn lookup(
-		&self,
-		repository_id: u8,
-		repository: &PatchRepository,
-		patch: &str,
-	) -> Result<Arc<PatchLookup>> {
+	pub fn lookup(&self, repository_id: u8, patch: &Patch) -> Result<Arc<PatchLookup>> {
 		// TODO: Can I avoid the clone on the string? Seems shit.
-		let key = (repository_id, patch.to_string());
+		let key = (repository_id, patch.name.clone());
 
 		// TODO: honestly this might make sense as an alternate impl of the hashmapcache
 		// Grab a read guard and try to get an existing lookup.
@@ -85,9 +79,7 @@ impl LookupCache {
 		drop(cache_read);
 
 		// Build a new lookup for this patch.
-		let lookup = Arc::new(PatchLookup::new(
-			&repository.base_directory.join(format!("{patch}.patch")),
-		)?);
+		let lookup = Arc::new(PatchLookup::new(&patch.path)?);
 
 		// Write the new lookup to the cache.
 		let mut cache_write = self.cache.write().unwrap();
