@@ -8,6 +8,7 @@ port = 8080
 
 [patch]
 directory = "patches"
+concurrency = 4
 repositories = [
   "4e9a232b", # ffxiv
 ]
