@@ -1,4 +1,4 @@
 mod patch;
 mod thaliak;
 
-pub use patch::{test, Config};
+pub use patch::{test, Config, Patch};

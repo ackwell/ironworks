@@ -4,6 +4,8 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use serde::Deserialize;
 
+use crate::patch::Patch;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
 	endpoint: String,
@@ -16,14 +18,6 @@ pub struct Config {
 	response_derives = "Debug"
 )]
 pub struct RepositoryQuery;
-
-// TODO: this should be imported from something in the patch:: namespace directly, as technically it forms a part of the "provider" contract that other non-thaliak-related things will be dealing with
-#[derive(Debug)]
-struct Patch {
-	name: String,
-	url: String,
-	// TODO: hash check or size check or something?
-}
 
 pub struct Provider {
 	config: Config,
@@ -39,7 +33,7 @@ impl Provider {
 	}
 
 	// TODO: how does versioning fall in on this? patch _lists_ technically sit above the concept of versions, but SE has a habit of "deprecating" patch files, which means that a patch list is only ever a point-in-time snapshot. Given that, I'm tempted to say that short term patch list should just represent "latest", and when i get around to actually building versioning, a version should "snapshot" the patch list at the time it's created (or configured or whatever) for reproducibility in the repository data cache.
-	pub async fn patches(&self, repository: String) -> Result<()> {
+	pub async fn patches(&self, repository: String) -> Result<Vec<Patch>> {
 		// Request data from Thaliak.
 		let query = RepositoryQuery::build_query(repository_query::Variables { repository });
 
@@ -103,8 +97,6 @@ impl Provider {
 			}
 		}
 
-		println!("result {patches:#?}");
-
-		Ok(())
+		Ok(patches)
 	}
 }
