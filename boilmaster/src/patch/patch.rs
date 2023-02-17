@@ -109,7 +109,7 @@ async fn download_patch(
 ) -> Result<()> {
 	let permit = semaphore.acquire().await.unwrap();
 
-	tracing::debug!("downloading patch {}", patch.name);
+	tracing::info!("downloading patch {}", patch.name);
 
 	// Create the target file before opening any connections.
 	let path = repository_directory.join(format!("{}.patch", &patch.name));
@@ -123,12 +123,20 @@ async fn download_patch(
 
 	// Stream the file to disk.
 	let mut position = 0;
+	let mut last_report = 0.;
 	while let Some(chunk) = response.chunk().await? {
 		// this is probably blocking - is it worth doing some of this on a spawn_blocking?
 		target_file.write_all(&chunk)?;
 
 		position += u64::try_from(chunk.len()).unwrap();
-		tracing::debug!("{}: {position}/{content_length}", patch.name);
+		let report_pos = f64::round((position as f64 / content_length as f64) * 20.) * 5.;
+		if report_pos > last_report {
+			tracing::debug!(
+				"{}: {position}/{content_length} ({report_pos}%)",
+				patch.name
+			);
+			last_report = report_pos;
+		}
 	}
 
 	drop(permit);
