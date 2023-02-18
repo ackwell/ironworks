@@ -77,6 +77,7 @@ impl Provider {
 			patches.push(Patch {
 				name: version.version_string.clone(),
 				url: patch.url.clone(),
+				size: patch.size.try_into().unwrap(),
 			});
 
 			// Grab the prerequsite versions data, split along is_active - we'll always

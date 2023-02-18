@@ -11,6 +11,7 @@ query RepositoryQuery($repository: String!) {
       }
       patches {
         url
+        size
       }
     }
   }

@@ -13,7 +13,7 @@ use super::thaliak;
 pub struct Patch {
 	pub name: String,
 	pub url: String,
-	// TODO: hash check or size check or something?
+	pub size: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,11 +73,28 @@ async fn build_repository(
 		})
 		.collect::<Vec<_>>();
 
-	// Any paths that do not exist locally need to be downloaded.
-	// TODO: Check size or something here in case there was a partial download.
+	// Any paths that do not exist locally, or are the incorrect size, need to be (re-)downloaded.
 	let required_patches = expected_patches
 		.iter()
-		.filter(|(_patch, path)| !path.is_file())
+		.filter(|(patch, path)| {
+			let metadata = match path.metadata() {
+				Ok(metadata) => metadata,
+				Err(_error) => return true,
+			};
+
+			let size_matches = metadata.len() == patch.size;
+
+			if !size_matches {
+				tracing::warn!(
+					"patch {} size mismatch, re-fetching (expected {}, got {})",
+					patch.name,
+					patch.size,
+					metadata.len()
+				);
+			}
+
+			!path.is_file() || !size_matches
+		})
 		.collect::<Vec<_>>();
 
 	if !required_patches.is_empty() {
