@@ -97,6 +97,10 @@ impl Provider {
 			}
 		}
 
+		// Ironworks expects patches to be specified oldest-first - building down
+		// from latest is the opposite of that, obviously, so fix that up.
+		patches.reverse();
+
 		Ok(patches)
 	}
 }
