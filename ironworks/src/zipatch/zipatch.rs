@@ -1,6 +1,6 @@
 use std::{
-	collections::HashMap,
-	sync::{Arc, RwLock},
+	collections::{hash_map::Entry, HashMap},
+	sync::{Arc, Condvar, Mutex},
 };
 
 use crate::error::Result;
@@ -54,9 +54,12 @@ impl Default for ZiPatch {
 	}
 }
 
+type CacheKey = (u8, String); // (repository, patch_name)
+type CacheSync<T> = Arc<(Mutex<Option<T>>, Condvar)>;
+
 #[derive(Debug)]
 pub struct LookupCache {
-	cache: RwLock<HashMap<(u8, String), Arc<PatchLookup>>>,
+	cache: Mutex<HashMap<CacheKey, CacheSync<Arc<PatchLookup>>>>,
 }
 
 impl LookupCache {
@@ -71,19 +74,40 @@ impl LookupCache {
 		let key = (repository_id, patch.name.clone());
 
 		// TODO: honestly this might make sense as an alternate impl of the hashmapcache
-		// Grab a read guard and try to get an existing lookup.
-		let cache_read = self.cache.read().unwrap();
-		if let Some(lookup) = cache_read.get(&key) {
-			return Ok(Arc::clone(lookup));
+		// Get a lock on the main cache and fetch the internal sync primative. We're
+		// also recording if it existed prior to this call.
+		let mut cache = self.cache.lock().unwrap();
+		let (occupied, value) = match cache.entry(key) {
+			Entry::Occupied(entry) => (true, entry.get().clone()),
+			Entry::Vacant(entry) => (
+				false,
+				entry
+					.insert(Arc::new((Mutex::new(None), Condvar::new())))
+					.clone(),
+			),
 		};
-		drop(cache_read);
+		drop(cache);
+
+		let (mutex, condvar) = &*value;
+
+		// If the cache entry already existed, some other thread is building the
+		// lookup already - wait for it to complete via the condvar.
+		if occupied {
+			let mut value = mutex.lock().unwrap();
+			while value.is_none() {
+				value = condvar.wait(value).unwrap();
+			}
+			return Ok(value.as_ref().expect("lock condition broken").clone());
+		}
 
 		// Build a new lookup for this patch.
 		let lookup = Arc::new(PatchLookup::new(&patch.path)?);
 
 		// Write the new lookup to the cache.
-		let mut cache_write = self.cache.write().unwrap();
-		let lookup = cache_write.entry(key).or_insert(lookup);
-		Ok(Arc::clone(lookup))
+		let mut value = mutex.lock().unwrap();
+		*value = Some(lookup.clone());
+		condvar.notify_all();
+
+		Ok(lookup)
 	}
 }
