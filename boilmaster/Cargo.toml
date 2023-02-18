@@ -12,7 +12,7 @@ either = "1.8.0"
 figment = {version = "0.10.8", features = ["env", "toml"]}
 futures = "0.3.25"
 graphql_client = {version = "0.12.0"}
-ironworks = {path = "../ironworks", features = ["excel", "sqpack"]}
+ironworks = {path = "../ironworks", features = ["excel", "sqpack", "zipatch"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 nom = "7.1.1"
 reqwest = {version = "0.11.14", features = ["json"]}

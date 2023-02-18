@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use ironworks::{
 	excel::{Excel, Language},
-	sqpack::{Install, SqPack},
+	sqpack::SqPack,
+	zipatch::{VersionSpecifier, ZiPatch},
 	Ironworks,
 };
 
@@ -12,15 +13,14 @@ pub struct Data {
 }
 
 impl Data {
-	#[allow(clippy::new_without_default)]
-	pub fn new() -> Self {
+	pub fn new(temp_zipatch: ZiPatch) -> Self {
 		Data {
-			temp_version: Version::new(),
+			temp_version: Version::new(temp_zipatch),
 		}
 	}
 
 	pub fn version(&self, version: Option<&str>) -> &Version {
-		// TODO: actual version handling, pulling data from an actual game install. need patching and all that shit.
+		// TODO: actual version handling, pulling data from an actual game install.
 		if version.is_some() {
 			todo!("data version handling");
 		}
@@ -34,9 +34,13 @@ pub struct Version {
 }
 
 impl Version {
-	fn new() -> Self {
+	fn new(temp_zipatch: ZiPatch) -> Self {
+		// TODO: Given how different versions will end up having different paths through the patch files, i'm tempted to say that zipatch having versioning in itself is useless and should be removed.
+		let zipatch_version = temp_zipatch.version(VersionSpecifier::latest());
+
 		// TODO: Work out how to handle languages
-		let ironworks = Ironworks::new().with_resource(SqPack::new(Install::search().unwrap()));
+		// let ironworks = Ironworks::new().with_resource(SqPack::new(Install::search().unwrap()));
+		let ironworks = Ironworks::new().with_resource(SqPack::new(zipatch_version));
 		let excel = Excel::with()
 			.language(Language::English)
 			.build(Arc::new(ironworks));

@@ -1,4 +1,4 @@
 mod patch;
 mod thaliak;
 
-pub use patch::{test, Config, Patch};
+pub use patch::{wip_build_zipatch, Config, Patch};
