@@ -81,13 +81,17 @@ impl Provider {
 
 			// Grab the prerequsite versions data, split along is_active - we'll always
 			// priotitise selecting active versions.
-			let (active_versions, inactive_versions) = version
+			let (mut active_versions, inactive_versions) = version
 				.prerequisite_versions
 				.iter()
 				.filter_map(|specifier| versions.get(&specifier.version_string))
 				.partition::<Vec<_>, _>(|version| version.is_active);
 
 			// TODO: What does >1 active version imply? It seems to occur in places where it implies skipping a whole bunch of intermediary patches - i have to assume hotfixes. Is it skipping a bunch of .exe updates because they get bundled into the next main patch file as well?
+			// It seems like it _can_ just be a bug; for sanity purposes, we're sorting
+			// the array first to ensure that the "newest" active version is picked to
+			// avoid accidentally skipping a bunch of patches. Patch names are string-sortable.
+			active_versions.sort_by(|a, b| a.version_string.cmp(&b.version_string).reverse());
 
 			// Try to select the active version to record next. If the current version
 			// is inactive, allow falling back to inactive prerequesites as well.
