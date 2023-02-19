@@ -1,0 +1,18 @@
+query RepositoryQuery($repository: String!) {
+  repository(slug: $repository) {
+    latestVersion {
+      versionString
+    }
+    versions {
+      versionString
+      isActive
+      prerequisiteVersions {
+        versionString
+      }
+      patches {
+        url
+        size
+      }
+    }
+  }
+}

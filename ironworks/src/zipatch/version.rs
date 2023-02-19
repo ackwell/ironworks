@@ -87,10 +87,10 @@ impl Version {
 					// None implies the latest patch available, never skip.
 					None => false,
 					// Skip while the patch doesn't match.
-					Some(target) => *patch != target,
+					Some(target) => &patch.name != target,
 				}
 			})
-			.map(move |patch| self.cache.lookup(repository_id, repository, patch));
+			.map(move |patch| self.cache.lookup(repository_id, patch));
 
 		Ok(iterator)
 	}

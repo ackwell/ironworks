@@ -6,7 +6,7 @@ mod version;
 mod zipatch;
 
 pub use {
-	repository::PatchRepository,
+	repository::{Patch, PatchRepository},
 	version::{Version, VersionSpecifier},
 	zipatch::ZiPatch,
 };
