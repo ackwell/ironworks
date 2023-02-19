@@ -107,8 +107,6 @@ async fn build_repository(
 			.map(|(patch, path)| download_patch(&client, patch, path, semaphore));
 
 		try_join_all(downloads).await?;
-
-		tracing::info!("complete");
 	}
 
 	// Download is complete; all the patches exist - build a zipatch repository.
