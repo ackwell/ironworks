@@ -13,6 +13,7 @@ use crate::{data::Data, field_filter::FieldFilter, read, schema, utility::warnin
 
 use super::{
 	error::{Anyhow, Error, Result},
+	language::LanguageWrapper,
 	path::Path,
 };
 
@@ -51,11 +52,18 @@ struct SchemaQuery {
 	schema: Option<schema::Specifier>,
 }
 
+// TODO: ditto. given these 3 all feed into the concept of reading, perhaps they should be grouped? search will likely accept the same. in saying that, search also uses the schema for searching so maybe not quite that simple
+#[derive(Deserialize)]
+struct LanguageQuery {
+	language: Option<LanguageWrapper>,
+}
+
 #[debug_handler]
 async fn row(
 	Path((sheet_name, row_id)): Path<(String, u32)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Query(schema_query): Query<SchemaQuery>,
+	Query(language_query): Query<LanguageQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
