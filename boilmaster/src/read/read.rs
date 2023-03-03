@@ -8,21 +8,52 @@ use crate::{field_filter::FieldFilter, utility::field};
 
 use super::value::{Reference, Value};
 
-#[derive(Clone)]
-pub struct ReaderContext<'a> {
-	pub excel: &'a excel::Excel<'a>,
-	pub schema: &'a dyn schema::Schema,
-	pub filter: Option<&'a FieldFilter>,
+pub fn read(
+	excel: &excel::Excel,
+	schema: &dyn schema::Schema,
 
-	pub row: &'a excel::Row,
-	pub limit: u8,
+	language: excel::Language,
+	filter: Option<&FieldFilter>,
 
-	pub columns: &'a [exh::ColumnDefinition],
+	sheet_name: &str,
+	row_id: u32,
+	subrow_id: u16,
+) -> Result<Value> {
+	let sheet_schema = schema.sheet(sheet_name)?;
+
+	let sheet = excel.sheet(sheet_name)?;
+	let row = sheet.subrow(row_id, subrow_id)?;
+	let columns = sheet.columns()?;
+
+	read_sheet(
+		sheet_schema,
+		ReaderContext {
+			excel,
+			schema,
+
+			language,
+			filter,
+
+			row: &row,
+			columns: &columns,
+			limit: 1,
+		},
+	)
 }
 
-pub fn read_sheet(sheet_name: &str, context: ReaderContext) -> Result<Value> {
-	let sheet = context.schema.sheet(sheet_name)?;
+#[derive(Clone)]
+struct ReaderContext<'a> {
+	excel: &'a excel::Excel<'a>,
+	schema: &'a dyn schema::Schema,
 
+	language: excel::Language,
+	filter: Option<&'a FieldFilter>,
+	row: &'a excel::Row,
+	columns: &'a [exh::ColumnDefinition],
+	limit: u8,
+}
+
+fn read_sheet(sheet: schema::Sheet, context: ReaderContext) -> Result<Value> {
 	if sheet.order != schema::Order::Index {
 		todo!("sheet schema {:?} order", sheet.order);
 	}
@@ -101,7 +132,7 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 		// Get the target sheet's data and schema. Intentionally fail hard, as any
 		// mismatch here can cause incorrect joins.
 		let sheet_data = context.excel.sheet(&target.sheet)?;
-		// let sheet_schema = context.schema.sheet(&target.sheet)?;
+		let sheet_schema = context.schema.sheet(&target.sheet)?;
 
 		// TODO: non-id targets. how will this work alongside subrows?
 		if target.selector.is_some() {
@@ -124,7 +155,7 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 		reference.sheet = Some(target.sheet.clone());
 		reference.data = Some(
 			read_sheet(
-				&target.sheet,
+				sheet_schema,
 				ReaderContext {
 					row: &row_data,
 					limit: context.limit - 1,

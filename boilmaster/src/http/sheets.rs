@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
-use ironworks::{
-	excel::{Excel, Row},
-	file::exh,
-};
-use ironworks_schema::Schema;
+use ironworks::{excel::Language, file::exh};
 use serde::Deserialize;
 
 use crate::{
@@ -82,9 +78,6 @@ async fn row(
 
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
-	let row = sheet.row(row_id)?;
-	let columns = sheet.columns()?;
-
 	let (field_filter, warnings) = field_filter_query
 		.fields
 		.unwrap_or_else(|| Warnings::new(None))
@@ -93,13 +86,19 @@ async fn row(
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(
-		&sheet_name,
+	let language = language_query
+		.language
+		.map(Language::from)
+		.unwrap_or_else(|| data.default_language());
+
+	let result = read::read(
 		&excel,
 		schema.as_ref(),
-		&row,
+		language,
 		field_filter.as_ref(),
-		&columns,
+		&sheet_name,
+		row_id,
+		0, // subrow_id,
 	)?;
 
 	Ok(Json(result))
@@ -125,9 +124,6 @@ async fn subrow(
 
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
-	let row = sheet.subrow(row_id, subrow_id)?;
-	let columns = sheet.columns()?;
-
 	let (field_filter, warnings) = field_filter_query
 		.fields
 		.unwrap_or_else(|| Warnings::new(None))
@@ -136,37 +132,20 @@ async fn subrow(
 		todo!("handle warnings in http layer");
 	}
 
-	let result = read_row(
-		&sheet_name,
+	let language = language_query
+		.language
+		.map(Language::from)
+		.unwrap_or_else(|| data.default_language());
+
+	let result = read::read(
 		&excel,
 		schema.as_ref(),
-		&row,
+		language,
 		field_filter.as_ref(),
-		&columns,
+		&sheet_name,
+		row_id,
+		subrow_id,
 	)?;
 
 	Ok(Json(result))
-}
-
-fn read_row(
-	sheet_name: &str,
-	excel: &Excel,
-	schema: &dyn Schema,
-	row: &Row,
-	filter: Option<&FieldFilter>,
-	columns: &[exh::ColumnDefinition],
-) -> Result<read::Value> {
-	let value = read::read_sheet(
-		sheet_name,
-		read::ReaderContext {
-			excel,
-			schema,
-			filter,
-			row,
-			limit: 1,
-			columns,
-		},
-	)?;
-
-	Ok(value)
 }
