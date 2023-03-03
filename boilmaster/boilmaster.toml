@@ -6,6 +6,9 @@ tantivy = "warn"
 # address = "0.0.0.0"
 port = 8080
 
+[data]
+language = "en"
+
 [patch]
 directory = "patches"
 concurrency = 4

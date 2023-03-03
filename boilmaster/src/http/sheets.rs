@@ -9,11 +9,15 @@ use ironworks::{
 use ironworks_schema::Schema;
 use serde::Deserialize;
 
-use crate::{data::Data, field_filter::FieldFilter, read, schema, utility::warnings::Warnings};
+use crate::{
+	data::{Data, LanguageString},
+	field_filter::FieldFilter,
+	read, schema,
+	utility::warnings::Warnings,
+};
 
 use super::{
 	error::{Anyhow, Error, Result},
-	language::LanguageWrapper,
 	path::Path,
 };
 
@@ -55,7 +59,7 @@ struct SchemaQuery {
 // TODO: ditto. given these 3 all feed into the concept of reading, perhaps they should be grouped? search will likely accept the same. in saying that, search also uses the schema for searching so maybe not quite that simple
 #[derive(Deserialize)]
 struct LanguageQuery {
-	language: Option<LanguageWrapper>,
+	language: Option<LanguageString>,
 }
 
 #[debug_handler]
@@ -106,6 +110,7 @@ async fn subrow(
 	Path((sheet_name, row_id, subrow_id)): Path<(String, u32, u16)>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Query(schema_query): Query<SchemaQuery>,
+	Query(language_query): Query<LanguageQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 ) -> Result<impl IntoResponse> {
