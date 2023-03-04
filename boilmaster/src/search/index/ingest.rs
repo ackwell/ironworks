@@ -83,10 +83,10 @@ fn build_row_document(
 ) -> Result<Document> {
 	let mut document = Document::new();
 
-	document.add_u64(schema.get_field(ROW_ID).unwrap(), (*row.row_id()).into());
+	document.add_u64(schema.get_field(ROW_ID).unwrap(), (row.row_id()).into());
 	document.add_u64(
 		schema.get_field(SUBROW_ID).unwrap(),
-		(*row.subrow_id()).into(),
+		(row.subrow_id()).into(),
 	);
 
 	for column in columns {

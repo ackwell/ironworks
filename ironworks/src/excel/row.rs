@@ -59,13 +59,13 @@ impl Row {
 	}
 
 	/// Row ID of this row.
-	pub fn row_id(&self) -> &u32 {
-		&self.row_id
+	pub fn row_id(&self) -> u32 {
+		self.row_id
 	}
 
 	/// Subrow ID of this row.
-	pub fn subrow_id(&self) -> &u16 {
-		&self.subrow_id
+	pub fn subrow_id(&self) -> u16 {
+		self.subrow_id
 	}
 
 	/// Read the field at the specified column from this row.

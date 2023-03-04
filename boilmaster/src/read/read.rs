@@ -1,4 +1,8 @@
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::{
+	cell::RefCell,
+	collections::{btree_map, hash_map, BTreeMap, HashMap},
+	rc::Rc,
+};
 
 use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
@@ -22,7 +26,6 @@ pub fn read(
 	let sheet_schema = schema.sheet(sheet_name)?;
 
 	let sheet = excel.sheet(sheet_name)?;
-	let row = sheet.subrow(row_id, subrow_id)?;
 	let columns = sheet.columns()?;
 
 	read_sheet(
@@ -32,9 +35,13 @@ pub fn read(
 			schema,
 
 			language,
+			row_id,
+			subrow_id,
+
 			filter,
 
-			row: &row,
+			sheet: &sheet,
+			rows: Default::default(),
 			columns: &columns,
 			limit: 1,
 		},
@@ -47,10 +54,36 @@ struct ReaderContext<'a> {
 	schema: &'a dyn schema::Schema,
 
 	language: excel::Language,
+	row_id: u32,
+	subrow_id: u16,
+
 	filter: Option<&'a FieldFilter>,
-	row: &'a excel::Row,
+
+	sheet: &'a excel::Sheet<'a, &'a str>,
+	rows: Rc<RefCell<HashMap<excel::Language, excel::Row>>>,
 	columns: &'a [exh::ColumnDefinition],
 	limit: u8,
+}
+
+impl ReaderContext<'_> {
+	fn next_field(&self) -> Result<excel::Field> {
+		// Grab the row from cache, creating if not yet retrieved.
+		let mut map = self.rows.borrow_mut();
+		let row = match map.entry(self.language) {
+			hash_map::Entry::Occupied(entry) => entry.into_mut(),
+			hash_map::Entry::Vacant(entry) => entry.insert(
+				self.sheet
+					.with()
+					.language(self.language)
+					.subrow(self.row_id, self.subrow_id)?,
+			),
+		};
+
+		// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
+		let column = self.columns.get(0).context("schema mismatch")?;
+
+		Ok(row.field(column)?)
+	}
 }
 
 fn read_sheet(sheet: schema::Sheet, context: ReaderContext) -> Result<Value> {
@@ -91,6 +124,8 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 						.get(*index..*index + size_usize)
 						.unwrap_or(&[]),
 					filter: inner_filter,
+
+					rows: context.rows.clone(),
 					..context
 				},
 			);
@@ -103,10 +138,8 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 }
 
 fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -> Result<Value> {
-	let column = context.columns.get(0).context("schema mismatch")?;
-
 	// Coerce the field to a i32
-	let field = context.row.field(column)?;
+	let field = context.next_field()?;
 	// TODO: i'd like to include the field in the context but it's really not worth copying the field for.
 	let target_value = field_to_index(field).context("failed to convert reference key to i32")?;
 
@@ -131,7 +164,7 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 
 		// Get the target sheet's data and schema. Intentionally fail hard, as any
 		// mismatch here can cause incorrect joins.
-		let sheet_data = context.excel.sheet(&target.sheet)?;
+		let sheet_data = context.excel.sheet(target.sheet.as_str())?;
 		let sheet_schema = context.schema.sheet(&target.sheet)?;
 
 		// TODO: non-id targets. how will this work alongside subrows?
@@ -157,9 +190,12 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 			read_sheet(
 				sheet_schema,
 				ReaderContext {
-					row: &row_data,
-					limit: context.limit - 1,
+					row_id: row_data.row_id(),
+					subrow_id: row_data.subrow_id(),
+					sheet: &sheet_data,
+					rows: Rc::new(RefCell::new(HashMap::from([(context.language, row_data)]))),
 					columns: &sheet_data.columns()?,
+					limit: context.limit - 1,
 					..context
 				},
 			)?
@@ -190,8 +226,7 @@ fn field_to_index(field: excel::Field) -> Result<i32> {
 
 fn read_scalar(context: ReaderContext) -> Result<Value> {
 	// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
-	let column = context.columns.get(0).context("schema mismatch")?;
-	Ok(Value::Scalar(context.row.field(column)?))
+	Ok(Value::Scalar(context.next_field()?))
 }
 
 fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result<Value> {
@@ -240,17 +275,17 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 
 		let value = read(ReaderContext {
 			columns: context.columns.get(range).unwrap_or(&[]),
-			// TODO: filter
 			filter: child_filter,
+			rows: context.rows.clone(),
 			..context
 		})?;
 
 		match map.entry(name) {
-			Entry::Vacant(entry) => {
+			btree_map::Entry::Vacant(entry) => {
 				entry.insert(value);
 			}
 
-			Entry::Occupied(entry) => {
+			btree_map::Entry::Occupied(entry) => {
 				tracing::warn!(name = %entry.key(), "name collision");
 			}
 		};
