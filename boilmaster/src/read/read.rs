@@ -8,7 +8,10 @@ use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::{field_filter::FieldFilter, utility::field};
+use crate::{
+	field_filter::{FieldFilter, StructKey},
+	utility::field,
+};
 
 use super::value::{Reference, Value};
 
@@ -180,7 +183,11 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 		}
 
 		// Get the row data for the target. If the row can't be found, pass on to the next target.
-		let row_data = match sheet_data.row(target_value) {
+		let row_data = match sheet_data
+			.with()
+			.language(context.language)
+			.row(target_value)
+		{
 			Err(ironworks::Error::NotFound(ironworks::ErrorValue::Row { .. })) => continue,
 			other => other,
 		}?;
@@ -246,7 +253,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 			.iter()
 			.find(|&field| field.offset == u32::try_from(offset).unwrap());
 
-		let (name, size, read): (_, _, Box<dyn FnOnce(_) -> _>) = match field {
+		let (name, size, read): (_, _, Box<dyn Fn(_) -> _>) = match field {
 			Some(field) => {
 				let size = usize::try_from(field.node.size()).unwrap();
 				let name = field::sanitize_name(&field.name);
@@ -260,35 +267,46 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 		let range = offset..offset + size;
 		offset += size;
 
-		let child_filter = match filter {
-			// No filter is present, select all.
-			None => None,
-			Some(map) => match map.get(&name) {
-				// A filter exists, grab the child filter to pass down.
-				Some(inner_filter) => inner_filter.as_ref(),
-				// The filter doesn't contain this key, skip it.
-				None => {
-					continue;
+		// Get any language-filter pairs for this field, defaulting to a
+		// default-language no-op-filter if no filter exists.
+		// TODO: Improve this logic, this entire struct reader can probably do with a bit of cleaning up.
+		let default_key = StructKey {
+			name,
+			language: None,
+		};
+		let inner_filters = match filter {
+			None => vec![(&default_key, None)],
+			Some(map) => map
+				.iter()
+				.filter_map(|(key, inner_filter)| match key.name == default_key.name {
+					true => Some((key, inner_filter.as_ref())),
+					false => None,
+				})
+				.collect::<Vec<_>>(),
+		};
+
+		for (key, inner_filter) in inner_filters {
+			let value = read(ReaderContext {
+				columns: context.columns.get(range.clone()).unwrap_or(&[]),
+				language: key
+					.language
+					.map(excel::Language::from)
+					.unwrap_or(context.language),
+				filter: inner_filter,
+				rows: context.rows.clone(),
+				..context
+			})?;
+
+			match map.entry(key.to_string()) {
+				btree_map::Entry::Vacant(entry) => {
+					entry.insert(value);
 				}
-			},
-		};
 
-		let value = read(ReaderContext {
-			columns: context.columns.get(range).unwrap_or(&[]),
-			filter: child_filter,
-			rows: context.rows.clone(),
-			..context
-		})?;
-
-		match map.entry(name) {
-			btree_map::Entry::Vacant(entry) => {
-				entry.insert(value);
-			}
-
-			btree_map::Entry::Occupied(entry) => {
-				tracing::warn!(name = %entry.key(), "name collision");
-			}
-		};
+				btree_map::Entry::Occupied(entry) => {
+					tracing::warn!(name = %entry.key(), "name collision");
+				}
+			};
+		}
 	}
 
 	Ok(Value::Struct(map))

@@ -4,7 +4,7 @@ use anyhow::bail;
 use ironworks::excel::Language;
 use serde::de;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LanguageString(Language);
 
 impl fmt::Debug for LanguageString {
@@ -13,9 +13,31 @@ impl fmt::Debug for LanguageString {
 	}
 }
 
+impl fmt::Display for LanguageString {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let string = match self.0 {
+			Language::None => return Err(fmt::Error),
+			Language::Japanese => "ja",
+			Language::English => "en",
+			Language::German => "de",
+			Language::French => "fr",
+			Language::ChineseSimplified => "chs",
+			Language::ChineseTraditional => "cht",
+			Language::Korean => "kr",
+		};
+		formatter.write_str(string)
+	}
+}
+
 impl From<LanguageString> for Language {
 	fn from(wrapper: LanguageString) -> Self {
 		wrapper.0
+	}
+}
+
+impl From<Language> for LanguageString {
+	fn from(inner: Language) -> Self {
+		Self(inner)
 	}
 }
 

@@ -11,12 +11,35 @@ use nom::{
 };
 use serde::{de, Deserialize, Deserializer};
 
-use crate::utility::warnings::{SoftDeserialize, Warnings};
+use crate::{
+	data,
+	utility::warnings::{SoftDeserialize, Warnings},
+};
 
 // TODO: should this be in a top level filter module? will depend if there's other types of filters i guess. also semantics...
 //       might make sense as read::Filter to go alongside i.e. search::Filter
 
-type StructFilter = HashMap<String, Option<FieldFilter>>;
+// TODO: confirm
+const LANGUAGE_SIGIL: &str = "@";
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct StructKey {
+	pub name: String,
+	pub language: Option<data::LanguageString>,
+}
+
+impl fmt::Display for StructKey {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		formatter.write_str(&self.name)?;
+		if let Some(language) = self.language {
+			formatter.write_str(LANGUAGE_SIGIL)?;
+			language.fmt(formatter)?;
+		}
+		Ok(())
+	}
+}
+
+type StructFilter = HashMap<StructKey, Option<FieldFilter>>;
 type ArrayFilter = Option<Box<FieldFilter>>;
 
 #[derive(Debug, PartialEq)]
@@ -113,7 +136,7 @@ fn merge_struct(target: StructFilter, source: StructFilter) -> Warnings<StructFi
 
 fn merge_struct_field(
 	mut target: StructFilter,
-	key: String,
+	key: StructKey,
 	source_value: Option<FieldFilter>,
 ) -> Warnings<StructFilter> {
 	// This uses remove->insert rather than the entry API, as merging requires an owned value, not a mutable reference
@@ -186,11 +209,32 @@ fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 
 fn struct_entry(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
 	map(tuple((field_name, chained_filter)), |(key, child)| {
-		child.map(|filter| FieldFilter::Struct(HashMap::from([(key.into(), filter)])))
+		key.and_then(|key| child.map(|filter| FieldFilter::Struct(HashMap::from([(key, filter)]))))
 	})(input)
 }
 
-fn field_name(input: &str) -> IResult<&str, &str> {
+fn field_name(input: &str) -> IResult<&str, Warnings<StructKey>> {
+	map(tuple((alphanumeric, opt(language))), |(name, language)| {
+		language
+			.unwrap_or_else(|| Warnings::new(None))
+			.map(|language| StructKey {
+				name: name.to_string(),
+				language,
+			})
+	})(input)
+}
+
+fn language(input: &str) -> IResult<&str, Warnings<Option<data::LanguageString>>> {
+	map(
+		preceded(tag(LANGUAGE_SIGIL), alphanumeric),
+		|string| match string.parse::<data::LanguageString>() {
+			Ok(language) => Warnings::new(Some(language)),
+			Err(err) => Warnings::new(None).with_warning(err.to_string()),
+		},
+	)(input)
+}
+
+fn alphanumeric(input: &str) -> IResult<&str, &str> {
 	// TODO: ascii safe to use here? i'd hope?
 	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
 }
@@ -206,6 +250,10 @@ fn array_index(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
 // TODO: need to add tests for error paths - and at that, add error handling. a lot of error cases (like mismatched types on a merge) can soft fail, but i should still surface warnings that they did soft fail. need to work out how that would work
 #[cfg(test)]
 mod test {
+	use ironworks::excel::Language;
+
+	use crate::data::LanguageString;
+
 	use super::*;
 
 	fn test_parse(input: &str) -> Option<FieldFilter> {
@@ -223,9 +271,23 @@ mod test {
 	fn struct_filter(
 		entries: impl IntoIterator<Item = (&'static str, Option<FieldFilter>)>,
 	) -> FieldFilter {
+		struct_lang_filter(entries.into_iter().map(|(key, value)| ((key, None), value)))
+	}
+
+	fn struct_lang_filter(
+		entries: impl IntoIterator<Item = ((&'static str, Option<Language>), Option<FieldFilter>)>,
+	) -> FieldFilter {
 		let map = entries
 			.into_iter()
-			.map(|(key, value)| (key.to_string(), value))
+			.map(|((name, language), value)| {
+				(
+					StructKey {
+						name: name.into(),
+						language: language.map(LanguageString::from),
+					},
+					value,
+				)
+			})
 			.collect::<HashMap<_, _>>();
 		FieldFilter::Struct(map)
 	}
@@ -238,6 +300,13 @@ mod test {
 	fn parse_struct_simple() {
 		let out = test_parse("a");
 		let expected = Some(struct_filter([("a", None)]));
+		assert_eq!(out, expected);
+	}
+
+	#[test]
+	fn parse_struct_language() {
+		let out = test_parse("a@en");
+		let expected = Some(struct_lang_filter([(("a", Some(Language::English)), None)]));
 		assert_eq!(out, expected);
 	}
 
@@ -323,6 +392,34 @@ mod test {
 			"a",
 			Some(struct_filter([("b", None), ("c", None)])),
 		)]));
+		assert_eq!(out, expected);
+	}
+
+	// a@en.b,a@en.c -> {a@en: {b, c}}
+	#[test]
+	fn merge_struct_same_language() {
+		let out = test_parse("a@en.b,a@en.c");
+		let expected = Some(struct_lang_filter([(
+			("a", Some(Language::English)),
+			Some(struct_filter([("b", None), ("c", None)])),
+		)]));
+		assert_eq!(out, expected);
+	}
+
+	// a@en.b,a@ja.c -> {a@en: {b}, a@ja: {c}}
+	#[test]
+	fn merge_struct_different_languages() {
+		let out = test_parse("a@en.b,a@ja.c");
+		let expected = Some(struct_lang_filter([
+			(
+				("a", Some(Language::English)),
+				Some(struct_filter([("b", None)])),
+			),
+			(
+				("a", Some(Language::Japanese)),
+				Some(struct_filter([("c", None)])),
+			),
+		]));
 		assert_eq!(out, expected);
 	}
 
