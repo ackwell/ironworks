@@ -9,11 +9,11 @@ use crate::{
 	data::{Data, LanguageString},
 	field_filter::FieldFilter,
 	read, schema,
-	utility::warnings::Warnings,
+	utility::{anyhow::Anyhow, warnings::Warnings},
 };
 
 use super::{
-	error::{Anyhow, Error, Result},
+	error::{Error, Result},
 	path::Path,
 };
 
