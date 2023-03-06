@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use ironworks::{
-	excel::{Field, Row, Sheet},
+	excel::{Field, Language, Row, Sheet},
 	file::exh,
 };
 use serde::Deserialize;
-use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings};
+use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings, UserOperation};
 use tokio::sync::Semaphore;
 
 use super::schema::{build_sheet_schema, column_field_name, ROW_ID, SUBROW_ID};
@@ -39,7 +41,7 @@ impl Ingester {
 		let permit = self.semaphore.acquire().await.unwrap();
 
 		// TODO: this should probably span the function so i get an end point
-		tracing::info!("ingesting {:?}", directory);
+		tracing::info!("ingesting {}", sheet.name());
 
 		let writer_memory = self.writer_memory;
 
@@ -47,21 +49,34 @@ impl Ingester {
 		let index = tokio::task::spawn_blocking(move || -> Result<_> {
 			// TODO: seperate building the index from ingesting into it
 			let columns = sheet.columns()?;
+			let languages = sheet.languages()?;
 
 			let index = Index::create(
 				directory,
-				build_sheet_schema(&columns),
+				build_sheet_schema(&columns, &languages),
 				IndexSettings::default(),
 			)?;
 
 			let mut writer = index.writer(writer_memory)?;
 			let schema = index.schema();
 
-			// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
-			for row in sheet.iter() {
-				let document = build_row_document(row, &columns, &schema)?;
-				writer.add_document(document)?;
+			let mut documents = HashMap::<(u32, u16), Document>::new();
+
+			for language in languages {
+				for row in sheet.with().language(language).iter() {
+					let document = documents
+						.entry((row.row_id(), row.subrow_id()))
+						.or_insert_with(Document::new);
+					hydrate_row_document(document, row, &columns, language, &schema)?;
+				}
 			}
+
+			// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
+			writer.run(
+				documents
+					.into_iter()
+					.map(|(_, document)| UserOperation::Add(document)),
+			)?;
 
 			writer.commit()?;
 
@@ -76,13 +91,13 @@ impl Ingester {
 	}
 }
 
-fn build_row_document(
+fn hydrate_row_document(
+	document: &mut Document,
 	row: Row,
 	columns: &[exh::ColumnDefinition],
+	language: Language,
 	schema: &schema::Schema,
-) -> Result<Document> {
-	let mut document = Document::new();
-
+) -> Result<()> {
 	document.add_u64(schema.get_field(ROW_ID).unwrap(), (row.row_id()).into());
 	document.add_u64(
 		schema.get_field(SUBROW_ID).unwrap(),
@@ -90,7 +105,9 @@ fn build_row_document(
 	);
 
 	for column in columns {
-		let field = schema.get_field(&column_field_name(column)).unwrap();
+		let field = schema
+			.get_field(&column_field_name(column, language))
+			.unwrap();
 		let value = row.field(column)?;
 		// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
 		use Field as F;
@@ -114,5 +131,5 @@ fn build_row_document(
 		}
 	}
 
-	Ok(document)
+	Ok(())
 }

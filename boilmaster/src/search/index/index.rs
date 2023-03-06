@@ -61,7 +61,6 @@ impl Index {
 	pub fn search(
 		&self,
 		executor: &Executor,
-		// query_string: &str,
 		query_node: &Node,
 	) -> Result<impl Iterator<Item = IndexResult>, SearchError> {
 		let searcher = self.reader.searcher();

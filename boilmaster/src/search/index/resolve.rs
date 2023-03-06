@@ -47,7 +47,7 @@ impl QueryResolver<'_> {
 	}
 
 	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
-		let field_name = column_field_name(&leaf.field);
+		let field_name = column_field_name(&leaf.field, Language::None);
 		let field = self.schema.get_field(&field_name).ok_or_else(|| {
 			SearchError::SchemaMismatch(MismatchError {
 				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
