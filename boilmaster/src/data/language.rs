@@ -16,7 +16,7 @@ impl fmt::Debug for LanguageString {
 impl fmt::Display for LanguageString {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let string = match self.0 {
-			Language::None => return Err(fmt::Error),
+			Language::None => "none",
 			Language::Japanese => "ja",
 			Language::English => "en",
 			Language::German => "de",
@@ -46,6 +46,7 @@ impl FromStr for LanguageString {
 
 	fn from_str(string: &str) -> Result<Self, Self::Err> {
 		let language = match string {
+			"none" => Language::None,
 			"ja" => Language::Japanese,
 			"en" => Language::English,
 			"de" => Language::German,
