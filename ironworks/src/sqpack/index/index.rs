@@ -48,7 +48,6 @@ impl<R: Resource> Index<R> {
 
 	pub fn find(&self, path: &str) -> Result<Location> {
 		let location = self.chunks().find_map(|chunk| {
-			// i should update to 1.65 and use let else
 			let (index, chunk) = match chunk {
 				Ok(value) => value,
 				Err(error) => return Some(Err(error)),

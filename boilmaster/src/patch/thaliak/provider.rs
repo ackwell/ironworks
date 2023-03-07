@@ -85,7 +85,17 @@ impl Provider {
 			let (mut active_versions, inactive_versions) = version
 				.prerequisite_versions
 				.iter()
-				.filter_map(|specifier| versions.get(&specifier.version_string))
+				.filter_map(|specifier| {
+					// Skip any patches that we've already seen, in case there's a dependency cycle.
+					if patches
+						.iter()
+						.any(|patch| patch.name == specifier.version_string)
+					{
+						return None;
+					}
+
+					versions.get(&specifier.version_string)
+				})
 				.partition::<Vec<_>, _>(|version| version.is_active);
 
 			// TODO: What does >1 active version imply? It seems to occur in places where it implies skipping a whole bunch of intermediary patches - i have to assume hotfixes. Is it skipping a bunch of .exe updates because they get bundled into the next main patch file as well?
