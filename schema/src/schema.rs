@@ -56,9 +56,8 @@ impl Node {
 			Self::Reference(_) => 1,
 			Self::Scalar => 1,
 			Self::Struct(fields) => {
-				let last_field = match fields.last() {
-					Some(value) => value,
-					None => return 0,
+				let Some(last_field) = fields.last() else {
+					return 0;
 				};
 
 				last_field.offset + last_field.node.size()

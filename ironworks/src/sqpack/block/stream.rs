@@ -148,7 +148,7 @@ where
 
 impl<R> Seek for BlockStream<R> {
 	fn seek(&mut self, position: SeekFrom) -> io::Result<u64> {
-		let (base, position) = match position {
+		let (base, offset) = match position {
 			SeekFrom::Start(position) => {
 				self.position = position.try_into().unwrap();
 				return Ok(position);
@@ -163,22 +163,14 @@ impl<R> Seek for BlockStream<R> {
 			}
 		};
 
-		// All of this because the easy way is unstable. Still.
-		let ibase = i64::try_from(base).unwrap();
-		let ioffset = ibase.checked_add(position).ok_or_else(|| {
-			io::Error::new(
-				io::ErrorKind::InvalidInput,
-				"invalid seek to an overflowing position",
-			)
-		})?;
-		if ioffset < 0 {
+		let Some(position) = base.checked_add_signed(offset.try_into().unwrap()) else {
 			return Err(io::Error::new(
 				io::ErrorKind::InvalidInput,
-				"invalid seek to a negative position",
+				"invalid seek to a negative or overflowing position",
 			));
-		}
-		let offset = u64::try_from(ioffset).unwrap();
-		self.position = offset.try_into().unwrap();
-		Ok(offset)
+		};
+
+		self.position = position;
+		Ok(position.try_into().unwrap())
 	}
 }

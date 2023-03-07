@@ -77,9 +77,8 @@ async fn build_repository(
 	let required_patches = expected_patches
 		.iter()
 		.filter(|(patch, path)| {
-			let metadata = match path.metadata() {
-				Ok(metadata) => metadata,
-				Err(_error) => return true,
+			let Ok(metadata) = path.metadata() else {
+				return true
 			};
 
 			let size_matches = metadata.len() == patch.size;

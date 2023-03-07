@@ -92,12 +92,10 @@ impl<R: sqpack::Resource> SqPack<R> {
 
 		let path_not_found = || Error::NotFound(ErrorValue::Path(path.to_string()));
 
-		// TODO: Whoooooole lotta chances for let else here.
-		let (category_segment, repository_segment) =
-			match path.split('/').take(2).collect::<Vec<_>>()[..] {
-				[category, repository] => (category, repository),
-				_ => return Err(path_not_found()),
-			};
+		let mut split = path.split('/');
+		let (Some(category_segment), Some(repository_segment)) = (split.next(), split.next()) else {
+			return Err(path_not_found())
+		};
 
 		let repository = REPOSITORIES
 			.iter()
