@@ -1,3 +1,4 @@
+use ironworks::excel::Language;
 use tantivy::{
 	query::{BooleanQuery, PhraseQuery, Query, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},

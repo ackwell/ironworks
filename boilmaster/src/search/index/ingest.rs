@@ -9,6 +9,8 @@ use serde::Deserialize;
 use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings, UserOperation};
 use tokio::sync::Semaphore;
 
+use crate::search::index::tokenize::register_tokenizers;
+
 use super::schema::{build_sheet_schema, column_field_name, ROW_ID, SUBROW_ID};
 
 #[derive(Debug, Deserialize)]
@@ -56,6 +58,7 @@ impl Ingester {
 				build_sheet_schema(&columns, &languages),
 				IndexSettings::default(),
 			)?;
+			register_tokenizers(&index);
 
 			let mut writer = index.writer(writer_memory)?;
 			let schema = index.schema();
@@ -72,11 +75,7 @@ impl Ingester {
 			}
 
 			// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
-			writer.run(
-				documents
-					.into_iter()
-					.map(|(_, document)| UserOperation::Add(document)),
-			)?;
+			writer.run(documents.into_values().map(UserOperation::Add))?;
 
 			writer.commit()?;
 

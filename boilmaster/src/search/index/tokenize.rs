@@ -1,15 +1,19 @@
 use ironworks::excel;
-use tantivy::tokenizer::{
-	LowerCaser, RawTokenizer, RemoveLongFilter, SimpleTokenizer, Stemmer, TextAnalyzer,
+use tantivy::{
+	tokenizer::{
+		LowerCaser, RawTokenizer, RemoveLongFilter, SimpleTokenizer, Stemmer, TextAnalyzer,
+	},
+	Index,
 };
 
 use crate::data::LanguageString;
 
-pub fn tokenizers() {
-	use excel::Language as EL;
+pub fn register_tokenizers(index: &Index) {
+	let manager = index.tokenizers();
 
 	// TODO: ideally this is done once and shared between all indices? Check what the cost of stuff like the jp dict is
-	let foo = EL::iter().map(|language| {
+	use excel::Language as EL;
+	for language in EL::iter() {
 		let name = tokenizer_name(language);
 		let tokenizer = match language {
 			EL::None => TextAnalyzer::from(RawTokenizer),
@@ -23,8 +27,8 @@ pub fn tokenizers() {
 			EL::Korean => TextAnalyzer::from(RawTokenizer),
 		};
 
-		(name, tokenizer)
-	});
+		manager.register(&name, tokenizer)
+	}
 }
 
 fn european_tokenizer(language: excel::Language) -> TextAnalyzer {

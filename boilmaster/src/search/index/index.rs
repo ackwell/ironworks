@@ -12,6 +12,7 @@ use super::{
 	ingest::Ingester,
 	resolve::QueryResolver,
 	schema::{ROW_ID, SUBROW_ID},
+	tokenize::register_tokenizers,
 };
 
 #[derive(Debug)]
@@ -41,7 +42,11 @@ impl Index {
 
 		let exists = tantivy::Index::exists(&directory).anyhow()?;
 		let index = match exists {
-			true => tantivy::Index::open(directory).anyhow()?,
+			true => {
+				let index = tantivy::Index::open(directory).anyhow()?;
+				register_tokenizers(&index);
+				index
+			}
 			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
 			false => ingester
