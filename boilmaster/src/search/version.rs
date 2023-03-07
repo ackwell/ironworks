@@ -8,7 +8,10 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use ironworks::excel;
 use ironworks_schema::Schema;
 
-use crate::{data::Version as DataVersion, utility::warnings::Warnings};
+use crate::{
+	data::Version as DataVersion,
+	utility::{anyhow::Anyhow, warnings::Warnings},
+};
 
 use super::{
 	error::SearchError,
@@ -50,7 +53,7 @@ impl Version {
 
 		// TODO: on zipatch-backed data instances, accessing .list() could block for quite some time - how do i want to handle that?
 		// Create a group of futures; one for each sheet that (should) exist in the index - indexes will be ingested if they do not yet exist.
-		let list = excel.list().map_err(anyhow::Error::from)?;
+		let list = excel.list().anyhow()?;
 		let mut futures = list
 			.iter()
 			.map(|sheet_name| {
@@ -84,6 +87,8 @@ impl Version {
 		}
 
 		*self.indices.write().unwrap() = Some(indices.into());
+
+		tracing::info!("search ingestion complete");
 
 		Ok(())
 	}

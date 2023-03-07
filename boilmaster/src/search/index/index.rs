@@ -3,7 +3,10 @@ use std::path::PathBuf;
 use ironworks::excel::Sheet;
 use tantivy::{collector::TopDocs, directory::MmapDirectory, ReloadPolicy};
 
-use crate::search::{error::SearchError, query::post::Node, version::Executor};
+use crate::{
+	search::{error::SearchError, query::post::Node, version::Executor},
+	utility::anyhow::Anyhow,
+};
 
 use super::{
 	ingest::Ingester,
@@ -34,11 +37,11 @@ impl Index {
 		tokio::fs::create_dir_all(&path)
 			.await
 			.map_err(anyhow::Error::from)?;
-		let directory = MmapDirectory::open(path).map_err(anyhow::Error::from)?;
+		let directory = MmapDirectory::open(path).anyhow()?;
 
-		let exists = tantivy::Index::exists(&directory).map_err(anyhow::Error::from)?;
+		let exists = tantivy::Index::exists(&directory).anyhow()?;
 		let index = match exists {
-			true => tantivy::Index::open(directory).map_err(anyhow::Error::from)?,
+			true => tantivy::Index::open(directory).anyhow()?,
 			// TODO: this should do... something. retry? i don't know. if any step of ingestion fails. A failed ingest is pretty bad.
 			// TODO: i don't think an index existing actually means ingestion was successful - i should probably split the index creation out of ingest_sheet, and then put ingestion as a seperate step in this function as part of a document count check
 			false => ingester

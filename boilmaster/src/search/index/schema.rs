@@ -3,6 +3,8 @@ use tantivy::schema;
 
 use crate::data::LanguageString;
 
+use super::tokenize::tokenizer_name;
+
 pub const ROW_ID: &str = "row_id";
 pub const SUBROW_ID: &str = "subrow_id";
 
@@ -34,8 +36,14 @@ fn add_column_field(
 
 	use exh::ColumnKind as CK;
 	match column.kind() {
-		// TODO: per-language columns. at the moment, this is just english
-		CK::String => builder.add_text_field(&name, schema::TEXT),
+		CK::String => {
+			let indexing = schema::TextFieldIndexing::default()
+				.set_tokenizer(&tokenizer_name(language))
+				.set_index_option(schema::IndexRecordOption::WithFreqsAndPositions);
+			let options = schema::TextOptions::default().set_indexing_options(indexing);
+
+			builder.add_text_field(&name, options)
+		}
 
 		CK::Int8 | CK::Int16 | CK::Int32 | CK::Int64 => {
 			builder.add_i64_field(&name, schema::INDEXED)
