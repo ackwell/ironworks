@@ -150,7 +150,7 @@ fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
 }
 
 fn open_repository(remote: &str, directory: &Path) -> Result<Repository> {
-	let repository = Repository::open_bare(&directory)?;
+	let repository = Repository::open_bare(directory)?;
 	if repository.find_remote("origin")?.url() != Some(remote) {
 		return Err(Error::Repository(format!(
 			"Repository at {directory:?} exists, does not have origin {remote}."
