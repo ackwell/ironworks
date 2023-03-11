@@ -8,18 +8,18 @@ use std::{
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{
-		patch::{
-			AddCommand, Chunk, FileOperation, FileOperationCommand, SqPackChunk,
-			ZiPatch as ZiPatchFile,
-		},
+		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
 		File,
 	},
 };
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub enum SqPackFileExtension {
-	Index(u8),
-	Dat(u8),
+#[derive(Debug)]
+pub struct PatchLookup {
+	pub path: PathBuf,
+
+	pub file_chunks: HashMap<SqPackSpecifier, Vec<FileChunk>>,
+	// (specifier, offset)
+	pub resource_chunks: HashMap<(SqPackSpecifier, u32), ResourceChunk>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -30,14 +30,30 @@ pub struct SqPackSpecifier {
 	pub extension: SqPackFileExtension,
 }
 
-#[derive(Debug)]
-pub struct PatchLookup {
-	pub path: PathBuf,
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum SqPackFileExtension {
+	Index(u8),
+	Dat(u8),
+}
 
-	// TODO: consider storing a slightly more ergonomic struct instead of commands
-	pub add_operations: HashMap<SqPackSpecifier, Vec<FileOperationCommand>>,
-	// (specifier, offset)
-	pub add_commands: HashMap<(SqPackSpecifier, u32), AddCommand>,
+#[derive(Debug)]
+pub struct FileChunk {
+	pub target_offset: u64,
+	pub target_size: u64,
+	pub blocks: Vec<FileBlock>,
+}
+
+#[derive(Debug)]
+pub struct FileBlock {
+	pub source_offset: u64,
+	pub compressed_size: u32,
+	pub decompressed_size: u32,
+}
+
+#[derive(Debug)]
+pub struct ResourceChunk {
+	pub offset: u64,
+	pub size: u64,
 }
 
 impl PatchLookup {
@@ -54,19 +70,13 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	zipatch.chunks().try_fold(
 		PatchLookup {
 			path: path.to_owned(),
-			add_operations: Default::default(),
-			add_commands: Default::default(),
+			file_chunks: Default::default(),
+			resource_chunks: Default::default(),
 		},
 		|mut lookup, chunk| -> Result<_> {
 			match chunk? {
-				Chunk::SqPack(SqPackChunk::FileOperation(command))
-					if is_sqpack_command(&command) =>
-				{
-					lookup
-						.add_operations
-						.entry(path_to_specifier(&command.path().to_string())?)
-						.or_insert_with(Vec::new)
-						.push(command)
+				Chunk::SqPack(SqPackChunk::FileOperation(command)) => {
+					process_file_operation(&mut lookup, command)?
 				}
 
 				Chunk::SqPack(SqPackChunk::Add(command)) => {
@@ -78,9 +88,14 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 						extension: SqPackFileExtension::Dat(file.file_id().try_into().unwrap()),
 					};
 
+					let chunk = ResourceChunk {
+						offset: command.source_offset(),
+						size: command.data_size().into(),
+					};
+
 					let old_value = lookup
-						.add_commands
-						.insert((specifier, command.target_offset()), command);
+						.resource_chunks
+						.insert((specifier, command.target_offset()), chunk);
 
 					if old_value.is_some() {
 						panic!("Assumption broken! Multiple chunks in one patch file writing to same offset.")
@@ -95,9 +110,36 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	)
 }
 
-fn is_sqpack_command(command: &FileOperationCommand) -> bool {
-	matches!(command.operation(), FileOperation::AddFile(_))
-		&& command.path().to_string().starts_with("sqpack/")
+fn process_file_operation(lookup: &mut PatchLookup, command: FileOperationCommand) -> Result<()> {
+	let path = command.path().to_string();
+	if !path.starts_with("sqpack/") {
+		return Ok(());
+	}
+
+	let FileOperation::AddFile(blocks) = command.operation() else {
+		return Ok(())
+	};
+
+	let chunk = FileChunk {
+		target_offset: command.target_offset(),
+		target_size: command.target_size(),
+		blocks: blocks
+			.iter()
+			.map(|block| FileBlock {
+				source_offset: block.offset(),
+				compressed_size: block.compressed_size(),
+				decompressed_size: block.decompressed_size(),
+			})
+			.collect(),
+	};
+
+	lookup
+		.file_chunks
+		.entry(path_to_specifier(&command.path().to_string())?)
+		.or_insert_with(Vec::new)
+		.push(chunk);
+
+	Ok(())
 }
 
 fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {

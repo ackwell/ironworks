@@ -9,13 +9,12 @@ use either::Either;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	file::patch::{AddCommand, FileOperation, FileOperationCommand},
 	sqpack,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
 
 use super::{
-	lookup::{PatchLookup, SqPackFileExtension, SqPackSpecifier},
+	lookup::{FileChunk, PatchLookup, ResourceChunk, SqPackFileExtension, SqPackSpecifier},
 	repository::PatchRepository,
 	zipatch::LookupCache,
 };
@@ -110,27 +109,23 @@ impl View {
 		for maybe_lookup in self.lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
 			let lookup = maybe_lookup?;
-			let commands = match lookup.add_operations.get(&target_specifier) {
-				Some(commands) => commands,
+			let chunks = match lookup.file_chunks.get(&target_specifier) {
+				Some(chunks) => chunks,
 				None => continue,
 			};
 
 			// Read the commands for this patch.
 			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
-			for command in commands {
+			for chunk in chunks {
 				empty = false;
-				cursor.set_position(command.target_offset());
-				let blocks = match command.operation() {
-					FileOperation::AddFile(blocks) => blocks,
-					_ => unreachable!(),
-				};
+				cursor.set_position(chunk.target_offset);
 
-				for block in blocks {
-					file.seek(SeekFrom::Start(block.offset()))?;
+				for block in &chunk.blocks {
+					file.seek(SeekFrom::Start(block.source_offset))?;
 					let mut reader = sqpack::BlockPayload::new(
 						&mut file,
-						block.compressed_size(),
-						block.decompressed_size(),
+						block.compressed_size,
+						block.decompressed_size,
 					);
 					io::copy(&mut reader, &mut cursor)?;
 				}
@@ -142,7 +137,7 @@ impl View {
 			// by the truncation of the file caused by an offset:0 chunk.
 
 			// If this patch started with offset:0, we can stop reading.
-			if !commands.is_empty() && commands[0].target_offset() == 0 {
+			if !chunks.is_empty() && chunks[0].target_offset == 0 {
 				break;
 			}
 		}
@@ -209,8 +204,8 @@ impl sqpack::Resource for View {
 			// ASSUMPTION: Square seemingly never breaks new files up across multiple
 			// chunks - an entire file can be read by looking for the single add
 			// command starting at the precise offset we're looking for.
-			if let Some(command) = lookup.add_commands.get(&target) {
-				return read_add_command(&lookup, command);
+			if let Some(command) = lookup.resource_chunks.get(&target) {
+				return read_resource_chunk(&lookup, command);
 			};
 
 			// Check if the file could be found in the file operations.
@@ -219,8 +214,8 @@ impl sqpack::Resource for View {
 			// realistically possible, the chances of it occuring are vanishingly
 			// remote. If everything has blown up in your face because of this and you
 			// find this comment, bap me.
-			if let Some(commands) = lookup.add_operations.get(&target.0) {
-				return read_file_commands(&lookup, &location, commands);
+			if let Some(chunks) = lookup.file_chunks.get(&target.0) {
+				return read_file_chunks(&lookup, &location, chunks);
 			};
 		}
 
@@ -231,17 +226,17 @@ impl sqpack::Resource for View {
 	}
 }
 
-fn read_add_command(lookup: &PatchLookup, command: &AddCommand) -> Result<FileReader> {
+fn read_resource_chunk(lookup: &PatchLookup, command: &ResourceChunk) -> Result<FileReader> {
 	let mut file = BufReader::new(fs::File::open(&lookup.path)?);
-	file.seek(SeekFrom::Start(command.source_offset()))?;
-	let out = file.take_seekable(command.data_size().into())?;
+	file.seek(SeekFrom::Start(command.offset))?;
+	let out = file.take_seekable(command.size)?;
 	Ok(Either::Left(out))
 }
 
-fn read_file_commands(
+fn read_file_chunks(
 	lookup: &PatchLookup,
 	location: &sqpack::Location,
-	commands: &[FileOperationCommand],
+	chunks: &[FileChunk],
 ) -> Result<FileReader> {
 	let offset = location.offset();
 
@@ -260,28 +255,21 @@ fn read_file_commands(
 
 	// Build an iterator over the commands. We're filtering any commands that sit
 	// outside the target range to minimise further processing.
-	let commands_iter = commands
+	let chunks_iter = chunks
 		.iter()
-		.filter(|command| outside_target(command.target_offset(), command.target_size()));
+		.filter(|chunk| outside_target(chunk.target_offset, chunk.target_size));
 
 	// Extract the metadata for each block in each command.
-	let block_iter = commands_iter.flat_map(|command| {
-		let blocks = match command.operation() {
-			FileOperation::AddFile(blocks) => blocks,
-			other => panic!("unexpected {other:?}"),
-		};
-
-		blocks.iter().scan(0u64, |file_offset, block| {
+	let block_iter = chunks_iter.flat_map(|chunk| {
+		chunk.blocks.iter().scan(0u64, |file_offset, block| {
 			let current_offset = *file_offset;
-			*file_offset += u64::from(block.decompressed_size());
+			*file_offset += u64::from(block.decompressed_size);
 
 			Some(sqpack::BlockMetadata {
-				input_offset: block.offset().try_into().unwrap(),
-				input_size: block.compressed_size().try_into().unwrap(),
-				output_offset: (command.target_offset() + current_offset)
-					.try_into()
-					.unwrap(),
-				output_size: block.decompressed_size().try_into().unwrap(),
+				input_offset: block.source_offset.try_into().unwrap(),
+				input_size: block.compressed_size.try_into().unwrap(),
+				output_offset: (chunk.target_offset + current_offset).try_into().unwrap(),
+				output_size: block.decompressed_size.try_into().unwrap(),
 			})
 		})
 	});
