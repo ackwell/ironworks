@@ -1,12 +1,22 @@
 use std::{
 	collections::{hash_map::Entry, HashMap},
+	fs,
 	path::PathBuf,
-	sync::{Arc, Condvar, Mutex},
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc, Condvar, Mutex,
+	},
 };
+
+use binrw::{BinRead, BinWrite};
 
 use crate::error::Result;
 
-use super::{lookup::PatchLookup, repository::Patch, view::ViewBuilder};
+use super::{
+	lookup::{PatchLookup, VersionedPatchLookupData},
+	repository::Patch,
+	view::ViewBuilder,
+};
 
 /// A struct providing access to data contained in ZiPatch-formatted patch files.
 #[derive(Debug)]
@@ -22,6 +32,19 @@ impl ZiPatch {
 		}
 	}
 
+	/// Enable persistance of lookup tables used when reading patch files. Enabling
+	/// this will cause additional files to be written alongside patch files.
+	pub fn with_persisted_lookups(mut self) -> Self {
+		self.persist_lookups();
+		self
+	}
+
+	/// Enable persistance of lookup tables used when reading patch files. Enabling
+	/// this will cause additional files to be written alongside patch files.
+	pub fn persist_lookups(&mut self) {
+		self.cache.persist_lookups()
+	}
+
 	/// Build a view of patch repository files to be used as a SqPack resource.
 	pub fn view(&self) -> ViewBuilder {
 		ViewBuilder::new(self.cache.clone())
@@ -33,24 +56,25 @@ impl Default for ZiPatch {
 		Self::new()
 	}
 }
-
 type CacheSync<T> = Arc<(Mutex<Option<T>>, Condvar)>;
 
 #[derive(Debug)]
 pub struct LookupCache {
+	persist_lookups: AtomicBool,
 	cache: Mutex<HashMap<PathBuf, CacheSync<Arc<PatchLookup>>>>,
 }
 
 impl LookupCache {
 	pub fn new() -> Self {
 		Self {
+			persist_lookups: false.into(),
 			cache: Default::default(),
 		}
 	}
 
-	pub fn lookup(&self, repository_id: u8, patch: &Patch) -> Result<Arc<PatchLookup>> {
-		// TODO: Can I avoid the clone on the string? Seems shit.
-		let key = (repository_id, patch.name.clone());
+	fn persist_lookups(&self) {
+		self.persist_lookups.store(true, Ordering::SeqCst)
+	}
 
 	pub fn lookup(&self, patch: &Patch) -> Result<Arc<PatchLookup>> {
 		// TODO: honestly this might make sense as an alternate impl of the hashmapcache
@@ -81,12 +105,42 @@ impl LookupCache {
 		}
 
 		// Build a new lookup for this patch.
-		let lookup = Arc::new(PatchLookup::new(&patch.path)?);
+		let lookup = Arc::new(self.read_lookup(patch)?);
 
 		// Write the new lookup to the cache.
 		let mut value = mutex.lock().unwrap();
 		*value = Some(lookup.clone());
 		condvar.notify_all();
+
+		Ok(lookup)
+	}
+
+	fn read_lookup(&self, patch: &Patch) -> Result<PatchLookup> {
+		let persist_lookups = self.persist_lookups.load(Ordering::SeqCst);
+		if !persist_lookups {
+			return PatchLookup::new(&patch.path);
+		}
+
+		let mut lut_path = patch.path.as_os_str().to_owned();
+		lut_path.push(".lut");
+		let lut_path = PathBuf::from(lut_path);
+
+		let lookup = match lut_path.exists() {
+			true => {
+				let mut file = fs::File::open(lut_path)?;
+				PatchLookup {
+					path: patch.path.to_owned(),
+					data: VersionedPatchLookupData::read(&mut file)?,
+				}
+			}
+
+			false => {
+				let lookup = PatchLookup::new(&patch.path)?;
+				let mut file = fs::File::create(lut_path)?;
+				lookup.data.write(&mut file)?;
+				lookup
+			}
+		};
 
 		Ok(lookup)
 	}

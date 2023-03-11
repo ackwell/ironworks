@@ -5,6 +5,8 @@ use std::{
 	path::{Path, PathBuf},
 };
 
+use binrw::{binrw, BinRead, BinWrite};
+
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{
@@ -16,13 +18,74 @@ use crate::{
 #[derive(Debug)]
 pub struct PatchLookup {
 	pub path: PathBuf,
+	pub data: VersionedPatchLookupData,
+}
 
+impl PatchLookup {
+	pub fn data(&self) -> &PatchLookupData {
+		match &self.data {
+			VersionedPatchLookupData::V1(data) => data,
+		}
+	}
+}
+
+#[binrw]
+#[brw(little)]
+#[derive(Debug)]
+pub enum VersionedPatchLookupData {
+	#[brw(magic = b"1")]
+	V1(PatchLookupData),
+}
+
+// NOTE: Any changes to this struct or sub-structs must be versioned in `zipatch.rs`.
+#[binrw]
+#[brw(little)]
+#[derive(Debug, Default)]
+pub struct PatchLookupData {
+	#[br(temp)]
+	#[bw(calc = file_chunks.len().try_into().unwrap())]
+	file_chunks_count: u32,
+
+	#[br(
+		count = file_chunks_count,
+		map = |value: Vec<(SqPackSpecifier, CountVec<FileChunk>)>| value.into_iter().map(|(key, value)| (key, value.items)).collect()
+	)]
+	#[bw(
+		map = |value| value.clone().into_iter().map(|(key, value)| (key, CountVec { items: value })).collect::<Vec<_>>()
+	)]
 	pub file_chunks: HashMap<SqPackSpecifier, Vec<FileChunk>>,
+
+	#[br(temp)]
+	#[bw(calc = resource_chunks.len().try_into().unwrap())]
+	resource_chunks_count: u32,
+
 	// (specifier, offset)
+	#[br(
+		count = resource_chunks_count,
+		map = |value: Vec<((SqPackSpecifier, u32), ResourceChunk)>| value.into_iter().collect()
+	)]
+	#[bw(
+		map = |value| value.clone().into_iter().collect::<Vec<_>>()
+	)]
 	pub resource_chunks: HashMap<(SqPackSpecifier, u32), ResourceChunk>,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[binrw]
+#[derive(Debug)]
+struct CountVec<T>
+where
+	T: BinRead<Args = ()> + BinWrite<Args = ()>,
+{
+	#[br(temp)]
+	#[bw(calc = items.len().try_into().unwrap())]
+	count: u32,
+
+	#[br(count = count)]
+	items: Vec<T>,
+}
+
+#[binrw]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SqPackSpecifier {
 	pub repository: u8,
 	pub category: u8,
@@ -30,27 +93,40 @@ pub struct SqPackSpecifier {
 	pub extension: SqPackFileExtension,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[binrw]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SqPackFileExtension {
+	#[brw(magic = b"I")]
 	Index(u8),
+
+	#[brw(magic = b"D")]
 	Dat(u8),
 }
 
-#[derive(Debug)]
+#[binrw]
+#[derive(Debug, Clone)]
 pub struct FileChunk {
 	pub target_offset: u64,
 	pub target_size: u64,
+
+	#[br(temp)]
+	#[bw(calc = blocks.len().try_into().unwrap())]
+	blocks_count: u32,
+
+	#[br(count = blocks_count)]
 	pub blocks: Vec<FileBlock>,
 }
 
-#[derive(Debug)]
+#[binrw]
+#[derive(Debug, Clone)]
 pub struct FileBlock {
 	pub source_offset: u64,
 	pub compressed_size: u32,
 	pub decompressed_size: u32,
 }
 
-#[derive(Debug)]
+#[binrw]
+#[derive(Debug, Clone)]
 pub struct ResourceChunk {
 	pub offset: u64,
 	pub size: u64,
@@ -67,16 +143,12 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	let zipatch = ZiPatchFile::read(file)?;
 
 	// TODO: Retry on failure?
-	zipatch.chunks().try_fold(
-		PatchLookup {
-			path: path.to_owned(),
-			file_chunks: Default::default(),
-			resource_chunks: Default::default(),
-		},
-		|mut lookup, chunk| -> Result<_> {
+	zipatch
+		.chunks()
+		.try_fold(PatchLookupData::default(), |mut data, chunk| -> Result<_> {
 			match chunk? {
 				Chunk::SqPack(SqPackChunk::FileOperation(command)) => {
-					process_file_operation(&mut lookup, command)?
+					process_file_operation(&mut data, command)?
 				}
 
 				Chunk::SqPack(SqPackChunk::Add(command)) => {
@@ -93,7 +165,7 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 						size: command.data_size().into(),
 					};
 
-					let old_value = lookup
+					let old_value = data
 						.resource_chunks
 						.insert((specifier, command.target_offset()), chunk);
 
@@ -105,12 +177,15 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 				_ => {}
 			};
 
-			Ok(lookup)
-		},
-	)
+			Ok(data)
+		})
+		.map(|data| PatchLookup {
+			path: path.to_owned(),
+			data: VersionedPatchLookupData::V1(data),
+		})
 }
 
-fn process_file_operation(lookup: &mut PatchLookup, command: FileOperationCommand) -> Result<()> {
+fn process_file_operation(data: &mut PatchLookupData, command: FileOperationCommand) -> Result<()> {
 	let path = command.path().to_string();
 	if !path.starts_with("sqpack/") {
 		return Ok(());
@@ -133,8 +208,7 @@ fn process_file_operation(lookup: &mut PatchLookup, command: FileOperationComman
 			.collect(),
 	};
 
-	lookup
-		.file_chunks
+	data.file_chunks
 		.entry(path_to_specifier(&command.path().to_string())?)
 		.or_insert_with(Vec::new)
 		.push(chunk);
