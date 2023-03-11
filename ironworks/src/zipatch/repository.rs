@@ -54,6 +54,8 @@ impl PatchRepository {
 
 		Ok(Self { patches })
 	}
+
+	// TODO: fn before - so i.e. a simple use case can `.at().before()` to get a repo of a folder containing patches before a particular point.
 }
 
 fn sort_patches(Patch { name: ref a, .. }: &Patch, Patch { name: ref b, .. }: &Patch) -> Ordering {

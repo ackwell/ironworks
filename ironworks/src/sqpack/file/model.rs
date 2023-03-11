@@ -142,7 +142,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 
 	// Write out the header now we've collected the info for it.
 	// TODO: While these values do work, it's technically not a match with the game's own format - the `_size` property in the header has the correct final values, but they're 0-padded, leading to larger sizes than we get with this method. Look into fixing this up to get as close to 1:1 as possible.
-	writer.seek(SeekFrom::Start(0))?;
+	writer.rewind()?;
 	writer.write_le(&header.block_count)?; // version
 	writer.write_le(&stack_size)?;
 	writer.write_le(&runtime_size)?;
@@ -158,7 +158,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	writer.write_le(&0u8)?;
 
 	// TODO: Look into lazy reading this. Can probably read LODs lazily?
-	writer.seek(SeekFrom::Start(0))?;
+	writer.rewind()?;
 	Ok(writer)
 }
 

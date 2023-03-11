@@ -103,6 +103,6 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	}
 
 	// TODO: is there a reasonable way to lazy read a texture?
-	writer.seek(SeekFrom::Start(0))?;
+	writer.rewind()?;
 	Ok(writer)
 }

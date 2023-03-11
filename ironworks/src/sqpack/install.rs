@@ -102,7 +102,7 @@ impl Resource for Install {
 			repo => {
 				let repository_name = self.get_repository_name(repo)?;
 				self.path
-					.join(&repository_name)
+					.join(repository_name)
 					.join(format!("{repository_name}.ver"))
 			}
 		};

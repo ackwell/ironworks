@@ -3,8 +3,7 @@ use std::sync::Arc;
 use ironworks::{
 	excel::{Excel, Language},
 	sqpack::SqPack,
-	zipatch::{VersionSpecifier, ZiPatch},
-	Ironworks,
+	zipatch, Ironworks,
 };
 use serde::Deserialize;
 
@@ -23,10 +22,10 @@ pub struct Data {
 }
 
 impl Data {
-	pub fn new(config: Config, temp_zipatch: ZiPatch) -> Self {
+	pub fn new(config: Config, temp_view: zipatch::View) -> Self {
 		Data {
 			default_language: config.language.into(),
-			temp_version: Version::new(temp_zipatch, config.language.into()),
+			temp_version: Version::new(temp_view, config.language.into()),
 		}
 	}
 
@@ -49,12 +48,9 @@ pub struct Version {
 }
 
 impl Version {
-	fn new(temp_zipatch: ZiPatch, temp_language: Language) -> Self {
-		// TODO: Given how different versions will end up having different paths through the patch files, i'm tempted to say that zipatch having versioning in itself is useless and should be removed.
-		let zipatch_version = temp_zipatch.version(VersionSpecifier::latest());
-
+	fn new(temp_view: zipatch::View, temp_language: Language) -> Self {
 		// TODO: temp language - ideally the root excel can be defaultless, and consumers can be explicit with their language usage. i'm making read explicit - this will mostly be a search thing. don't merge until done i guess.
-		let ironworks = Ironworks::new().with_resource(SqPack::new(zipatch_version));
+		let ironworks = Ironworks::new().with_resource(SqPack::new(temp_view));
 		let excel = Excel::with()
 			.language(temp_language)
 			.build(Arc::new(ironworks));
