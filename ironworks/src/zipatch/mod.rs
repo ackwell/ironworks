@@ -2,6 +2,7 @@
 
 mod lookup;
 mod repository;
+mod utility;
 mod view;
 mod zipatch;
 

@@ -1,11 +1,11 @@
 use std::{
-	collections::HashMap,
 	fs,
+	hash::Hash,
 	io::BufReader,
 	path::{Path, PathBuf},
 };
 
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::binrw;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -14,6 +14,8 @@ use crate::{
 		File,
 	},
 };
+
+use super::utility::{BrwMap, BrwVec};
 
 #[derive(Debug)]
 pub struct PatchLookup {
@@ -37,51 +39,12 @@ pub enum VersionedPatchLookupData {
 	V1(PatchLookupData),
 }
 
-// NOTE: Any changes to this struct or sub-structs must be versioned in `zipatch.rs`.
 #[binrw]
 #[brw(little)]
 #[derive(Debug, Default)]
 pub struct PatchLookupData {
-	#[br(temp)]
-	#[bw(calc = file_chunks.len().try_into().unwrap())]
-	file_chunks_count: u32,
-
-	#[br(
-		count = file_chunks_count,
-		map = |value: Vec<(SqPackSpecifier, CountVec<FileChunk>)>| value.into_iter().map(|(key, value)| (key, value.items)).collect()
-	)]
-	#[bw(
-		map = |value| value.clone().into_iter().map(|(key, value)| (key, CountVec { items: value })).collect::<Vec<_>>()
-	)]
-	pub file_chunks: HashMap<SqPackSpecifier, Vec<FileChunk>>,
-
-	#[br(temp)]
-	#[bw(calc = resource_chunks.len().try_into().unwrap())]
-	resource_chunks_count: u32,
-
-	// (specifier, offset)
-	#[br(
-		count = resource_chunks_count,
-		map = |value: Vec<((SqPackSpecifier, u32), ResourceChunk)>| value.into_iter().collect()
-	)]
-	#[bw(
-		map = |value| value.clone().into_iter().collect::<Vec<_>>()
-	)]
-	pub resource_chunks: HashMap<(SqPackSpecifier, u32), ResourceChunk>,
-}
-
-#[binrw]
-#[derive(Debug)]
-struct CountVec<T>
-where
-	T: BinRead<Args = ()> + BinWrite<Args = ()>,
-{
-	#[br(temp)]
-	#[bw(calc = items.len().try_into().unwrap())]
-	count: u32,
-
-	#[br(count = count)]
-	items: Vec<T>,
+	pub file_chunks: BrwMap<SqPackSpecifier, BrwVec<FileChunk>>,
+	pub resource_chunks: BrwMap<(SqPackSpecifier, u32), ResourceChunk>,
 }
 
 #[binrw]
@@ -108,13 +71,7 @@ pub enum SqPackFileExtension {
 pub struct FileChunk {
 	pub target_offset: u64,
 	pub target_size: u64,
-
-	#[br(temp)]
-	#[bw(calc = blocks.len().try_into().unwrap())]
-	blocks_count: u32,
-
-	#[br(count = blocks_count)]
-	pub blocks: Vec<FileBlock>,
+	pub blocks: BrwVec<FileBlock>,
 }
 
 #[binrw]
@@ -210,7 +167,7 @@ fn process_file_operation(data: &mut PatchLookupData, command: FileOperationComm
 
 	data.file_chunks
 		.entry(path_to_specifier(&command.path().to_string())?)
-		.or_insert_with(Vec::new)
+		.or_insert_with(Default::default)
 		.push(chunk);
 
 	Ok(())

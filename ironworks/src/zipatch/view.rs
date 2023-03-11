@@ -116,11 +116,11 @@ impl View {
 
 			// Read the commands for this patch.
 			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
-			for chunk in chunks {
+			for chunk in chunks.iter() {
 				empty = false;
 				cursor.set_position(chunk.target_offset);
 
-				for block in &chunk.blocks {
+				for block in chunk.blocks.iter() {
 					file.seek(SeekFrom::Start(block.source_offset))?;
 					let mut reader = sqpack::BlockPayload::new(
 						&mut file,
