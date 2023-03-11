@@ -23,44 +23,49 @@ use super::{
 type FileReader =
 	Either<TakeSeekable<BufReader<fs::File>>, sqpack::BlockStream<BufReader<fs::File>>>;
 
-/// Specifier of a mapping between repositories and patches within them that
-/// together represent a single cohesive cross-repository version.
 #[derive(Debug)]
-pub struct VersionSpecifier {
-	patches: HashMap<u8, String>,
+pub struct ViewBuilder {
+	repositories: HashMap<u8, Arc<PatchRepository>>,
+	cache: Arc<LookupCache>,
 }
 
-impl VersionSpecifier {
-	/// Create a VersionSpecifier that will pull from the newest patches available.
-	pub fn latest() -> Self {
+impl ViewBuilder {
+	pub(super) fn new(cache: Arc<LookupCache>) -> Self {
 		Self {
-			patches: HashMap::new(),
+			repositories: Default::default(),
+			cache,
 		}
 	}
 
-	/// Create a VersionSpecifier that will read from, at latest, the specified
-	/// patches. Omitted repository IDs will read from the most recent patch available.
-	pub fn with_patches(patches: HashMap<u8, String>) -> Self {
-		Self { patches }
+	/// Add a patch repository for the given SqPack repository ID.
+	pub fn with_repository(mut self, id: u8, repository: PatchRepository) -> Self {
+		self.add_repository(id, repository);
+		self
+	}
+
+	/// Add a patch repository for the given SqPack repository ID.
+	pub fn add_repository(&mut self, id: u8, repository: PatchRepository) {
+		self.repositories.insert(id, Arc::new(repository));
+	}
+
+	pub fn build(self) -> View {
+		View::new(self.repositories, self.cache)
 	}
 }
 
 /// A snapshot into the data available in patch files as of a specified set of patches.
 #[derive(Debug)]
-pub struct Version {
-	specifier: VersionSpecifier,
+pub struct View {
 	repositories: HashMap<u8, Arc<PatchRepository>>,
 	cache: Arc<LookupCache>,
 }
 
-impl Version {
+impl View {
 	pub(super) fn new(
-		specifier: VersionSpecifier,
 		repositories: HashMap<u8, Arc<PatchRepository>>,
 		cache: Arc<LookupCache>,
 	) -> Self {
 		Self {
-			specifier,
 			repositories,
 			cache,
 		}
@@ -74,23 +79,13 @@ impl Version {
 			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
 		})?;
 
-		let target_patch = self.specifier.patches.get(&repository_id);
-
 		// We're operating at a patch-by-patch granularity here, with the (very safe)
 		// assumption that a game version is at minimum one patch.
 		let iterator = repository
 			.patches
 			.iter()
 			.rev()
-			.skip_while(move |patch| {
-				match target_patch {
-					// None implies the latest patch available, never skip.
-					None => false,
-					// Skip while the patch doesn't match.
-					Some(target) => &patch.name != target,
-				}
-			})
-			.map(move |patch| self.cache.lookup(repository_id, patch));
+			.map(move |patch| self.cache.lookup(patch));
 
 		Ok(iterator)
 	}
@@ -166,15 +161,19 @@ impl Version {
 	}
 }
 
-impl sqpack::Resource for Version {
-	fn version(&self, repository: u8) -> Result<String> {
-		self.specifier
+impl sqpack::Resource for View {
+	fn version(&self, repository_id: u8) -> Result<String> {
+		let repository = self.repositories.get(&repository_id).ok_or_else(|| {
+			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
+		})?;
+
+		repository
 			.patches
-			.get(&repository)
-			.cloned()
+			.last()
+			.map(|x| x.name.clone())
 			.ok_or_else(|| {
 				Error::Invalid(
-					ErrorValue::Other(format!("repository {repository}")),
+					ErrorValue::Other(format!("repository {repository_id}")),
 					"unspecified repository version".to_string(),
 				)
 			})

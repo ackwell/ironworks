@@ -27,7 +27,7 @@ pub struct Config {
 
 // TODO: proper error type
 // TODO: this should be versioned (and abstracted, there'll likely need to be a persistence layer for the versioning that gets read from first).
-pub async fn wip_build_zipatch(config: Config) -> Result<zipatch::ZiPatch> {
+pub async fn wip_build_zipatch_view(config: Config) -> Result<zipatch::View> {
 	let provider = thaliak::Provider::new(config.thaliak);
 
 	let target_directory = config.directory.relative();
@@ -41,14 +41,18 @@ pub async fn wip_build_zipatch(config: Config) -> Result<zipatch::ZiPatch> {
 
 	let repositories = try_join_all(pending_repositories).await?;
 
-	let zipatch = repositories
+	// TODO: when expanding to support multiple versions, this will need to hold on to the zipatch instance, and each version lookup can spin off a view of it. Given we're only building one view for now, we don't need to hold that outer layer.
+	let zipatch = zipatch::ZiPatch::new();
+
+	let view = repositories
 		.into_iter()
 		.zip(0u8..)
-		.fold(zipatch::ZiPatch::new(), |zipatch, (repository, index)| {
-			zipatch.with_repository(index, repository)
-		});
+		.fold(zipatch.view(), |builder, (repository, index)| {
+			builder.with_repository(index, repository)
+		})
+		.build();
 
-	Ok(zipatch)
+	Ok(view)
 }
 
 async fn build_repository(

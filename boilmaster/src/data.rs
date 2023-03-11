@@ -3,8 +3,7 @@ use std::sync::Arc;
 use ironworks::{
 	excel::{Excel, Language},
 	sqpack::SqPack,
-	zipatch::{VersionSpecifier, ZiPatch},
-	Ironworks,
+	zipatch, Ironworks,
 };
 
 pub struct Data {
@@ -13,9 +12,9 @@ pub struct Data {
 }
 
 impl Data {
-	pub fn new(temp_zipatch: ZiPatch) -> Self {
+	pub fn new(temp_view: zipatch::View) -> Self {
 		Data {
-			temp_version: Version::new(temp_zipatch),
+			temp_version: Version::new(temp_view),
 		}
 	}
 
@@ -34,13 +33,10 @@ pub struct Version {
 }
 
 impl Version {
-	fn new(temp_zipatch: ZiPatch) -> Self {
-		// TODO: Given how different versions will end up having different paths through the patch files, i'm tempted to say that zipatch having versioning in itself is useless and should be removed.
-		let zipatch_version = temp_zipatch.version(VersionSpecifier::latest());
-
+	fn new(temp_view: zipatch::View) -> Self {
 		// TODO: Work out how to handle languages
 		// let ironworks = Ironworks::new().with_resource(SqPack::new(Install::search().unwrap()));
-		let ironworks = Ironworks::new().with_resource(SqPack::new(zipatch_version));
+		let ironworks = Ironworks::new().with_resource(SqPack::new(temp_view));
 		let excel = Excel::with()
 			.language(Language::English)
 			.build(Arc::new(ironworks));

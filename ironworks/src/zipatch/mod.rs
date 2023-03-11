@@ -2,11 +2,11 @@
 
 mod lookup;
 mod repository;
-mod version;
+mod view;
 mod zipatch;
 
 pub use {
 	repository::{Patch, PatchRepository},
-	version::{Version, VersionSpecifier},
+	view::View,
 	zipatch::ZiPatch,
 };
