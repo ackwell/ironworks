@@ -1,4 +1,3 @@
-use ironworks::excel::Language;
 use tantivy::{
 	query::{BooleanQuery, PhraseQuery, Query, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},
@@ -48,9 +47,10 @@ impl QueryResolver<'_> {
 	}
 
 	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
-		let field_name = column_field_name(&leaf.field, Language::None);
+		let (column, language) = &leaf.field;
+		let field_name = column_field_name(column, *language);
 		let field = self.schema.get_field(&field_name).ok_or_else(|| {
-			SearchError::SchemaMismatch(MismatchError {
+			SearchError::SchemaGameMismatch(MismatchError {
 				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
 				field: format!("field {field_name}"),
 				reason: "field does not exist in search index".into(),

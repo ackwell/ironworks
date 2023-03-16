@@ -1,4 +1,4 @@
-use ironworks::file::exh;
+use ironworks::{excel, file::exh};
 
 use super::query;
 
@@ -12,7 +12,7 @@ pub type Relation = query::Relation<LeafField, RelationTarget>;
 pub use query::{Occur, Value};
 
 // Types specific to post-normalised queries
-pub type LeafField = exh::ColumnDefinition;
+pub type LeafField = (exh::ColumnDefinition, excel::Language);
 
 #[derive(Debug)]
 pub struct RelationTarget {

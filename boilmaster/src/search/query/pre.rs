@@ -1,3 +1,5 @@
+use ironworks::excel;
+
 use super::query;
 
 // Re-export the query types, with assigned generics.
@@ -15,6 +17,6 @@ pub type RelationTarget = ();
 
 #[derive(Debug)]
 pub enum FieldSpecifier {
-	Struct(String),
+	Struct(String, Option<excel::Language>),
 	Array,
 }

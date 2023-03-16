@@ -38,8 +38,9 @@ impl From<search::SearchError> for Error {
 		match error {
 			SE::FieldType(_)
 			| SE::MalformedQuery(_)
-			| SE::QueryMismatch(_)
-			| SE::SchemaMismatch(_) => Self::Invalid(error.to_string()),
+			| SE::QuerySchemaMismatch(_)
+			| SE::QueryGameMismatch(_)
+			| SE::SchemaGameMismatch(_) => Self::Invalid(error.to_string()),
 			SE::Failure(inner) => Self::Other(inner),
 		}
 	}

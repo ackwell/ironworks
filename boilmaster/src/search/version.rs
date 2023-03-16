@@ -97,6 +97,7 @@ impl Version {
 	pub fn search(
 		&self,
 		query: &pre::Node,
+		language: excel::Language,
 		sheet_filter: Option<HashSet<String>>,
 		excel: &excel::Excel,
 		schema: &dyn Schema,
@@ -104,7 +105,7 @@ impl Version {
 		let option = self.indices.read().expect("TODO error poisoned");
 		let indices = option
 			.as_ref()
-			.expect("TODO handle case where indices are not eady yet");
+			.expect("TODO handle case where indices are not ready yet");
 
 		let normalizer = Normalizer::new(excel, schema);
 
@@ -126,7 +127,7 @@ impl Version {
 			// Execute the query on each matching index
 			.map(|name| {
 				// Normalise the query for each requested index using the provided schema.
-				let normalized_query = normalizer.normalize(query, name)?;
+				let normalized_query = normalizer.normalize(query, name, language)?;
 
 				// Execute the query, tagging the results with the sheet the result is from.
 				let results = executor.search(name, &normalized_query)?;
@@ -148,7 +149,7 @@ impl Version {
 				Err(error @ SearchError::Failure(_)) => Err(error),
 				// Query mismatches will be raised for most sheets, and aren't particularly meaningful for end-users. Skip.
 				// TODO: ... right? i mean, it kind of sucks to not be able to say "oi this field doesn't exist" but... idk.
-				Err(SearchError::QueryMismatch(_)) => Ok(warnings),
+				Err(SearchError::QuerySchemaMismatch(_)) => Ok(warnings),
 				// Other errors can be raised as warnings without halting the process.
 				// TODO: find some way to tag this with the sheet name because at the moment the warnings are entirely unactionable.
 				Err(error) => Ok(warnings.with_warning(error.to_string())),

@@ -7,12 +7,16 @@ pub enum SearchError {
 	MalformedQuery(String),
 
 	/// The provided query cannot be mapped onto the sheet schema.
-	#[error("query mismatch on {}: {}", .0.field, .0.reason)]
-	QueryMismatch(MismatchError),
+	#[error("query <-> schema mismatch on {}: {}", .0.field, .0.reason)]
+	QuerySchemaMismatch(MismatchError),
+
+	/// The provided query cannot be normalized in terms of the game data.
+	#[error("query <-> game mismatch on {}: {}", .0.field, .0.reason)]
+	QueryGameMismatch(MismatchError),
 
 	/// The sheet schema in use does not map cleanly to the search index (and hence game data).
-	#[error("schema mismatch on {}: {}", .0.field, .0.reason)]
-	SchemaMismatch(MismatchError),
+	#[error("schema <-> game mismatch on {}: {}", .0.field, .0.reason)]
+	SchemaGameMismatch(MismatchError),
 
 	#[error(transparent)]
 	Failure(#[from] anyhow::Error),

@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use ironworks::excel;
 use nom::{
 	branch::alt,
 	bytes::complete::{tag, take_till, take_while1},
@@ -13,9 +14,12 @@ use nom::{
 };
 use serde::{de, Deserialize};
 
-use crate::search::SearchError;
+use crate::{data, search::SearchError};
 
 use super::pre;
+
+// TODO: confirm
+const LANGUAGE_SIGIL: &str = "@";
 
 type IResult<'a, I, O> = nom::IResult<I, O, nom::error::VerboseError<&'a str>>;
 
@@ -85,10 +89,17 @@ fn field_specifier(input: &str) -> IResult<&str, pre::FieldSpecifier> {
 }
 
 fn field_specifier_struct(input: &str) -> IResult<&str, pre::FieldSpecifier> {
-	map(
-		take_while1(|c: char| c.is_ascii_alphanumeric()),
-		|name: &str| pre::FieldSpecifier::Struct(name.into()),
-	)(input)
+	map(tuple((alphanumeric, opt(language))), |(name, language)| {
+		pre::FieldSpecifier::Struct(name.into(), language.map(excel::Language::from))
+	})(input)
+}
+
+fn language(input: &str) -> IResult<&str, data::LanguageString> {
+	map_res(preceded(tag(LANGUAGE_SIGIL), alphanumeric), str::parse)(input)
+}
+
+fn alphanumeric(input: &str) -> IResult<&str, &str> {
+	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
 }
 
 fn field_specifier_array(input: &str) -> IResult<&str, pre::FieldSpecifier> {
