@@ -38,11 +38,11 @@ impl fmt::Display for StructKey {
 	}
 }
 
-type StructFilter = HashMap<StructKey, Option<FieldFilter>>;
-type ArrayFilter = Option<Box<FieldFilter>>;
+type StructFilter = HashMap<StructKey, Option<Filter>>;
+type ArrayFilter = Option<Box<Filter>>;
 
 #[derive(Debug, PartialEq)]
-pub enum FieldFilter {
+pub enum Filter {
 	Struct(StructFilter),
 
 	// due to multiple slices, probably easiest to halt merges at arrays and only start merging again on index access
@@ -51,7 +51,7 @@ pub enum FieldFilter {
 	// Reference
 }
 
-impl fmt::Display for FieldFilter {
+impl fmt::Display for Filter {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::Struct(fields) => {
@@ -79,7 +79,7 @@ impl fmt::Display for FieldFilter {
 	}
 }
 
-impl<'de> SoftDeserialize<'de> for Option<FieldFilter> {
+impl<'de> SoftDeserialize<'de> for Option<Filter> {
 	fn deserialize<D>(deserializer: D) -> Result<Warnings<Self>, D::Error>
 	where
 		D: Deserializer<'de>,
@@ -100,7 +100,7 @@ impl<'de> SoftDeserialize<'de> for Option<FieldFilter> {
 	}
 }
 
-impl FieldFilter {
+impl Filter {
 	fn merge(self, source: Self) -> Warnings<Option<Self>> {
 		match (self, source) {
 			(Self::Struct(target_struct), Self::Struct(source_struct)) => {
@@ -136,7 +136,7 @@ fn merge_struct(target: StructFilter, source: StructFilter) -> Warnings<StructFi
 fn merge_struct_field(
 	mut target: StructFilter,
 	key: StructKey,
-	source_value: Option<FieldFilter>,
+	source_value: Option<Filter>,
 ) -> Warnings<StructFilter> {
 	// This uses remove->insert rather than the entry API, as merging requires an owned value, not a mutable reference
 	// TODO: is it worth trying to refactor all this to actually use mutable references? I'm not convinced...
@@ -158,7 +158,7 @@ fn merge_array(left: ArrayFilter, right: ArrayFilter) -> Warnings<ArrayFilter> {
 	merge_optional_filters(left.map(|x| *x), right.map(|x| *x)).map(|output| output.map(Box::new))
 }
 
-fn group(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
+fn group(input: &str) -> IResult<&str, Warnings<Option<Filter>>> {
 	map(
 		separated_list1(char(','), filter),
 		// .reduce only returns None when there was 0 inputs, which is impossible due to _list1
@@ -167,9 +167,9 @@ fn group(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
 }
 
 fn merge_warning_filters(
-	left: Warnings<Option<FieldFilter>>,
-	right: Warnings<Option<FieldFilter>>,
-) -> Warnings<Option<FieldFilter>> {
+	left: Warnings<Option<Filter>>,
+	right: Warnings<Option<Filter>>,
+) -> Warnings<Option<Filter>> {
 	// Step into the left and right warnings to prep merging them.
 	left.and_then(|maybe_filter_left| {
 		right.and_then(|maybe_filter_right| {
@@ -178,10 +178,7 @@ fn merge_warning_filters(
 	})
 }
 
-fn merge_optional_filters(
-	left: Option<FieldFilter>,
-	right: Option<FieldFilter>,
-) -> Warnings<Option<FieldFilter>> {
+fn merge_optional_filters(left: Option<Filter>, right: Option<Filter>) -> Warnings<Option<Filter>> {
 	match (left, right) {
 		// If both sides have an active filter, merge them and lift any warnings.
 		(Some(filter_left), Some(filter_right)) => filter_left.merge(filter_right),
@@ -193,22 +190,22 @@ fn merge_optional_filters(
 	}
 }
 
-fn filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
+fn filter(input: &str) -> IResult<&str, Warnings<Option<Filter>>> {
 	alt((
 		map(alt((struct_entry, array_index)), |filter| filter.map(Some)),
 		delimited(char('('), group, char(')')),
 	))(input)
 }
 
-fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<FieldFilter>>> {
+fn chained_filter(input: &str) -> IResult<&str, Warnings<Option<Filter>>> {
 	map(opt(preceded(char('.'), filter)), |filter| {
 		filter.unwrap_or_else(|| Warnings::new(None))
 	})(input)
 }
 
-fn struct_entry(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
+fn struct_entry(input: &str) -> IResult<&str, Warnings<Filter>> {
 	map(tuple((field_name, chained_filter)), |(key, child)| {
-		key.and_then(|key| child.map(|filter| FieldFilter::Struct(HashMap::from([(key, filter)]))))
+		key.and_then(|key| child.map(|filter| Filter::Struct(HashMap::from([(key, filter)]))))
 	})(input)
 }
 
@@ -238,11 +235,11 @@ fn alphanumeric(input: &str) -> IResult<&str, &str> {
 	take_while1(|c: char| c.is_ascii_alphanumeric())(input)
 }
 
-fn array_index(input: &str) -> IResult<&str, Warnings<FieldFilter>> {
+fn array_index(input: &str) -> IResult<&str, Warnings<Filter>> {
 	map(
 		tuple((tag("[]"), chained_filter)),
 		// TODO: actually parse an index
-		|(_, child)| child.map(|filter| FieldFilter::Array(filter.map(Box::new))),
+		|(_, child)| child.map(|filter| Filter::Array(filter.map(Box::new))),
 	)(input)
 }
 
@@ -255,27 +252,25 @@ mod test {
 
 	use super::*;
 
-	fn test_parse(input: &str) -> Option<FieldFilter> {
+	fn test_parse(input: &str) -> Option<Filter> {
 		let (value, warnings) = test_warning_parse(input).decompose();
 		assert!(warnings.is_empty(), "unexpected warnings: {:?}", warnings);
 		value
 	}
 
-	fn test_warning_parse(input: &str) -> Warnings<Option<FieldFilter>> {
+	fn test_warning_parse(input: &str) -> Warnings<Option<Filter>> {
 		let (remaining, output) = group(input).finish().expect("parse should not fail");
 		assert_eq!(remaining, "");
 		output
 	}
 
-	fn struct_filter(
-		entries: impl IntoIterator<Item = (&'static str, Option<FieldFilter>)>,
-	) -> FieldFilter {
+	fn struct_filter(entries: impl IntoIterator<Item = (&'static str, Option<Filter>)>) -> Filter {
 		struct_lang_filter(entries.into_iter().map(|(key, value)| ((key, None), value)))
 	}
 
 	fn struct_lang_filter(
-		entries: impl IntoIterator<Item = ((&'static str, Option<Language>), Option<FieldFilter>)>,
-	) -> FieldFilter {
+		entries: impl IntoIterator<Item = ((&'static str, Option<Language>), Option<Filter>)>,
+	) -> Filter {
 		let map = entries
 			.into_iter()
 			.map(|((name, language), value)| {
@@ -288,11 +283,11 @@ mod test {
 				)
 			})
 			.collect::<HashMap<_, _>>();
-		FieldFilter::Struct(map)
+		Filter::Struct(map)
 	}
 
-	fn array_filter(child: Option<FieldFilter>) -> FieldFilter {
-		FieldFilter::Array(child.map(Box::new))
+	fn array_filter(child: Option<Filter>) -> Filter {
+		Filter::Array(child.map(Box::new))
 	}
 
 	#[test]
@@ -319,7 +314,7 @@ mod test {
 	#[test]
 	fn parse_array_simple() {
 		let out = test_parse("[]");
-		let expected = Some(FieldFilter::Array(None));
+		let expected = Some(Filter::Array(None));
 		assert_eq!(out, expected);
 	}
 

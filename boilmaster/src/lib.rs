@@ -2,7 +2,6 @@
 
 // TODO: probably take these non-public and expose an explicit interface here? or is it not worth it given this is the entry point
 pub mod data;
-mod field_filter;
 pub mod http;
 pub mod patch;
 mod read;

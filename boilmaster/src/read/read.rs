@@ -8,19 +8,19 @@ use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::{
-	field_filter::{FieldFilter, StructKey},
-	utility::field,
-};
+use crate::utility::field;
 
-use super::value::{Reference, Value};
+use super::{
+	filter::{Filter, StructKey},
+	value::{Reference, Value},
+};
 
 pub fn read(
 	excel: &excel::Excel,
 	schema: &dyn schema::Schema,
 
 	language: excel::Language,
-	filter: Option<&FieldFilter>,
+	filter: Option<&Filter>,
 
 	sheet_name: &str,
 	row_id: u32,
@@ -60,7 +60,7 @@ struct ReaderContext<'a> {
 	row_id: u32,
 	subrow_id: u16,
 
-	filter: Option<&'a FieldFilter>,
+	filter: Option<&'a Filter>,
 
 	sheet: &'a excel::Sheet<'a, &'a str>,
 	rows: Rc<RefCell<HashMap<excel::Language, excel::Row>>>,
@@ -109,7 +109,7 @@ fn read_node(node: &schema::Node, context: ReaderContext) -> Result<Value> {
 
 fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result<Value> {
 	let inner_filter = match context.filter {
-		Some(FieldFilter::Array(inner)) => inner.as_ref().map(|x| x.as_ref()),
+		Some(Filter::Array(inner)) => inner.as_ref().map(|x| x.as_ref()),
 		// TODO: should this be a warning?
 		Some(other) => return Err(anyhow!("unexpected filter {other}")),
 		None => None,
@@ -240,7 +240,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 	let mut map = BTreeMap::new();
 
 	let filter = match context.filter {
-		Some(FieldFilter::Struct(map)) => Some(map),
+		Some(Filter::Struct(map)) => Some(map),
 		// TODO: should this be a warning?
 		Some(other) => return Err(anyhow!("unexpected filter {other}")),
 		None => None,

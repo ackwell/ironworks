@@ -7,7 +7,6 @@ use serde::Deserialize;
 
 use crate::{
 	data::{Data, LanguageString},
-	field_filter::FieldFilter,
 	read, schema,
 	utility::{anyhow::Anyhow, warnings::Warnings},
 };
@@ -47,7 +46,7 @@ async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoRespon
 #[derive(Deserialize)]
 struct FieldFilterQuery {
 	// this is a bit jank with the double option, improve? is it even possible to improve?
-	fields: Option<Warnings<Option<FieldFilter>>>,
+	fields: Option<Warnings<Option<read::Filter>>>,
 }
 
 // TODO: likewise with field filter, should be reuseable
