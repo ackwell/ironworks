@@ -1,5 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
+use num_enum::TryFromPrimitive;
+
 use crate::{
 	error::{Error, ErrorValue, Result},
 	excel::{borrowed::Borrowed, language::Language, metadata::SheetMetadata, path, row::Row},
@@ -57,10 +59,31 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		}
 	}
 
+	/// Name of the sheet as specified by the provided metadata.
+	pub fn name(&self) -> String {
+		self.sheet_metadata.name()
+	}
+
 	/// Get the kind of this sheet.
 	pub fn kind(&self) -> Result<exh::SheetKind> {
 		let kind = self.header()?.kind();
 		Ok(kind)
+	}
+
+	/// List of languages supported by this sheet.
+	pub fn languages(&self) -> Result<Vec<Language>> {
+		self.header()?
+			.languages()
+			.iter()
+			.copied()
+			.map(Language::try_from_primitive)
+			.collect::<Result<Vec<_>, _>>()
+			.map_err(|err| {
+				Error::Invalid(
+					ErrorValue::Sheet(self.name()),
+					format!("unknown language ID {}", err.number),
+				)
+			})
 	}
 
 	/// Fetch metadata for all columns in this sheet.
@@ -109,7 +132,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		let row_error_value = || ErrorValue::Row {
 			row: row_id,
 			subrow: subrow_id,
-			sheet: self.sheet_metadata.name().into(),
+			sheet: self.name().into(),
 		};
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
@@ -133,7 +156,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
 		self.cache.header.try_get_or_insert(|| {
-			let path = path::exh(&self.sheet_metadata.name());
+			let path = path::exh(&self.name());
 			self.ironworks.file(&path)
 		})
 	}
@@ -155,7 +178,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 				Error::NotFound(ErrorValue::Row {
 					row: row_id,
 					subrow: subrow_id,
-					sheet: self.sheet_metadata.name().into(),
+					sheet: self.name().into(),
 				})
 			})?
 			.start_id();
@@ -174,7 +197,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		self.cache
 			.pages
 			.try_get_or_insert((start_id, language), || {
-				let path = path::exd(&self.sheet_metadata.name(), start_id, language);
+				let path = path::exd(&self.name(), start_id, language);
 				self.ironworks.file(&path)
 			})
 	}

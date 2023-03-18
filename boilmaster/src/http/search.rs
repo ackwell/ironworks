@@ -3,10 +3,11 @@ use std::{collections::HashSet, sync::Arc};
 use anyhow::Context;
 use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
 use axum_macros::debug_handler;
+use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-	data::Data,
+	data::{Data, LanguageString},
 	schema,
 	search::{query, Search},
 };
@@ -31,6 +32,11 @@ struct SchemaQuery {
 	schema: Option<schema::Specifier>,
 }
 
+#[derive(Deserialize)]
+struct LanguageQuery {
+	language: Option<LanguageString>,
+}
+
 // TODO: flesh this out - at the moment it's just a 1:1 of searchresult, pending ideas on how to field filter for search results across multiple indices
 #[derive(Debug, Serialize)]
 struct SearchResult {
@@ -44,6 +50,7 @@ struct SearchResult {
 async fn search(
 	Query(search_query): Query<SearchQuery>,
 	Query(schema_query): Query<SchemaQuery>,
+	Query(language_query): Query<LanguageQuery>,
 	Extension(data): Extension<Arc<Data>>,
 	Extension(schema_provider): Extension<Arc<schema::Provider>>,
 	Extension(search): Extension<Arc<Search>>,
@@ -51,6 +58,11 @@ async fn search(
 	// TODO: this should expose a more useful error to the end user.
 	let search_version = search.version(None).context("search index not ready")?;
 	let excel = data.version(None).excel();
+
+	let language = language_query
+		.language
+		.map(Language::from)
+		.unwrap_or_else(|| data.default_language());
 
 	// TODO: I imagine comma-seperated stuff might be relatively common; make a deser helper (probs can trait it up so any fromiter<string> can deser using this pattern)
 	let sheets = search_query.sheets.map(|encoded| {
@@ -63,7 +75,13 @@ async fn search(
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let (results, warnings) = search_version
-		.search(&search_query.query, sheets, &excel, schema.as_ref())?
+		.search(
+			&search_query.query,
+			language,
+			sheets,
+			&excel,
+			schema.as_ref(),
+		)?
 		.decompose();
 
 	let http_results = results

@@ -38,8 +38,9 @@ impl From<search::SearchError> for Error {
 		match error {
 			SE::FieldType(_)
 			| SE::MalformedQuery(_)
-			| SE::QueryMismatch(_)
-			| SE::SchemaMismatch(_) => Self::Invalid(error.to_string()),
+			| SE::QuerySchemaMismatch(_)
+			| SE::QueryGameMismatch(_)
+			| SE::SchemaGameMismatch(_) => Self::Invalid(error.to_string()),
 			SE::Failure(inner) => Self::Other(inner),
 		}
 	}
@@ -89,16 +90,3 @@ impl IntoResponse for Error {
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-pub trait Anyhow<T> {
-	fn anyhow(self) -> std::result::Result<T, anyhow::Error>;
-}
-
-impl<T, E> Anyhow<T> for std::result::Result<T, E>
-where
-	E: std::error::Error + Send + Sync + 'static,
-{
-	fn anyhow(self) -> Result<T, anyhow::Error> {
-		self.map_err(anyhow::Error::new)
-	}
-}

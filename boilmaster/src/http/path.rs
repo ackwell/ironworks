@@ -8,6 +8,7 @@ use serde::de::DeserializeOwned;
 
 use super::error::ErrorResponse;
 
+#[derive(Debug)]
 pub struct Path<T>(pub T);
 
 #[async_trait]

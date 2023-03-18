@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use boilmaster::{data::Data, http, patch, schema, search, tracing};
+use boilmaster::{data, http, patch, schema, search, tracing};
 use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 struct Config {
 	tracing: tracing::Config,
 	http: http::Config,
+	data: data::Config,
 	patch: patch::Config,
 	schema: schema::Config,
 	search: search::Config,
@@ -35,7 +36,7 @@ async fn main() {
 		.await
 		.expect("TODO");
 
-	let data = Arc::new(Data::new(view));
+	let data = Arc::new(data::Data::new(config.data, view));
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 

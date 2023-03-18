@@ -1,28 +1,95 @@
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::{
+	cell::RefCell,
+	collections::{btree_map, hash_map, BTreeMap, HashMap},
+	rc::Rc,
+};
 
 use anyhow::{anyhow, Context, Result};
 use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
-use crate::{field_filter::FieldFilter, utility::field};
+use crate::{
+	field_filter::{FieldFilter, StructKey},
+	utility::field,
+};
 
 use super::value::{Reference, Value};
 
-#[derive(Clone)]
-pub struct ReaderContext<'a> {
-	pub excel: &'a excel::Excel<'a>,
-	pub schema: &'a dyn schema::Schema,
-	pub filter: Option<&'a FieldFilter>,
+pub fn read(
+	excel: &excel::Excel,
+	schema: &dyn schema::Schema,
 
-	pub row: &'a excel::Row,
-	pub limit: u8,
+	language: excel::Language,
+	filter: Option<&FieldFilter>,
 
-	pub columns: &'a [exh::ColumnDefinition],
+	sheet_name: &str,
+	row_id: u32,
+	subrow_id: u16,
+) -> Result<Value> {
+	let sheet_schema = schema.sheet(sheet_name)?;
+
+	let sheet = excel.sheet(sheet_name)?;
+	let columns = sheet.columns()?;
+
+	read_sheet(
+		sheet_schema,
+		ReaderContext {
+			excel,
+			schema,
+
+			language,
+			row_id,
+			subrow_id,
+
+			filter,
+
+			sheet: &sheet,
+			rows: Default::default(),
+			columns: &columns,
+			limit: 1,
+		},
+	)
 }
 
-pub fn read_sheet(sheet_name: &str, context: ReaderContext) -> Result<Value> {
-	let sheet = context.schema.sheet(sheet_name)?;
+#[derive(Clone)]
+struct ReaderContext<'a> {
+	excel: &'a excel::Excel<'a>,
+	schema: &'a dyn schema::Schema,
 
+	language: excel::Language,
+	row_id: u32,
+	subrow_id: u16,
+
+	filter: Option<&'a FieldFilter>,
+
+	sheet: &'a excel::Sheet<'a, &'a str>,
+	rows: Rc<RefCell<HashMap<excel::Language, excel::Row>>>,
+	columns: &'a [exh::ColumnDefinition],
+	limit: u8,
+}
+
+impl ReaderContext<'_> {
+	fn next_field(&self) -> Result<excel::Field> {
+		// Grab the row from cache, creating if not yet retrieved.
+		let mut map = self.rows.borrow_mut();
+		let row = match map.entry(self.language) {
+			hash_map::Entry::Occupied(entry) => entry.into_mut(),
+			hash_map::Entry::Vacant(entry) => entry.insert(
+				self.sheet
+					.with()
+					.language(self.language)
+					.subrow(self.row_id, self.subrow_id)?,
+			),
+		};
+
+		// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
+		let column = self.columns.get(0).context("schema mismatch")?;
+
+		Ok(row.field(column)?)
+	}
+}
+
+fn read_sheet(sheet: schema::Sheet, context: ReaderContext) -> Result<Value> {
 	if sheet.order != schema::Order::Index {
 		todo!("sheet schema {:?} order", sheet.order);
 	}
@@ -60,6 +127,8 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 						.get(*index..*index + size_usize)
 						.unwrap_or(&[]),
 					filter: inner_filter,
+
+					rows: context.rows.clone(),
 					..context
 				},
 			);
@@ -72,10 +141,8 @@ fn read_array(count: u32, node: &schema::Node, context: ReaderContext) -> Result
 }
 
 fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -> Result<Value> {
-	let column = context.columns.get(0).context("schema mismatch")?;
-
 	// Coerce the field to a i32
-	let field = context.row.field(column)?;
+	let field = context.next_field()?;
 	// TODO: i'd like to include the field in the context but it's really not worth copying the field for.
 	let target_value = field_to_index(field).context("failed to convert reference key to i32")?;
 
@@ -100,8 +167,8 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 
 		// Get the target sheet's data and schema. Intentionally fail hard, as any
 		// mismatch here can cause incorrect joins.
-		let sheet_data = context.excel.sheet(&target.sheet)?;
-		// let sheet_schema = context.schema.sheet(&target.sheet)?;
+		let sheet_data = context.excel.sheet(target.sheet.as_str())?;
+		let sheet_schema = context.schema.sheet(&target.sheet)?;
 
 		// TODO: non-id targets. how will this work alongside subrows?
 		if target.selector.is_some() {
@@ -116,7 +183,11 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 		}
 
 		// Get the row data for the target. If the row can't be found, pass on to the next target.
-		let row_data = match sheet_data.row(target_value) {
+		let row_data = match sheet_data
+			.with()
+			.language(context.language)
+			.row(target_value)
+		{
 			Err(ironworks::Error::NotFound(ironworks::ErrorValue::Row { .. })) => continue,
 			other => other,
 		}?;
@@ -124,11 +195,14 @@ fn read_reference(targets: &[schema::ReferenceTarget], context: ReaderContext) -
 		reference.sheet = Some(target.sheet.clone());
 		reference.data = Some(
 			read_sheet(
-				&target.sheet,
+				sheet_schema,
 				ReaderContext {
-					row: &row_data,
-					limit: context.limit - 1,
+					row_id: row_data.row_id(),
+					subrow_id: row_data.subrow_id(),
+					sheet: &sheet_data,
+					rows: Rc::new(RefCell::new(HashMap::from([(context.language, row_data)]))),
 					columns: &sheet_data.columns()?,
+					limit: context.limit - 1,
 					..context
 				},
 			)?
@@ -159,8 +233,7 @@ fn field_to_index(field: excel::Field) -> Result<i32> {
 
 fn read_scalar(context: ReaderContext) -> Result<Value> {
 	// TODO: schema mismatches are gonna happen - probably should try to fail more gracefully than a 500.
-	let column = context.columns.get(0).context("schema mismatch")?;
-	Ok(Value::Scalar(context.row.field(column)?))
+	Ok(Value::Scalar(context.next_field()?))
 }
 
 fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result<Value> {
@@ -180,7 +253,7 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 			.iter()
 			.find(|&field| field.offset == u32::try_from(offset).unwrap());
 
-		let (name, size, read): (_, _, Box<dyn FnOnce(_) -> _>) = match field {
+		let (name, size, read): (_, _, Box<dyn Fn(_) -> _>) = match field {
 			Some(field) => {
 				let size = usize::try_from(field.node.size()).unwrap();
 				let name = field::sanitize_name(&field.name);
@@ -194,35 +267,46 @@ fn read_struct(fields: &[schema::StructField], context: ReaderContext) -> Result
 		let range = offset..offset + size;
 		offset += size;
 
-		let child_filter = match filter {
-			// No filter is present, select all.
-			None => None,
-			Some(map) => match map.get(&name) {
-				// A filter exists, grab the child filter to pass down.
-				Some(inner_filter) => inner_filter.as_ref(),
-				// The filter doesn't contain this key, skip it.
-				None => {
-					continue;
+		// Get any language-filter pairs for this field, defaulting to a
+		// default-language no-op-filter if no filter exists.
+		// TODO: Improve this logic, this entire struct reader can probably do with a bit of cleaning up.
+		let default_key = StructKey {
+			name,
+			language: None,
+		};
+		let inner_filters = match filter {
+			None => vec![(&default_key, None)],
+			Some(map) => map
+				.iter()
+				.filter_map(|(key, inner_filter)| match key.name == default_key.name {
+					true => Some((key, inner_filter.as_ref())),
+					false => None,
+				})
+				.collect::<Vec<_>>(),
+		};
+
+		for (key, inner_filter) in inner_filters {
+			let value = read(ReaderContext {
+				columns: context.columns.get(range.clone()).unwrap_or(&[]),
+				language: key
+					.language
+					.map(excel::Language::from)
+					.unwrap_or(context.language),
+				filter: inner_filter,
+				rows: context.rows.clone(),
+				..context
+			})?;
+
+			match map.entry(key.to_string()) {
+				btree_map::Entry::Vacant(entry) => {
+					entry.insert(value);
 				}
-			},
-		};
 
-		let value = read(ReaderContext {
-			columns: context.columns.get(range).unwrap_or(&[]),
-			// TODO: filter
-			filter: child_filter,
-			..context
-		})?;
-
-		match map.entry(name) {
-			Entry::Vacant(entry) => {
-				entry.insert(value);
-			}
-
-			Entry::Occupied(entry) => {
-				tracing::warn!(name = %entry.key(), "name collision");
-			}
-		};
+				btree_map::Entry::Occupied(entry) => {
+					tracing::warn!(name = %entry.key(), "name collision");
+				}
+			};
+		}
 	}
 
 	Ok(Value::Struct(map))
