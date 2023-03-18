@@ -1,5 +1,5 @@
 use tantivy::{
-	query::{BooleanQuery, PhraseQuery, Query, TermQuery, TermSetQuery},
+	query::{BooleanQuery, Query, RegexQuery, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},
 	Index, TantivyError, Term,
 };
@@ -61,10 +61,6 @@ impl QueryResolver<'_> {
 			Operation::Relation(relation) => self.resolve_relation(relation, field),
 			Operation::Match(string) => self.resolve_match(string, field),
 			Operation::Equal(value) => {
-				if matches!(value, Value::String(_)) {
-					// TODO: term/phrase queries inherently don't handle exact equality. I might be able to handle strings as a ^regex$? will need to test.
-					todo!("exact string equal handling")
-				}
 				// TODO: requirements for floats are pretty tight - should I translate float equality into a range around the epsilon or something, or leave that up to consumers to do?
 				let term = self.value_to_term(value, field)?;
 				Ok(Box::new(TermQuery::new(term, IndexRecordOption::Basic)))
@@ -97,40 +93,27 @@ impl QueryResolver<'_> {
 	}
 
 	fn resolve_match(&self, string: &str, field: Field) -> Result<Box<dyn Query>, SearchError> {
-		// Get the analyser for this field from the tokeniser manager.
-		let analyzer = self
-			.index
-			.tokenizer_for_field(field)
-			.map_err(|error| match error {
-				// Schema errors designate that the field isn't a text field, which is a consumer issue.
-				// TODO: the wording on this error leaves a lot to be desired in this particular case.
-				TantivyError::SchemaError(message) => SearchError::FieldType(FieldTypeError {
-					field: format!("TODO: field {}", self.schema.get_field_name(field)),
-					expected: "string field".into(),
-					got: message,
-				}),
-
-				other => SearchError::Failure(other.into()),
-			})?;
-
-		// Use the analyser to break the match string up into terms
-		let mut terms = vec![];
-		analyzer.token_stream(string).process(&mut |token| {
-			let term = Term::from_field_text(field, &token.text);
-			terms.push((token.position, term))
-		});
-
-		// If there's only one term, use a term query, otherwise a phrase query
-		match terms.len() {
-			0 => {
-				todo!("i'm not sure what a 0-term phrase query would mean. input: {string}")
-			}
-			1 => Ok(Box::new(TermQuery::new(
-				terms.swap_remove(0).1,
-				IndexRecordOption::Basic,
-			))),
-			_ => Ok(Box::new(PhraseQuery::new_with_offset(terms))),
+		// Match queries only make sense on string fields.
+		if self.schema.get_field_entry(field).field_type().value_type() != Type::Str {
+			return Err(SearchError::QueryGameMismatch(MismatchError {
+				field: format!("field {}", self.schema.get_field_name(field)),
+				reason: "match queries can only be executed on string columns".into(),
+			}));
 		}
+
+		// TODO: What behavior should an empty string perform?
+
+		// String columns are ingested untokenised, so we can run "matches" using a regex partial match.
+		// TODO: consider allowing ^$ (impl by removing leading/trailing .*) and * (repl. with .*)
+		let pattern = format!("(?i).*{}.*", regex_syntax::escape(string));
+		let query = RegexQuery::from_pattern(&pattern, field).map_err(|error| match error {
+			TantivyError::InvalidArgument(_) => {
+				SearchError::MalformedQuery(format!("invalid match string \"{string}\""))
+			}
+			other => SearchError::Failure(other.into()),
+		})?;
+
+		Ok(Box::new(query))
 	}
 
 	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, SearchError> {
