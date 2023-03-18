@@ -148,7 +148,7 @@ impl<'a> Normalizer<'a> {
 				// We do _not_ fall back to `Language::None` here - an explicit request
 				// for an invalid language should fail. As-is, the contextual language
 				// is already coerced to `Language::None` at the sheet boundary `.normalize`
-				// call, so this will already fall back to `None` unless an erraneous
+				// call, so this will already fall back to `None` unless an erroneous
 				// language is requested explicitly.
 				let language = requested_language.unwrap_or(context.language);
 				if !context.languages.contains(&language) {

@@ -1041,7 +1041,6 @@ dependencies = [
  "ironworks",
  "ironworks_schema",
  "nom",
- "once_cell",
  "regex-syntax",
  "reqwest",
  "serde",

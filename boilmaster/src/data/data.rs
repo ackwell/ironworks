@@ -25,7 +25,7 @@ impl Data {
 	pub fn new(config: Config, temp_view: zipatch::View) -> Self {
 		Data {
 			default_language: config.language.into(),
-			temp_version: Version::new(temp_view, config.language.into()),
+			temp_version: Version::new(temp_view),
 		}
 	}
 
@@ -48,12 +48,9 @@ pub struct Version {
 }
 
 impl Version {
-	fn new(temp_view: zipatch::View, temp_language: Language) -> Self {
-		// TODO: temp language - ideally the root excel can be defaultless, and consumers can be explicit with their language usage. i'm making read explicit - this will mostly be a search thing. don't merge until done i guess.
+	fn new(temp_view: zipatch::View) -> Self {
 		let ironworks = Ironworks::new().with_resource(SqPack::new(temp_view));
-		let excel = Excel::with()
-			.language(temp_language)
-			.build(Arc::new(ironworks));
+		let excel = Excel::with().build(Arc::new(ironworks));
 
 		Version {
 			excel: Arc::new(excel),

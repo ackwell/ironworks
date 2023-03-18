@@ -18,7 +18,6 @@ use crate::{data, search::SearchError};
 
 use super::pre;
 
-// TODO: confirm
 const LANGUAGE_SIGIL: &str = "@";
 
 type IResult<'a, I, O> = nom::IResult<I, O, nom::error::VerboseError<&'a str>>;

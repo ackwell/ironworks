@@ -59,7 +59,7 @@ impl<'i, S: SheetMetadata> Sheet<'i, S> {
 		}
 	}
 
-	/// Name of the sheet as speified by the provided metadata.
+	/// Name of the sheet as specified by the provided metadata.
 	pub fn name(&self) -> String {
 		self.sheet_metadata.name()
 	}
