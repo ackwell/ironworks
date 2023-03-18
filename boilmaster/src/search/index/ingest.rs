@@ -74,6 +74,12 @@ impl Ingester {
 				}
 			}
 
+			// Add the ID fields for all of the recorded documents
+			for ((row_id, subrow_id), document) in documents.iter_mut() {
+				document.add_u64(schema.get_field(ROW_ID).unwrap(), (*row_id).into());
+				document.add_u64(schema.get_field(SUBROW_ID).unwrap(), (*subrow_id).into());
+			}
+
 			// TODO: if there's any failures at all (i.e. iw read errors) during ingestion, the writer should be rolled back to ensure a theoretical retry is able to work on a clean deck.
 			writer.run(documents.into_values().map(UserOperation::Add))?;
 
@@ -97,12 +103,6 @@ fn hydrate_row_document(
 	language: Language,
 	schema: &schema::Schema,
 ) -> Result<()> {
-	document.add_u64(schema.get_field(ROW_ID).unwrap(), (row.row_id()).into());
-	document.add_u64(
-		schema.get_field(SUBROW_ID).unwrap(),
-		(row.subrow_id()).into(),
-	);
-
 	for column in columns {
 		let field = schema
 			.get_field(&column_field_name(column, language))
