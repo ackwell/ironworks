@@ -1,8 +1,9 @@
 use std::{collections::HashSet, sync::Arc};
 
 use anyhow::Context;
-use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
-use axum_macros::debug_handler;
+use axum::{
+	debug_handler, extract::Query, response::IntoResponse, routing::get, Extension, Json, Router,
+};
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 

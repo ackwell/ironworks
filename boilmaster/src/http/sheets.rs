@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
-use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
-use axum_macros::debug_handler;
+use axum::{
+	debug_handler, extract::Query, response::IntoResponse, routing::get, Extension, Json, Router,
+};
 use ironworks::{excel::Language, file::exh};
 use serde::Deserialize;
 
