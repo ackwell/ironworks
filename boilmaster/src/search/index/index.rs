@@ -34,9 +34,7 @@ impl Index {
 		path: PathBuf,
 		sheet: Sheet<'static, String>,
 	) -> Result<Self, SearchError> {
-		tokio::fs::create_dir_all(&path)
-			.await
-			.map_err(anyhow::Error::from)?;
+		tokio::fs::create_dir_all(&path).await.anyhow()?;
 		let directory = MmapDirectory::open(path).anyhow()?;
 
 		let exists = tantivy::Index::exists(&directory).anyhow()?;

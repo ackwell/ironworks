@@ -11,7 +11,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{data::Data, schema, search::Search};
 
-use super::{search, sheets};
+use super::{admin, search, sheets};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -44,6 +44,7 @@ pub async fn serve(
 
 fn router(data: Arc<Data>, schema: Arc<schema::Provider>, search: Arc<Search>) -> Router {
 	Router::new()
+		.nest("/admin", admin::router())
 		.nest("/sheets", sheets::router())
 		.nest("/search", search::router(search))
 		// TODO: I'm not convinced by setting up the extensions this high, seems a bit magic so to speak
