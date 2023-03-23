@@ -1,24 +1,22 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use anyhow::Context;
 use axum::{
-	debug_handler, extract::Query, response::IntoResponse, routing::get, Extension, Json, Router,
+	debug_handler,
+	extract::{Query, State},
+	response::IntoResponse,
+	routing::get,
+	Json, Router,
 };
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-	data::{Data, LanguageString},
-	schema,
-	search::{query, Search},
-};
+use crate::{data::LanguageString, schema, search::query};
 
-use super::error::Result;
+use super::{error::Result, service};
 
-pub fn router(search_service: Arc<Search>) -> Router {
-	Router::new()
-		.route("/", get(search))
-		.layer(Extension(search_service))
+pub fn router() -> Router<service::State> {
+	Router::new().route("/", get(search))
 }
 
 #[derive(Debug, Deserialize)]
@@ -47,14 +45,14 @@ struct SearchResult {
 	subrow_id: u16,
 }
 
-#[debug_handler]
+#[debug_handler(state = service::State)]
 async fn search(
 	Query(search_query): Query<SearchQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
-	Extension(data): Extension<Arc<Data>>,
-	Extension(schema_provider): Extension<Arc<schema::Provider>>,
-	Extension(search): Extension<Arc<Search>>,
+	State(data): State<service::Data>,
+	State(schema_provider): State<service::Schema>,
+	State(search): State<service::Search>,
 ) -> Result<impl IntoResponse> {
 	// TODO: this should expose a more useful error to the end user.
 	let search_version = search.version(None).context("search index not ready")?;
