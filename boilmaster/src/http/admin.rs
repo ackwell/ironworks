@@ -14,5 +14,5 @@ pub fn router() -> Router<service::State> {
 #[debug_handler]
 async fn admin() -> Result<impl IntoResponse> {
 	let template = AdminTemplate;
-	Ok(template.render().unwrap())
+	Ok(template)
 }
