@@ -6,7 +6,7 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.55"
-axum = {version = "0.6.11", features = ["macros"]}
+axum = {version = "0.6.12", features = ["macros"]}
 either = "1.8.0"
 figment = {version = "0.10.8", features = ["env", "toml"]}
 futures = "0.3.25"
