@@ -1,14 +1,13 @@
 use askama::Template;
-use axum::{response::IntoResponse, routing::get, Router};
-use axum_macros::debug_handler;
+use axum::{debug_handler, response::IntoResponse, routing::get, Router};
 
-use super::error::Result;
+use super::{error::Result, service};
 
 #[derive(Template)]
 #[template(path = "admin.html")]
 struct AdminTemplate;
 
-pub fn router() -> Router {
+pub fn router() -> Router<service::State> {
 	Router::new().route("/", get(admin))
 }
 

@@ -4,14 +4,14 @@ use std::{
 };
 
 use anyhow::Result;
-use axum::{Extension, Router, Server};
+use axum::{Router, Server};
 use futures::Future;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
 use crate::{data::Data, schema, search::Search};
 
-use super::{admin, search, sheets};
+use super::{admin, search, service::State, sheets};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -46,9 +46,11 @@ fn router(data: Arc<Data>, schema: Arc<schema::Provider>, search: Arc<Search>) -
 	Router::new()
 		.nest("/admin", admin::router())
 		.nest("/sheets", sheets::router())
-		.nest("/search", search::router(search))
-		// TODO: I'm not convinced by setting up the extensions this high, seems a bit magic so to speak
-		.layer(Extension(data))
-		.layer(Extension(schema))
+		.nest("/search", search::router())
 		.layer(TraceLayer::new_for_http())
+		.with_state(State {
+			data,
+			schema,
+			search,
+		})
 }

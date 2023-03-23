@@ -1,12 +1,15 @@
-use std::sync::Arc;
-
-use axum::{extract::Query, response::IntoResponse, routing::get, Extension, Json, Router};
-use axum_macros::debug_handler;
+use axum::{
+	debug_handler,
+	extract::{Query, State},
+	response::IntoResponse,
+	routing::get,
+	Json, Router,
+};
 use ironworks::{excel::Language, file::exh};
 use serde::Deserialize;
 
 use crate::{
-	data::{Data, LanguageString},
+	data::LanguageString,
 	read, schema,
 	utility::{anyhow::Anyhow, warnings::Warnings},
 };
@@ -14,9 +17,10 @@ use crate::{
 use super::{
 	error::{Error, Result},
 	path::Path,
+	service,
 };
 
-pub fn router() -> Router {
+pub fn router() -> Router<service::State> {
 	Router::new()
 		.route("/", get(sheets))
 		.route("/:sheet_name/:row_id", get(row))
@@ -31,7 +35,7 @@ struct RowPath {
 }
 
 #[debug_handler]
-async fn sheets(Extension(data): Extension<Arc<Data>>) -> Result<impl IntoResponse> {
+async fn sheets(State(data): State<service::Data>) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
 
 	let list = excel.list().anyhow()?;
@@ -61,7 +65,7 @@ struct LanguageQuery {
 	language: Option<LanguageString>,
 }
 
-#[debug_handler]
+#[debug_handler(state = service::State)]
 async fn row(
 	Path(RowPath {
 		sheet_name,
@@ -71,8 +75,8 @@ async fn row(
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
-	Extension(data): Extension<Arc<Data>>,
-	Extension(schema_provider): Extension<Arc<schema::Provider>>,
+	State(data): State<service::Data>,
+	State(schema_provider): State<service::Schema>,
 ) -> Result<impl IntoResponse> {
 	let excel = data.version(None).excel();
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
