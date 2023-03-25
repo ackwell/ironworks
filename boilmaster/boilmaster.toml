@@ -9,14 +9,14 @@ port = 8080
 [data]
 language = "en"
 
-[patch]
+[version]
 directory = "patches"
 concurrency = 4
 repositories = [
   "4e9a232b", # ffxiv
 ]
 
-[patch.thaliak]
+[version.thaliak]
 endpoint = "https://thaliak.xiv.dev/graphql/2022-08-14"
 
 [schema]

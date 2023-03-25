@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use boilmaster::{data, http, patch, schema, search, tracing};
+use boilmaster::{data, http, schema, search, tracing, version};
 use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
@@ -14,7 +14,7 @@ struct Config {
 	tracing: tracing::Config,
 	http: http::Config,
 	data: data::Config,
-	patch: patch::Config,
+	version: version::Config,
 	schema: schema::Config,
 	search: search::Config,
 }
@@ -32,7 +32,7 @@ async fn main() {
 	// Initialise tracing before getting too far into bootstrapping the rest of the application
 	tracing::init(config.tracing);
 
-	let view = patch::wip_build_zipatch_view(config.patch)
+	let view = version::wip_build_zipatch_view(config.version)
 		.await
 		.expect("TODO");
 

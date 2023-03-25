@@ -4,7 +4,7 @@ use anyhow::Result;
 use graphql_client::{GraphQLQuery, Response};
 use serde::Deserialize;
 
-use crate::patch::Patch;
+use crate::version::Patch;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -13,8 +13,8 @@ pub struct Config {
 
 #[derive(GraphQLQuery)]
 #[graphql(
-	schema_path = "src/patch/thaliak/schema.2022-08-14.json",
-	query_path = "src/patch/thaliak/query.graphql",
+	schema_path = "src/version/thaliak/schema.2022-08-14.json",
+	query_path = "src/version/thaliak/query.graphql",
 	response_derives = "Debug"
 )]
 pub struct RepositoryQuery;
