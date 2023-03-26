@@ -32,11 +32,11 @@ async fn main() {
 	// Initialise tracing before getting too far into bootstrapping the rest of the application
 	tracing::init(config.tracing);
 
-	let view = version::wip_build_zipatch_view(config.version)
+	let temp_patch_list = version::wip_get_patch_list(config.version)
 		.await
 		.expect("TODO");
 
-	let data = Arc::new(data::Data::new(config.data, view));
+	let data = Arc::new(data::Data::new(config.data, temp_patch_list));
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 

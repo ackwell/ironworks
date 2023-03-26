@@ -7,37 +7,28 @@ use ironworks::zipatch;
 use serde::Deserialize;
 use tokio::sync::Semaphore;
 
-use super::thaliak;
-
-#[derive(Debug)]
-pub struct Patch {
-	pub name: String,
-	pub url: String,
-	pub size: u64,
-}
+use crate::version::{Patch, PatchList};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-	thaliak: thaliak::Config,
-
 	directory: RelativePathBuf,
 	concurrency: usize,
-	repositories: Vec<String>,
 }
 
 // TODO: proper error type
 // TODO: this should be versioned (and abstracted, there'll likely need to be a persistence layer for the versioning that gets read from first).
-pub async fn wip_build_zipatch_view(config: Config) -> Result<zipatch::View> {
-	let provider = thaliak::Provider::new(config.thaliak);
-
+// TODO: this thoeretically would download patches on first request which, uh - that's going to be a long timeout. will need to make version eagerly trip a "download patches" path when it discovers a new version, and on-request stuff can error out if it's not ready
+pub async fn wip_build_zipatch_view(
+	config: Config,
+	patch_list: PatchList,
+) -> Result<zipatch::View> {
 	let target_directory = config.directory.relative();
 
 	let semaphore = Semaphore::new(config.concurrency);
 
-	let pending_repositories = config
-		.repositories
-		.into_iter()
-		.map(|repository| build_repository(&provider, &target_directory, repository, &semaphore));
+	let pending_repositories = patch_list.iter().map(|(repository, patches)| {
+		build_repository(repository, patches, &target_directory, &semaphore)
+	});
 
 	let repositories = try_join_all(pending_repositories).await?;
 
@@ -56,25 +47,18 @@ pub async fn wip_build_zipatch_view(config: Config) -> Result<zipatch::View> {
 }
 
 async fn build_repository(
-	provider: &thaliak::Provider,
+	repository_name: &str,
+	patches: &[Patch],
 	target_directory: &Path,
-	repository: String,
 	semaphore: &Semaphore,
 ) -> Result<zipatch::PatchRepository> {
 	// Get the path to the directory for this repository, creating it if it does not yet exist.
-	let repository_directory = fs::canonicalize(target_directory.join(&repository))?;
+	let repository_directory = fs::canonicalize(target_directory.join(repository_name))?;
 	fs::create_dir_all(&repository_directory)?;
 
-	// Get the list of patches expected in this repository, and add in the expected
-	// file system path for that patch file.
-	let expected_patches = provider
-		.patches(repository)
-		.await?
-		.into_iter()
-		.map(|patch| {
-			let path = repository_directory.join(&patch.name);
-			(patch, path)
-		})
+	let expected_patches = patches
+		.iter()
+		.map(|patch| (patch, repository_directory.join(&patch.name)))
 		.collect::<Vec<_>>();
 
 	// Any paths that do not exist locally, or are the incorrect size, need to be (re-)downloaded.
@@ -117,7 +101,7 @@ async fn build_repository(
 		patches: expected_patches
 			.into_iter()
 			.map(|(patch, path)| zipatch::Patch {
-				name: patch.name,
+				name: patch.name.clone(),
 				path,
 			})
 			.collect(),

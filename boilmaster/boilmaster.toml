@@ -1,6 +1,7 @@
 [tracing.filters]
 default = "debug"
 tantivy = "warn"
+hyper = "info"
 
 [http]
 # address = "0.0.0.0"
@@ -9,9 +10,11 @@ port = 8080
 [data]
 language = "en"
 
-[version]
+[data.patch]
 directory = "patches"
 concurrency = 4
+
+[version]
 repositories = [
   "4e9a232b", # ffxiv
 ]
