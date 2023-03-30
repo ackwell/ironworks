@@ -3,6 +3,7 @@ use std::sync::Arc;
 use ironworks::{
 	excel::{Excel, Language},
 	sqpack::SqPack,
+	zipatch::ZiPatch,
 	Ironworks,
 };
 use serde::Deserialize;
@@ -24,6 +25,9 @@ pub struct Config {
 pub struct Data {
 	default_language: Language,
 
+	// Root ZiPatch instance, acts as a LUT cache
+	zipatch: ZiPatch,
+
 	// TODO: this should be a lazy map of some kind once this is using real data
 	// TODO: might want to be eagerly constructed, with lazy excel internal construction, given it will likely need to download patches. building excel isn't expensive so might not need to be lazy on that front.
 	temp_version: Version,
@@ -31,9 +35,11 @@ pub struct Data {
 
 impl Data {
 	pub fn new(config: Config, temp_patch_list: PatchList) -> Self {
+		let zipatch = ZiPatch::new().with_persisted_lookups();
 		Data {
 			default_language: config.language.into(),
-			temp_version: Version::new(config.patch, temp_patch_list),
+			temp_version: Version::new(&zipatch, config.patch, temp_patch_list),
+			zipatch,
 		}
 	}
 
@@ -56,7 +62,7 @@ pub struct Version {
 }
 
 impl Version {
-	fn new(temp_config: patch::Config, temp_patch_list: PatchList) -> Self {
+	fn new(zipatch: &ZiPatch, temp_config: patch::Config, temp_patch_list: PatchList) -> Self {
 		/*
 		BIG TODO POINT:
 		at the moment this flow is safe because we only ever work with a single version. once there's two versions in the mix, this has an opportunity to end up with two builders checking for a patch at the same time as a race and downloading the file twice. fix will likely require _some_ form of consolidated coordination of "hey yeah this is being downloaded already" - will be able to use the semaphore ctor point for this purpose i assume?
@@ -64,9 +70,12 @@ impl Version {
 		*/
 
 		// TODO: This is horrible and needs to be removed. Don't merge this with this here.
-		let view =
-			futures::executor::block_on(wip_build_zipatch_view(temp_config, temp_patch_list))
-				.expect("TODO");
+		let view = futures::executor::block_on(wip_build_zipatch_view(
+			temp_config,
+			zipatch,
+			temp_patch_list,
+		))
+		.expect("TODO");
 
 		let ironworks = Ironworks::new().with_resource(SqPack::new(view));
 		let excel = Excel::with().build(Arc::new(ironworks));

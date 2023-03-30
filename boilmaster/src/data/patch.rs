@@ -20,6 +20,7 @@ pub struct Config {
 // TODO: this thoeretically would download patches on first request which, uh - that's going to be a long timeout. will need to make version eagerly trip a "download patches" path when it discovers a new version, and on-request stuff can error out if it's not ready
 pub async fn wip_build_zipatch_view(
 	config: Config,
+	zipatch: &zipatch::ZiPatch,
 	patch_list: PatchList,
 ) -> Result<zipatch::View> {
 	let target_directory = config.directory.relative();
@@ -31,9 +32,6 @@ pub async fn wip_build_zipatch_view(
 	});
 
 	let repositories = try_join_all(pending_repositories).await?;
-
-	// TODO: when expanding to support multiple versions, this will need to hold on to the zipatch instance, and each version lookup can spin off a view of it. Given we're only building one view for now, we don't need to hold that outer layer.
-	let zipatch = zipatch::ZiPatch::new().with_persisted_lookups();
 
 	let view = repositories
 		.into_iter()
