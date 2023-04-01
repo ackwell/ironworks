@@ -51,7 +51,7 @@ async fn build_repository(
 	semaphore: &Semaphore,
 ) -> Result<zipatch::PatchRepository> {
 	// Get the path to the directory for this repository, creating it if it does not yet exist.
-	let repository_directory = fs::canonicalize(target_directory.join(repository_name))?;
+	let repository_directory = target_directory.join(repository_name);
 	fs::create_dir_all(&repository_directory)?;
 
 	let expected_patches = patches

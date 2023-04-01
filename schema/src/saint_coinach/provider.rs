@@ -101,10 +101,7 @@ impl Provider {
 			.or_else(default_directory)
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other("Repository directory".into())))?;
 
-		let repository = match directory.exists() {
-			true => open_repository(remote, &directory),
-			false => clone_repository(remote, &directory),
-		}?;
+		let repository = open_repository(remote, &directory)?;
 
 		Ok(Self {
 			repository: Arc::new(Mutex::new(repository)),
@@ -141,20 +138,59 @@ fn default_directory<'a>() -> Option<Cow<'a, Path>> {
 	Some(path.into())
 }
 
-fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
-	let repository = RepoBuilder::new()
-		.bare(true)
-		.remote_create(|repo, name, url| repo.remote_with_fetch(name, url, "+refs/*:refs/*"))
-		.clone(remote, directory)?;
-	Ok(repository)
+fn open_repository(remote: &str, directory: &Path) -> Result<Repository> {
+	match Repository::open_bare(directory) {
+		Ok(repository) => validate_repository(repository, remote, directory),
+
+		Err(error) => match error.code() {
+			ErrorCode::NotFound => clone_repository(remote, directory),
+			_ => Err(error)?,
+		},
+	}
 }
 
-fn open_repository(remote: &str, directory: &Path) -> Result<Repository> {
-	let repository = Repository::open_bare(directory)?;
+fn validate_repository(
+	repository: Repository,
+	remote: &str,
+	directory: &Path,
+) -> Result<Repository> {
 	if repository.find_remote("origin")?.url() != Some(remote) {
 		return Err(Error::Repository(format!(
 			"Repository at {directory:?} exists, does not have origin {remote}."
 		)));
 	}
+	Ok(repository)
+}
+
+fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
+	let mut default_branch = None;
+
+	let repository = RepoBuilder::new()
+		.bare(true)
+		.remote_create(|repo, name, url| {
+			// Create a remote with a mirror refspec.
+			let mut remote = repo.remote_with_fetch(name, url, "+refs/*:refs/*")?;
+
+			// Eagerly connect and save out the default branch of the remote.
+			remote.connect(git2::Direction::Fetch)?;
+			let branch_name = remote
+				.default_branch()?
+				.as_str()
+				.ok_or_else(|| git2::Error::from_str("default branch contains invalid utf8"))?
+				.to_string();
+			default_branch = Some(branch_name);
+
+			Ok(remote)
+		})
+		.clone(remote, directory)?;
+
+	// Explicitly set the repository's head to the remote's default branch. With
+	// a mirror refspec, the default selection of the head may fall back to
+	// `init.defaultbranch`, which may be provided by a system git install that
+	// does not match StC's actual branch names.
+	if let Some(branch_name) = default_branch {
+		repository.set_head(&branch_name)?;
+	}
+
 	Ok(repository)
 }

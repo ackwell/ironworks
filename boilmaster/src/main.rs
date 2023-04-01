@@ -98,5 +98,5 @@ async fn shutdown_signal() {
 		_ = terminate => {},
 	}
 
-	println!("Shutdown signal received.")
+	::tracing::info!("shutdown signal received");
 }
