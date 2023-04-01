@@ -1,3 +1,4 @@
+use anyhow::Context;
 use axum::{
 	debug_handler,
 	extract::{Query, State},
@@ -36,7 +37,8 @@ struct RowPath {
 
 #[debug_handler]
 async fn sheets(State(data): State<service::Data>) -> Result<impl IntoResponse> {
-	let excel = data.version(None).excel();
+	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
+	let excel = data.version("__NONE").context("data not ready")?.excel();
 
 	let list = excel.list().anyhow()?;
 
@@ -78,7 +80,8 @@ async fn row(
 	State(data): State<service::Data>,
 	State(schema_provider): State<service::Schema>,
 ) -> Result<impl IntoResponse> {
-	let excel = data.version(None).excel();
+	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
+	let excel = data.version("__NONE").context("data not ready")?.excel();
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	// Sanity check that the correct path was used.

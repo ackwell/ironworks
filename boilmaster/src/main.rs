@@ -5,6 +5,7 @@ use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
 };
+use futures::TryFutureExt;
 use serde::Deserialize;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
@@ -36,17 +37,25 @@ async fn main() {
 		.await
 		.expect("TODO");
 
-	let data = Arc::new(data::Data::new(config.data, temp_patch_list));
+	let data = Arc::new(data::Data::new(config.data /* , temp_patch_list */));
+	// TEMP
+	data.prepare_version("__NONE".into(), temp_patch_list)
+		.await
+		.expect("TODO");
+
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
 
-	let (ingest_result, _) = tokio::join!(
+	tokio::try_join!(
+		// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
 		search
 			.clone()
-			.ingest(shutdown_token.cancelled(), &data, None),
+			// TODO: work out how this is supposed to work
+			.ingest(shutdown_token.cancelled(), &data, "__NONE")
+			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,
@@ -54,10 +63,8 @@ async fn main() {
 			schema,
 			search
 		),
-	);
-
-	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
-	ingest_result.expect("TODO: Error handling")
+	)
+	.expect("TODO: Error handling");
 }
 
 fn shutdown_token() -> CancellationToken {

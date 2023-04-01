@@ -1,8 +1,10 @@
 use std::{
+	collections::HashMap,
 	path::PathBuf,
-	sync::{Arc, Mutex},
+	sync::{Arc, RwLock},
 };
 
+use anyhow::anyhow;
 use figment::value::magic::RelativePathBuf;
 use futures::Future;
 use serde::Deserialize;
@@ -32,8 +34,7 @@ pub struct Search {
 
 	index_directory: PathBuf,
 
-	// TODO: this should be a map of version keys to search::Version instances
-	temp_version: Mutex<Option<Arc<Version>>>,
+	versions: RwLock<HashMap<String, Arc<Version>>>,
 }
 
 impl Search {
@@ -42,7 +43,7 @@ impl Search {
 		Self {
 			ingester: Ingester::new(config.ingest),
 			index_directory: config.index.directory.relative(),
-			temp_version: Default::default(),
+			versions: Default::default(),
 		}
 	}
 
@@ -51,30 +52,31 @@ impl Search {
 		self: Arc<Self>,
 		shutdown: impl Future<Output = ()>,
 		data: &Data,
-		version: Option<&str>,
+		version: &str,
 	) -> Result<(), SearchError> {
-		let data_version = data.version(version);
-		let search_version = Arc::new(Version::new(
-			self.index_directory.join(version.unwrap_or("__NONE")),
-		));
+		let data_version = data
+			.version(version)
+			.ok_or_else(|| anyhow!("{version} could not be resolved to a data version"))?;
+		let search_version = Arc::new(Version::new(self.index_directory.join(version)));
 
 		tokio::select! {
 			_ = shutdown => {},
-			result = search_version.clone().ingest(&self.ingester, data_version) => { result? },
+			result = search_version.clone().ingest(&self.ingester, &data_version) => { result? },
 		}
 
-		let mut guard = self.temp_version.lock().unwrap();
-		*guard = Some(search_version);
+		self.versions
+			.write()
+			.expect("poisoned")
+			.insert(version.to_string(), search_version);
 
 		Ok(())
 	}
 
-	pub fn version(&self, version: Option<&str>) -> Option<Arc<Version>> {
-		// TODO: actual version handling
-		if version.is_some() {
-			todo!("search version handling");
-		}
-
-		self.temp_version.lock().unwrap().clone()
+	pub fn version(&self, version: &str) -> Option<Arc<Version>> {
+		self.versions
+			.read()
+			.expect("poisoned")
+			.get(version)
+			.cloned()
 	}
 }

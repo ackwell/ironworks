@@ -55,8 +55,9 @@ async fn search(
 	State(search): State<service::Search>,
 ) -> Result<impl IntoResponse> {
 	// TODO: this should expose a more useful error to the end user.
-	let search_version = search.version(None).context("search index not ready")?;
-	let excel = data.version(None).excel();
+	// TODO: these should be falling back to a default version exposed by version::
+	let search_version = search.version("__NONE").context("search index not ready")?;
+	let excel = data.version("__NONE").context("data not ready")?.excel();
 
 	let language = language_query
 		.language

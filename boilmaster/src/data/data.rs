@@ -1,19 +1,20 @@
-use std::sync::Arc;
+use std::{
+	collections::HashMap,
+	sync::{Arc, RwLock},
+};
 
+use anyhow::{anyhow, Result};
+use futures::future::try_join_all;
 use ironworks::{
 	excel::{Excel, Language},
 	sqpack::SqPack,
-	zipatch::ZiPatch,
-	Ironworks,
+	zipatch, Ironworks,
 };
 use serde::Deserialize;
 
 use crate::version::PatchList;
 
-use super::{
-	language::LanguageString,
-	patch::{self, wip_build_zipatch_view},
-};
+use super::{language::LanguageString, patch};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -26,20 +27,20 @@ pub struct Data {
 	default_language: Language,
 
 	// Root ZiPatch instance, acts as a LUT cache
-	zipatch: ZiPatch,
+	zipatch: zipatch::ZiPatch,
 
-	// TODO: this should be a lazy map of some kind once this is using real data
-	// TODO: might want to be eagerly constructed, with lazy excel internal construction, given it will likely need to download patches. building excel isn't expensive so might not need to be lazy on that front.
-	temp_version: Version,
+	patcher: patch::Patcher,
+
+	versions: RwLock<HashMap<String, Arc<Version>>>,
 }
 
 impl Data {
-	pub fn new(config: Config, temp_patch_list: PatchList) -> Self {
-		let zipatch = ZiPatch::new().with_persisted_lookups();
+	pub fn new(config: Config) -> Self {
 		Data {
 			default_language: config.language.into(),
-			temp_version: Version::new(&zipatch, config.patch, temp_patch_list),
-			zipatch,
+			zipatch: zipatch::ZiPatch::new().with_persisted_lookups(),
+			patcher: patch::Patcher::new(config.patch),
+			versions: Default::default(),
 		}
 	}
 
@@ -47,13 +48,59 @@ impl Data {
 		self.default_language
 	}
 
-	pub fn version(&self, version: Option<&str>) -> &Version {
-		// TODO: actual version handling, pulling data from an actual game install.
-		if version.is_some() {
-			todo!("data version handling");
-		}
+	pub async fn prepare_version(&self, version_name: String, patch_list: PatchList) -> Result<()> {
+		// Start getting paths for all the patches required for this version, downloading if required.
+		let pending_repositories = patch_list
+			.into_iter()
+			.map(|(repository, patches)| async move {
+				let mut patch_paths = self.patcher.patch_paths(&repository, &patches).await?;
 
-		&self.temp_version
+				let zipatch_patches = patches
+					.into_iter()
+					.map(|patch| {
+						let zipatch_patch = zipatch::Patch {
+							path: patch_paths.remove(&patch.name).ok_or_else(|| {
+								anyhow!("patch {} missing in patcher path response", patch.name)
+							})?,
+							name: patch.name,
+						};
+						Ok(zipatch_patch)
+					})
+					.collect::<Result<Vec<_>>>()?;
+
+				Ok::<_, anyhow::Error>(zipatch::PatchRepository {
+					patches: zipatch_patches,
+				})
+			});
+
+		// Ensure that all patches are ready.
+		let repositories = try_join_all(pending_repositories).await?;
+
+		// Build a zipatch view into the patches.
+		let view = repositories
+			.into_iter()
+			.zip(0u8..)
+			.fold(self.zipatch.view(), |builder, (repository, index)| {
+				builder.with_repository(index, repository)
+			})
+			.build();
+
+		// Build a version and save it out to the struct.
+		let version = Version::new(view);
+		self.versions
+			.write()
+			.expect("poisoned")
+			.insert(version_name, Arc::new(version));
+
+		Ok(())
+	}
+
+	pub fn version(&self, version: &str) -> Option<Arc<Version>> {
+		self.versions
+			.read()
+			.expect("poisoned")
+			.get(version)
+			.cloned()
 	}
 }
 
@@ -62,25 +109,10 @@ pub struct Version {
 }
 
 impl Version {
-	fn new(zipatch: &ZiPatch, temp_config: patch::Config, temp_patch_list: PatchList) -> Self {
-		/*
-		BIG TODO POINT:
-		at the moment this flow is safe because we only ever work with a single version. once there's two versions in the mix, this has an opportunity to end up with two builders checking for a patch at the same time as a race and downloading the file twice. fix will likely require _some_ form of consolidated coordination of "hey yeah this is being downloaded already" - will be able to use the semaphore ctor point for this purpose i assume?
-		i'm guessing that, to handle that, i'll need a patch manager that's shared between the data instances akin to a few other systems around the place.
-		*/
-
-		// TODO: This is horrible and needs to be removed. Don't merge this with this here.
-		let view = futures::executor::block_on(wip_build_zipatch_view(
-			temp_config,
-			zipatch,
-			temp_patch_list,
-		))
-		.expect("TODO");
-
+	fn new(view: zipatch::View) -> Self {
 		let ironworks = Ironworks::new().with_resource(SqPack::new(view));
-		let excel = Excel::with().build(Arc::new(ironworks));
-
-		Version {
+		let excel = Excel::new(Arc::new(ironworks));
+		Self {
 			excel: Arc::new(excel),
 		}
 	}
