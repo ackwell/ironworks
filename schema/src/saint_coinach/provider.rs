@@ -163,9 +163,34 @@ fn validate_repository(
 }
 
 fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
+	let mut default_branch = None;
+
 	let repository = RepoBuilder::new()
 		.bare(true)
-		.remote_create(|repo, name, url| repo.remote_with_fetch(name, url, "+refs/*:refs/*"))
+		.remote_create(|repo, name, url| {
+			// Create a remote with a mirror refspec.
+			let mut remote = repo.remote_with_fetch(name, url, "+refs/*:refs/*")?;
+
+			// Eagerly connect and save out the default branch of the remote.
+			remote.connect(git2::Direction::Fetch)?;
+			let branch_name = remote
+				.default_branch()?
+				.as_str()
+				.ok_or_else(|| git2::Error::from_str("default branch contains invalid utf8"))?
+				.to_string();
+			default_branch = Some(branch_name);
+
+			Ok(remote)
+		})
 		.clone(remote, directory)?;
+
+	// Explicitly set the repository's head to the remote's default branch. With
+	// a mirror refspec, the default selection of the head may fall back to
+	// `init.defaultbranch`, which may be provided by a system git install that
+	// does not match StC's actual branch names.
+	if let Some(branch_name) = default_branch {
+		repository.set_head(&branch_name)?;
+	}
+
 	Ok(repository)
 }
