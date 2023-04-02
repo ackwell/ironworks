@@ -11,6 +11,7 @@ pub struct Config {
 	endpoint: String,
 }
 
+// TODO: As-is this query can only fetch one repository per request. May be possible to programatically merge multiple into one query with a more struct-driven query system like cynic.
 #[derive(GraphQLQuery)]
 #[graphql(
 	schema_path = "src/version/thaliak/schema.2022-08-14.json",
@@ -19,6 +20,7 @@ pub struct Config {
 )]
 pub struct RepositoryQuery;
 
+#[derive(Debug)]
 pub struct Provider {
 	config: Config,
 	client: reqwest::Client,
