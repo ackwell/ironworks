@@ -8,13 +8,13 @@ use std::{
 };
 
 use super::thaliak;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use figment::value::magic::RelativePathBuf;
 use fs4::FileExt;
 use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Patch {
 	pub name: String,
 	pub url: String,
@@ -31,40 +31,8 @@ pub struct Config {
 	repositories: Vec<String>,
 }
 
-pub async fn wip_get_patch_list(config: Config) -> Result<PatchList> {
-	tracing::debug!("patchlist");
-	let vt = VersioningThing::new(config);
-	tracing::debug!("hydrate");
-	vt.hydrate()?;
-	tracing::debug!("update");
-	vt.update().await?;
-	tracing::debug!("done");
-
-	// temp shit to make the rest of the system work
-	// let provider = thaliak::Provider::new(config.thaliak);
-	let provider = &vt.thaliak;
-
-	// let a = config
-	let a = vt
-		.repositories
-		.into_iter()
-		.map(|repository_name| get_repository_patches(provider, repository_name));
-
-	try_join_all(a).await
-}
-
-async fn get_repository_patches(
-	provider: &thaliak::Provider,
-	repository_name: String,
-) -> Result<(String, Vec<Patch>)> {
-	Ok((
-		repository_name.clone(),
-		provider.patches(repository_name).await?,
-	))
-}
-
 #[derive(Debug)]
-struct VersioningThing {
+pub struct Manager {
 	thaliak: thaliak::Provider,
 	directory: PathBuf,
 
@@ -74,8 +42,8 @@ struct VersioningThing {
 	version_names: RwLock<HashMap<String, String>>,
 }
 
-impl VersioningThing {
-	fn new(config: Config) -> Self {
+impl Manager {
+	pub fn new(config: Config) -> Result<Self> {
 		let directory = config.directory.relative();
 
 		let patches = config
@@ -89,14 +57,18 @@ impl VersioningThing {
 			})
 			.collect::<HashMap<_, _>>();
 
-		Self {
+		let manager = Self {
 			thaliak: thaliak::Provider::new(config.thaliak),
 			directory,
 			repositories: config.repositories,
 			patches,
 			versions: Default::default(),
 			version_names: Default::default(),
-		}
+		};
+
+		manager.hydrate()?;
+
+		Ok(manager)
 	}
 
 	// read from disk anything that already exists
@@ -133,8 +105,47 @@ impl VersioningThing {
 		Ok(())
 	}
 
+	pub fn resolve(&self, name: &str) -> Option<String> {
+		self.version_names
+			.read()
+			.expect("poisoned")
+			.get(name)
+			.cloned()
+	}
+
+	pub fn patch_list(&self, key: &str) -> Result<PatchList> {
+		let versions = self.versions.read().expect("poisoned");
+		let version = versions
+			.get(key)
+			.with_context(|| format!("unknown version {key}"))?;
+
+		// TODO: A version made on repository list [a, b] will create a patch list [a] on an updated repository list of [a, X, b]. I'm not convinced that's a problem.
+		let patch_list = self
+			.repositories
+			.iter()
+			.map_while(|repository_name| {
+				let patches = self.patches.get(repository_name)?.read().expect("poisoned");
+				let patch_names = version.patches.get(repository_name)?;
+
+				let list = patch_names
+					.iter()
+					.map(|patch_name| {
+						patches.patch(patch_name).with_context(|| {
+							format!("missing patch metadata for {repository_name} {patch_name}")
+						})
+					})
+					.collect::<Result<Vec<_>>>()
+					.map(|list| (repository_name.clone(), list));
+
+				Some(list)
+			})
+			.collect::<Result<Vec<_>>>()?;
+
+		Ok(patch_list)
+	}
+
 	// check upstream and update version state
-	async fn update(&self) -> Result<()> {
+	pub async fn update(&self) -> Result<()> {
 		// Ensure that the persistance folder exists before trying to write anything to it.
 		fs::create_dir_all(&self.directory)?;
 
@@ -231,7 +242,7 @@ fn version_key(latest_patches: &[impl AsRef<str>]) -> String {
 	}
 	let hash = hasher.finish();
 
-	format!("{hash:X}")
+	format!("{hash:x}")
 }
 
 #[derive(Debug)]
@@ -247,6 +258,10 @@ impl PatchStore {
 			patches: Default::default(),
 			path: directory.join(format!("patches-{repository_name}.json")),
 		}
+	}
+
+	fn patch(&self, name: &str) -> Option<Patch> {
+		self.patches.get(name).cloned()
 	}
 
 	fn hydrate(&mut self) -> Result<()> {

@@ -53,11 +53,20 @@ async fn search(
 	State(data): State<service::Data>,
 	State(schema_provider): State<service::Schema>,
 	State(search): State<service::Search>,
+	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
 	// TODO: this should expose a more useful error to the end user.
 	// TODO: these should be falling back to a default version exposed by version::
-	let search_version = search.version("__NONE").context("search index not ready")?;
-	let excel = data.version("__NONE").context("data not ready")?.excel();
+	let version_key = version
+		.resolve("__NONE")
+		.context("none should always exist")?;
+	let search_version = search
+		.version(&version_key)
+		.context("search index not ready")?;
+	let excel = data
+		.version(&version_key)
+		.context("data not ready")?
+		.excel();
 
 	let language = language_query
 		.language

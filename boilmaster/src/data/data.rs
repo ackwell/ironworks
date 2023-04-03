@@ -48,7 +48,7 @@ impl Data {
 		self.default_language
 	}
 
-	pub async fn prepare_version(&self, version_name: String, patch_list: PatchList) -> Result<()> {
+	pub async fn prepare_version(&self, version_key: String, patch_list: PatchList) -> Result<()> {
 		// Start getting paths for all the patches required for this version, downloading if required.
 		let pending_repositories = patch_list
 			.into_iter()
@@ -90,7 +90,7 @@ impl Data {
 		self.versions
 			.write()
 			.expect("poisoned")
-			.insert(version_name, Arc::new(version));
+			.insert(version_key, Arc::new(version));
 
 		Ok(())
 	}

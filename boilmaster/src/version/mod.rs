@@ -1,4 +1,4 @@
 mod thaliak;
 mod version;
 
-pub use version::{wip_get_patch_list, Config, Patch, PatchList};
+pub use version::{Config, Manager, Patch, PatchList};

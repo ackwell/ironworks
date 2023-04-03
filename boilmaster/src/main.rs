@@ -33,13 +33,18 @@ async fn main() {
 	// Initialise tracing before getting too far into bootstrapping the rest of the application
 	tracing::init(config.tracing);
 
-	let temp_patch_list = version::wip_get_patch_list(config.version)
-		.await
-		.expect("TODO");
+	let version = Arc::new(version::Manager::new(config.version).expect("TODO"));
+	// TEMP; this should be set up as part of a boot process for the version system
+	version.update().await.expect("TODO");
+	// TEMP: yikes. this should be dynamic. probably need a list of versions exposed for data prepping?
+	let latest_version_key = version
+		.resolve("__NONE")
+		.expect("__NONE should always exist in this nightmare");
+	let temp_patch_list = version.patch_list(&latest_version_key).expect("TODO");
 
-	let data = Arc::new(data::Data::new(config.data /* , temp_patch_list */));
+	let data = Arc::new(data::Data::new(config.data));
 	// TEMP
-	data.prepare_version("__NONE".into(), temp_patch_list)
+	data.prepare_version(latest_version_key.clone(), temp_patch_list)
 		.await
 		.expect("TODO");
 
@@ -54,14 +59,15 @@ async fn main() {
 		search
 			.clone()
 			// TODO: work out how this is supposed to work
-			.ingest(shutdown_token.cancelled(), &data, "__NONE")
+			.ingest(shutdown_token.cancelled(), &data, &latest_version_key)
 			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,
 			data.clone(),
 			schema,
-			search
+			search,
+			version,
 		),
 	)
 	.expect("TODO: Error handling");
