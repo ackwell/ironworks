@@ -1045,6 +1045,7 @@ dependencies = [
  "graphql_client",
  "ironworks",
  "ironworks_schema",
+ "murmurhash32",
  "nom",
  "regex-syntax",
  "reqwest",

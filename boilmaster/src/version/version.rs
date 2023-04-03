@@ -1,8 +1,6 @@
 use std::{
-	collections::{hash_map::DefaultHasher, HashMap},
-	fs,
-	hash::{Hash, Hasher},
-	io,
+	collections::{BTreeMap, HashMap},
+	fs, io,
 	path::{Path, PathBuf},
 	sync::RwLock,
 };
@@ -236,11 +234,12 @@ impl Manager {
 }
 
 fn version_key(latest_patches: &[impl AsRef<str>]) -> String {
-	let mut hasher = DefaultHasher::new();
-	for patch_name in latest_patches {
-		patch_name.as_ref().hash(&mut hasher);
-	}
-	let hash = hasher.finish();
+	let bytes = latest_patches
+		.iter()
+		.flat_map(|v| v.as_ref().as_bytes())
+		.copied()
+		.collect::<Vec<_>>();
+	let hash = murmurhash32::murmurhash3(&bytes);
 
 	format!("{hash:x}")
 }
