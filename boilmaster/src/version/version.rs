@@ -195,7 +195,7 @@ impl Manager {
 		let all_versions = versions
 			.keys()
 			.map(|version| (version, name_lookup.get(version)))
-			.collect::<HashMap<_, _>>();
+			.collect::<BTreeMap<_, _>>();
 
 		let file = fs::File::options()
 			.create(true)
@@ -295,7 +295,9 @@ impl PatchStore {
 		file.lock_exclusive()?;
 		file.set_len(0)?;
 
-		serde_json::to_writer_pretty(file, &self.patches.values().collect::<Vec<_>>())?;
+		let mut items = self.patches.iter().collect::<Vec<_>>();
+		items.sort_by(|a, b| a.0.cmp(b.0));
+		serde_json::to_writer_pretty(file, &items.into_iter().map(|a| a.1).collect::<Vec<_>>())?;
 
 		Ok(())
 	}
@@ -341,7 +343,7 @@ impl Version {
 		file.lock_exclusive()?;
 		file.set_len(0)?;
 
-		serde_json::to_writer_pretty(file, &self.patches)?;
+		serde_json::to_writer_pretty(file, &self.patches.iter().collect::<BTreeMap<_, _>>())?;
 
 		Ok(())
 	}
