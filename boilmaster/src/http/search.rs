@@ -58,8 +58,8 @@ async fn search(
 	// TODO: this should expose a more useful error to the end user.
 	// TODO: these should be falling back to a default version exposed by version::
 	let version_key = version
-		.resolve("__NONE")
-		.context("none should always exist")?;
+		.resolve(None)
+		.context("latest should always exist")?;
 	let search_version = search
 		.version(&version_key)
 		.context("search index not ready")?;

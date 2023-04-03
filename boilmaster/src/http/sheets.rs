@@ -42,8 +42,8 @@ async fn sheets(
 ) -> Result<impl IntoResponse> {
 	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
 	let version_key = version
-		.resolve("__NONE")
-		.context("none should always exist")?;
+		.resolve(None)
+		.context("latest should always exist")?;
 	let excel = data
 		.version(&version_key)
 		.context("data not ready")?
@@ -92,8 +92,8 @@ async fn row(
 ) -> Result<impl IntoResponse> {
 	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
 	let version_key = version
-		.resolve("__NONE")
-		.context("none should always exist")?;
+		.resolve(None)
+		.context("latest should always exist")?;
 	let excel = data
 		.version(&version_key)
 		.context("data not ready")?

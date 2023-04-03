@@ -29,6 +29,10 @@ pub struct Config {
 	repositories: Vec<String>,
 }
 
+// TODO: might want to make version names many:one so i.e. "6.38" can also be "latest"
+//       is it worth adding multi-tag support for that or should i just have a seperate latest pointer
+const LATEST_TAG: &str = "latest";
+
 #[derive(Debug)]
 pub struct Manager {
 	thaliak: thaliak::Provider,
@@ -103,11 +107,11 @@ impl Manager {
 		Ok(())
 	}
 
-	pub fn resolve(&self, name: &str) -> Option<String> {
+	pub fn resolve(&self, name: Option<&str>) -> Option<String> {
 		self.version_names
 			.read()
 			.expect("poisoned")
-			.get(name)
+			.get(name.unwrap_or(LATEST_TAG))
 			.cloned()
 	}
 
@@ -183,7 +187,7 @@ impl Manager {
 
 		// TEMP: for now, setting the __NONE sigil to always point to the most recent version key. Don't merge this, hey?
 		let mut vn_temp = self.version_names.write().expect("poisoned");
-		vn_temp.insert("__NONE".to_string(), key);
+		vn_temp.insert(LATEST_TAG.to_string(), key);
 		drop(vn_temp);
 
 		// Build the full version listing for persisting.

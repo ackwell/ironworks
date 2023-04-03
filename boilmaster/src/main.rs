@@ -38,8 +38,8 @@ async fn main() {
 	version.update().await.expect("TODO");
 	// TEMP: yikes. this should be dynamic. probably need a list of versions exposed for data prepping?
 	let latest_version_key = version
-		.resolve("__NONE")
-		.expect("__NONE should always exist in this nightmare");
+		.resolve(None)
+		.expect("latest should always exist in this nightmare");
 	let temp_patch_list = version.patch_list(&latest_version_key).expect("TODO");
 
 	let data = Arc::new(data::Data::new(config.data));
