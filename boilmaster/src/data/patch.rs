@@ -73,7 +73,10 @@ impl Patcher {
 
 		// If there are patches that need to be downloaded, go and actually do that.
 		if !required_patches.is_empty() {
-			tracing::info!("missing {} patch files, fetching", required_patches.len());
+			tracing::info!(
+				"repository {repository_name} missing {} patch files, fetching",
+				required_patches.len()
+			);
 
 			let client = reqwest::Client::new();
 			let downloads = required_patches

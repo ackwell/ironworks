@@ -18,6 +18,10 @@ concurrency = 4
 directory = "versions"
 repositories = [
   "4e9a232b", # ffxiv
+  "6b936f08", # ex1 (hw)
+  "f29a3eb2", # ex2 (stb)
+  "859d0e24", # ex3 (shb)
+  "1bf99b87", # ex4 (ew)
 ]
 
 [version.thaliak]
