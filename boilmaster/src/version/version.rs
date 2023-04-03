@@ -172,6 +172,11 @@ impl VersioningThing {
 			.or_insert_with(|| Version::new(&self.directory, &key));
 		version.update(value)?;
 
+		// TEMP: for now, setting the __NONE sigil to always point to the most recent version key. Don't merge this, hey?
+		let mut vn_temp = self.version_names.write().expect("poisoned");
+		vn_temp.insert("__NONE".to_string(), key);
+		drop(vn_temp);
+
 		// Build the full version listing for persisting.
 		let version_names = self.version_names.read().expect("poisoned");
 		let name_lookup = version_names
