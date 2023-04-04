@@ -47,6 +47,8 @@ impl Manager {
 	pub fn new(config: Config) -> Result<Self> {
 		let directory = config.directory.relative();
 
+		// Build a patch store for each repository - repositories are stable within
+		// a given running instance, so doing this eagerly is safe.
 		let patches = config
 			.repositories
 			.iter()
@@ -68,35 +70,14 @@ impl Manager {
 			version_names: Default::default(),
 		};
 
+		// Eagerly kick off an initial hydration from disk.
 		manager.hydrate()?;
 
 		Ok(manager)
 	}
 
-	// read from disk anything that already exists
-	fn hydrate(&self) -> Result<()> {
-		for patch_store in self.patches.values() {
-			patch_store.write().expect("poisoned").hydrate()?;
-		}
-
-		let all_versions = self.file.read::<HashMap<String, Option<String>>>()?;
-
-		let mut version_names = self.version_names.write().expect("poisoned");
-		let mut versions = self.versions.write().expect("poisoned");
-
-		for (version_key, maybe_name) in all_versions {
-			if let Some(name) = maybe_name {
-				version_names.insert(name, version_key.clone());
-			}
-
-			let mut version = Version::new(&self.directory, &version_key);
-			version.hydrate()?;
-			versions.insert(version_key, version);
-		}
-
-		Ok(())
-	}
-
+	/// Resolve a version name to it's key. If no version is specified, the version marked as latest will be returned, if any exists.
+	// TODO: remove the fallback logic from here, push it up to the consumer, akin to schema specifier?
 	pub fn resolve(&self, name: Option<&str>) -> Option<String> {
 		self.version_names
 			.read()
@@ -105,7 +86,9 @@ impl Manager {
 			.cloned()
 	}
 
+	/// Get a patch list for a given version.
 	pub fn patch_list(&self, key: &str) -> Result<PatchList> {
+		// Fetch the requested version.
 		let versions = self.versions.read().expect("poisoned");
 		let version = versions
 			.get(key)
@@ -116,9 +99,11 @@ impl Manager {
 			.repositories
 			.iter()
 			.map_while(|repository_name| {
+				// Get the patch store for this repository.
 				let patches = self.patches.get(repository_name)?.read().expect("poisoned");
 				let patch_names = version.patches().get(repository_name)?;
 
+				// Resolve the patches for this version against the patch store.
 				let list = patch_names
 					.iter()
 					.map(|patch_name| {
@@ -136,11 +121,40 @@ impl Manager {
 		Ok(patch_list)
 	}
 
-	// check upstream and update version state
+	/// Hydrate data from persisted files.
+	fn hydrate(&self) -> Result<()> {
+		// Hydrate all the repository patch stores.
+		for patch_store in self.patches.values() {
+			patch_store.write().expect("poisoned").hydrate()?;
+		}
+
+		// Pull in the list of every known version. Keys here are the names, inverse to what we use in-memory.
+		let all_versions = self.file.read::<HashMap<String, Option<String>>>()?;
+
+		let mut version_names = self.version_names.write().expect("poisoned");
+		let mut versions = self.versions.write().expect("poisoned");
+
+		for (version_key, maybe_name) in all_versions {
+			// Save the name out.
+			if let Some(name) = maybe_name {
+				version_names.insert(name, version_key.clone());
+			}
+
+			// Build a version representation and hydrate it from disk.
+			let mut version = Version::new(&self.directory, &version_key);
+			version.hydrate()?;
+			versions.insert(version_key, version);
+		}
+
+		Ok(())
+	}
+
+	/// Update local data from upstream sources.
 	pub async fn update(&self) -> Result<()> {
 		// Ensure that the persistance folder exists before trying to write anything to it.
 		fs::create_dir_all(&self.directory)?;
 
+		// Fetch the patch lists for each of the repositories.
 		let pending_repository_patches = self
 			.repositories
 			.iter()
@@ -148,7 +162,7 @@ impl Manager {
 
 		let repository_patches = try_join_all(pending_repository_patches).await?;
 
-		// Get the latest patches for the updated patch lists.
+		// Get the latest patches for the updated patch lists and use to build the current version key.
 		let latest_patches = repository_patches
 			.iter()
 			.zip(&self.repositories)
@@ -161,6 +175,8 @@ impl Manager {
 
 		let key = version_key(&latest_patches);
 
+		// Merge the versions with the repository names and update the version with
+		// it, creating a new version if it's not been seen before.
 		let value = self
 			.repositories
 			.clone()
@@ -169,13 +185,13 @@ impl Manager {
 			.collect::<HashMap<_, _>>();
 
 		let mut versions = self.versions.write().expect("poisoned");
-
 		let version = versions
 			.entry(key.clone())
 			.or_insert_with(|| Version::new(&self.directory, &key));
+
 		version.update(value)?;
 
-		// TEMP: for now, setting the __NONE sigil to always point to the most recent version key. Don't merge this, hey?
+		// TEMP: for now, setting the latest sigil to always point to the most recent version key. Don't merge this, hey?
 		let mut vn_temp = self.version_names.write().expect("poisoned");
 		vn_temp.insert(LATEST_TAG.to_string(), key);
 		drop(vn_temp);
@@ -216,8 +232,6 @@ impl Manager {
 
 		Ok(patch_names)
 	}
-
-	// do i want a .flush? or is that handled as part of updates?
 }
 
 fn version_key(latest_patches: &[impl AsRef<str>]) -> String {

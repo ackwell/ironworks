@@ -9,7 +9,6 @@ use super::persist::JsonFile;
 
 #[derive(Debug)]
 pub struct Version {
-	// TODO: might be easier to standardise on vec<vec<patch for a bunch of this stuff
 	patches: HashMap<String, Vec<String>>,
 	file: JsonFile,
 }
