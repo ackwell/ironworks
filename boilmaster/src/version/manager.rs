@@ -131,14 +131,14 @@ impl Manager {
 
 		// Pull in the list of every known version. Keys here are the version keys,
 		// inverse to what we use in-memory.
-		let all_versions = self.file.read::<HashMap<VersionKey, Option<String>>>()?;
+		let all_versions = self.file.read::<HashMap<VersionKey, Vec<String>>>()?;
 
 		let mut version_names = self.version_names.write().expect("poisoned");
 		let mut versions = self.versions.write().expect("poisoned");
 
-		for (version_key, maybe_name) in all_versions {
-			// Save the name out.
-			if let Some(name) = maybe_name {
+		for (version_key, names) in all_versions {
+			// Save the names out.
+			for name in names {
 				version_names.insert(name, version_key.clone());
 			}
 
@@ -200,14 +200,18 @@ impl Manager {
 
 		// Build the full version listing for persisting.
 		let version_names = self.version_names.read().expect("poisoned");
-		let name_lookup = version_names
-			.iter()
-			.map(|(name, version)| (version, name))
-			.collect::<HashMap<_, _>>();
-		let all_versions = versions
+
+		let mut all_versions = versions
 			.keys()
-			.map(|version| (version, name_lookup.get(version)))
+			.map(|key| (key, vec![]))
 			.collect::<BTreeMap<_, _>>();
+
+		for (name, version) in version_names.iter() {
+			all_versions
+				.entry(version)
+				.or_insert_with(Vec::new)
+				.push(name);
+		}
 
 		self.file.write(&all_versions)?;
 
