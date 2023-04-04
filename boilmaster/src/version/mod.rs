@@ -1,5 +1,10 @@
+mod manager;
+mod patch;
 mod persist;
 mod thaliak;
 mod version;
 
-pub use version::{Config, Manager, Patch, PatchList};
+pub use {
+	manager::{Config, Manager, PatchList},
+	patch::Patch,
+};
