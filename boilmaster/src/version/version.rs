@@ -1,14 +1,13 @@
 use std::{
 	collections::{BTreeMap, HashMap},
-	fs, io,
+	fs,
 	path::{Path, PathBuf},
 	sync::RwLock,
 };
 
-use super::thaliak;
+use super::{persist::JsonFile, thaliak};
 use anyhow::{anyhow, Context, Result};
 use figment::value::magic::RelativePathBuf;
-use fs4::FileExt;
 use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +35,8 @@ const LATEST_TAG: &str = "latest";
 #[derive(Debug)]
 pub struct Manager {
 	thaliak: thaliak::Provider,
+
+	file: JsonFile,
 	directory: PathBuf,
 
 	repositories: Vec<String>,
@@ -61,6 +62,7 @@ impl Manager {
 
 		let manager = Self {
 			thaliak: thaliak::Provider::new(config.thaliak),
+			file: JsonFile::new(directory.join("versions.json")),
 			directory,
 			repositories: config.repositories,
 			patches,
@@ -79,17 +81,7 @@ impl Manager {
 			patch_store.write().expect("poisoned").hydrate()?;
 		}
 
-		// TODO: hydrate versions - will need a "top level" version list to do this.
-		let file = match fs::File::open(self.directory.join("versions.json")) {
-			Ok(file) => file,
-			Err(error) => match error.kind() {
-				io::ErrorKind::NotFound => return Ok(()),
-				_ => Err(error)?,
-			},
-		};
-		file.lock_shared()?;
-
-		let all_versions: HashMap<String, Option<String>> = serde_json::from_reader(file)?;
+		let all_versions = self.file.read::<HashMap<String, Option<String>>>()?;
 
 		let mut version_names = self.version_names.write().expect("poisoned");
 		let mut versions = self.versions.write().expect("poisoned");
@@ -201,14 +193,7 @@ impl Manager {
 			.map(|version| (version, name_lookup.get(version)))
 			.collect::<BTreeMap<_, _>>();
 
-		let file = fs::File::options()
-			.create(true)
-			.write(true)
-			.open(self.directory.join("versions.json"))?;
-		file.lock_exclusive()?;
-		file.set_len(0)?;
-
-		serde_json::to_writer_pretty(file, &all_versions)?;
+		self.file.write(&all_versions)?;
 
 		Ok(())
 	}
@@ -252,14 +237,14 @@ fn version_key(latest_patches: &[impl AsRef<str>]) -> String {
 struct PatchStore {
 	patches: HashMap<String, Patch>,
 
-	path: PathBuf,
+	file: JsonFile,
 }
 
 impl PatchStore {
 	fn new(directory: &Path, repository_name: &str) -> Self {
 		Self {
 			patches: Default::default(),
-			path: directory.join(format!("patches-{repository_name}.json")),
+			file: JsonFile::new(directory.join(format!("patches-{repository_name}.json"))),
 		}
 	}
 
@@ -268,17 +253,7 @@ impl PatchStore {
 	}
 
 	fn hydrate(&mut self) -> Result<()> {
-		// Try to open the file for this patch store - if it doesn't exist, it's probably not been saved before.
-		let file = match fs::File::open(&self.path) {
-			Ok(file) => file,
-			Err(error) => match error.kind() {
-				io::ErrorKind::NotFound => return Ok(()),
-				_ => Err(error)?,
-			},
-		};
-		file.lock_shared()?;
-
-		let patches: Vec<Patch> = serde_json::from_reader(file)?;
+		let patches: Vec<Patch> = self.file.read()?;
 
 		self.patches
 			.extend(patches.into_iter().map(|patch| (patch.name.clone(), patch)));
@@ -291,17 +266,11 @@ impl PatchStore {
 		self.patches
 			.extend(patches.into_iter().map(|patch| (patch.name.clone(), patch)));
 
-		// Open, lock, _then_ truncate, so we don't accidentally truncate an in-use file.
-		let file = fs::File::options()
-			.create(true)
-			.write(true)
-			.open(&self.path)?;
-		file.lock_exclusive()?;
-		file.set_len(0)?;
-
 		let mut items = self.patches.iter().collect::<Vec<_>>();
 		items.sort_by(|a, b| a.0.cmp(b.0));
-		serde_json::to_writer_pretty(file, &items.into_iter().map(|a| a.1).collect::<Vec<_>>())?;
+
+		self.file
+			.write(&items.into_iter().map(|a| a.1).collect::<Vec<_>>())?;
 
 		Ok(())
 	}
@@ -310,45 +279,26 @@ impl PatchStore {
 #[derive(Debug)]
 struct Version {
 	patches: HashMap<String, Vec<String>>,
-
-	path: PathBuf,
+	file: JsonFile,
 }
 
 impl Version {
 	fn new(directory: &Path, key: &str) -> Self {
 		Self {
 			patches: Default::default(),
-			path: directory.join(format!("version-{key}.json")),
+			file: JsonFile::new(directory.join(format!("version-{key}.json"))),
 		}
 	}
 
 	fn hydrate(&mut self) -> Result<()> {
-		let file = match fs::File::open(&self.path) {
-			Ok(file) => file,
-			Err(error) => match error.kind() {
-				io::ErrorKind::NotFound => return Ok(()),
-				_ => Err(error)?,
-			},
-		};
-		file.lock_shared()?;
-
-		self.patches = serde_json::from_reader(file)?;
-
+		self.patches = self.file.read()?;
 		Ok(())
 	}
 
 	fn update(&mut self, patches: HashMap<String, Vec<String>>) -> Result<()> {
 		self.patches = patches;
-
-		let file = fs::File::options()
-			.create(true)
-			.write(true)
-			.open(&self.path)?;
-		file.lock_exclusive()?;
-		file.set_len(0)?;
-
-		serde_json::to_writer_pretty(file, &self.patches.iter().collect::<BTreeMap<_, _>>())?;
-
+		self.file
+			.write(&self.patches.iter().collect::<BTreeMap<_, _>>())?;
 		Ok(())
 	}
 }

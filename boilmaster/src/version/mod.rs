@@ -1,3 +1,4 @@
+mod persist;
 mod thaliak;
 mod version;
 
