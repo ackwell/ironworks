@@ -9,7 +9,7 @@ use figment::value::magic::RelativePathBuf;
 use futures::Future;
 use serde::Deserialize;
 
-use crate::data::Data;
+use crate::{data::Data, version::VersionKey};
 
 use super::{
 	error::SearchError,
@@ -34,7 +34,7 @@ pub struct Search {
 
 	index_directory: PathBuf,
 
-	versions: RwLock<HashMap<String, Arc<Version>>>,
+	versions: RwLock<HashMap<VersionKey, Arc<Version>>>,
 }
 
 impl Search {
@@ -52,7 +52,7 @@ impl Search {
 		self: Arc<Self>,
 		shutdown: impl Future<Output = ()>,
 		data: &Data,
-		version: &str,
+		version: &VersionKey,
 	) -> Result<(), SearchError> {
 		let data_version = data
 			.version(version)
@@ -67,12 +67,12 @@ impl Search {
 		self.versions
 			.write()
 			.expect("poisoned")
-			.insert(version.to_string(), search_version);
+			.insert(version.clone(), search_version);
 
 		Ok(())
 	}
 
-	pub fn version(&self, version: &str) -> Option<Arc<Version>> {
+	pub fn version(&self, version: &VersionKey) -> Option<Arc<Version>> {
 		self.versions
 			.read()
 			.expect("poisoned")

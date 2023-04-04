@@ -12,7 +12,7 @@ use ironworks::{
 };
 use serde::Deserialize;
 
-use crate::version::PatchList;
+use crate::version::{PatchList, VersionKey};
 
 use super::{language::LanguageString, patch};
 
@@ -31,7 +31,7 @@ pub struct Data {
 
 	patcher: patch::Patcher,
 
-	versions: RwLock<HashMap<String, Arc<Version>>>,
+	versions: RwLock<HashMap<VersionKey, Arc<Version>>>,
 }
 
 impl Data {
@@ -48,7 +48,11 @@ impl Data {
 		self.default_language
 	}
 
-	pub async fn prepare_version(&self, version_key: String, patch_list: PatchList) -> Result<()> {
+	pub async fn prepare_version(
+		&self,
+		version_key: VersionKey,
+		patch_list: PatchList,
+	) -> Result<()> {
 		// Start getting paths for all the patches required for this version, downloading if required.
 		let pending_repositories = patch_list
 			.into_iter()
@@ -95,7 +99,7 @@ impl Data {
 		Ok(())
 	}
 
-	pub fn version(&self, version: &str) -> Option<Arc<Version>> {
+	pub fn version(&self, version: &VersionKey) -> Option<Arc<Version>> {
 		self.versions
 			.read()
 			.expect("poisoned")

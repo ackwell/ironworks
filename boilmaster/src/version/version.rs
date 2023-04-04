@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::Result;
 
-use super::persist::JsonFile;
+use super::{key::VersionKey, persist::JsonFile};
 
 #[derive(Debug)]
 pub struct Version {
@@ -14,7 +14,7 @@ pub struct Version {
 }
 
 impl Version {
-	pub fn new(directory: &Path, key: &str) -> Self {
+	pub fn new(directory: &Path, key: &VersionKey) -> Self {
 		Self {
 			patches: Default::default(),
 			file: JsonFile::new(directory.join(format!("version-{key}.json"))),

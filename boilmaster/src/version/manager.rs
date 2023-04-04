@@ -6,6 +6,7 @@ use std::{
 };
 
 use super::{
+	key::VersionKey,
 	patch::{Patch, PatchStore},
 	persist::JsonFile,
 	thaliak,
@@ -39,8 +40,8 @@ pub struct Manager {
 
 	repositories: Vec<String>,
 	patches: HashMap<String, RwLock<PatchStore>>,
-	versions: RwLock<HashMap<String, Version>>,
-	version_names: RwLock<HashMap<String, String>>,
+	versions: RwLock<HashMap<VersionKey, Version>>,
+	version_names: RwLock<HashMap<String, VersionKey>>,
 }
 
 impl Manager {
@@ -78,7 +79,7 @@ impl Manager {
 
 	/// Resolve a version name to it's key. If no version is specified, the version marked as latest will be returned, if any exists.
 	// TODO: remove the fallback logic from here, push it up to the consumer, akin to schema specifier?
-	pub fn resolve(&self, name: Option<&str>) -> Option<String> {
+	pub fn resolve(&self, name: Option<&str>) -> Option<VersionKey> {
 		self.version_names
 			.read()
 			.expect("poisoned")
@@ -87,7 +88,7 @@ impl Manager {
 	}
 
 	/// Get a patch list for a given version.
-	pub fn patch_list(&self, key: &str) -> Result<PatchList> {
+	pub fn patch_list(&self, key: &VersionKey) -> Result<PatchList> {
 		// Fetch the requested version.
 		let versions = self.versions.read().expect("poisoned");
 		let version = versions
@@ -128,8 +129,9 @@ impl Manager {
 			patch_store.write().expect("poisoned").hydrate()?;
 		}
 
-		// Pull in the list of every known version. Keys here are the names, inverse to what we use in-memory.
-		let all_versions = self.file.read::<HashMap<String, Option<String>>>()?;
+		// Pull in the list of every known version. Keys here are the version keys,
+		// inverse to what we use in-memory.
+		let all_versions = self.file.read::<HashMap<VersionKey, Option<String>>>()?;
 
 		let mut version_names = self.version_names.write().expect("poisoned");
 		let mut versions = self.versions.write().expect("poisoned");
@@ -173,7 +175,7 @@ impl Manager {
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		let key = version_key(&latest_patches);
+		let key = VersionKey::from_latest_patches(&latest_patches);
 
 		// Merge the versions with the repository names and update the version with
 		// it, creating a new version if it's not been seen before.
@@ -232,15 +234,4 @@ impl Manager {
 
 		Ok(patch_names)
 	}
-}
-
-fn version_key(latest_patches: &[impl AsRef<str>]) -> String {
-	let bytes = latest_patches
-		.iter()
-		.flat_map(|v| v.as_ref().as_bytes())
-		.copied()
-		.collect::<Vec<_>>();
-	let hash = murmurhash32::murmurhash3(&bytes);
-
-	format!("{hash:x}")
 }
