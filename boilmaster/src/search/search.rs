@@ -57,7 +57,7 @@ impl Search {
 		let data_version = data
 			.version(version)
 			.ok_or_else(|| anyhow!("{version} could not be resolved to a data version"))?;
-		let search_version = Arc::new(Version::new(self.index_directory.join(version)));
+		let search_version = Arc::new(Version::new(self.index_directory.join(version.to_string())));
 
 		tokio::select! {
 			_ = shutdown => {},
