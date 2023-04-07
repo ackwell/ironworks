@@ -1,15 +1,19 @@
 use std::{
-	collections::HashMap,
+	collections::{hash_map::Entry, HashMap},
 	fs,
-	io::Write,
+	io::{self, Write},
 	path::{Path, PathBuf},
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc, Mutex,
+	},
 };
 
 use anyhow::Result;
 use figment::value::magic::RelativePathBuf;
 use futures::future::try_join_all;
 use serde::Deserialize;
-use tokio::sync::Semaphore;
+use tokio::sync::{Notify, Semaphore};
 
 use crate::version::Patch;
 
@@ -22,6 +26,8 @@ pub struct Config {
 pub struct Patcher {
 	directory: PathBuf,
 	semaphore: Semaphore,
+	client: reqwest::Client,
+	known_patches: Mutex<HashMap<PathBuf, Arc<(AtomicBool, Notify)>>>,
 }
 
 impl Patcher {
@@ -29,6 +35,8 @@ impl Patcher {
 		Self {
 			directory: config.directory.relative(),
 			semaphore: Semaphore::new(config.concurrency),
+			client: reqwest::Client::new(),
+			known_patches: Default::default(),
 		}
 	}
 
@@ -42,57 +50,91 @@ impl Patcher {
 		let repository_directory = self.directory.join(repository_name);
 		fs::create_dir_all(&repository_directory)?;
 
-		// Pair patches with their FS path.
-		let expected_patches = patches
-			.iter()
-			.map(|patch| (patch, repository_directory.join(&patch.name)))
-			.collect::<Vec<_>>();
+		// Ensure each of the paths in the list exists.
+		let pending_patches = patches.iter().map(|patch| {
+			let path = repository_directory.join(&patch.name);
+			async move {
+				self.ensure_patch_exists(patch, &path)
+					.await
+					.map(|_| (patch, path))
+			}
+		});
 
-		// Any paths that do not exist locally, or are the incorrect size, need to be (re-)downloaded.
-		let required_patches = expected_patches
-			.iter()
-			.filter(|(patch, path)| {
-				let Ok(metadata) = path.metadata() else {
-					return true
-				};
-
-				let size_matches = metadata.len() == patch.size;
-
-				if !size_matches {
-					tracing::warn!(
-						"patch {} size mismatch, re-fetching (expected {}, got {})",
-						patch.name,
-						patch.size,
-						metadata.len()
-					);
-				}
-
-				!path.is_file() || !size_matches
-			})
-			.collect::<Vec<_>>();
-
-		// If there are patches that need to be downloaded, go and actually do that.
-		if !required_patches.is_empty() {
-			tracing::info!(
-				"repository {repository_name} missing {} patch files, fetching",
-				required_patches.len()
-			);
-
-			let client = reqwest::Client::new();
-			let downloads = required_patches
-				.into_iter()
-				.map(|(patch, path)| download_patch(&client, patch, path, &self.semaphore));
-
-			try_join_all(downloads).await?;
-		}
+		let checked_patches = try_join_all(pending_patches).await?;
 
 		// Build the final path mapping.
-		let path_map = expected_patches
+		let path_map = checked_patches
 			.into_iter()
 			.map(|(patch, path)| (patch.name.clone(), path))
 			.collect::<HashMap<_, _>>();
 
 		Ok(path_map)
+	}
+
+	async fn ensure_patch_exists(&self, patch: &Patch, path: &Path) -> Result<()> {
+		// Grab the current state of this patch from known patch store, taking
+		// responsibility for checking the patch if it is not yet known.
+		let (occupied, value) = match self
+			.known_patches
+			.lock()
+			.expect("poisoned")
+			.entry(path.to_path_buf())
+		{
+			Entry::Occupied(entry) => (true, entry.get().clone()),
+			Entry::Vacant(entry) => (
+				false,
+				entry
+					.insert(Arc::new((AtomicBool::new(false), Notify::new())))
+					.clone(),
+			),
+		};
+
+		let (ready, notify) = &*value;
+
+		// If the patch is aleady known, or being checked, wait on the resolution
+		// from the responsible task (if any).
+		if occupied {
+			// TODO: I'm not sure that this loop is actually relevant, but this logic is mostly 1:1 from a std convar impl.
+			while !ready.load(Ordering::SeqCst) {
+				notify.notified().await;
+			}
+			return Ok(());
+		}
+
+		// This task is responsible for checking the patch file - check it and download if required.
+		if self.should_fetch_patch(patch, path)? {
+			// TODO: most of this can be inlined into this function i'd assume - or at least brought into the struct
+			download_patch(&self.client, patch, path, &self.semaphore).await?;
+		}
+
+		// The patch is ready by this point, mark it as such and notify any other tasks waiting on it.
+		ready.store(true, Ordering::SeqCst);
+		notify.notify_waiters();
+
+		Ok(())
+	}
+
+	fn should_fetch_patch(&self, patch: &Patch, path: &Path) -> Result<bool> {
+		let metadata = match path.metadata() {
+			// NotFound implies the patch doesn't exist, and should be downloaded.
+			Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(true),
+			other => other?,
+		};
+
+		// If there's a size mismatch, it should be re-downloaded (likely a partial completion).
+		let size_matches = metadata.len() == patch.size;
+
+		if !size_matches {
+			tracing::warn!(
+				patch = %patch.name,
+				expected = patch.size,
+				got = metadata.len(),
+				"size mismatch, will re-fetch"
+			);
+		}
+
+		// TODO: I _imagine_ this should probably actually do something about non-file paths, but for now it'll fail out somewhere else.
+		Ok(!(path.is_file() && size_matches))
 	}
 }
 
