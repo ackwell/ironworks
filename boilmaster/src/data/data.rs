@@ -11,8 +11,9 @@ use ironworks::{
 	zipatch, Ironworks,
 };
 use serde::Deserialize;
+use tokio::sync::watch;
 
-use crate::version::{PatchList, VersionKey};
+use crate::version::{self, PatchList, VersionKey};
 
 use super::{language::LanguageString, patch};
 
@@ -26,6 +27,8 @@ pub struct Config {
 pub struct Data {
 	default_language: Language,
 
+	channel: watch::Sender<Vec<VersionKey>>,
+
 	// Root ZiPatch instance, acts as a LUT cache
 	zipatch: zipatch::ZiPatch,
 
@@ -36,8 +39,11 @@ pub struct Data {
 
 impl Data {
 	pub fn new(config: Config) -> Self {
+		let (sender, _receiver) = watch::channel(vec![]);
+
 		Data {
 			default_language: config.language.into(),
+			channel: sender,
 			zipatch: zipatch::ZiPatch::new().with_persisted_lookups(),
 			patcher: patch::Patcher::new(config.patch),
 			versions: Default::default(),
@@ -46,6 +52,10 @@ impl Data {
 
 	pub fn default_language(&self) -> Language {
 		self.default_language
+	}
+
+	pub fn subscribe(&self) -> watch::Receiver<Vec<VersionKey>> {
+		self.channel.subscribe()
 	}
 
 	pub async fn prepare_version(
@@ -96,6 +106,9 @@ impl Data {
 			.expect("poisoned")
 			.insert(version_key, Arc::new(version));
 
+		// Broadcast the update.
+		self.broadcast_version_list();
+
 		Ok(())
 	}
 
@@ -105,6 +118,20 @@ impl Data {
 			.expect("poisoned")
 			.get(version)
 			.cloned()
+	}
+
+	fn broadcast_version_list(&self) {
+		let versions = self.versions.read().expect("poisoned");
+		let keys = versions.keys().cloned().collect::<Vec<_>>();
+
+		self.channel.send_if_modified(|value| {
+			if &keys != value {
+				*value = keys;
+				return true;
+			}
+
+			false
+		});
 	}
 }
 

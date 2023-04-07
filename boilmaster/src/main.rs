@@ -57,16 +57,14 @@ async fn main() {
 	tokio::try_join!(
 		// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
 		search
-			.clone()
-			// TODO: work out how this is supposed to work
-			.ingest(shutdown_token.cancelled(), &data, &latest_version_key)
+			.listen(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,
 			data.clone(),
 			schema,
-			search,
+			search.clone(),
 			version,
 		),
 	)
