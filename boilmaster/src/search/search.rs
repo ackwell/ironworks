@@ -49,7 +49,7 @@ impl Search {
 		}
 	}
 
-	pub async fn listen(&self, cancel: CancellationToken, data: &Data) -> Result<(), SearchError> {
+	pub async fn start(&self, cancel: CancellationToken, data: &Data) -> Result<(), SearchError> {
 		// TODO: I suspect this pattern for listening to a channel and holding a cancel token will be pretty reusable.
 		let mut receiver = data.subscribe();
 		self.ingest_new(cancel.child_token(), receiver.borrow().clone(), data)

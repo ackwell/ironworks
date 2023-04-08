@@ -15,6 +15,7 @@ directory = "patches"
 concurrency = 4
 
 [version]
+interval = 3600 # 1 hour
 directory = "versions"
 repositories = [
   "4e9a232b", # ffxiv

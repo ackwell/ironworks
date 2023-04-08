@@ -34,9 +34,6 @@ async fn main() {
 	tracing::init(config.tracing);
 
 	let version = Arc::new(version::Manager::new(config.version).expect("TODO"));
-	// TEMP; this should be set up as part of a boot process for the version system
-	version.update().await.expect("TODO");
-
 	let data = Arc::new(data::Data::new(config.data));
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
@@ -45,9 +42,10 @@ async fn main() {
 	let shutdown_token = shutdown_token();
 
 	tokio::try_join!(
-		data.listen(shutdown_token.child_token(), &version),
+		version.start(shutdown_token.child_token()),
+		data.start(shutdown_token.child_token(), &version),
 		search
-			.listen(shutdown_token.child_token(), &data)
+			.start(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),

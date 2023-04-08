@@ -59,11 +59,7 @@ impl Data {
 		self.channel.subscribe()
 	}
 
-	pub async fn listen(
-		&self,
-		cancel: CancellationToken,
-		version: &version::Manager,
-	) -> Result<()> {
+	pub async fn start(&self, cancel: CancellationToken, version: &version::Manager) -> Result<()> {
 		let mut receiver = version.subscribe();
 		self.prepare_new_versions(version, receiver.borrow().clone())
 			.await?;

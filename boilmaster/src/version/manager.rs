@@ -16,7 +16,8 @@ use anyhow::{anyhow, Context, Result};
 use figment::value::magic::RelativePathBuf;
 use futures::future::try_join_all;
 use serde::Deserialize;
-use tokio::sync::watch;
+use tokio::{select, sync::watch, time};
+use tokio_util::sync::CancellationToken;
 
 pub type PatchList = Vec<(String, Vec<Patch>)>;
 
@@ -24,6 +25,7 @@ pub type PatchList = Vec<(String, Vec<Patch>)>;
 pub struct Config {
 	thaliak: thaliak::Config,
 
+	interval: u64,
 	directory: RelativePathBuf,
 	repositories: Vec<String>,
 }
@@ -35,6 +37,8 @@ const LATEST_TAG: &str = "latest";
 #[derive(Debug)]
 pub struct Manager {
 	thaliak: thaliak::Provider,
+
+	update_interval: u64,
 
 	file: JsonFile,
 	directory: PathBuf,
@@ -68,6 +72,7 @@ impl Manager {
 
 		let manager = Self {
 			thaliak: thaliak::Provider::new(config.thaliak),
+			update_interval: config.interval,
 			file: JsonFile::new(directory.join("versions.json")),
 			directory,
 			channel: sender,
@@ -168,8 +173,29 @@ impl Manager {
 		Ok(())
 	}
 
+	/// Start the service.
+	pub async fn start(&self, cancel: CancellationToken) -> Result<()> {
+		let mut interval = time::interval(time::Duration::from_secs(self.update_interval));
+		interval.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
+
+		loop {
+			select! {
+				_ = interval.tick() => {},
+				_ = cancel.cancelled() => { break }
+			}
+
+			if let Err(error) = self.update().await {
+				tracing::error!(%error, "update failed");
+			}
+		}
+
+		Ok(())
+	}
+
 	/// Update local data from upstream sources.
 	pub async fn update(&self) -> Result<()> {
+		tracing::info!("checking for version updates");
+
 		// Ensure that the persistance folder exists before trying to write anything to it.
 		fs::create_dir_all(&self.directory)?;
 
