@@ -88,8 +88,6 @@ impl Version {
 
 		*self.indices.write().unwrap() = Some(indices.into());
 
-		tracing::info!("search ingestion complete");
-
 		Ok(())
 	}
 
