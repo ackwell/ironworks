@@ -30,8 +30,6 @@ pub struct Config {
 	repositories: Vec<String>,
 }
 
-// TODO: might want to make version names many:one so i.e. "6.38" can also be "latest"
-//       is it worth adding multi-tag support for that or should i just have a seperate latest pointer
 const LATEST_TAG: &str = "latest";
 
 #[derive(Debug)]
@@ -93,8 +91,7 @@ impl Manager {
 		self.channel.subscribe()
 	}
 
-	/// Resolve a version name to it's key. If no version is specified, the version marked as latest will be returned, if any exists.
-	// TODO: remove the fallback logic from here, push it up to the consumer, akin to schema specifier?
+	/// Resolve a version name to its key. If no version is specified, the version marked as latest will be returned, if any exists.
 	pub fn resolve(&self, name: Option<&str>) -> Option<VersionKey> {
 		self.version_names
 			.read()
@@ -237,10 +234,11 @@ impl Manager {
 		version.update(value)?;
 		drop(versions);
 
-		// TEMP: for now, setting the latest sigil to always point to the most recent version key. Don't merge this, hey?
-		let mut vn_temp = self.version_names.write().expect("poisoned");
-		vn_temp.insert(LATEST_TAG.to_string(), key);
-		drop(vn_temp);
+		// Set the latest sigil to always point to the most recent version key.
+		// TODO: This should be managed through the admin control panel. If automated, it'll likely need to be told in some way that all other ingestion tasks are done before being flaggest as latest.
+		let mut version_names = self.version_names.write().expect("poisoned");
+		version_names.insert(LATEST_TAG.to_string(), key);
+		drop(version_names);
 
 		// Build the full version listing for persisting.
 		let versions = self.versions.read().expect("poisoned");

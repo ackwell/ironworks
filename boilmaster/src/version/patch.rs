@@ -32,7 +32,7 @@ impl PatchStore {
 	}
 
 	pub fn hydrate(&mut self) -> Result<()> {
-		let patches: Vec<Patch> = self.file.read()?;
+		let patches = self.file.read::<Vec<Patch>>()?;
 
 		self.patches
 			.extend(patches.into_iter().map(|patch| (patch.name.clone(), patch)));
