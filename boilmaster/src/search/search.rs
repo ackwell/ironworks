@@ -103,7 +103,7 @@ impl Search {
 		tracing::info!("ingestion starting");
 
 		let data_version = data
-			.version(&version)
+			.version(version)
 			.ok_or_else(|| anyhow!("{version} could not be resolved to a data version"))?;
 		let search_version = Arc::new(Version::new(self.index_directory.join(version.to_string())));
 
@@ -115,18 +115,18 @@ impl Search {
 		self.versions
 			.write()
 			.expect("poisoned")
-			.insert(version.clone(), search_version);
+			.insert(version, search_version);
 
 		tracing::info!("ingestion complete");
 
 		Ok(())
 	}
 
-	pub fn version(&self, version: &VersionKey) -> Option<Arc<Version>> {
+	pub fn version(&self, version: VersionKey) -> Option<Arc<Version>> {
 		self.versions
 			.read()
 			.expect("poisoned")
-			.get(version)
+			.get(&version)
 			.cloned()
 	}
 }

@@ -155,7 +155,7 @@ impl Manager {
 		for (version_key, names) in all_versions {
 			// Save the names out.
 			for name in names {
-				version_names.insert(name, version_key.clone());
+				version_names.insert(name, version_key);
 			}
 
 			// Build a version representation and hydrate it from disk.
@@ -231,7 +231,7 @@ impl Manager {
 
 		let mut versions = self.versions.write().expect("poisoned");
 		let version = versions
-			.entry(key.clone())
+			.entry(key)
 			.or_insert_with(|| Version::new(&self.directory, &key));
 
 		version.update(value)?;

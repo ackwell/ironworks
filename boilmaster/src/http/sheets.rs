@@ -50,10 +50,7 @@ async fn sheets(
 	let version_key = version
 		.resolve(version_query.version.as_deref())
 		.with_context(|| format!("unknown version {:?}", version_query.version))?;
-	let excel = data
-		.version(&version_key)
-		.context("data not ready")?
-		.excel();
+	let excel = data.version(version_key).context("data not ready")?.excel();
 
 	let list = excel.list().anyhow()?;
 
@@ -102,10 +99,7 @@ async fn row(
 	let version_key = version
 		.resolve(version_query.version.as_deref())
 		.with_context(|| format!("unknown version {:?}", version_query.version))?;
-	let excel = data
-		.version(&version_key)
-		.context("data not ready")?
-		.excel();
+	let excel = data.version(version_key).context("data not ready")?.excel();
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	// Sanity check that the correct path was used.

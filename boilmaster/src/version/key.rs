@@ -2,7 +2,7 @@ use std::{fmt, num::ParseIntError, str::FromStr};
 
 use serde::{de, Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VersionKey(u32);
 
 impl VersionKey {

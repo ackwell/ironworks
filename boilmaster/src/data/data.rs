@@ -159,11 +159,11 @@ impl Data {
 		Ok(())
 	}
 
-	pub fn version(&self, version: &VersionKey) -> Option<Arc<Version>> {
+	pub fn version(&self, version: VersionKey) -> Option<Arc<Version>> {
 		self.versions
 			.read()
 			.expect("poisoned")
-			.get(version)
+			.get(&version)
 			.cloned()
 	}
 

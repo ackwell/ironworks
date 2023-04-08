@@ -66,12 +66,9 @@ async fn search(
 		.resolve(version_query.version.as_deref())
 		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let search_version = search
-		.version(&version_key)
+		.version(version_key)
 		.context("search index not ready")?;
-	let excel = data
-		.version(&version_key)
-		.context("data not ready")?
-		.excel();
+	let excel = data.version(version_key).context("data not ready")?.excel();
 
 	let language = language_query
 		.language
