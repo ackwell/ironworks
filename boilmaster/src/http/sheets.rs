@@ -35,15 +35,21 @@ struct RowPath {
 	subrow_id: Option<u16>,
 }
 
+#[derive(Deserialize)]
+struct VersionQuery {
+	version: Option<String>,
+}
+
 #[debug_handler(state = service::State)]
 async fn sheets(
+	Query(version_query): Query<VersionQuery>,
 	State(data): State<service::Data>,
 	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
+	// TODO: use a custom extractor for this shit
 	let version_key = version
-		.resolve(None)
-		.context("latest should always exist")?;
+		.resolve(version_query.version.as_deref())
+		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let excel = data
 		.version(&version_key)
 		.context("data not ready")?
@@ -76,6 +82,8 @@ struct LanguageQuery {
 	language: Option<LanguageString>,
 }
 
+// TODO: should probably put this on a routes/handlers directory
+#[allow(clippy::too_many_arguments)]
 #[debug_handler(state = service::State)]
 async fn row(
 	Path(RowPath {
@@ -83,6 +91,7 @@ async fn row(
 		row_id,
 		subrow_id,
 	}): Path<RowPath>,
+	Query(version_query): Query<VersionQuery>,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
@@ -90,10 +99,9 @@ async fn row(
 	State(schema_provider): State<service::Schema>,
 	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	// TODO: these should be falling back to a default version exposed by version::. also needs a better error
 	let version_key = version
-		.resolve(None)
-		.context("latest should always exist")?;
+		.resolve(version_query.version.as_deref())
+		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let excel = data
 		.version(&version_key)
 		.context("data not ready")?

@@ -19,6 +19,11 @@ pub fn router() -> Router<service::State> {
 	Router::new().route("/", get(search))
 }
 
+#[derive(Deserialize)]
+struct VersionQuery {
+	version: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
 	sheets: Option<String>,
@@ -45,8 +50,10 @@ struct SearchResult {
 	subrow_id: u16,
 }
 
+#[allow(clippy::too_many_arguments)]
 #[debug_handler(state = service::State)]
 async fn search(
+	Query(version_query): Query<VersionQuery>,
 	Query(search_query): Query<SearchQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
@@ -55,11 +62,9 @@ async fn search(
 	State(search): State<service::Search>,
 	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	// TODO: this should expose a more useful error to the end user.
-	// TODO: these should be falling back to a default version exposed by version::
 	let version_key = version
-		.resolve(None)
-		.context("latest should always exist")?;
+		.resolve(version_query.version.as_deref())
+		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let search_version = search
 		.version(&version_key)
 		.context("search index not ready")?;
