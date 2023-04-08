@@ -16,6 +16,7 @@ use anyhow::{anyhow, Context, Result};
 use figment::value::magic::RelativePathBuf;
 use futures::future::try_join_all;
 use serde::Deserialize;
+use tokio::sync::watch;
 
 pub type PatchList = Vec<(String, Vec<Patch>)>;
 
@@ -37,6 +38,8 @@ pub struct Manager {
 
 	file: JsonFile,
 	directory: PathBuf,
+
+	channel: watch::Sender<Vec<VersionKey>>,
 
 	repositories: Vec<String>,
 	patches: HashMap<String, RwLock<PatchStore>>,
@@ -61,10 +64,13 @@ impl Manager {
 			})
 			.collect::<HashMap<_, _>>();
 
+		let (sender, _receiver) = watch::channel(vec![]);
+
 		let manager = Self {
 			thaliak: thaliak::Provider::new(config.thaliak),
 			file: JsonFile::new(directory.join("versions.json")),
 			directory,
+			channel: sender,
 			repositories: config.repositories,
 			patches,
 			versions: Default::default(),
@@ -75,6 +81,11 @@ impl Manager {
 		manager.hydrate()?;
 
 		Ok(manager)
+	}
+
+	/// Subscribe to changes to the version list.
+	pub fn subscribe(&self) -> watch::Receiver<Vec<VersionKey>> {
+		self.channel.subscribe()
 	}
 
 	/// Resolve a version name to it's key. If no version is specified, the version marked as latest will be returned, if any exists.
@@ -148,6 +159,12 @@ impl Manager {
 			versions.insert(version_key, version);
 		}
 
+		drop(version_names);
+		drop(versions);
+
+		// Broadcast the initial state of the version list.
+		self.broadcast_version_list();
+
 		Ok(())
 	}
 
@@ -192,6 +209,7 @@ impl Manager {
 			.or_insert_with(|| Version::new(&self.directory, &key));
 
 		version.update(value)?;
+		drop(versions);
 
 		// TEMP: for now, setting the latest sigil to always point to the most recent version key. Don't merge this, hey?
 		let mut vn_temp = self.version_names.write().expect("poisoned");
@@ -199,6 +217,7 @@ impl Manager {
 		drop(vn_temp);
 
 		// Build the full version listing for persisting.
+		let versions = self.versions.read().expect("poisoned");
 		let version_names = self.version_names.read().expect("poisoned");
 
 		let mut all_versions = versions
@@ -214,6 +233,9 @@ impl Manager {
 		}
 
 		self.file.write(&all_versions)?;
+
+		// Broadcast any changes to the version list from this update.
+		self.broadcast_version_list();
 
 		Ok(())
 	}
@@ -237,5 +259,18 @@ impl Manager {
 			.update(patches)?;
 
 		Ok(patch_names)
+	}
+
+	fn broadcast_version_list(&self) {
+		let versions = self.versions.read().expect("poisoned");
+		let keys = versions.keys().cloned().collect::<Vec<_>>();
+		self.channel.send_if_modified(|value| {
+			if &keys != value {
+				*value = keys;
+				return true;
+			}
+
+			false
+		});
 	}
 }

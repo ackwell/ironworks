@@ -1,5 +1,5 @@
 use std::{
-	collections::HashMap,
+	collections::{HashMap, HashSet},
 	sync::{Arc, RwLock},
 };
 
@@ -11,9 +11,10 @@ use ironworks::{
 	zipatch, Ironworks,
 };
 use serde::Deserialize;
-use tokio::sync::watch;
+use tokio::{select, sync::watch};
+use tokio_util::sync::CancellationToken;
 
-use crate::version::{self, PatchList, VersionKey};
+use crate::version::{self, VersionKey};
 
 use super::{language::LanguageString, patch};
 
@@ -58,11 +59,58 @@ impl Data {
 		self.channel.subscribe()
 	}
 
-	pub async fn prepare_version(
+	pub async fn listen(
 		&self,
-		version_key: VersionKey,
-		patch_list: PatchList,
+		cancel: CancellationToken,
+		version: &version::Manager,
 	) -> Result<()> {
+		let mut receiver = version.subscribe();
+		self.prepare_new_versions(version, receiver.borrow().clone())
+			.await?;
+
+		loop {
+			select! {
+				Ok(_) = receiver.changed() => {
+					self.prepare_new_versions(version, receiver.borrow().clone()).await?
+				}
+				_ = cancel.cancelled() => break,
+			}
+		}
+
+		Ok(())
+	}
+
+	async fn prepare_new_versions(
+		&self,
+		version: &version::Manager,
+		versions: Vec<VersionKey>,
+	) -> Result<()> {
+		let known_keys = self
+			.versions
+			.read()
+			.expect("poisoned")
+			.keys()
+			.cloned()
+			.collect::<HashSet<_>>();
+
+		let prepares = versions
+			.into_iter()
+			.filter(|key| !known_keys.contains(key))
+			.map(|key| self.prepare_version(version, key));
+
+		try_join_all(prepares).await?;
+
+		Ok(())
+	}
+
+	// TODO: should this use an explicit cancellation token?
+	async fn prepare_version(
+		&self,
+		version: &version::Manager,
+		version_key: VersionKey,
+	) -> Result<()> {
+		let patch_list = version.patch_list(&version_key)?;
+
 		// Start getting paths for all the patches required for this version, downloading if required.
 		let pending_repositories = patch_list
 			.into_iter()
@@ -107,6 +155,9 @@ impl Data {
 			.insert(version_key, Arc::new(version));
 
 		// Broadcast the update.
+		// NOTE: This is performed after each version rather than when all versions
+		// are complete to allow other services to begin processing an early-completing
+		// version before the full patch process is complete.
 		self.broadcast_version_list();
 
 		Ok(())

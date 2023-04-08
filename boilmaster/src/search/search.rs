@@ -61,7 +61,6 @@ impl Search {
 					self.ingest_new(cancel.child_token(), receiver.borrow().clone(), data).await?
 				}
 				_ = cancel.cancelled() => break,
-				else => break,
 			}
 		}
 
@@ -87,7 +86,7 @@ impl Search {
 			.filter(|key| !known_keys.contains(key))
 			.map(|key| self.ingest(cancel.child_token(), data, key));
 
-		// TODO: consider if .ingest should own writing to self.versions or if it should return the Version and let it be added here.
+		// TODO: consider if .ingest should own writing to self.versions or if it should return the Version and let it be added here. main downside of doing so is that in a theoretical high-count version ingestion, versions completed early would not be available until all versions are complete.
 		try_join_all(ingestions).await?;
 
 		Ok(())

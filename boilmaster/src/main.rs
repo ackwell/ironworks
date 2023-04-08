@@ -36,18 +36,8 @@ async fn main() {
 	let version = Arc::new(version::Manager::new(config.version).expect("TODO"));
 	// TEMP; this should be set up as part of a boot process for the version system
 	version.update().await.expect("TODO");
-	// TEMP: yikes. this should be dynamic. probably need a list of versions exposed for data prepping?
-	let latest_version_key = version
-		.resolve(None)
-		.expect("latest should always exist in this nightmare");
-	let temp_patch_list = version.patch_list(&latest_version_key).expect("TODO");
 
 	let data = Arc::new(data::Data::new(config.data));
-	// TEMP
-	data.prepare_version(latest_version_key.clone(), temp_patch_list)
-		.await
-		.expect("TODO");
-
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
@@ -55,7 +45,7 @@ async fn main() {
 	let shutdown_token = shutdown_token();
 
 	tokio::try_join!(
-		// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
+		data.listen(shutdown_token.child_token(), &version),
 		search
 			.listen(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
@@ -65,7 +55,7 @@ async fn main() {
 			data.clone(),
 			schema,
 			search.clone(),
-			version,
+			version.clone(),
 		),
 	)
 	.expect("TODO: Error handling");
