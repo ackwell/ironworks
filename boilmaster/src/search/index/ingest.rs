@@ -1,10 +1,14 @@
-use std::collections::HashMap;
+use std::{
+	collections::HashMap,
+	hash::{Hash, Hasher},
+};
 
 use anyhow::Result;
 use ironworks::{
 	excel::{Field, Language, Row, Sheet},
 	file::exh,
 };
+use seahash::SeaHasher;
 use serde::Deserialize;
 use tantivy::{directory::MmapDirectory, schema, Document, Index, IndexSettings, UserOperation};
 use tokio::sync::Semaphore;
@@ -21,6 +25,26 @@ pub struct IngestConfig {
 pub struct Ingester {
 	semaphore: Semaphore,
 	writer_memory: usize,
+}
+
+fn test_sheet_structure_hash(sheet: &Sheet<String>) -> Result<u64> {
+	// TODO: consider using fixed seeds?
+	let mut hasher = SeaHasher::new();
+	sheet.kind()?.hash(&mut hasher);
+
+	let mut languages = sheet.languages()?;
+	languages.sort_by_key(|language| u8::from(*language));
+	languages.hash(&mut hasher);
+
+	// TODO: this encodes the offsets of the columns as well as their kind (and position due to the vec) - technically the actual offset is irrelevant, so would be good to ignore it, but doing so would require decoupling column names from offsets, which I can't do without changes to a lot of stuff in search query resolution. i'm not convinced that different offset layouts for the same structure are going to be common enough to bother.
+	// sheet.columns()?.hash(&mut hasher);
+	let mut columns = sheet.columns()?;
+	columns.sort_by_key(|column| column.offset());
+	columns.hash(&mut hasher);
+
+	let hash = hasher.finish();
+
+	Ok(hash)
 }
 
 impl Ingester {
@@ -41,7 +65,11 @@ impl Ingester {
 		let permit = self.semaphore.acquire().await.unwrap();
 
 		// TODO: this should probably span the function so i get an end point
-		tracing::info!("ingesting {}", sheet.name());
+		tracing::info!(
+			"ingesting {} - would hash: {:?}",
+			sheet.name(),
+			test_sheet_structure_hash(&sheet)
+		);
 
 		let writer_memory = self.writer_memory;
 
