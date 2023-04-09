@@ -14,6 +14,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{data::Data, version::VersionKey};
 
+use super::schema::build_schema;
+
 pub struct Search {
 	indices: RwLock<HashMap<u64, Index>>,
 }
@@ -64,7 +66,7 @@ impl Search {
 
 				let index = indicies
 					.entry(index_key)
-					.or_insert_with(|| Index::new(&path.join(format!("{index_key:x}"))));
+					.or_insert_with(|| Index::new(&path.join(format!("{index_key:x}")), &sheet));
 			}
 		}
 
@@ -93,12 +95,12 @@ fn test_sheet_structure_hash(sheet: &Sheet<String>) -> Result<u64> {
 }
 
 struct Index {
+	index: tantivy::Index,
 	reader: tantivy::IndexReader,
-	writer: tantivy::IndexWriter,
 }
 
 impl Index {
-	fn new(path: &Path) -> Self {
+	fn new(path: &Path, sheet: &Sheet<String>) -> Self {
 		std::fs::create_dir_all(path).expect("todo");
 
 		let directory = MmapDirectory::open(path).expect("todo");
@@ -106,7 +108,9 @@ impl Index {
 		let index = match tantivy::Index::exists(&directory).expect("todo") {
 			true => tantivy::Index::open(directory).expect("todo"),
 			false => {
-				let schema = tantivy::schema::SchemaBuilder::new().build();
+				let columns = sheet.columns().expect("todo");
+				let languages = sheet.languages().expect("todo");
+				let schema = build_schema(&columns, &languages);
 				tantivy::Index::create(directory, schema, tantivy::IndexSettings::default())
 					.expect("todo")
 			}
@@ -118,8 +122,6 @@ impl Index {
 			.try_into()
 			.expect("todo");
 
-		let writer = index.writer(10 * 1024 * 1024).expect("todo");
-
-		Self { reader, writer }
+		Self { index, reader }
 	}
 }
