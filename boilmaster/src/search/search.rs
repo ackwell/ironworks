@@ -40,7 +40,6 @@ pub struct Search {
 }
 
 impl Search {
-	#[allow(clippy::new_without_default)]
 	pub fn new(config: Config) -> Self {
 		Self {
 			ingester: Ingester::new(config.ingest),
@@ -107,6 +106,7 @@ impl Search {
 			.ok_or_else(|| anyhow!("{version} could not be resolved to a data version"))?;
 		let search_version = Arc::new(Version::new(self.index_directory.join(version.to_string())));
 
+		// TODO: i think cancelled ingestions should avoid writing to the version map, maybe?
 		tokio::select! {
 			_ = cancel.cancelled() => {},
 			result = search_version.clone().ingest(&self.ingester, &data_version) => { result? },

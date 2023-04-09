@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use boilmaster::{data, http, schema, search, tracing, version};
+use boilmaster::{data, http, schema, search, search2, tracing, version};
 use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
@@ -38,6 +38,8 @@ async fn main() {
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
+	let search2 = search2::Search::new();
+
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
 
@@ -47,6 +49,8 @@ async fn main() {
 		search
 			.start(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
+		//temp
+		search2.start(shutdown_token.child_token(), &data),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,
