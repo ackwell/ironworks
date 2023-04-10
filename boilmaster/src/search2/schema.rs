@@ -3,6 +3,7 @@ use tantivy::schema;
 
 use crate::data::LanguageString;
 
+pub const SHEET_KEY: &str = "sheet_key";
 pub const ROW_ID: &str = "row_id";
 pub const SUBROW_ID: &str = "subrow_id";
 
@@ -11,6 +12,9 @@ pub fn build_schema(
 	languages: &[excel::Language],
 ) -> schema::Schema {
 	let mut schema_builder = schema::SchemaBuilder::new();
+
+	// Discriminator field for sheets across versions.
+	schema_builder.add_u64_field(SHEET_KEY, schema::INDEXED);
 
 	// RowID and SubrowID are the only stored fields, search results can be looked up in real excel for the full dataset.
 	schema_builder.add_u64_field(ROW_ID, schema::STORED);
