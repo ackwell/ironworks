@@ -4,8 +4,10 @@ use std::{
 	sync::Arc,
 };
 
+use figment::value::magic::RelativePathBuf;
 use ironworks::excel::Sheet;
 use seahash::SeaHasher;
+use serde::Deserialize;
 use tokio::{select, sync::RwLock};
 use tokio_util::sync::CancellationToken;
 
@@ -13,13 +15,21 @@ use crate::{search2::error::Result, version::VersionKey};
 
 use super::index::Index;
 
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	directory: RelativePathBuf,
+	memory: usize,
+}
+
 pub struct Provider {
+	config: Config,
 	indicies: RwLock<HashMap<u64, Arc<Index>>>,
 }
 
 impl Provider {
-	pub fn new() -> Self {
+	pub fn new(config: Config) -> Self {
 		Self {
+			config,
 			indicies: Default::default(),
 		}
 	}
@@ -29,9 +39,8 @@ impl Provider {
 		cancel: CancellationToken,
 		sheets: impl IntoIterator<Item = (VersionKey, Sheet<'static, String>)>,
 	) -> Result<()> {
-		// TODO: move these into configuration
-		let memory = 50 * 1024 * 1024;
-		let path = std::fs::canonicalize(".").expect("todo").join("search2");
+		let memory = self.config.memory;
+		let path = self.config.directory.relative();
 
 		// Bucket sheets by their index and ensure that the indices exist.
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.

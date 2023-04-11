@@ -18,6 +18,7 @@ struct Config {
 	version: version::Config,
 	schema: schema::Config,
 	search: search::Config,
+	search2: search2::Config,
 }
 
 #[tokio::main]
@@ -38,7 +39,7 @@ async fn main() {
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
-	let search2 = search2::Search::new();
+	let search2 = search2::Search::new(config.search2);
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
@@ -49,7 +50,7 @@ async fn main() {
 		search
 			.start(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
-		//temp
+		// temp
 		search2.start(shutdown_token.child_token(), &data),
 		http::serve(
 			shutdown_token.cancelled(),

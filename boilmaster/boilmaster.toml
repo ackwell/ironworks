@@ -41,3 +41,7 @@ directory = "search"
 [search.ingest]
 concurrency = 10
 memory = 52428800 # 50MiB
+
+[search2.tantivy]
+directory = "search2"
+memory = 52428800 # 50MiB

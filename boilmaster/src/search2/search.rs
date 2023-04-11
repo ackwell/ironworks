@@ -1,20 +1,26 @@
 use anyhow::{Context, Result};
 use itertools::Itertools;
+use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 use crate::{data::Data, version::VersionKey};
 
-use super::tantivy::Provider;
+use super::tantivy;
+
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	tantivy: tantivy::Config,
+}
 
 pub struct Search {
-	provider: Provider,
+	provider: tantivy::Provider,
 }
 
 impl Search {
-	pub fn new() -> Self {
+	pub fn new(config: Config) -> Self {
 		Self {
-			provider: Provider::new(),
+			provider: tantivy::Provider::new(config.tantivy),
 		}
 	}
 

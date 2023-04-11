@@ -2,4 +2,4 @@ mod index;
 mod provider;
 mod schema;
 
-pub use provider::Provider;
+pub use provider::{Config, Provider};
