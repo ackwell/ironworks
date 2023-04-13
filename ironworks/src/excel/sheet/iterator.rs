@@ -18,7 +18,7 @@ pub struct SheetIterator<'i, S> {
 	row_index: usize,
 	subrow_id: u16,
 
-	subrow_count: Option<u16>,
+	subrow_max: Option<u16>,
 }
 
 impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
@@ -31,7 +31,7 @@ impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
 			row_index: 0,
 			subrow_id: 0,
 
-			subrow_count: None,
+			subrow_max: None,
 		}
 	}
 }
@@ -70,9 +70,9 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 		self.subrow_id += 1;
 
 		// If the subrow bounds have been exceeded, move on to the next row.
-		if self.subrow_id >= self.subrow_count()? {
+		if self.subrow_id > self.subrow_max()? {
 			self.subrow_id = 0;
-			self.subrow_count = None;
+			self.subrow_max = None;
 			self.row_index += 1;
 		}
 
@@ -85,10 +85,10 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 		Ok(())
 	}
 
-	fn subrow_count(&mut self) -> Result<u16> {
+	fn subrow_max(&mut self) -> Result<u16> {
 		// Fetch the count of subrows for this row. It's cached to avoid subrow sheets requiring multiple lookups.
 		let count = match self.sheet.kind()? {
-			exh::SheetKind::Subrows => match self.subrow_count {
+			exh::SheetKind::Subrows => match self.subrow_max {
 				Some(value) => value,
 				None => {
 					// TODO: this is reading the page out twice, which is really dumb. Expose more data via exd and move logic to excel to avoid this shit.
@@ -96,13 +96,13 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 					let page = self.page()?;
 
 					// If we get a row not found, we can assume that there are "zero" subrows, in an effort to skip this row.
-					let subrow_count = match page.subrow_count(row_id) {
+					let subrow_max = match page.subrow_max(row_id) {
 						Err(Error::NotFound(ErrorValue::Row { .. })) => Ok(0),
 						other => other,
 					}
 					.expect("failed to read subrow count while iterating");
 
-					*self.subrow_count.insert(subrow_count)
+					*self.subrow_max.insert(subrow_max)
 				}
 			},
 			_ => 1,
