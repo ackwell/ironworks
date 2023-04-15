@@ -1,4 +1,5 @@
 mod index;
+mod metadata;
 mod provider;
 mod schema;
 

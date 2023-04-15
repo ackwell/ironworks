@@ -39,7 +39,7 @@ async fn main() {
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search));
 
-	let search2 = search2::Search::new(config.search2);
+	let search2 = search2::Search::new(config.search2).expect("TODO");
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();

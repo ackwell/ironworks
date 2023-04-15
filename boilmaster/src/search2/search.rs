@@ -18,10 +18,10 @@ pub struct Search {
 }
 
 impl Search {
-	pub fn new(config: Config) -> Self {
-		Self {
-			provider: tantivy::Provider::new(config.tantivy),
-		}
+	pub fn new(config: Config) -> Result<Self> {
+		Ok(Self {
+			provider: tantivy::Provider::new(config.tantivy)?,
+		})
 	}
 
 	pub async fn start(&self, cancel: CancellationToken, data: &Data) -> Result<()> {

@@ -17,6 +17,7 @@ macro_rules! impl_to_failure {
 
 // TODO: Consider if any of these need to split out some of the error types into not-failure.
 impl_to_failure!(ironworks::Error);
+impl_to_failure!(serde_json::Error);
 impl_to_failure!(std::io::Error);
 impl_to_failure!(tantivy::TantivyError);
 impl_to_failure!(tantivy::directory::error::OpenDirectoryError);

@@ -1,6 +1,7 @@
 use std::{
 	collections::{hash_map::Entry, HashMap},
 	hash::{Hash, Hasher},
+	path::PathBuf,
 	sync::Arc,
 };
 
@@ -13,7 +14,10 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{search2::error::Result, version::VersionKey};
 
-use super::index::Index;
+use super::{
+	index::Index,
+	metadata::{Metadata, MetadataStore},
+};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -22,35 +26,51 @@ pub struct Config {
 }
 
 pub struct Provider {
-	config: Config,
+	directory: PathBuf,
+	memory: usize,
+
 	indicies: RwLock<HashMap<u64, Arc<Index>>>,
+	metadata: Arc<MetadataStore>,
 }
 
 impl Provider {
-	pub fn new(config: Config) -> Self {
-		Self {
-			config,
+	pub fn new(config: Config) -> Result<Self> {
+		let directory = config.directory.relative();
+		let metadata = Arc::new(MetadataStore::new(&directory.join("metadata"))?);
+		Ok(Self {
+			directory,
+			memory: config.memory,
 			indicies: Default::default(),
-		}
+			metadata,
+		})
 	}
 
+	#[tracing::instrument(skip_all)]
 	pub async fn ingest(
 		&self,
 		cancel: CancellationToken,
 		sheets: impl IntoIterator<Item = (VersionKey, Sheet<'static, String>)>,
 	) -> Result<()> {
-		let memory = self.config.memory;
-		let path = self.config.directory.relative();
+		let memory = self.memory;
 
 		// Bucket sheets by their index and ensure that the indices exist.
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
+		tracing::info!("prepare");
 		let mut indices = self.indicies.write().await;
 		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
 		for (version, sheet) in sheets {
 			let (index_key, discriminator) = grouping_keys(version, &sheet)?;
 
+			if self.metadata.exists(discriminator)? {
+				tracing::debug!(name = %sheet.name(), key = discriminator, "exists, skipping");
+				continue;
+			}
+
 			if let Entry::Vacant(entry) = indices.entry(index_key) {
-				let index = Index::new(&path.join(format!("{index_key:x}")), &sheet)?;
+				let index = Index::new(
+					&self.directory.join(format!("sheets-{index_key:x}")),
+					&sheet,
+				)?;
 				entry.insert(Arc::new(index));
 			}
 
@@ -63,15 +83,22 @@ impl Provider {
 
 		// Run ingestion
 		// TODO: consider permitting concurrency here
+		tracing::info!("execute");
 		let indices = self.indicies.read().await;
 		for (key, sheets) in buckets {
 			let index = indices.get(&key).expect("ensured").clone();
+			let metadata = self.metadata.clone();
 			select! {
 			  _ = cancel.cancelled() => { break }
-			  result = tokio::task::spawn_blocking(move || index.ingest(memory, &sheets)) => { result?? }
+			  result = tokio::task::spawn_blocking(move || -> Result<_> {
+					index.ingest(memory, &sheets)?;
+					metadata.write(sheets.into_iter().map(|(key, _sheet)| (key, Metadata{})))?;
+					Ok(())
+				}) => { result?? }
 			}
 		}
 
+		tracing::info!("complete");
 		Ok(())
 	}
 }
