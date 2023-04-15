@@ -51,7 +51,9 @@ async fn main() {
 			.start(shutdown_token.child_token(), &data)
 			.map_err(anyhow::Error::from),
 		// temp
-		search2.start(shutdown_token.child_token(), &data),
+		search2
+			.start(shutdown_token.child_token())
+			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,

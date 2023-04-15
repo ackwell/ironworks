@@ -34,7 +34,7 @@ impl Index {
 
 		let reader = index
 			.reader_builder()
-			.reload_policy(ReloadPolicy::Manual)
+			.reload_policy(ReloadPolicy::OnCommit)
 			.try_into()?;
 
 		Ok(Self { index, reader })

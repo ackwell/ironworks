@@ -12,7 +12,10 @@ use serde::Deserialize;
 use tokio::{select, sync::RwLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::{search2::error::Result, version::VersionKey};
+use crate::{
+	search2::{error::Result, internal_query::post},
+	version::VersionKey,
+};
 
 use super::{
 	index::Index,
@@ -100,6 +103,10 @@ impl Provider {
 
 		tracing::info!("complete");
 		Ok(())
+	}
+
+	pub fn search(&self, query: &post::Node) {
+		tracing::info!("would query tantivy {query:#?}");
 	}
 }
 
