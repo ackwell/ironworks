@@ -5,13 +5,20 @@ use ironworks::{
 	file::exh,
 };
 use tantivy::{
-	directory::MmapDirectory, schema, Document, IndexReader, IndexSettings, ReloadPolicy,
-	UserOperation,
+	collector::TopDocs, directory::MmapDirectory, schema, Document, IndexReader, IndexSettings,
+	ReloadPolicy, UserOperation,
 };
 
-use crate::search2::error::Result;
+use crate::{
+	search2::{error::Result, internal_query::post, search::Executor},
+	version::VersionKey,
+};
 
-use super::schema::{build_schema, column_field_name, ROW_ID, SHEET_KEY, SUBROW_ID};
+use super::{
+	provider::IndexResult,
+	resolve::QueryResolver,
+	schema::{build_schema, column_field_name, ROW_ID, SHEET_KEY, SUBROW_ID},
+};
 
 pub struct Index {
 	index: tantivy::Index,
@@ -42,9 +49,10 @@ impl Index {
 
 	pub fn ingest(&self, writer_memory: usize, sheets: &[(u64, Sheet<String>)]) -> Result<()> {
 		let mut writer = self.index.writer(writer_memory)?;
+		let schema = self.index.schema();
 
 		for (key, sheet) in sheets {
-			let documents = match self.sheet_documents(*key, sheet) {
+			let documents = match sheet_documents(*key, sheet, &schema) {
 				Ok(documents) => documents,
 				Err(error) => {
 					// NOTE: This skips the sheet but doesn't prevent it being added to the metadata store, which means it'll be skipped on any other bulk ingests. That's probably fine, I imagine a forced re-ingestion can be performed if required by removing the key from meta first.
@@ -61,42 +69,89 @@ impl Index {
 		Ok(())
 	}
 
-	fn sheet_documents(
+	pub fn search(
 		&self,
-		key: u64,
-		sheet: &Sheet<String>,
-	) -> Result<impl ExactSizeIterator<Item = Document>> {
-		tracing::info!(sheet = %sheet.name(), "ingesting");
+		version: VersionKey,
+		boilmaster_query: &post::Node,
+		executor: &Executor,
+	) -> Result<impl Iterator<Item = IndexResult>> {
+		let searcher = self.reader.searcher();
+		let schema = searcher.schema();
 
-		let columns = sheet.columns()?;
-		let languages = sheet.languages()?;
+		// Resolve the query into the final tantivy query.
+		let query_resolver = QueryResolver {
+			version,
+			schema,
+			executor,
+		};
+		let tantivy_query = query_resolver.resolve(boilmaster_query)?;
 
-		let schema = self.index.schema();
+		// Execute the search.
+		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
+		let top_docs = searcher
+			.search(&tantivy_query, &TopDocs::with_limit(100))
+			.map_err(anyhow::Error::from)?;
 
-		// TODO: This effectively results in reading the entire sheet dataset into memory, which seems pretty wasteful - but `writer.run` requires an `ExactSizeIterator`, and I've as-yet been unable to get a better performing stream-alike solution to function sanely.
-		let mut documents = HashMap::<(u32, u16), Document>::new();
-
-		for language in languages {
-			for row in sheet.with().language(language).iter() {
-				let document = documents
-					.entry((row.row_id(), row.subrow_id()))
-					.or_insert_with(Document::new);
-				hydrate_row_document(document, row, &columns, language, &schema)?;
-			}
-		}
-
-		// Fill in the ID/key fields for all of the documents that were built.
-		let field_sheet_key = schema.get_field(SHEET_KEY).unwrap();
+		// Map the results into usable IDs.
 		let field_row_id = schema.get_field(ROW_ID).unwrap();
 		let field_subrow_id = schema.get_field(SUBROW_ID).unwrap();
-		for ((row_id, subrow_id), document) in documents.iter_mut() {
-			document.add_u64(field_sheet_key, key);
-			document.add_u64(field_row_id, (*row_id).into());
-			document.add_u64(field_subrow_id, (*subrow_id).into());
-		}
 
-		Ok(documents.into_values())
+		let get_u64 = |doc: &Document, field: schema::Field| doc.get_first(field)?.as_u64();
+		let ids = move |document: &Document| -> Option<(u32, u16)> {
+			let row_id = get_u64(document, field_row_id)?.try_into().ok()?;
+			let subrow_id = get_u64(document, field_subrow_id)?.try_into().ok()?;
+			Some((row_id, subrow_id))
+		};
+
+		let results = top_docs.into_iter().map(move |(score, doc_address)| {
+			// Assuming that a search result can't suddenly point to nothing.
+			let document = searcher.doc(doc_address).unwrap();
+			let (row_id, subrow_id) = ids(&document).unwrap();
+
+			IndexResult {
+				score,
+				row_id,
+				subrow_id,
+			}
+		});
+
+		Ok(results)
 	}
+}
+
+fn sheet_documents(
+	key: u64,
+	sheet: &Sheet<String>,
+	schema: &schema::Schema,
+) -> Result<impl ExactSizeIterator<Item = Document>> {
+	tracing::info!(sheet = %sheet.name(), "ingesting");
+
+	let columns = sheet.columns()?;
+	let languages = sheet.languages()?;
+
+	// TODO: This effectively results in reading the entire sheet dataset into memory, which seems pretty wasteful - but `writer.run` requires an `ExactSizeIterator`, and I've as-yet been unable to get a better performing stream-alike solution to function sanely.
+	let mut documents = HashMap::<(u32, u16), Document>::new();
+
+	for language in languages {
+		for row in sheet.with().language(language).iter() {
+			let document = documents
+				.entry((row.row_id(), row.subrow_id()))
+				.or_insert_with(Document::new);
+			hydrate_row_document(document, row, &columns, language, schema)?;
+		}
+	}
+
+	// Fill in the ID/key fields for all of the documents that were built.
+	let field_sheet_key = schema.get_field(SHEET_KEY).unwrap();
+	let field_row_id = schema.get_field(ROW_ID).unwrap();
+	let field_subrow_id = schema.get_field(SUBROW_ID).unwrap();
+	for ((row_id, subrow_id), document) in documents.iter_mut() {
+		document.add_u64(field_sheet_key, key);
+		document.add_u64(field_row_id, (*row_id).into());
+		document.add_u64(field_subrow_id, (*subrow_id).into());
+	}
+
+	Ok(documents.into_values())
 }
 
 fn hydrate_row_document(

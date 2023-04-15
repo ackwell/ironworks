@@ -2,7 +2,7 @@ use std::{
 	collections::{hash_map::Entry, HashMap},
 	hash::{Hash, Hasher},
 	path::PathBuf,
-	sync::Arc,
+	sync::{Arc, RwLock},
 };
 
 use anyhow::Context;
@@ -14,7 +14,7 @@ use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-	search2::{error::Result, internal_query::post},
+	search2::{error::Result, internal_query::post, search::Executor},
 	version::VersionKey,
 };
 
@@ -29,13 +29,20 @@ pub struct Config {
 	memory: usize,
 }
 
+// TODO: This, and the overall interface of the Provider, should be shared in the main search namespace.
+#[derive(Debug)]
+pub struct IndexResult {
+	pub score: f32,
+	pub row_id: u32,
+	pub subrow_id: u16,
+}
+
 pub struct Provider {
 	directory: PathBuf,
 	memory: usize,
 
-	// Mixed RwLock so that searches don't need to be async coloured. Maybe that's dumb and I should just async it all.
-	sheet_map: std::sync::RwLock<HashMap<u64, u64>>,
-	indicies: tokio::sync::RwLock<HashMap<u64, Arc<Index>>>,
+	sheet_map: RwLock<HashMap<u64, u64>>,
+	indicies: RwLock<HashMap<u64, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
 }
 
@@ -64,7 +71,7 @@ impl Provider {
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
 		tracing::info!("prepare");
 		let mut sheet_map = self.sheet_map.write().expect("poisoned");
-		let mut indices = self.indicies.write().await;
+		let mut indices = self.indicies.write().expect("poisoned");
 		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
 		for (version, sheet) in sheets {
 			let sheet_key = sheet_key(version, &sheet.name());
@@ -99,7 +106,7 @@ impl Provider {
 		// Run ingestion
 		// TODO: consider permitting concurrency here
 		tracing::info!("execute");
-		let indices = self.indicies.read().await;
+		let indices = self.indicies.read().expect("poisoned");
 		for (key, sheets) in buckets {
 			let index = indices.get(&key).expect("ensured").clone();
 			let metadata = self.metadata.clone();
@@ -117,16 +124,23 @@ impl Provider {
 		Ok(())
 	}
 
-	pub fn search(&self, version: VersionKey, sheet_name: &str, query: &post::Node) -> Result<()> {
+	pub fn search(
+		&self,
+		version: VersionKey,
+		sheet_name: &str,
+		query: &post::Node,
+		executor: &Executor<'_>,
+	) -> Result<impl Iterator<Item = IndexResult>> {
 		let sheet_map = self.sheet_map.read().expect("poisoned");
+		let indicies = self.indicies.read().expect("poisoned");
 
 		let sheet_key = sheet_key(version, sheet_name);
-		let index_key = sheet_map
+		let index = sheet_map
 			.get(&sheet_key)
+			.and_then(|key| indicies.get(key))
 			.with_context(|| format!("no index found for {sheet_name} @ {version}"))?;
 
-		tracing::info!("would query tantivy index {index_key} {query:#?}");
-		Ok(())
+		index.search(version, query, executor)
 	}
 }
 

@@ -22,6 +22,15 @@ pub struct Config {
 	tantivy: tantivy::Config,
 }
 
+#[derive(Debug)]
+pub struct SearchResult {
+	pub score: f32,
+	// TODO: `String` here necessitates a copy of the sheet name for every result, which seems wasteful.
+	pub sheet: String,
+	pub row_id: u32,
+	pub subrow_id: u16,
+}
+
 pub struct Search {
 	provider: tantivy::Provider,
 
@@ -86,7 +95,7 @@ impl Search {
 		language: excel::Language,
 		sheet_filter: Option<HashSet<String>>,
 		schema: &dyn Schema,
-	) -> Result<Warnings<Vec<()>>> {
+	) -> Result<Warnings<Vec<SearchResult>>> {
 		// Get references to the game data we'll need.
 		let excel = self
 			.data
@@ -109,10 +118,14 @@ impl Search {
 		let index_results = sheet_names
 			.map(|name| -> Result<_> {
 				let normalized_query = normalizer.normalize(query, &name, language)?;
-				executor.search(version, &name, &normalized_query)?;
-
-				// TODO
-				Ok(vec![])
+				let results = executor.search(version, &name, &normalized_query)?;
+				let tagged_results = results.map(move |result| SearchResult {
+					score: result.score,
+					sheet: name.to_string(),
+					row_id: result.row_id,
+					subrow_id: result.subrow_id,
+				});
+				Ok(tagged_results)
 			})
 			.try_fold(Warnings::new(vec![]), |warnings, result| match result {
 				// Successful search results can be pushed to the inner vector in the warnings.
@@ -152,9 +165,7 @@ impl Executor<'_> {
 		version: VersionKey,
 		sheet_name: &str,
 		query: &post::Node,
-	) -> Result<()> {
-		self.provider.search(version, sheet_name, query)?;
-
-		Ok(())
+	) -> Result<impl Iterator<Item = tantivy::IndexResult>> {
+		self.provider.search(version, sheet_name, query, self)
 	}
 }
