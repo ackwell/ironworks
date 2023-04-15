@@ -13,7 +13,7 @@ use crate::{data::Data, utility::warnings::Warnings, version::VersionKey};
 
 use super::{
 	error::{Error, Result},
-	internal_query::{pre, Normalizer},
+	internal_query::{post, pre, Normalizer},
 	tantivy,
 };
 
@@ -78,6 +78,7 @@ impl Search {
 		Ok(())
 	}
 
+	// TODO: This code path is effectively ported from the pre-multi-sheet search index implementation, and as such, eagerly splits queries by sheet, preventing the provider from using it's knowledge of grouping to reduce the number of queries executed. Given that no changes to index schema or ingestion behavior is required to improve this, I'm leaving this as a problem to solve if/when query speed can do with some measurable improvement.
 	pub fn search(
 		&self,
 		version: VersionKey,
@@ -86,7 +87,7 @@ impl Search {
 		sheet_filter: Option<HashSet<String>>,
 		schema: &dyn Schema,
 	) -> Result<Warnings<Vec<()>>> {
-		// Get references to the data we'll need and prep the normalizer.
+		// Get references to the game data we'll need.
 		let excel = self
 			.data
 			.version(version)
@@ -94,7 +95,11 @@ impl Search {
 			.excel();
 		let list = excel.list()?;
 
+		// Build the helpers for this search call.
 		let normalizer = Normalizer::new(&excel, schema);
+		let executor = Executor {
+			provider: &self.provider,
+		};
 
 		// Get an iterator over the provided sheet filter, falling back to the full list of sheets.
 		let sheet_names = sheet_filter
@@ -104,8 +109,7 @@ impl Search {
 		let index_results = sheet_names
 			.map(|name| -> Result<_> {
 				let normalized_query = normalizer.normalize(query, &name, language)?;
-				// TODO: set up the executor thing from original implementation, it'll be useful
-				self.provider.search(&normalized_query);
+				executor.search(version, &name, &normalized_query)?;
 
 				// TODO
 				Ok(vec![])
@@ -134,5 +138,23 @@ impl Search {
 		let results = index_results.map(|vec| vec.into_iter().flatten().collect::<Vec<_>>());
 
 		Ok(results)
+	}
+}
+
+// TODO: can probably store the number of search executions on this to feed into rate limiting
+pub struct Executor<'a> {
+	provider: &'a tantivy::Provider,
+}
+
+impl Executor<'_> {
+	pub fn search(
+		&self,
+		version: VersionKey,
+		sheet_name: &str,
+		query: &post::Node,
+	) -> Result<()> {
+		self.provider.search(version, sheet_name, query)?;
+
+		Ok(())
 	}
 }

@@ -5,11 +5,12 @@ use std::{
 	sync::Arc,
 };
 
+use anyhow::Context;
 use figment::value::magic::RelativePathBuf;
 use ironworks::excel::Sheet;
 use seahash::SeaHasher;
 use serde::Deserialize;
-use tokio::{select, sync::RwLock};
+use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
@@ -32,7 +33,9 @@ pub struct Provider {
 	directory: PathBuf,
 	memory: usize,
 
-	indicies: RwLock<HashMap<u64, Arc<Index>>>,
+	// Mixed RwLock so that searches don't need to be async coloured. Maybe that's dumb and I should just async it all.
+	sheet_map: std::sync::RwLock<HashMap<u64, u64>>,
+	indicies: tokio::sync::RwLock<HashMap<u64, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
 }
 
@@ -43,6 +46,7 @@ impl Provider {
 		Ok(Self {
 			directory,
 			memory: config.memory,
+			sheet_map: Default::default(),
 			indicies: Default::default(),
 			metadata,
 		})
@@ -59,16 +63,14 @@ impl Provider {
 		// Bucket sheets by their index and ensure that the indices exist.
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
 		tracing::info!("prepare");
+		let mut sheet_map = self.sheet_map.write().expect("poisoned");
 		let mut indices = self.indicies.write().await;
 		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
 		for (version, sheet) in sheets {
-			let (index_key, discriminator) = grouping_keys(version, &sheet)?;
+			let sheet_key = sheet_key(version, &sheet.name());
+			let index_key = index_key(&sheet)?;
 
-			if self.metadata.exists(discriminator)? {
-				tracing::debug!(name = %sheet.name(), key = discriminator, "exists, skipping");
-				continue;
-			}
-
+			// Ensure that the index for this sheet exists & is known.
 			if let Entry::Vacant(entry) = indices.entry(index_key) {
 				let index = Index::new(
 					&self.directory.join(format!("sheets-{index_key:x}")),
@@ -77,11 +79,21 @@ impl Provider {
 				entry.insert(Arc::new(index));
 			}
 
+			// Record the index mapping for this sheet.
+			sheet_map.insert(sheet_key, index_key);
+
+			// If the sheet has already been ingested, skip adding it to the ingestion bucket.
+			if self.metadata.exists(sheet_key)? {
+				tracing::debug!(name = %sheet.name(), key = sheet_key, "exists, skipping");
+				continue;
+			}
+
 			buckets
 				.entry(index_key)
 				.or_insert_with(Vec::new)
-				.push((discriminator, sheet));
+				.push((sheet_key, sheet));
 		}
+		drop(sheet_map);
 		drop(indices);
 
 		// Run ingestion
@@ -105,12 +117,27 @@ impl Provider {
 		Ok(())
 	}
 
-	pub fn search(&self, query: &post::Node) {
-		tracing::info!("would query tantivy {query:#?}");
+	pub fn search(&self, version: VersionKey, sheet_name: &str, query: &post::Node) -> Result<()> {
+		let sheet_map = self.sheet_map.read().expect("poisoned");
+
+		let sheet_key = sheet_key(version, sheet_name);
+		let index_key = sheet_map
+			.get(&sheet_key)
+			.with_context(|| format!("no index found for {sheet_name} @ {version}"))?;
+
+		tracing::info!("would query tantivy index {index_key} {query:#?}");
+		Ok(())
 	}
 }
 
-fn grouping_keys(version: VersionKey, sheet: &Sheet<String>) -> Result<(u64, u64)> {
+fn sheet_key(version: VersionKey, sheet_name: &str) -> u64 {
+	let mut hasher = SeaHasher::new();
+	version.hash(&mut hasher);
+	sheet_name.hash(&mut hasher);
+	hasher.finish()
+}
+
+fn index_key(sheet: &Sheet<String>) -> Result<u64> {
 	// TODO: consider using fixed seeds?
 	let mut hasher = SeaHasher::new();
 	sheet.kind()?.hash(&mut hasher);
@@ -124,12 +151,5 @@ fn grouping_keys(version: VersionKey, sheet: &Sheet<String>) -> Result<(u64, u64
 	columns.sort_by_key(|column| column.offset());
 	columns.hash(&mut hasher);
 
-	let index_key = hasher.finish();
-
-	let mut hasher = SeaHasher::new();
-	version.hash(&mut hasher);
-	sheet.name().hash(&mut hasher);
-	let discriminator = hasher.finish();
-
-	Ok((index_key, discriminator))
+	Ok(hasher.finish())
 }
