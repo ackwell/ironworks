@@ -5,8 +5,10 @@ use ironworks::{
 	file::exh,
 };
 use tantivy::{
-	collector::TopDocs, directory::MmapDirectory, schema, Document, IndexReader, IndexSettings,
-	ReloadPolicy, UserOperation,
+	collector::TopDocs,
+	directory::MmapDirectory,
+	query::{BooleanQuery, Occur, TermQuery},
+	schema, Document, IndexReader, IndexSettings, ReloadPolicy, Term, UserOperation,
 };
 
 use crate::{
@@ -72,19 +74,31 @@ impl Index {
 	pub fn search(
 		&self,
 		version: VersionKey,
+		sheet_key: u64,
 		boilmaster_query: &post::Node,
 		executor: &Executor,
 	) -> Result<impl Iterator<Item = IndexResult>> {
 		let searcher = self.reader.searcher();
 		let schema = searcher.schema();
 
-		// Resolve the query into the final tantivy query.
+		let field_sheet_key = schema.get_field(SHEET_KEY).unwrap();
+
+		// Resolve the query into the final tantivy query, limited to the requested sheet key.
 		let query_resolver = QueryResolver {
 			version,
 			schema,
 			executor,
 		};
-		let tantivy_query = query_resolver.resolve(boilmaster_query)?;
+		let tantivy_query = BooleanQuery::new(vec![
+			(Occur::Must, query_resolver.resolve(boilmaster_query)?),
+			(
+				Occur::Must,
+				Box::new(TermQuery::new(
+					Term::from_field_u64(field_sheet_key, sheet_key),
+					schema::IndexRecordOption::Basic,
+				)),
+			),
+		]);
 
 		// Execute the search.
 		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.

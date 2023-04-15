@@ -140,7 +140,7 @@ impl Provider {
 			.and_then(|key| indicies.get(key))
 			.with_context(|| format!("no index found for {sheet_name} @ {version}"))?;
 
-		index.search(version, query, executor)
+		index.search(version, sheet_key, query, executor)
 	}
 }
 
