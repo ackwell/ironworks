@@ -14,7 +14,7 @@ use nom::{
 };
 use serde::{de, Deserialize};
 
-use crate::{data, search::SearchError};
+use crate::{data, search2::Error};
 
 use super::pre;
 
@@ -23,16 +23,16 @@ const LANGUAGE_SIGIL: &str = "@";
 type IResult<'a, I, O> = nom::IResult<I, O, nom::error::VerboseError<&'a str>>;
 
 impl FromStr for pre::Node {
-	type Err = SearchError;
+	type Err = Error;
 
 	fn from_str(input: &str) -> Result<Self, Self::Err> {
 		// Root level of a query is an implicit group
 		let (remaining, group) = group(input)
 			.finish()
-			.map_err(|error| SearchError::MalformedQuery(convert_error(input, error)))?;
+			.map_err(|error| Error::MalformedQuery(convert_error(input, error)))?;
 
 		if !remaining.is_empty() {
-			return Err(SearchError::MalformedQuery(format!(
+			return Err(Error::MalformedQuery(format!(
 				"unexpected trailing characters {remaining:?}"
 			)));
 		}
