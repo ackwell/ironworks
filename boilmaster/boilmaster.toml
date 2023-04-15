@@ -35,6 +35,6 @@ default = "saint-coinach"
 # remote = "https://github.com/xivapi/SaintCoinach.git"
 directory = "saint_coinach"
 
-[search2.tantivy]
-directory = "search2"
+[search.tantivy]
+directory = "search"
 memory = 52428800 # 50MiB

@@ -11,7 +11,7 @@ use axum::{
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
-use crate::{data::LanguageString, schema, search2::query};
+use crate::{data::LanguageString, schema, search::query};
 
 use super::{error::Result, service};
 

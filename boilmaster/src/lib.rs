@@ -5,7 +5,7 @@ pub mod data;
 pub mod http;
 mod read;
 pub mod schema;
-pub mod search2;
+pub mod search;
 pub mod tracing;
 mod utility;
 pub mod version;

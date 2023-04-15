@@ -14,7 +14,7 @@ use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-	search2::{error::Result, internal_query::post, search::Executor},
+	search::{error::Result, internal_query::post, search::Executor},
 	version::VersionKey,
 };
 

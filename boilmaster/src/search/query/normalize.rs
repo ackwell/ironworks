@@ -2,7 +2,7 @@ use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
 use crate::{
-	search2::{Error, MismatchError},
+	search::{Error, MismatchError},
 	utility::field,
 };
 

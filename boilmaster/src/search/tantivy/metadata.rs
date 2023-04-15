@@ -6,7 +6,7 @@ use tantivy::{
 	IndexWriter, ReloadPolicy, Term,
 };
 
-use crate::search2::error::Result;
+use crate::search::error::Result;
 
 const SHEET_KEY: &str = "sheet_key";
 const METADATA: &str = "metadata";

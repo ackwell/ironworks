@@ -12,7 +12,7 @@ use tantivy::{
 };
 
 use crate::{
-	search2::{error::Result, internal_query::post, search::Executor},
+	search::{error::Result, internal_query::post, search::Executor},
 	version::VersionKey,
 };
 

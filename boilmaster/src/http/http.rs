@@ -9,7 +9,7 @@ use futures::Future;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
-use crate::{data::Data, schema, search2::Search, version};
+use crate::{data::Data, schema, search::Search, version};
 
 use super::{search, service::State, sheets};
 

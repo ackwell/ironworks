@@ -5,7 +5,7 @@ use tantivy::{
 };
 
 use crate::{
-	search2::{
+	search::{
 		error::{Error, FieldTypeError, MismatchError, Result},
 		internal_query::post::{Group, Leaf, Node, Operation, Relation, Value},
 		search::Executor,
@@ -34,7 +34,7 @@ impl QueryResolver<'_> {
 			.clauses
 			.iter()
 			.map(|(occur, node)| {
-				use crate::search2::internal_query::post::Occur as BOccur;
+				use crate::search::internal_query::post::Occur as BOccur;
 				use tantivy::query::Occur as TOccur;
 				let tantivy_occur = match occur {
 					BOccur::Must => TOccur::Must,

@@ -14,7 +14,7 @@ use nom::{
 };
 use serde::{de, Deserialize};
 
-use crate::{data, search2::Error};
+use crate::{data, search::Error};
 
 use super::pre;
 
