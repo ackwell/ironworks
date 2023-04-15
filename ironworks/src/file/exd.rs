@@ -2,7 +2,7 @@
 
 use std::io::{Cursor, Read, Seek};
 
-use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
+use binrw::{binread, BinRead, BinResult, ReadOptions};
 use getset::{CopyGetters, Getters};
 
 use crate::{
@@ -26,9 +26,9 @@ pub struct ExcelData {
 	// unknown2: [u16; 10],
 	/// Vector of rows contained within this page.
 	#[br(
-    pad_before = 20,
-    count = index_size / RowDefinition::SIZE,
-  )]
+		pad_before = 20,
+		count = index_size / RowDefinition::SIZE,
+	)]
 	#[get = "pub"]
 	rows: Vec<RowDefinition>,
 
@@ -160,6 +160,12 @@ impl RowDefinition {
 
 fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
 	Ok(reader.stream_position()?)
+}
+
+fn until_eof<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<Vec<u8>> {
+	let mut v = Vec::new();
+	reader.read_to_end(&mut v)?;
+	Ok(v)
 }
 
 #[binread]
