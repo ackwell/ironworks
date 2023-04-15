@@ -71,7 +71,7 @@ impl File for ExcelHeader {
 
 /// The kind of sheet.
 #[binread]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[br(repr = u8)]
 pub enum SheetKind {
 	/// Unknown kind. Will be treated equivalently to Default.
@@ -88,7 +88,7 @@ pub enum SheetKind {
 
 /// Metadata for a single sheet column.
 #[binread]
-#[derive(Clone, Debug, CopyGetters)]
+#[derive(Clone, Debug, Hash, CopyGetters)]
 #[br(big)]
 pub struct ColumnDefinition {
 	/// The kind of data stored in this column.
@@ -103,7 +103,7 @@ pub struct ColumnDefinition {
 /// The kind of data structure stored in a column.
 #[allow(missing_docs)]
 #[binread]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive)]
 #[br(big, repr = u16)]
 #[repr(u16)]
 pub enum ColumnKind {

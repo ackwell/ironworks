@@ -1,18 +1,21 @@
-use std::{fmt, num::ParseIntError, str::FromStr};
+use std::{
+	fmt,
+	hash::{Hash, Hasher},
+	num::ParseIntError,
+	str::FromStr,
+};
 
+use seahash::SeaHasher;
 use serde::{de, Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct VersionKey(u32);
+pub struct VersionKey(u64);
 
 impl VersionKey {
-	pub fn from_latest_patches(latest_patches: &[impl AsRef<str>]) -> Self {
-		let bytes = latest_patches
-			.iter()
-			.flat_map(|v| v.as_ref().as_bytes())
-			.copied()
-			.collect::<Vec<_>>();
-		let hash = murmurhash32::murmurhash3(&bytes);
+	pub fn from_latest_patches(latest_patches: &[impl Hash]) -> Self {
+		let mut hasher = SeaHasher::new();
+		latest_patches.hash(&mut hasher);
+		let hash = hasher.finish();
 
 		Self(hash)
 	}
@@ -28,7 +31,7 @@ impl FromStr for VersionKey {
 	type Err = ParseIntError;
 
 	fn from_str(input: &str) -> Result<Self, Self::Err> {
-		u32::from_str_radix(input, 16).map(VersionKey)
+		u64::from_str_radix(input, 16).map(VersionKey)
 	}
 }
 

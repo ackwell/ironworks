@@ -32,9 +32,9 @@ impl From<schema::Error> for Error {
 	}
 }
 
-impl From<search::SearchError> for Error {
-	fn from(error: search::SearchError) -> Self {
-		use search::SearchError as SE;
+impl From<search::Error> for Error {
+	fn from(error: search::Error) -> Self {
+		use search::Error as SE;
 		match error {
 			SE::FieldType(_)
 			| SE::MalformedQuery(_)
