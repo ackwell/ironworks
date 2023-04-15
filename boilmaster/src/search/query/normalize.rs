@@ -2,7 +2,7 @@ use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
 use crate::{
-	search::{Error, MismatchError},
+	search::error::{Error, MismatchError, Result},
 	utility::field,
 };
 
@@ -32,7 +32,7 @@ impl<'a> Normalizer<'a> {
 		query: &pre::Node,
 		sheet_name: &str,
 		ambient_language: excel::Language,
-	) -> Result<post::Node, Error> {
+	) -> Result<post::Node> {
 		// Fetch the schema and columns for the requested sheet.
 		let sheet_schema = self.schema.sheet(sheet_name).map_err(|error| match error {
 			// A missing schema can be considered analogous to a missing field _in_ a
@@ -81,14 +81,14 @@ impl<'a> Normalizer<'a> {
 		)
 	}
 
-	fn normalize_node(&self, node: &pre::Node, context: Context) -> Result<post::Node, Error> {
+	fn normalize_node(&self, node: &pre::Node, context: Context) -> Result<post::Node> {
 		match node {
 			pre::Node::Group(group) => self.normalize_group(group, context),
 			pre::Node::Leaf(leaf) => self.normalize_leaf(leaf, context),
 		}
 	}
 
-	fn normalize_group(&self, group: &pre::Group, context: Context) -> Result<post::Node, Error> {
+	fn normalize_group(&self, group: &pre::Group, context: Context) -> Result<post::Node> {
 		Ok(post::Node::Group(post::Group {
 			clauses: group
 				.clauses
@@ -96,11 +96,11 @@ impl<'a> Normalizer<'a> {
 				.map(|(occur, node)| {
 					Ok((occur.clone(), self.normalize_node(node, context.clone())?))
 				})
-				.collect::<Result<Vec<_>, Error>>()?,
+				.collect::<Result<Vec<_>>>()?,
 		}))
 	}
 
-	fn normalize_leaf(&self, leaf: &pre::Leaf, context: Context) -> Result<post::Node, Error> {
+	fn normalize_leaf(&self, leaf: &pre::Leaf, context: Context) -> Result<post::Node> {
 		match &leaf.field {
 			Some(specifier) => self.normalize_leaf_bound(specifier, &leaf.operation, context),
 			None => self.normalize_leaf_unbound(&leaf.operation, context),
@@ -112,7 +112,7 @@ impl<'a> Normalizer<'a> {
 		specifier: &pre::FieldSpecifier,
 		operation: &pre::Operation,
 		context: Context,
-	) -> Result<post::Node, Error> {
+	) -> Result<post::Node> {
 		match (specifier, context.schema) {
 			// A struct specifier into a struct schema narrows the field space
 			(
@@ -184,7 +184,7 @@ impl<'a> Normalizer<'a> {
 		&self,
 		_operation: &pre::Operation,
 		_context: Context,
-	) -> Result<post::Node, Error> {
+	) -> Result<post::Node> {
 		// TODO: notes; an unbound leaf only makes semantic sense on a structural schema node; were it pointing to a scalar node, it would be equivalent semantically to a bound leaf on that node. following from that; an unbound leaf should "fan out" to all of the current structural node's children as an or-group, in doing so effectively "consuming" the current node at the leaf point, which maintains consistency with bound leaf handling.
 
 		todo!("normalize leaf unbound")
@@ -194,7 +194,7 @@ impl<'a> Normalizer<'a> {
 		&self,
 		operation: &pre::Operation,
 		context: Context,
-	) -> Result<post::Node, Error> {
+	) -> Result<post::Node> {
 		match operation {
 			// TODO: should this panic if it _isn't_ a 1:1 relation:reference pair?
 			//       no, it shouldn't - it could also be a struct... wait, can it?
