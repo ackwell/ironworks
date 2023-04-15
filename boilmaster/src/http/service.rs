@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use axum::extract::FromRef;
 
-use crate::{data, schema, search, version};
+use crate::{data, schema, search2, version};
 
 pub type Data = Arc<data::Data>;
 pub type Schema = Arc<schema::Provider>;
-pub type Search = Arc<search::Search>;
+pub type Search = Arc<search2::Search>;
 pub type Version = Arc<version::Manager>;
 
 #[derive(Clone, FromRef)]

@@ -159,6 +159,7 @@ impl Data {
 		Ok(())
 	}
 
+	// TODO: this doesn't disambiguate between "version is unknown" and "version isn't ready yet", and there's a lot of consumers that are .context'ing this Option. Should probably disambiguate the two error cases and raise a proper error type that can be handled by other services appropriately
 	pub fn version(&self, version: VersionKey) -> Option<Arc<Version>> {
 		self.versions
 			.read()

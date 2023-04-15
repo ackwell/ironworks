@@ -1,7 +1,7 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
 
-use crate::{schema, search};
+use crate::{schema, search2};
 
 #[derive(Serialize)]
 pub struct ErrorResponse {
@@ -32,9 +32,9 @@ impl From<schema::Error> for Error {
 	}
 }
 
-impl From<search::SearchError> for Error {
-	fn from(error: search::SearchError) -> Self {
-		use search::SearchError as SE;
+impl From<search2::Error> for Error {
+	fn from(error: search2::Error) -> Self {
+		use search2::Error as SE;
 		match error {
 			SE::FieldType(_)
 			| SE::MalformedQuery(_)

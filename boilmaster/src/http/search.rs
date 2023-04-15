@@ -11,7 +11,7 @@ use axum::{
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
-use crate::{data::LanguageString, schema, search::query};
+use crate::{data::LanguageString, schema, search2::query};
 
 use super::{error::Result, service};
 
@@ -27,7 +27,7 @@ struct VersionQuery {
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
 	sheets: Option<String>,
-	query: query::pre::Node,
+	query: query::Node,
 }
 
 // TODO: reuse this with sheets
@@ -65,10 +65,6 @@ async fn search(
 	let version_key = version
 		.resolve(version_query.version.as_deref())
 		.with_context(|| format!("unknown version {:?}", version_query.version))?;
-	let search_version = search
-		.version(version_key)
-		.context("search index not ready")?;
-	let excel = data.version(version_key).context("data not ready")?.excel();
 
 	let language = language_query
 		.language
@@ -85,12 +81,12 @@ async fn search(
 
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
-	let (results, warnings) = search_version
+	let (results, warnings) = search
 		.search(
+			version_key,
 			&search_query.query,
 			language,
 			sheets,
-			&excel,
 			schema.as_ref(),
 		)?
 		.decompose();
