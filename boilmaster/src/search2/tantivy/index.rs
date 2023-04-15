@@ -43,8 +43,15 @@ impl Index {
 	pub fn ingest(&self, writer_memory: usize, sheets: &[(u64, Sheet<String>)]) -> Result<()> {
 		let mut writer = self.index.writer(writer_memory)?;
 
-		for (discriminant, sheet) in sheets {
-			let documents = self.sheet_documents(*discriminant, sheet)?;
+		for (key, sheet) in sheets {
+			let documents = match self.sheet_documents(*key, sheet) {
+				Ok(documents) => documents,
+				Err(error) => {
+					// NOTE: This skips the sheet but doesn't prevent it being added to the metadata store, which means it'll be skipped on any other bulk ingests. That's probably fine, I imagine a forced re-ingestion can be performed if required by removing the key from meta first.
+					tracing::error!(sheet = %sheet.name(), %key, ?error, "failed to build documents");
+					continue;
+				}
+			};
 			writer.run(documents.map(UserOperation::Add))?;
 		}
 
@@ -56,7 +63,7 @@ impl Index {
 
 	fn sheet_documents(
 		&self,
-		discriminator: u64,
+		key: u64,
 		sheet: &Sheet<String>,
 	) -> Result<impl ExactSizeIterator<Item = Document>> {
 		tracing::info!(sheet = %sheet.name(), "ingesting");
@@ -83,7 +90,7 @@ impl Index {
 		let field_row_id = schema.get_field(ROW_ID).unwrap();
 		let field_subrow_id = schema.get_field(SUBROW_ID).unwrap();
 		for ((row_id, subrow_id), document) in documents.iter_mut() {
-			document.add_u64(field_sheet_key, discriminator);
+			document.add_u64(field_sheet_key, key);
 			document.add_u64(field_row_id, (*row_id).into());
 			document.add_u64(field_subrow_id, (*subrow_id).into());
 		}
