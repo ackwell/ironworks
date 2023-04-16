@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>admin</title>
+</head>
+
+<body>
+	<ul>
+		{% for version in versions %}
+		<li>
+			{{ version.key }}
+
+			<dl>
+				{% for (repository, patch) in version.patches %}
+				<dt>{{ repository }}</dt>
+				<dd>{{ patch }}</dd>
+				{% endfor %}
+			</dl>
+
+			<ul>
+				{% for name in version.names %}
+				<li>{{ name }}</li>
+				{% endfor %}
+			</ul>
+		</li>
+		{% endfor %}
+	</ul>
+</body>
+
+</html>

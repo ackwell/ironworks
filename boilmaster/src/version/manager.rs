@@ -91,6 +91,25 @@ impl Manager {
 		self.channel.subscribe()
 	}
 
+	/// Get a list of all currently known versions.
+	pub fn versions(&self) -> Vec<VersionKey> {
+		self.versions
+			.read()
+			.expect("poisoned")
+			.keys()
+			.copied()
+			.collect()
+	}
+
+	/// Get the list of names for a version.
+	pub fn names(&self, key: VersionKey) -> Vec<String> {
+		let version_names = self.version_names.read().expect("poisoned");
+		version_names
+			.iter()
+			.filter_map(|(name, inner_key)| (*inner_key == key).then(|| name.clone()))
+			.collect()
+	}
+
 	/// Resolve a version name to its key. If no version is specified, the version marked as latest will be returned, if any exists.
 	pub fn resolve(&self, name: Option<&str>) -> Option<VersionKey> {
 		self.version_names
@@ -101,11 +120,11 @@ impl Manager {
 	}
 
 	/// Get a patch list for a given version.
-	pub fn patch_list(&self, key: &VersionKey) -> Result<PatchList> {
+	pub fn patch_list(&self, key: VersionKey) -> Result<PatchList> {
 		// Fetch the requested version.
 		let versions = self.versions.read().expect("poisoned");
 		let version = versions
-			.get(key)
+			.get(&key)
 			.with_context(|| format!("unknown version {key}"))?;
 
 		// TODO: A version made on repository list [a, b] will create a patch list [a] on an updated repository list of [a, X, b]. I'm not convinced that's a problem.

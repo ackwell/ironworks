@@ -105,7 +105,7 @@ impl Data {
 		version: &version::Manager,
 		version_key: VersionKey,
 	) -> Result<()> {
-		let patch_list = version.patch_list(&version_key)?;
+		let patch_list = version.patch_list(version_key)?;
 
 		// Start getting paths for all the patches required for this version, downloading if required.
 		let pending_repositories = patch_list
