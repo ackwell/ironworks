@@ -1,31 +1,24 @@
-<!DOCTYPE html>
-<html>
+{% extends "base.html" %}
 
-<head>
-	<title>admin</title>
-</head>
+{% block content %}
+<ul>
+	{% for version in versions %}
+	<li>
+		<a href="{{ current_uri }}/{{ version.key }}">{{ version.key }}</a>
 
-<body>
-	<ul>
-		{% for version in versions %}
-		<li>
-			{{ version.key }}
+		<dl>
+			{% for (repository, patch) in version.patches %}
+			<dt>{{ repository }}</dt>
+			<dd>{{ patch }}</dd>
+			{% endfor %}
+		</dl>
 
-			<dl>
-				{% for (repository, patch) in version.patches %}
-				<dt>{{ repository }}</dt>
-				<dd>{{ patch }}</dd>
-				{% endfor %}
-			</dl>
-
-			<ul>
-				{% for name in version.names %}
-				<li>{{ name }}</li>
-				{% endfor %}
-			</ul>
-		</li>
-		{% endfor %}
-	</ul>
-</body>
-
-</html>
+		<ul>
+			{% for name in version.names %}
+			<li>{{ name }}</li>
+			{% endfor %}
+		</ul>
+	</li>
+	{% endfor %}
+</ul>
+{% endblock %}
