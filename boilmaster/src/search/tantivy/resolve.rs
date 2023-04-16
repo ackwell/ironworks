@@ -1,37 +1,40 @@
 use tantivy::{
 	query::{BooleanQuery, Query, RegexQuery, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},
-	Index, TantivyError, Term,
+	TantivyError, Term,
 };
 
-use crate::search::{
-	error::{FieldTypeError, MismatchError, SearchError},
-	query::post::{Group, Leaf, Node, Operation, Relation, Value},
-	version::Executor,
+use crate::{
+	search::{
+		error::{Error, FieldTypeError, MismatchError, Result},
+		internal_query::post::{Group, Leaf, Node, Operation, Relation, Value},
+		search::Executor,
+	},
+	version::VersionKey,
 };
 
 use super::schema::column_field_name;
 
 pub struct QueryResolver<'a> {
-	pub index: &'a Index,
+	pub version: VersionKey,
 	pub schema: &'a Schema,
-	pub executor: &'a Executor,
+	pub executor: &'a Executor<'a>,
 }
 
 impl QueryResolver<'_> {
-	pub fn resolve(&self, node: &Node) -> Result<Box<dyn Query>, SearchError> {
+	pub fn resolve(&self, node: &Node) -> Result<Box<dyn Query>> {
 		match node {
 			Node::Group(group) => self.resolve_clause(group),
 			Node::Leaf(leaf) => self.resolve_leaf(leaf),
 		}
 	}
 
-	fn resolve_clause(&self, group: &Group) -> Result<Box<dyn Query>, SearchError> {
+	fn resolve_clause(&self, group: &Group) -> Result<Box<dyn Query>> {
 		let subqueries = group
 			.clauses
 			.iter()
 			.map(|(occur, node)| {
-				use crate::search::query::post::Occur as BOccur;
+				use crate::search::internal_query::post::Occur as BOccur;
 				use tantivy::query::Occur as TOccur;
 				let tantivy_occur = match occur {
 					BOccur::Must => TOccur::Must,
@@ -41,16 +44,16 @@ impl QueryResolver<'_> {
 
 				Ok((tantivy_occur, self.resolve(node)?))
 			})
-			.collect::<Result<Vec<_>, SearchError>>()?;
+			.collect::<Result<Vec<_>>>()?;
 
 		Ok(Box::new(BooleanQuery::new(subqueries)))
 	}
 
-	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>, SearchError> {
+	fn resolve_leaf(&self, leaf: &Leaf) -> Result<Box<dyn Query>> {
 		let (column, language) = &leaf.field;
 		let field_name = column_field_name(column, *language);
 		let field = self.schema.get_field(&field_name).ok_or_else(|| {
-			SearchError::SchemaGameMismatch(MismatchError {
+			Error::SchemaGameMismatch(MismatchError {
 				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
 				field: format!("field {field_name}"),
 				reason: "field does not exist in search index".into(),
@@ -68,15 +71,11 @@ impl QueryResolver<'_> {
 		}
 	}
 
-	fn resolve_relation(
-		&self,
-		relation: &Relation,
-		field: Field,
-	) -> Result<Box<dyn Query>, SearchError> {
+	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>> {
 		// Run the inner query on the target index.
-		let results = self
-			.executor
-			.search(&relation.target.sheet, &relation.query)?;
+		let results =
+			self.executor
+				.search(self.version, &relation.target.sheet, &relation.query)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
@@ -92,10 +91,10 @@ impl QueryResolver<'_> {
 		Ok(Box::new(TermSetQuery::new(terms)))
 	}
 
-	fn resolve_match(&self, string: &str, field: Field) -> Result<Box<dyn Query>, SearchError> {
+	fn resolve_match(&self, string: &str, field: Field) -> Result<Box<dyn Query>> {
 		// Match queries only make sense on string fields.
 		if self.schema.get_field_entry(field).field_type().value_type() != Type::Str {
-			return Err(SearchError::QueryGameMismatch(MismatchError {
+			return Err(Error::QueryGameMismatch(MismatchError {
 				field: format!("field {}", self.schema.get_field_name(field)),
 				reason: "match queries can only be executed on string columns".into(),
 			}));
@@ -108,15 +107,15 @@ impl QueryResolver<'_> {
 		let pattern = format!("(?i).*{}.*", regex_syntax::escape(string));
 		let query = RegexQuery::from_pattern(&pattern, field).map_err(|error| match error {
 			TantivyError::InvalidArgument(_) => {
-				SearchError::MalformedQuery(format!("invalid match string \"{string}\""))
+				Error::MalformedQuery(format!("invalid match string \"{string}\""))
 			}
-			other => SearchError::Failure(other.into()),
+			other => Error::Failure(other.into()),
 		})?;
 
 		Ok(Box::new(query))
 	}
 
-	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term, SearchError> {
+	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term> {
 		let field_entry = self.schema.get_field_entry(field);
 		let field_type = field_entry.field_type().value_type();
 
@@ -130,7 +129,7 @@ impl QueryResolver<'_> {
 			})
 		})()
 		.ok_or_else(|| {
-			SearchError::FieldType(FieldTypeError {
+			Error::FieldType(FieldTypeError {
 				// TODO: this will be pretty cryptic to end-users, try to resolve to the schema column name?
 				field: format!("field {}", self.schema.get_field_name(field)),
 				expected: field_type.name().to_string(),

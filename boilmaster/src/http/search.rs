@@ -19,10 +19,15 @@ pub fn router() -> Router<service::State> {
 	Router::new().route("/", get(search))
 }
 
+#[derive(Deserialize)]
+struct VersionQuery {
+	version: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
 	sheets: Option<String>,
-	query: query::pre::Node,
+	query: query::Node,
 }
 
 // TODO: reuse this with sheets
@@ -45,18 +50,21 @@ struct SearchResult {
 	subrow_id: u16,
 }
 
+#[allow(clippy::too_many_arguments)]
 #[debug_handler(state = service::State)]
 async fn search(
+	Query(version_query): Query<VersionQuery>,
 	Query(search_query): Query<SearchQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
 	State(data): State<service::Data>,
 	State(schema_provider): State<service::Schema>,
 	State(search): State<service::Search>,
+	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	// TODO: this should expose a more useful error to the end user.
-	let search_version = search.version(None).context("search index not ready")?;
-	let excel = data.version(None).excel();
+	let version_key = version
+		.resolve(version_query.version.as_deref())
+		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 
 	let language = language_query
 		.language
@@ -73,12 +81,12 @@ async fn search(
 
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
-	let (results, warnings) = search_version
+	let (results, warnings) = search
 		.search(
+			version_key,
 			&search_query.query,
 			language,
 			sheets,
-			&excel,
 			schema.as_ref(),
 		)?
 		.decompose();

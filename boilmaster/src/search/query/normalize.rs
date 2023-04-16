@@ -2,8 +2,8 @@ use ironworks::{excel, file::exh};
 use ironworks_schema as schema;
 
 use crate::{
-	search::{MismatchError, SearchError},
-	utility::{anyhow::Anyhow, field},
+	search::error::{Error, MismatchError, Result},
+	utility::field,
 };
 
 use super::{post, pre};
@@ -32,30 +32,30 @@ impl<'a> Normalizer<'a> {
 		query: &pre::Node,
 		sheet_name: &str,
 		ambient_language: excel::Language,
-	) -> Result<post::Node, SearchError> {
+	) -> Result<post::Node> {
 		// Fetch the schema and columns for the requested sheet.
 		let sheet_schema = self.schema.sheet(sheet_name).map_err(|error| match error {
 			// A missing schema can be considered analogous to a missing field _in_ a
 			// schema, and is such a mismatch between the query and the schema.
-			schema::Error::NotFound(inner) => SearchError::QuerySchemaMismatch(MismatchError {
+			schema::Error::NotFound(inner) => Error::QuerySchemaMismatch(MismatchError {
 				field: inner.to_string(),
 				reason: "not found".into(),
 			}),
-			other => SearchError::Failure(other.into()),
+			other => Error::Failure(other.into()),
 		})?;
 
 		let sheet_data = self.excel.sheet(sheet_name).map_err(|error| match error {
 			ironworks::Error::NotFound(ironworks::ErrorValue::Sheet(sheet)) => {
-				SearchError::SchemaGameMismatch(MismatchError {
+				Error::SchemaGameMismatch(MismatchError {
 					field: sheet,
 					reason: "not found".into(),
 				})
 			}
-			other => SearchError::Failure(other.into()),
+			other => Error::Failure(other.into()),
 		})?;
 
-		let languages = sheet_data.languages().anyhow()?;
-		let columns = sheet_data.columns().anyhow()?;
+		let languages = sheet_data.languages()?;
+		let columns = sheet_data.columns()?;
 
 		// Check if the ambient language is valid for this sheet, trying to fall
 		// back to `None` if it is not, to mimic read behavior.
@@ -63,7 +63,7 @@ impl<'a> Normalizer<'a> {
 			.into_iter()
 			.find(|language| languages.contains(language))
 			.ok_or_else(|| {
-				SearchError::QueryGameMismatch(MismatchError {
+				Error::QueryGameMismatch(MismatchError {
 					field: format!("sheet {sheet_name}"),
 					reason: format!("unsupported language {ambient_language:?}"),
 				})
@@ -81,22 +81,14 @@ impl<'a> Normalizer<'a> {
 		)
 	}
 
-	fn normalize_node(
-		&self,
-		node: &pre::Node,
-		context: Context,
-	) -> Result<post::Node, SearchError> {
+	fn normalize_node(&self, node: &pre::Node, context: Context) -> Result<post::Node> {
 		match node {
 			pre::Node::Group(group) => self.normalize_group(group, context),
 			pre::Node::Leaf(leaf) => self.normalize_leaf(leaf, context),
 		}
 	}
 
-	fn normalize_group(
-		&self,
-		group: &pre::Group,
-		context: Context,
-	) -> Result<post::Node, SearchError> {
+	fn normalize_group(&self, group: &pre::Group, context: Context) -> Result<post::Node> {
 		Ok(post::Node::Group(post::Group {
 			clauses: group
 				.clauses
@@ -104,15 +96,11 @@ impl<'a> Normalizer<'a> {
 				.map(|(occur, node)| {
 					Ok((occur.clone(), self.normalize_node(node, context.clone())?))
 				})
-				.collect::<Result<Vec<_>, SearchError>>()?,
+				.collect::<Result<Vec<_>>>()?,
 		}))
 	}
 
-	fn normalize_leaf(
-		&self,
-		leaf: &pre::Leaf,
-		context: Context,
-	) -> Result<post::Node, SearchError> {
+	fn normalize_leaf(&self, leaf: &pre::Leaf, context: Context) -> Result<post::Node> {
 		match &leaf.field {
 			Some(specifier) => self.normalize_leaf_bound(specifier, &leaf.operation, context),
 			None => self.normalize_leaf_unbound(&leaf.operation, context),
@@ -124,7 +112,7 @@ impl<'a> Normalizer<'a> {
 		specifier: &pre::FieldSpecifier,
 		operation: &pre::Operation,
 		context: Context,
-	) -> Result<post::Node, SearchError> {
+	) -> Result<post::Node> {
 		match (specifier, context.schema) {
 			// A struct specifier into a struct schema narrows the field space
 			(
@@ -138,7 +126,7 @@ impl<'a> Normalizer<'a> {
 					// TODO: this is _really_ wasteful. see TODO in the utility file w/r/t sanitizing schema preemptively
 					.find(|field| &field::sanitize_name(&field.name) == field_name)
 					.ok_or_else(|| {
-						SearchError::QuerySchemaMismatch(MismatchError {
+						Error::QuerySchemaMismatch(MismatchError {
 							field: field_name.into(),
 							reason: "field does not exist".into(),
 						})
@@ -152,7 +140,7 @@ impl<'a> Normalizer<'a> {
 				// language is requested explicitly.
 				let language = requested_language.unwrap_or(context.language);
 				if !context.languages.contains(&language) {
-					return Err(SearchError::QueryGameMismatch(MismatchError {
+					return Err(Error::QueryGameMismatch(MismatchError {
 						field: field_name.into(),
 						reason: format!("{language:?} is not supported by this sheet"),
 					}));
@@ -163,7 +151,7 @@ impl<'a> Normalizer<'a> {
 				let start = usize::try_from(field.offset).unwrap();
 				let end = start + usize::try_from(field.node.size()).unwrap();
 				let narrowed_columns = context.columns.get(start..end).ok_or_else(|| {
-					SearchError::SchemaGameMismatch(MismatchError {
+					Error::SchemaGameMismatch(MismatchError {
 						field: field_name.into(),
 						reason: "game data does not contain enough columns".into(),
 					})
@@ -196,7 +184,7 @@ impl<'a> Normalizer<'a> {
 		&self,
 		_operation: &pre::Operation,
 		_context: Context,
-	) -> Result<post::Node, SearchError> {
+	) -> Result<post::Node> {
 		// TODO: notes; an unbound leaf only makes semantic sense on a structural schema node; were it pointing to a scalar node, it would be equivalent semantically to a bound leaf on that node. following from that; an unbound leaf should "fan out" to all of the current structural node's children as an or-group, in doing so effectively "consuming" the current node at the leaf point, which maintains consistency with bound leaf handling.
 
 		todo!("normalize leaf unbound")
@@ -206,7 +194,7 @@ impl<'a> Normalizer<'a> {
 		&self,
 		operation: &pre::Operation,
 		context: Context,
-	) -> Result<post::Node, SearchError> {
+	) -> Result<post::Node> {
 		match operation {
 			// TODO: should this panic if it _isn't_ a 1:1 relation:reference pair?
 			//       no, it shouldn't - it could also be a struct... wait, can it?
@@ -223,7 +211,7 @@ impl<'a> Normalizer<'a> {
 						let field = match context.columns {
 							[column] => column,
 							other => {
-								return Err(SearchError::SchemaGameMismatch(MismatchError {
+								return Err(Error::SchemaGameMismatch(MismatchError {
 									field: "TODO: query path".into(),
 									reason: format!(
 										"cross-sheet references must have a single source (found {})",
@@ -269,9 +257,7 @@ impl<'a> Normalizer<'a> {
 								Ok(node)
 							})
 							// Filter out query mismatches to prune those branches - other errors will be raised.
-							.filter(|result| {
-								!matches!(result, Err(SearchError::QuerySchemaMismatch(_)))
-							})
+							.filter(|result| !matches!(result, Err(Error::QuerySchemaMismatch(_))))
 							.collect::<Result<Vec<_>, _>>()?;
 
 						// TODO: target_queries.len() == 0 here means none of the relations matched, which should be raised as a query mismatch
@@ -289,7 +275,7 @@ impl<'a> Normalizer<'a> {
 			pre::Operation::Match(string) => {
 				let scalar_columns = collect_scalars(context.schema, context.columns, vec![])
 					.ok_or_else(|| {
-						SearchError::SchemaGameMismatch(MismatchError {
+						Error::SchemaGameMismatch(MismatchError {
 							// TODO: i'll need to wire down the current query path for this field to be meaningful
 							field: "query".into(),
 							reason: "insufficient game data to satisfy schema".into(),
@@ -318,7 +304,7 @@ impl<'a> Normalizer<'a> {
 			pre::Operation::Equal(value) => {
 				let scalar_columns = collect_scalars(context.schema, context.columns, vec![])
 					.ok_or_else(|| {
-						SearchError::SchemaGameMismatch(MismatchError {
+						Error::SchemaGameMismatch(MismatchError {
 							// TODO: i'll need to wire down the current query path for this field to be meaningful
 							field: "query".into(),
 							reason: "insufficient game data to satisfy schema".into(),

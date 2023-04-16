@@ -11,14 +11,18 @@ askama_axum = "0.3.0"
 axum = {version = "0.6.12", features = ["macros"]}
 either = "1.8.0"
 figment = {version = "0.10.8", features = ["env", "toml"]}
+fs4 = {version = "0.6.3", features = ["sync"]}
 futures = "0.3.25"
 graphql_client = {version = "0.12.0"}
 ironworks = {path = "../ironworks", features = ["excel", "sqpack", "zipatch"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
+itertools = "0.10.5"
 nom = "7.1.1"
 regex-syntax = "0.6.28"
 reqwest = {version = "0.11.14", features = ["json"]}
+seahash = "4.1.0"
 serde = {version = "1.0.137", features = ["derive"]}
+serde_json = "1.0.95"
 tantivy = "0.19.0"
 thiserror = "1.0.30"
 tokio = {version = "1.17.0", features = ["full"]}

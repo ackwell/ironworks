@@ -1,12 +1,11 @@
 mod error;
-mod index;
+#[path = "query/mod.rs"]
+mod internal_query;
 mod search;
-mod version;
-
-// TODO: I don't like exposing this whole thing but it's the easiest way to not have conflicting name requirements between internal and external surfaces.
-pub mod query;
+mod tantivy;
 
 pub use {
-	error::{FieldTypeError, MismatchError, SearchError},
+	error::{Error, FieldTypeError, MismatchError},
+	internal_query::pre as query,
 	search::{Config, Search},
 };

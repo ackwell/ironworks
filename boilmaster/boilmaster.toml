@@ -1,6 +1,7 @@
 [tracing.filters]
 default = "debug"
 tantivy = "warn"
+hyper = "info"
 
 [http]
 # address = "0.0.0.0"
@@ -9,14 +10,22 @@ port = 8080
 [data]
 language = "en"
 
-[patch]
+[data.patch]
 directory = "patches"
 concurrency = 4
+
+[version]
+interval = 3600 # 1 hour
+directory = "versions"
 repositories = [
   "4e9a232b", # ffxiv
+  "6b936f08", # ex1 (hw)
+  "f29a3eb2", # ex2 (stb)
+  "859d0e24", # ex3 (shb)
+  "1bf99b87", # ex4 (ew)
 ]
 
-[patch.thaliak]
+[version.thaliak]
 endpoint = "https://thaliak.xiv.dev/graphql/2022-08-14"
 
 [schema]
@@ -26,9 +35,6 @@ default = "saint-coinach"
 # remote = "https://github.com/xivapi/SaintCoinach.git"
 directory = "saint_coinach"
 
-[search.index]
+[search.tantivy]
 directory = "search"
-
-[search.ingest]
-concurrency = 10
 memory = 52428800 # 50MiB

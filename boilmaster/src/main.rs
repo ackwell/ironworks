@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use boilmaster::{data, http, patch, schema, search, tracing};
+use boilmaster::{data, http, schema, search, tracing, version};
 use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
 };
+use futures::TryFutureExt;
 use serde::Deserialize;
 use tokio::signal;
 use tokio_util::sync::CancellationToken;
@@ -14,7 +15,7 @@ struct Config {
 	tracing: tracing::Config,
 	http: http::Config,
 	data: data::Config,
-	patch: patch::Config,
+	version: version::Config,
 	schema: schema::Config,
 	search: search::Config,
 }
@@ -32,32 +33,30 @@ async fn main() {
 	// Initialise tracing before getting too far into bootstrapping the rest of the application
 	tracing::init(config.tracing);
 
-	let view = patch::wip_build_zipatch_view(config.patch)
-		.await
-		.expect("TODO");
-
-	let data = Arc::new(data::Data::new(config.data, view));
+	let version = Arc::new(version::Manager::new(config.version).expect("TODO"));
+	let data = Arc::new(data::Data::new(config.data));
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
-	let search = Arc::new(search::Search::new(config.search));
+	let search = Arc::new(search::Search::new(config.search, data.clone()).expect("TODO"));
 
 	// Set up a cancellation token that will fire when a shutdown signal is recieved.
 	let shutdown_token = shutdown_token();
 
-	let (ingest_result, _) = tokio::join!(
+	tokio::try_join!(
+		version.start(shutdown_token.child_token()),
+		data.start(shutdown_token.child_token(), &version),
 		search
-			.clone()
-			.ingest(shutdown_token.cancelled(), &data, None),
+			.start(shutdown_token.child_token())
+			.map_err(anyhow::Error::from),
 		http::serve(
 			shutdown_token.cancelled(),
 			config.http,
 			data.clone(),
 			schema,
-			search
+			search.clone(),
+			version.clone(),
 		),
-	);
-
-	// TODO: when ingesting multiple versions, should probably bundle the ingests up side by side, but handle errors properly between them
-	ingest_result.expect("TODO: Error handling")
+	)
+	.expect("TODO: Error handling");
 }
 
 fn shutdown_token() -> CancellationToken {
@@ -98,5 +97,5 @@ async fn shutdown_signal() {
 		_ = terminate => {},
 	}
 
-	println!("Shutdown signal received.")
+	::tracing::info!("shutdown signal received");
 }

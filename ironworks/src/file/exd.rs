@@ -2,7 +2,7 @@
 
 use std::io::{Cursor, Read, Seek};
 
-use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
+use binrw::{binread, BinRead, BinResult, ReadOptions};
 use getset::{CopyGetters, Getters};
 
 use crate::{
@@ -26,9 +26,9 @@ pub struct ExcelData {
 	// unknown2: [u16; 10],
 	/// Vector of rows contained within this page.
 	#[br(
-    pad_before = 20,
-    count = index_size / RowDefinition::SIZE,
-  )]
+		pad_before = 20,
+		count = index_size / RowDefinition::SIZE,
+	)]
 	#[get = "pub"]
 	rows: Vec<RowDefinition>,
 
@@ -51,49 +51,69 @@ impl ExcelData {
 		Ok(&self.data[offset..offset + length])
 	}
 
-	/// Fetch the number of subrows associated with a row ID. On sheets with a kind
-	/// other than subrow, this will always be 1.
-	pub fn subrow_count(&self, row_id: u32) -> Result<u16> {
-		let (row_header, _offset) = self.row_meta(row_id)?;
-		Ok(row_header.row_count)
-	}
-
 	/// Fetch the slice of data associated with the specified subrow.
 	pub fn subrow_data(&self, row_id: u32, subrow_id: u16) -> Result<&[u8]> {
 		let (row_header, offset) = self.row_meta(row_id)?;
-
-		let error_value = || ErrorValue::Row {
-			row: row_id,
-			subrow: subrow_id,
-			sheet: None,
-		};
-
-		// Double check the requested subrow is within the expected bounds.
-		if subrow_id >= row_header.row_count {
-			return Err(Error::NotFound(error_value()));
-		}
 
 		// Subrows invariably do not support unstructured data (i.e. strings), and
 		// are laid out in subrow order. As such, it's safe to assume that evenly
 		// splitting the row's data by it's subrow count will give us what we want.
 		let subrow_size =
 			usize::try_from(row_header.data_size / u32::from(row_header.row_count)).unwrap();
-		let offset = offset + subrow_size * usize::try_from(subrow_id).unwrap();
 
-		// Sanity check the subrow header before returning.
+		// Subrow IDs do not always match their index within the row - loop over
+		// subrows and find the subrow with a matching ID.
 		let mut cursor = Cursor::new(&self.data);
-		cursor.set_position(offset.try_into().unwrap());
-		let subrow_header = SubrowHeader::read(&mut cursor)?;
+		let maybe_subrow_offset = (0..row_header.row_count)
+			// TODO: map->try_find whenever _that_ stabilises
+			.find_map(|index| -> Option<Result<_>> {
+				let subrow_offset = offset + subrow_size * usize::try_from(index).unwrap();
+				cursor.set_position(subrow_offset.try_into().unwrap());
+				match SubrowHeader::read(&mut cursor) {
+					Err(e) => Some(Err(e.into())),
+					Ok(v) => match v.id == subrow_id {
+						true => Some(Ok(subrow_offset)),
+						false => None,
+					},
+				}
+			});
 
-		if subrow_header.id != subrow_id {
-			return Err(Error::Invalid(
-				error_value(),
-				format!("Subrow data reports as unexpected ID {}.", subrow_header.id),
-			));
-		}
+		let subrow_offset = match maybe_subrow_offset {
+			// A subrow header read failed
+			Some(Err(error)) => return Err(error),
+			// No subrows matched at all
+			None => {
+				return Err(Error::NotFound(ErrorValue::Row {
+					row: row_id,
+					subrow: subrow_id,
+					sheet: None,
+				}))
+			}
+			// A match was found
+			Some(Ok(subrow_offset)) => subrow_offset,
+		};
 
 		// Get the slice of subrow data.
-		Ok(&self.data[offset + SubrowHeader::SIZE..offset + subrow_size])
+		Ok(&self.data[subrow_offset + SubrowHeader::SIZE..subrow_offset + subrow_size])
+	}
+
+	// TODO: This is a hacky implementation for use in excel's sheet iterator. Remove once iterator is rewritten to be less insane.
+	pub(crate) fn subrow_max(&self, row_id: u32) -> Result<u16> {
+		let (row_header, offset) = self.row_meta(row_id)?;
+
+		let subrow_size =
+			usize::try_from(row_header.data_size / u32::from(row_header.row_count)).unwrap();
+
+		let mut cursor = Cursor::new(&self.data);
+		(0..row_header.row_count)
+			.map(move |index| -> Result<_> {
+				let subrow_offset = offset + subrow_size * usize::try_from(index).unwrap();
+				cursor.set_position(subrow_offset.try_into().unwrap());
+				Ok(SubrowHeader::read(&mut cursor)?)
+			})
+			.fold(Ok(0), |a, b| {
+				a.and_then(|a| b.map(|b| std::cmp::max(a, b.id)))
+			})
 	}
 
 	fn row_meta(&self, row_id: u32) -> Result<(RowHeader, usize)> {
@@ -140,6 +160,12 @@ impl RowDefinition {
 
 fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
 	Ok(reader.stream_position()?)
+}
+
+fn until_eof<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<Vec<u8>> {
+	let mut v = Vec::new();
+	reader.read_to_end(&mut v)?;
+	Ok(v)
 }
 
 #[binread]
