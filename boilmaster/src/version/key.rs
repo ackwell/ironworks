@@ -23,7 +23,7 @@ impl VersionKey {
 
 impl fmt::Display for VersionKey {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		formatter.write_fmt(format_args!("{:x}", self.0))
+		formatter.write_fmt(format_args!("{:016x}", self.0))
 	}
 }
 
