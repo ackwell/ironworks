@@ -1,8 +1,7 @@
 use axum::{
 	debug_handler,
 	extract::{OriginalUri, Path, State},
-	http::Uri,
-	response::{IntoResponse, Response},
+	response::IntoResponse,
 	routing::get,
 	Router,
 };
@@ -17,14 +16,6 @@ pub fn router() -> Router<service::State> {
 	Router::new()
 		.route("/", get(versions))
 		.route("/:version_key", get(version))
-}
-
-struct Template<T>(T);
-
-impl<T: Render> IntoResponse for Template<T> {
-	fn into_response(self) -> Response {
-		self.0.render().into_response()
-	}
 }
 
 struct BaseTemplate {
@@ -47,12 +38,6 @@ impl Render for BaseTemplate {
 			}
 		}
 	}
-}
-
-struct VersionsTemplate {
-	// TODO: I imagine the current uri, along with some other stuff, will be really commonly required. Look into how that can be handled.
-	current_uri: Uri,
-	versions: Vec<VersionInfo>,
 }
 
 struct VersionInfo {
@@ -88,48 +73,33 @@ async fn versions(
 		.map(version_info)
 		.collect::<Result<Vec<_>>>()?;
 
-	Ok(Template(VersionsTemplate {
-		current_uri: uri,
-		versions,
-	}))
-}
-
-impl Render for VersionsTemplate {
-	fn render(&self) -> Markup {
-		(BaseTemplate {
-			title: "versions".to_string(),
-			content: html! {
-				@for version in &self.versions {
-					h2 {
-						a href={ (self.current_uri) "/" (version.key) } {
-							(version.key)
-						}
-
-						" ("
-						@for (index, name) in version.names.iter().enumerate() {
-							@if index > 0 { ", " }
-							(name)
-						}
-						")"
+	Ok((BaseTemplate {
+		title: "versions".to_string(),
+		content: html! {
+			@for version in versions {
+				h2 {
+					a href={ (uri) "/" (version.key) } {
+						(version.key)
 					}
 
-					dl {
-						@for (repository, patch) in &version.patches {
-							dt { (repository) }
-							dd { (patch) }
-						}
+					" ("
+					@for (index, name) in version.names.iter().enumerate() {
+						@if index > 0 { ", " }
+						(name)
+					}
+					")"
+				}
+
+				dl {
+					@for (repository, patch) in &version.patches {
+						dt { (repository) }
+						dd { (patch) }
 					}
 				}
-			},
-		})
-		.render()
-	}
-}
-
-struct VersionTemplate {
-	version: VersionKey,
-	names: Vec<String>,
-	patch_list: Vec<(String, Vec<Patch>)>,
+			}
+		},
+	})
+	.render())
 }
 
 #[debug_handler]
@@ -137,6 +107,8 @@ async fn version(
 	Path(version_key): Path<VersionKey>,
 	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
+	let names = version.names(version_key);
+
 	// Patches are stored in oldest-first order for IW, which is lovely in code
 	// and horrible for reading. Given this is ostensibly the reading bit of the
 	// application, fix that.
@@ -146,44 +118,34 @@ async fn version(
 		.map(|(repository, patches)| (repository, patches.into_iter().rev().collect()))
 		.collect::<Vec<(String, Vec<Patch>)>>();
 
-	Ok(Template(VersionTemplate {
-		version: version_key,
-		names: version.names(version_key),
-		patch_list,
-	}))
-}
-
-impl Render for VersionTemplate {
-	fn render(&self) -> Markup {
-		(BaseTemplate {
-			title: format!("version {}", self.version),
-			content: html! {
-				h2 { "names" }
-				ul {
-					@for name in &self.names {
-						li { (name) }
-					}
+	Ok((BaseTemplate {
+		title: format!("version {}", version_key),
+		content: html! {
+			h2 { "names" }
+			ul {
+				@for name in names {
+					li { (name) }
 				}
+			}
 
-				h2 { "patches" }
-				@for (repository, patches) in &self.patch_list {
-					details {
-						summary {
-							(repository)
-							" ("
-							(patches.len()) " patches, "
-							"latest: " (patches.first().map(|patch| patch.name.as_str()).unwrap_or("none"))
-							")"
-						}
-						ul {
-							@for patch in patches {
-								li { (patch.name) " (" (format_size(patch.size, BINARY)) ")" }
-							}
+			h2 { "patches" }
+			@for (repository, patches) in patch_list {
+				details {
+					summary {
+						(repository)
+						" ("
+						(patches.len()) " patches, "
+						"latest: " (patches.first().map(|patch| patch.name.as_str()).unwrap_or("none"))
+						")"
+					}
+					ul {
+						@for patch in patches {
+							li { (patch.name) " (" (format_size(patch.size, BINARY)) ")" }
 						}
 					}
 				}
-			},
-		})
-		.render()
-	}
+			}
+		},
+	})
+	.render())
 }
