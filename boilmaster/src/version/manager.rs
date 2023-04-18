@@ -102,12 +102,29 @@ impl Manager {
 	}
 
 	/// Get the list of names for a version.
+	// TODO: Error on unknown version?
 	pub fn names(&self, key: VersionKey) -> Vec<String> {
 		let version_names = self.version_names.read().expect("poisoned");
 		version_names
 			.iter()
 			.filter_map(|(name, inner_key)| (*inner_key == key).then(|| name.clone()))
 			.collect()
+	}
+
+	/// Set the names for a version. Collisions will overwrite the name with the version provided.
+	// TODO: error on unknown version?
+	pub fn set_names(
+		&self,
+		key: VersionKey,
+		names: impl IntoIterator<Item = impl ToString>,
+	) -> Result<()> {
+		// Remove all names pointing to the specified key, then extend with the new names.
+		let mut version_names = self.version_names.write().expect("poisoned");
+		version_names.retain(|_, value| *value != key);
+		version_names.extend(names.into_iter().map(|name| (name.to_string(), key)));
+		drop(version_names);
+		self.save()?;
+		Ok(())
 	}
 
 	/// Resolve a version name to its key. If no version is specified, the version marked as latest will be returned, if any exists.
@@ -259,23 +276,7 @@ impl Manager {
 		version_names.insert(LATEST_TAG.to_string(), key);
 		drop(version_names);
 
-		// Build the full version listing for persisting.
-		let versions = self.versions.read().expect("poisoned");
-		let version_names = self.version_names.read().expect("poisoned");
-
-		let mut all_versions = versions
-			.keys()
-			.map(|key| (key, vec![]))
-			.collect::<BTreeMap<_, _>>();
-
-		for (name, version) in version_names.iter() {
-			all_versions
-				.entry(version)
-				.or_insert_with(Vec::new)
-				.push(name);
-		}
-
-		self.file.write(&all_versions)?;
+		self.save()?;
 
 		// Broadcast any changes to the version list from this update.
 		self.broadcast_version_list();
@@ -302,6 +303,28 @@ impl Manager {
 			.update(patches)?;
 
 		Ok(patch_names)
+	}
+
+	fn save(&self) -> Result<()> {
+		// Build the full version listing for persisting.
+		let versions = self.versions.read().expect("poisoned");
+		let version_names = self.version_names.read().expect("poisoned");
+
+		let mut all_versions = versions
+			.keys()
+			.map(|key| (key, vec![]))
+			.collect::<BTreeMap<_, _>>();
+
+		for (name, version) in version_names.iter() {
+			all_versions
+				.entry(version)
+				.or_insert_with(Vec::new)
+				.push(name);
+		}
+
+		self.file.write(&all_versions)?;
+
+		Ok(())
 	}
 
 	fn broadcast_version_list(&self) {

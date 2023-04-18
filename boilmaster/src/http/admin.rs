@@ -1,12 +1,13 @@
 use axum::{
 	debug_handler,
 	extract::{OriginalUri, Path, State},
-	response::IntoResponse,
+	response::{IntoResponse, Redirect},
 	routing::get,
-	Router,
+	Form, Router,
 };
 use humansize::{format_size, BINARY};
 use maud::{html, Markup, Render, DOCTYPE};
+use serde::Deserialize;
 
 use crate::version::{Patch, VersionKey};
 
@@ -15,7 +16,7 @@ use super::{error::Result, service};
 pub fn router() -> Router<service::State> {
 	Router::new()
 		.route("/", get(versions))
-		.route("/:version_key", get(version))
+		.route("/:version_key", get(version).post(post_version))
 }
 
 struct BaseTemplate {
@@ -104,6 +105,7 @@ async fn versions(
 
 #[debug_handler]
 async fn version(
+	OriginalUri(uri): OriginalUri,
 	Path(version_key): Path<VersionKey>,
 	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
@@ -122,10 +124,14 @@ async fn version(
 		title: format!("version {}", version_key),
 		content: html! {
 			h2 { "names" }
-			ul {
-				@for name in names {
-					li { (name) }
-				}
+			form action=(uri) method="post" {
+				input type="text" name="names" value={
+					@for (index, name) in names.into_iter().enumerate() {
+						@if index > 0 { ", " }
+						(name)
+					}
+				};
+				button type="submit" { "save" };
 			}
 
 			h2 { "patches" }
@@ -148,4 +154,22 @@ async fn version(
 		},
 	})
 	.render())
+}
+
+#[derive(Debug, Deserialize)]
+struct VersionPostRequest {
+	names: String,
+}
+
+#[debug_handler]
+async fn post_version(
+	OriginalUri(uri): OriginalUri,
+	Path(version_key): Path<VersionKey>,
+	State(version): State<service::Version>,
+	Form(request): Form<VersionPostRequest>,
+) -> Result<impl IntoResponse> {
+	let names = request.names.split(',').map(str::trim);
+	version.set_names(version_key, names)?;
+
+	Ok(Redirect::to(&uri.to_string()))
 }
