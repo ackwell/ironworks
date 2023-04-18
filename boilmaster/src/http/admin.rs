@@ -1,9 +1,12 @@
 use axum::{
 	debug_handler,
 	extract::{OriginalUri, Path, State},
-	response::{IntoResponse, Redirect},
+	headers::{authorization::Basic, Authorization},
+	http::{header, Request, StatusCode},
+	middleware::{self, Next},
+	response::{IntoResponse, Redirect, Response},
 	routing::get,
-	Form, Router,
+	Form, Router, TypedHeader,
 };
 use humansize::{format_size, BINARY};
 use maud::{html, Markup, Render, DOCTYPE};
@@ -13,10 +16,48 @@ use crate::version::{Patch, VersionKey};
 
 use super::{error::Result, service};
 
-pub fn router() -> Router<service::State> {
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	auth: BasicAuth,
+}
+
+pub fn router(config: Config) -> Router<service::State> {
 	Router::new()
 		.route("/", get(versions))
 		.route("/:version_key", get(version).post(post_version))
+		.layer(middleware::from_fn_with_state(config.auth, basic_auth))
+}
+
+#[derive(Debug, Deserialize, Clone)]
+struct BasicAuth {
+	username: String,
+	password: String,
+}
+
+async fn basic_auth<B>(
+	State(expected): State<BasicAuth>,
+	authorization: Option<TypedHeader<Authorization<Basic>>>,
+	request: Request<B>,
+	next: Next<B>,
+) -> Response {
+	let authenticated = authorization.map_or(false, |TypedHeader(auth)| {
+		auth.username() == expected.username && auth.password() == expected.password
+	});
+
+	match authenticated {
+		true => next.run(request).await,
+		false => {
+			// TypedHeader seems to just... not have this? eh?
+			(
+				StatusCode::UNAUTHORIZED,
+				[(
+					header::WWW_AUTHENTICATE,
+					"Basic realm=\"boilmaster\", charset=\"UTF-8\"",
+				)],
+			)
+				.into_response()
+		}
+	}
 }
 
 struct BaseTemplate {

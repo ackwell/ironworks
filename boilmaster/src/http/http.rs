@@ -15,6 +15,8 @@ use super::{admin, search, service::State, sheets};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+	admin: admin::Config,
+
 	address: Option<IpAddr>,
 	port: u16,
 }
@@ -34,23 +36,8 @@ pub async fn serve(
 
 	tracing::info!("http binding to {bind_address:?}");
 
-	Server::bind(&bind_address)
-		.serve(router(data, schema, search, version).into_make_service())
-		.with_graceful_shutdown(shutdown)
-		.await
-		.unwrap();
-
-	Ok(())
-}
-
-fn router(
-	data: Arc<Data>,
-	schema: Arc<schema::Provider>,
-	search: Arc<Search>,
-	version: Arc<version::Manager>,
-) -> Router {
-	Router::new()
-		.nest("/admin", admin::router())
+	let router = Router::new()
+		.nest("/admin", admin::router(config.admin))
 		.nest("/sheets", sheets::router())
 		.nest("/search", search::router())
 		.layer(TraceLayer::new_for_http())
@@ -59,5 +46,13 @@ fn router(
 			schema,
 			search,
 			version,
-		})
+		});
+
+	Server::bind(&bind_address)
+		.serve(router.into_make_service())
+		.with_graceful_shutdown(shutdown)
+		.await
+		.unwrap();
+
+	Ok(())
 }
