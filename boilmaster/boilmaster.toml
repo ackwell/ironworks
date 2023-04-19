@@ -7,6 +7,10 @@ hyper = "info"
 # address = "0.0.0.0"
 port = 8080
 
+[http.admin.auth]
+username = "username"
+password = "password"
+
 [data]
 language = "en"
 

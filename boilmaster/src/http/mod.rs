@@ -1,3 +1,4 @@
+mod admin;
 mod error;
 mod http;
 mod path;
