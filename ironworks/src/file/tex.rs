@@ -109,7 +109,7 @@ mod bitfield {
 
 /// The dimension kind of a texture.
 #[allow(missing_docs)]
-#[derive(BitfieldSpecifier, Debug)]
+#[derive(BitfieldSpecifier, Debug, PartialEq, Eq)]
 #[bits = 4]
 pub enum Dimension {
 	D1 = 1,
@@ -121,7 +121,7 @@ pub enum Dimension {
 /// Pixel format of a texture.
 #[allow(missing_docs)]
 #[binread]
-#[derive(Copy, Clone, Debug, IntoPrimitive)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, IntoPrimitive)]
 #[br(repr = u32)]
 #[repr(u32)]
 pub enum Format {

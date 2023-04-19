@@ -1,11 +1,16 @@
+use std::io::Cursor;
+
 use anyhow::Context;
 use axum::{
 	debug_handler,
 	extract::{Path, Query, State},
+	headers::ContentType,
 	response::IntoResponse,
 	routing::get,
-	Router,
+	Router, TypedHeader,
 };
+use ironworks::file::tex;
+use itertools::Itertools;
 use serde::Deserialize;
 
 use super::{error::Result, service};
@@ -36,7 +41,40 @@ async fn asset(
 
 	let ironworks = data_version.ironworks();
 
-	let file = ironworks.file::<Vec<u8>>(&path)?;
+	// TODO: obviously this needs a lot of actual proper handling i.e. not assuming it's a 2d rgba texture lmao
+	let texture = ironworks.file::<tex::Texture>(&path)?;
+	if texture.format() != tex::Format::Argb8 {
+		Err(anyhow::anyhow!("unexpected format {:?}", texture.format()))?;
+	}
 
-	Ok(file)
+	if texture.dimension() != tex::Dimension::D2 {
+		Err(anyhow::anyhow!(
+			"unexpected dimension {:?}",
+			texture.dimension()
+		))?;
+	}
+
+	// TODO: seems really wasteful to copy the entire image in memory just to reassign the channels. think of a better way to do this.
+	// TODO: consider writing a chunk iterator that uses exact widths rather than moving into a tuple
+	let rgba_data = texture
+		.data()
+		.iter()
+		.tuples()
+		.flat_map(|(b, g, r, a)| [r, g, b, a])
+		.copied()
+		.collect::<Vec<_>>();
+
+	let buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+		texture.width().into(),
+		texture.height().into(),
+		rgba_data,
+	)
+	.context("texture data smaller than size")?;
+
+	let mut bytes = Cursor::new(vec![]);
+	buffer
+		.write_to(&mut bytes, image::ImageOutputFormat::Png)
+		.context("todo: error handling")?;
+
+	Ok((TypedHeader(ContentType::png()), bytes.into_inner()))
 }

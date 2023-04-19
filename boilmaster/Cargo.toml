@@ -13,7 +13,8 @@ fs4 = {version = "0.6.3", features = ["sync"]}
 futures = "0.3.25"
 graphql_client = {version = "0.12.0"}
 humansize = "2.1.3"
-ironworks = {path = "../ironworks", features = ["excel", "sqpack", "zipatch"]}
+image = {version = "0.24.6", default-features = false, features = ["png"]}
+ironworks = {path = "../ironworks", features = ["excel", "sqpack", "tex", "zipatch"]}
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 itertools = "0.10.5"
 maud = {version = "0.25.0", features = ["axum"]}
