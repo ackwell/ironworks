@@ -1,4 +1,5 @@
 mod admin;
+mod asset;
 mod error;
 mod http;
 mod path;

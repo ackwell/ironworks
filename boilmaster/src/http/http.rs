@@ -11,7 +11,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{data::Data, schema, search::Search, version};
 
-use super::{admin, search, service::State, sheets};
+use super::{admin, asset, search, service::State, sheets};
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
@@ -38,6 +38,7 @@ pub async fn serve(
 
 	let router = Router::new()
 		.nest("/admin", admin::router(config.admin))
+		.nest("/asset", asset::router())
 		.nest("/sheets", sheets::router())
 		.nest("/search", search::router())
 		.layer(TraceLayer::new_for_http())
