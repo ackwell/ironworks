@@ -1,7 +1,7 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
 
-use crate::{schema, search};
+use crate::{asset, schema, search};
 
 #[derive(Serialize)]
 pub struct ErrorResponse {
@@ -20,6 +20,19 @@ pub enum Error {
 
 	#[error("Internal server error.")]
 	Other(#[from] anyhow::Error),
+}
+
+impl From<asset::Error> for Error {
+	fn from(error: asset::Error) -> Self {
+		use asset::Error as AE;
+		match error {
+			AE::NotFound(value) => Self::NotFound(value),
+			AE::UnsupportedSource(_, _) | AE::InvalidConversion(_, _) => {
+				Self::Invalid(error.to_string())
+			}
+			AE::Failure(inner) => Self::Other(inner),
+		}
+	}
 }
 
 impl From<schema::Error> for Error {
