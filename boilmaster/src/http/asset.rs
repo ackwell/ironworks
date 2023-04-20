@@ -5,6 +5,7 @@ use axum::{
 	debug_handler,
 	extract::{Path, Query, State},
 	headers::ContentType,
+	http::header,
 	response::IntoResponse,
 	routing::get,
 	Router, TypedHeader,
@@ -76,5 +77,17 @@ async fn asset(
 		.write_to(&mut bytes, image::ImageOutputFormat::Png)
 		.context("todo: error handling")?;
 
-	Ok((TypedHeader(ContentType::png()), bytes.into_inner()))
+	let mut filename = std::path::PathBuf::from(path);
+	filename.set_extension("png");
+	let disposition = match filename.file_name().and_then(|name| name.to_str()) {
+		Some(name) => format!("inline; filename=\"{name}\""),
+		None => "inline".to_string(),
+	};
+
+	Ok((
+		TypedHeader(ContentType::png()),
+		// TypedHeader only has a really naive inline value with no ability to customise :/
+		[(header::CONTENT_DISPOSITION, disposition)],
+		bytes.into_inner(),
+	))
 }
