@@ -34,7 +34,7 @@ impl Converter for Image {
 		let ironworks = data.ironworks();
 
 		let buffer = match extension {
-			Some("tex") => read_texture(&ironworks, path),
+			Some("tex") | Some("atex") => read_texture(&ironworks, path),
 
 			other => {
 				return Err(Error::InvalidConversion(
@@ -69,6 +69,10 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 	}
 
 	let buffer = match texture.format() {
+		tex::Format::A8 => read_texture_a8(texture)?,
+
+		tex::Format::Rgba4 => read_texture_rgba4(texture)?,
+		tex::Format::Rgb5a1 => read_texture_rgb5a1(texture)?,
 		tex::Format::Argb8 => read_texture_argb8(texture)?,
 
 		tex::Format::Dxt1 => read_texture_dxt(texture, texpresso::Format::Bc1)?,
@@ -84,6 +88,56 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 	};
 
 	Ok(buffer)
+}
+
+fn read_texture_a8(texture: tex::Texture) -> Result<DynamicImage> {
+	let buffer = ImageBuffer::from_raw(
+		texture.width().into(),
+		texture.height().into(),
+		texture.data().to_owned(),
+	)
+	.context("failed to build image buffer")?;
+	Ok(DynamicImage::ImageLuma8(buffer))
+}
+
+fn read_texture_rgba4(texture: tex::Texture) -> Result<DynamicImage> {
+	let data = texture
+		.data()
+		.iter()
+		.tuples()
+		.flat_map(|(gr, ab)| {
+			let r = (gr & 0x0F) * 0x11;
+			let g = (gr >> 4) * 0x11;
+			let b = (ab & 0x0F) * 0x11;
+			let a = (ab >> 4) * 0x11;
+			[r, g, b, a]
+		})
+		.collect::<Vec<_>>();
+
+	let buffer = ImageBuffer::from_raw(texture.width().into(), texture.height().into(), data)
+		.context("failed to build image buffer")?;
+	Ok(DynamicImage::ImageRgba8(buffer))
+}
+
+fn read_texture_rgb5a1(texture: tex::Texture) -> Result<DynamicImage> {
+	let data = texture
+		.data()
+		.iter()
+		.tuples()
+		.flat_map(|(b, a)| {
+			let pixel = u16::from(*b) | (u16::from(*a) << 8);
+			let r = (pixel & 0x7C00) >> 7;
+			let g = (pixel & 0x03E0) >> 2;
+			let b = (pixel & 0x001F) << 3;
+			let a = ((pixel & 0x8000) >> 15) * 0xFF;
+			[r, g, b, a]
+		})
+		.map(|value| u8::try_from(value).unwrap())
+		.collect::<Vec<_>>();
+
+	let buffer = ImageBuffer::from_raw(texture.width().into(), texture.height().into(), data)
+		.context("failed to build image buffer")?;
+	Ok(DynamicImage::ImageRgba8(buffer))
 }
 
 fn read_texture_argb8(texture: tex::Texture) -> Result<DynamicImage> {
