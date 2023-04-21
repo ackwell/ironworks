@@ -1,7 +1,6 @@
+mod convert;
 mod error;
+mod format;
 mod service;
 
-pub use {
-	error::Error,
-	service::{Format, Service},
-};
+pub use {error::Error, format::Format, service::Service};

@@ -1,4 +1,4 @@
-use super::service::Format;
+use super::format::Format;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
