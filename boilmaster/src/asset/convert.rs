@@ -87,6 +87,8 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 			DynamicImage::ImageRgba8(buffer)
 		}
 
+		tex::Format::Dxt1 => read_texture_dxt1(texture)?,
+
 		other => {
 			return Err(Error::UnsupportedSource(
 				path.into(),
@@ -96,4 +98,20 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 	};
 
 	Ok(buffer)
+}
+
+fn read_texture_dxt1(texture: tex::Texture) -> Result<DynamicImage> {
+	let width = usize::from(texture.width());
+	let height = usize::from(texture.height());
+
+	let mut dxt_buffer = vec![0; width * height * 4];
+	texpresso::Format::Bc1.decompress(texture.data(), width, height, &mut dxt_buffer);
+
+	let image_buffer = ImageBuffer::from_raw(
+		width.try_into().unwrap(),
+		height.try_into().unwrap(),
+		dxt_buffer,
+	)
+	.context("failed to build image buffer")?;
+	Ok(DynamicImage::ImageRgba8(image_buffer))
 }
