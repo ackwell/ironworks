@@ -68,26 +68,12 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 		));
 	}
 
-	// TODO: break this up into functions - might be able to reuse a bunch of stuff between basic rgba stuff
 	let buffer = match texture.format() {
-		// TODO: seems really wasteful to copy the entire image in memory just to reassign the channels. think of a better way to do this.
-		// TODO: consider writing a chunk iterator that uses exact widths rather than moving into a tuple
-		tex::Format::Argb8 => {
-			let data = texture
-				.data()
-				.iter()
-				.tuples()
-				.flat_map(|(b, g, r, a)| [r, g, b, a])
-				.copied()
-				.collect::<Vec<_>>();
+		tex::Format::Argb8 => read_texture_argb8(texture)?,
 
-			let buffer =
-				ImageBuffer::from_raw(texture.width().into(), texture.height().into(), data)
-					.context("failed to build image buffer")?;
-			DynamicImage::ImageRgba8(buffer)
-		}
-
-		tex::Format::Dxt1 => read_texture_dxt1(texture)?,
+		tex::Format::Dxt1 => read_texture_dxt(texture, texpresso::Format::Bc1)?,
+		tex::Format::Dxt3 => read_texture_dxt(texture, texpresso::Format::Bc2)?,
+		tex::Format::Dxt5 => read_texture_dxt(texture, texpresso::Format::Bc3)?,
 
 		other => {
 			return Err(Error::UnsupportedSource(
@@ -100,12 +86,28 @@ fn read_texture(ironworks: &Ironworks, path: &str) -> Result<DynamicImage> {
 	Ok(buffer)
 }
 
-fn read_texture_dxt1(texture: tex::Texture) -> Result<DynamicImage> {
+fn read_texture_argb8(texture: tex::Texture) -> Result<DynamicImage> {
+	// TODO: seems really wasteful to copy the entire image in memory just to reassign the channels. think of a better way to do this.
+	// TODO: consider writing a chunk iterator that uses exact widths rather than moving into a tuple
+	let data = texture
+		.data()
+		.iter()
+		.tuples()
+		.flat_map(|(b, g, r, a)| [r, g, b, a])
+		.copied()
+		.collect::<Vec<_>>();
+
+	let buffer = ImageBuffer::from_raw(texture.width().into(), texture.height().into(), data)
+		.context("failed to build image buffer")?;
+	Ok(DynamicImage::ImageRgba8(buffer))
+}
+
+fn read_texture_dxt(texture: tex::Texture, dxt_format: texpresso::Format) -> Result<DynamicImage> {
 	let width = usize::from(texture.width());
 	let height = usize::from(texture.height());
 
 	let mut dxt_buffer = vec![0; width * height * 4];
-	texpresso::Format::Bc1.decompress(texture.data(), width, height, &mut dxt_buffer);
+	dxt_format.decompress(texture.data(), width, height, &mut dxt_buffer);
 
 	let image_buffer = ImageBuffer::from_raw(
 		width.try_into().unwrap(),
