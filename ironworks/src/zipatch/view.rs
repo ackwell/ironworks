@@ -215,7 +215,13 @@ impl sqpack::Resource for View {
 			// remote. If everything has blown up in your face because of this and you
 			// find this comment, bap me.
 			if let Some(chunks) = lookup.data().file_chunks.get(&target.0) {
-				return read_file_chunks(&lookup, &location, chunks);
+				// File chunks for one target dat file may be spread across multiple
+				// patch files - if the target couldn't be found in this lookup, continue
+				// to the next.
+				match read_file_chunks(&lookup, &location, chunks) {
+					Err(Error::NotFound(_)) => {}
+					other => return other,
+				};
 			};
 		}
 
@@ -286,6 +292,14 @@ fn read_file_chunks(
 			)
 		})
 		.collect::<Vec<_>>();
+
+	// If there are 0 blocks that match the target, the provided lookup does not
+	// contain the requested target.
+	if metadata.is_empty() {
+		return Err(Error::NotFound(ErrorValue::Other(format!(
+			"sqpack location {location:?}"
+		))));
+	}
 
 	// Build the readers & complete
 	let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
