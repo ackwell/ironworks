@@ -27,7 +27,7 @@ impl From<asset::Error> for Error {
 		use asset::Error as AE;
 		match error {
 			AE::NotFound(value) => Self::NotFound(value),
-			AE::UnsupportedSource(_, _) | AE::InvalidConversion(_, _) => {
+			AE::UnsupportedSource(_, _) | AE::InvalidConversion(_, _) | AE::UnknownFormat(_) => {
 				Self::Invalid(error.to_string())
 			}
 			AE::Failure(inner) => Self::Other(inner),

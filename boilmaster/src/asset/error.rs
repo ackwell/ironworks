@@ -8,6 +8,9 @@ pub enum Error {
 	#[error("source file \"{0}\" is unsupported: {1}")]
 	UnsupportedSource(String, String),
 
+	#[error("unknown format \"{0}\"")]
+	UnknownFormat(String),
+
 	#[error("{0} cannot be converted to {1:?}")]
 	InvalidConversion(String, Format),
 

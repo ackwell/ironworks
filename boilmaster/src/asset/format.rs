@@ -1,4 +1,8 @@
-use super::convert;
+use std::str::FromStr;
+
+use serde::{de, Deserialize};
+
+use super::{convert, error::Error};
 
 // todo: should probably put the fromstr on it here, but expose it so http can get the format and use it for mime which is http-specific
 // TODO: proper tostring impl for this?
@@ -8,9 +12,36 @@ pub enum Format {
 }
 
 impl Format {
+	pub fn extension(&self) -> &str {
+		match self {
+			Self::Png => "png",
+		}
+	}
+
 	pub(super) fn converter(&self) -> &dyn convert::Converter {
 		match self {
 			Self::Png => &convert::Image,
 		}
+	}
+}
+
+impl FromStr for Format {
+	type Err = Error;
+
+	fn from_str(input: &str) -> Result<Self, Self::Err> {
+		Ok(match input {
+			"png" => Self::Png,
+			other => return Err(Error::UnknownFormat(other.into())),
+		})
+	}
+}
+
+impl<'de> Deserialize<'de> for Format {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let raw = String::deserialize(deserializer)?;
+		raw.parse().map_err(de::Error::custom)
 	}
 }

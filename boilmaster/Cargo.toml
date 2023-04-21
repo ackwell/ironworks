@@ -18,6 +18,7 @@ ironworks = {path = "../ironworks", features = ["excel", "sqpack", "tex", "zipat
 ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
 itertools = "0.10.5"
 maud = {version = "0.25.0", features = ["axum"]}
+mime = "0.3.17"
 nom = "7.1.1"
 regex-syntax = "0.6.28"
 reqwest = {version = "0.11.14", features = ["json"]}

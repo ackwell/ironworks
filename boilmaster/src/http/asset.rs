@@ -23,10 +23,16 @@ struct VersionQuery {
 	version: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct FormatQuery {
+	format: Format,
+}
+
 #[debug_handler(state = service::State)]
 async fn asset(
 	Path(path): Path<String>,
 	Query(version_query): Query<VersionQuery>,
+	Query(format_query): Query<FormatQuery>,
 	State(version): State<service::Version>,
 	State(asset): State<service::Asset>,
 ) -> Result<impl IntoResponse> {
@@ -34,18 +40,26 @@ async fn asset(
 		.resolve(version_query.version.as_deref())
 		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 
-	let bytes = asset.convert(version_key, &path, Format::Png)?;
+	let format = format_query.format;
 
-	let filename = std::path::Path::new(&path).with_extension("png");
+	let bytes = asset.convert(version_key, &path, format)?;
+
+	let filename = std::path::Path::new(&path).with_extension(format.extension());
 	let disposition = match filename.file_name().and_then(|name| name.to_str()) {
 		Some(name) => format!("inline; filename=\"{name}\""),
 		None => "inline".to_string(),
 	};
 
 	Ok((
-		TypedHeader(ContentType::png()),
+		TypedHeader(ContentType::from(format_mime(format))),
 		// TypedHeader only has a really naive inline value with no ability to customise :/
 		[(header::CONTENT_DISPOSITION, disposition)],
 		bytes,
 	))
+}
+
+fn format_mime(format: Format) -> mime::Mime {
+	match format {
+		Format::Png => mime::IMAGE_PNG,
+	}
 }
