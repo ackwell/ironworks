@@ -1,4 +1,3 @@
-use anyhow::Context;
 use axum::{
 	debug_handler,
 	extract::{Path, Query, State},
@@ -10,17 +9,12 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::asset::Format;
+use crate::{asset::Format, version::VersionKey};
 
 use super::{error::Result, service};
 
 pub fn router() -> Router<service::State> {
 	Router::new().route("/*path", get(asset))
-}
-
-#[derive(Deserialize)]
-struct VersionQuery {
-	version: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -31,15 +25,10 @@ struct FormatQuery {
 #[debug_handler(state = service::State)]
 async fn asset(
 	Path(path): Path<String>,
-	Query(version_query): Query<VersionQuery>,
+	version_key: VersionKey,
 	Query(format_query): Query<FormatQuery>,
-	State(version): State<service::Version>,
 	State(asset): State<service::Asset>,
 ) -> Result<impl IntoResponse> {
-	let version_key = version
-		.resolve(version_query.version.as_deref())
-		.with_context(|| format!("unknown version {:?}", version_query.version))?;
-
 	let format = format_query.format;
 
 	let bytes = asset.convert(version_key, &path, format)?;

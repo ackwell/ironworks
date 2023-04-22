@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use anyhow::Context;
 use axum::{
 	debug_handler,
 	extract::{Query, State},
@@ -11,17 +10,12 @@ use axum::{
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
-use crate::{data::LanguageString, schema, search::query};
+use crate::{data::LanguageString, schema, search::query, version::VersionKey};
 
 use super::{error::Result, service};
 
 pub fn router() -> Router<service::State> {
 	Router::new().route("/", get(search))
-}
-
-#[derive(Deserialize)]
-struct VersionQuery {
-	version: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -50,22 +44,16 @@ struct SearchResult {
 	subrow_id: u16,
 }
 
-#[allow(clippy::too_many_arguments)]
 #[debug_handler(state = service::State)]
 async fn search(
-	Query(version_query): Query<VersionQuery>,
+	version_key: VersionKey,
 	Query(search_query): Query<SearchQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
 	State(data): State<service::Data>,
 	State(schema_provider): State<service::Schema>,
 	State(search): State<service::Search>,
-	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	let version_key = version
-		.resolve(version_query.version.as_deref())
-		.with_context(|| format!("unknown version {:?}", version_query.version))?;
-
 	let language = language_query
 		.language
 		.map(Language::from)

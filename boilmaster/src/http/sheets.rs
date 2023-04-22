@@ -13,6 +13,7 @@ use crate::{
 	data::LanguageString,
 	read, schema,
 	utility::{anyhow::Anyhow, warnings::Warnings},
+	version::VersionKey,
 };
 
 use super::{
@@ -35,21 +36,11 @@ struct RowPath {
 	subrow_id: Option<u16>,
 }
 
-#[derive(Deserialize)]
-struct VersionQuery {
-	version: Option<String>,
-}
-
 #[debug_handler(state = service::State)]
 async fn sheets(
-	Query(version_query): Query<VersionQuery>,
+	version_key: VersionKey,
 	State(data): State<service::Data>,
-	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	// TODO: use a custom extractor for this shit
-	let version_key = version
-		.resolve(version_query.version.as_deref())
-		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let excel = data.version(version_key).context("data not ready")?.excel();
 
 	let list = excel.list().anyhow()?;
@@ -88,17 +79,13 @@ async fn row(
 		row_id,
 		subrow_id,
 	}): Path<RowPath>,
-	Query(version_query): Query<VersionQuery>,
+	version_key: VersionKey,
 	Query(field_filter_query): Query<FieldFilterQuery>,
 	Query(schema_query): Query<SchemaQuery>,
 	Query(language_query): Query<LanguageQuery>,
 	State(data): State<service::Data>,
 	State(schema_provider): State<service::Schema>,
-	State(version): State<service::Version>,
 ) -> Result<impl IntoResponse> {
-	let version_key = version
-		.resolve(version_query.version.as_deref())
-		.with_context(|| format!("unknown version {:?}", version_query.version))?;
 	let excel = data.version(version_key).context("data not ready")?.excel();
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
