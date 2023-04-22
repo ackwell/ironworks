@@ -142,7 +142,7 @@ fn read_texture_rgb5a1(texture: tex::Texture) -> Result<DynamicImage> {
 
 fn read_texture_argb8(texture: tex::Texture) -> Result<DynamicImage> {
 	// TODO: seems really wasteful to copy the entire image in memory just to reassign the channels. think of a better way to do this.
-	// TODO: consider writing a chunk iterator that uses exact widths rather than moving into a tuple
+	// TODO: use array_chunks once it hits stable
 	let data = texture
 		.data()
 		.iter()

@@ -4,8 +4,6 @@ use serde::{de, Deserialize};
 
 use super::{convert, error::Error};
 
-// todo: should probably put the fromstr on it here, but expose it so http can get the format and use it for mime which is http-specific
-// TODO: proper tostring impl for this?
 #[derive(Debug, Clone, Copy)]
 pub enum Format {
 	Png,
