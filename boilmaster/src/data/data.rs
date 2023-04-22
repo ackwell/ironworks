@@ -184,19 +184,22 @@ impl Data {
 }
 
 pub struct Version {
+	ironworks: Arc<Ironworks>,
 	excel: Arc<Excel<'static>>,
 }
 
 impl Version {
 	fn new(view: zipatch::View) -> Self {
-		let ironworks = Ironworks::new().with_resource(SqPack::new(view));
-		let excel = Excel::new(Arc::new(ironworks));
-		Self {
-			excel: Arc::new(excel),
-		}
+		let ironworks = Arc::new(Ironworks::new().with_resource(SqPack::new(view)));
+		let excel = Arc::new(Excel::new(ironworks.clone()));
+		Self { ironworks, excel }
+	}
+
+	pub fn ironworks(&self) -> Arc<Ironworks> {
+		self.ironworks.clone()
 	}
 
 	pub fn excel(&self) -> Arc<Excel<'static>> {
-		Arc::clone(&self.excel)
+		self.excel.clone()
 	}
 }

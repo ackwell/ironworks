@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use boilmaster::{data, http, schema, search, tracing, version};
+use boilmaster::{asset, data, http, schema, search, tracing, version};
 use figment::{
 	providers::{Env, Format, Toml},
 	Figment,
@@ -35,6 +35,7 @@ async fn main() {
 
 	let version = Arc::new(version::Manager::new(config.version).expect("TODO"));
 	let data = Arc::new(data::Data::new(config.data));
+	let asset = Arc::new(asset::Service::new(data.clone()));
 	let schema = Arc::new(schema::Provider::new(config.schema).expect("TODO: Error handling"));
 	let search = Arc::new(search::Search::new(config.search, data.clone()).expect("TODO"));
 
@@ -51,6 +52,7 @@ async fn main() {
 			shutdown_token.cancelled(),
 			config.http,
 			data.clone(),
+			asset,
 			schema,
 			search.clone(),
 			version.clone(),
