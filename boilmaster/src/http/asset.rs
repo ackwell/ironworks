@@ -1,17 +1,16 @@
 use axum::{
-	debug_handler,
-	extract::{Path, Query, State},
-	headers::ContentType,
-	http::header,
-	response::IntoResponse,
-	routing::get,
-	Router, TypedHeader,
+	debug_handler, extract::State, headers::ContentType, http::header, response::IntoResponse,
+	routing::get, Router, TypedHeader,
 };
 use serde::Deserialize;
 
 use crate::{asset::Format, version::VersionKey};
 
-use super::{error::Result, service};
+use super::{
+	error::Result,
+	extract::{Path, Query},
+	service,
+};
 
 pub fn router() -> Router<service::State> {
 	Router::new().route("/*path", get(asset))

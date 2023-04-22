@@ -1,6 +1,9 @@
 use axum::{
 	async_trait,
-	extract::{FromRef, FromRequestParts, Query},
+	extract::{
+		rejection::{PathRejection, QueryRejection},
+		FromRef, FromRequestParts,
+	},
 	http::request::Parts,
 	RequestPartsExt,
 };
@@ -41,5 +44,33 @@ where
 		})?;
 
 		Ok(version_key)
+	}
+}
+
+#[derive(FromRequestParts)]
+#[from_request(via(axum::extract::Path), rejection(Error))]
+pub struct Path<T>(pub T);
+
+impl From<PathRejection> for Error {
+	fn from(value: PathRejection) -> Self {
+		match value {
+			PathRejection::FailedToDeserializePathParams(error) => Self::Invalid(error.body_text()),
+			other => Self::Other(other.into()),
+		}
+	}
+}
+
+#[derive(FromRequestParts)]
+#[from_request(via(axum::extract::Query), rejection(Error))]
+pub struct Query<T>(pub T);
+
+impl From<QueryRejection> for Error {
+	fn from(value: QueryRejection) -> Self {
+		match value {
+			QueryRejection::FailedToDeserializeQueryString(error) => {
+				Self::Invalid(error.body_text())
+			}
+			other => Self::Other(other.into()),
+		}
 	}
 }

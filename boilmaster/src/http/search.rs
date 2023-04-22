@@ -1,18 +1,12 @@
 use std::collections::HashSet;
 
-use axum::{
-	debug_handler,
-	extract::{Query, State},
-	response::IntoResponse,
-	routing::get,
-	Json, Router,
-};
+use axum::{debug_handler, extract::State, response::IntoResponse, routing::get, Json, Router};
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
 use crate::{data::LanguageString, schema, search::query, version::VersionKey};
 
-use super::{error::Result, service};
+use super::{error::Result, extract::Query, service};
 
 pub fn router() -> Router<service::State> {
 	Router::new().route("/", get(search))

@@ -3,7 +3,6 @@ mod asset;
 mod error;
 mod extract;
 mod http;
-mod path;
 mod search;
 mod service;
 mod sheets;
