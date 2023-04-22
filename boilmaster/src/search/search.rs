@@ -32,7 +32,7 @@ pub struct SearchResult {
 }
 
 pub struct Search {
-	provider: tantivy::Provider,
+	provider: Arc<tantivy::Provider>,
 
 	data: Arc<Data>,
 }
@@ -40,7 +40,7 @@ pub struct Search {
 impl Search {
 	pub fn new(config: Config, data: Arc<Data>) -> Result<Self> {
 		Ok(Self {
-			provider: tantivy::Provider::new(config.tantivy)?,
+			provider: Arc::new(tantivy::Provider::new(config.tantivy)?),
 			data,
 		})
 	}
@@ -82,7 +82,7 @@ impl Search {
 			.collect::<Result<Vec<_>>>()?;
 
 		// Fire off the ingestion in the provider.
-		self.provider.ingest(cancel, sheets).await?;
+		Arc::clone(&self.provider).ingest(cancel, sheets).await?;
 
 		Ok(())
 	}

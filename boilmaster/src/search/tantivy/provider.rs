@@ -61,47 +61,15 @@ impl Provider {
 
 	#[tracing::instrument(skip_all)]
 	pub async fn ingest(
-		&self,
+		self: Arc<Self>,
 		cancel: CancellationToken,
-		sheets: impl IntoIterator<Item = (VersionKey, Sheet<'static, String>)>,
+		sheets: Vec<(VersionKey, Sheet<'static, String>)>,
 	) -> Result<()> {
 		let memory = self.memory;
 
-		// Bucket sheets by their index and ensure that the indices exist.
-		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
 		tracing::info!("prepare");
-		let mut sheet_map = self.sheet_map.write().expect("poisoned");
-		let mut indices = self.indicies.write().expect("poisoned");
-		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
-		for (version, sheet) in sheets {
-			let sheet_key = sheet_key(version, &sheet.name());
-			let index_key = index_key(&sheet)?;
-
-			// Ensure that the index for this sheet exists & is known.
-			if let Entry::Vacant(entry) = indices.entry(index_key) {
-				let index = Index::new(
-					&self.directory.join(format!("sheets-{index_key:x}")),
-					&sheet,
-				)?;
-				entry.insert(Arc::new(index));
-			}
-
-			// Record the index mapping for this sheet.
-			sheet_map.insert(sheet_key, index_key);
-
-			// If the sheet has already been ingested, skip adding it to the ingestion bucket.
-			if self.metadata.exists(sheet_key)? {
-				tracing::debug!(name = %sheet.name(), key = sheet_key, "exists, skipping");
-				continue;
-			}
-
-			buckets
-				.entry(index_key)
-				.or_insert_with(Vec::new)
-				.push((sheet_key, sheet));
-		}
-		drop(sheet_map);
-		drop(indices);
+		let this = Arc::clone(&self);
+		let buckets = tokio::task::spawn_blocking(move || this.prepare_indices(sheets)).await??;
 
 		// Run ingestion
 		// TODO: consider permitting concurrency here
@@ -122,6 +90,53 @@ impl Provider {
 
 		tracing::info!("complete");
 		Ok(())
+	}
+
+	// TODO: this kind of mishmashes preparing indices and bucketing sheets into one process - might be worth splitting that behavior.
+	#[allow(clippy::type_complexity)]
+	fn prepare_indices(
+		&self,
+		sheets: impl IntoIterator<Item = (VersionKey, Sheet<'static, String>)>,
+	) -> Result<HashMap<u64, Vec<(u64, Sheet<'static, String>)>>> {
+		// Bucket sheets by their index and ensure that the indices exist.
+		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
+		let mut sheet_map = self.sheet_map.write().expect("poisoned");
+		let mut indices = self.indicies.write().expect("poisoned");
+		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
+		let mut skipped = 0;
+		for (version, sheet) in sheets {
+			let sheet_key = sheet_key(version, &sheet.name());
+			let index_key = index_key(&sheet)?;
+
+			// Ensure that the index for this sheet exists & is known.
+			if let Entry::Vacant(entry) = indices.entry(index_key) {
+				let index = Index::new(
+					&self.directory.join(format!("sheets-{index_key:x}")),
+					&sheet,
+				)?;
+				entry.insert(Arc::new(index));
+			}
+
+			// Record the index mapping for this sheet.
+			sheet_map.insert(sheet_key, index_key);
+
+			// If the sheet has already been ingested, skip adding it to the ingestion bucket.
+			if self.metadata.exists(sheet_key)? {
+				skipped += 1;
+				continue;
+			}
+
+			buckets
+				.entry(index_key)
+				.or_insert_with(Vec::new)
+				.push((sheet_key, sheet));
+		}
+
+		if skipped > 0 {
+			tracing::debug!("skipped {skipped} already-ingested sheets");
+		}
+
+		Ok(buckets)
 	}
 
 	pub fn search(
