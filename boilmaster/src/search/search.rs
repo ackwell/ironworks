@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashSet, sync::Arc};
+use std::{borrow::Cow, cmp::Ordering, collections::HashSet, sync::Arc};
 
 use anyhow::Context;
 use either::Either;
@@ -146,9 +146,12 @@ impl Search {
 		// TODO: a zero-length array here implies all indices were query mismatches, or no index was queried at all. disambiguate and error out.
 		// TODO: following the introduction of warnings; that's not quite right - it might all have ended up as warnings, too. While that's possibly _fine_ for i.e. a multi-sheet query, for a _single_ sheet query, it might be more-sane to raise as a top-level error. Think about it a bit, because... yeah. That's not exactly _consistent_ but maybe it's expected?
 
-		// TODO: this just groups by index, effectively - should probably sort by score at this point
-		// Merge the results from each index into a single vector.
-		let results = index_results.map(|vec| vec.into_iter().flatten().collect::<Vec<_>>());
+		// Merge the results from each index into a single vector, sorting by score across all results.
+		let results = index_results.map(|vec| {
+			let mut results = vec.into_iter().flatten().collect::<Vec<_>>();
+			results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+			results
+		});
 
 		Ok(results)
 	}
