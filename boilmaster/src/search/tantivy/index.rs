@@ -7,7 +7,7 @@ use ironworks::{
 use tantivy::{
 	collector::TopDocs,
 	directory::MmapDirectory,
-	query::{BooleanQuery, Occur, TermQuery},
+	query::{BooleanQuery, ConstScoreQuery, Occur, TermQuery},
 	schema, Document, IndexReader, IndexSettings, ReloadPolicy, Term, UserOperation,
 };
 
@@ -93,9 +93,14 @@ impl Index {
 			(Occur::Must, query_resolver.resolve(boilmaster_query)?),
 			(
 				Occur::Must,
-				Box::new(TermQuery::new(
-					Term::from_field_u64(field_sheet_key, sheet_key),
-					schema::IndexRecordOption::Basic,
+				// Sheet key query addition is wrapped with a 0-score const scorer to
+				// avoid implementation detail spilling into actual scores.
+				Box::new(ConstScoreQuery::new(
+					Box::new(TermQuery::new(
+						Term::from_field_u64(field_sheet_key, sheet_key),
+						schema::IndexRecordOption::Basic,
+					)),
+					0.0,
 				)),
 			),
 		]);
