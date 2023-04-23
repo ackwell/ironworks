@@ -84,7 +84,17 @@ async fn row(
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	// Sanity check that the correct path was used.
-	let sheet_kind = excel.sheet(&sheet_name)?.kind()?;
+	let sheet_kind = excel
+		.sheet(&sheet_name)
+		.map_err(|error| match error {
+			ironworks::Error::NotFound(ironworks::ErrorValue::Sheet(_)) => {
+				Error::NotFound(error.to_string())
+			}
+			other => Error::Other(other.into()),
+		})?
+		.kind()
+		.anyhow()?;
+
 	if let Some(message) = match (sheet_kind, subrow_id) {
 		(exh::SheetKind::Default, Some(_)) => {
 			Some(format!("sheet {sheet_name:?} does not support sub-rows"))

@@ -59,24 +59,6 @@ impl From<search::Error> for Error {
 	}
 }
 
-impl From<ironworks::Error> for Error {
-	fn from(error: ironworks::Error) -> Self {
-		use ironworks::Error as IE;
-		match error {
-			IE::NotFound(value) => Self::NotFound(value.to_string()),
-			// TODO: should I map invalid->invalid unconditonally?
-			error => Self::Other(error.into()),
-		}
-	}
-}
-
-impl From<ironworks_schema::Error> for Error {
-	fn from(error: ironworks_schema::Error) -> Self {
-		// There _is_ a NotFound value in this error, but it doesn't really map to something you'd 404 about.
-		Self::Other(error.into())
-	}
-}
-
 impl IntoResponse for Error {
 	fn into_response(self) -> axum::response::Response {
 		// Log the full error for ISEs - we don't show this info anywhere else in case it contains something sensitive.
