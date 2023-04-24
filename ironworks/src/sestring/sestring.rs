@@ -2,6 +2,7 @@ use std::{
 	fmt,
 	io::{self, Read, Seek},
 	mem,
+	ops::Deref,
 };
 
 use binrw::{binread, BinRead, BinResult, ReadOptions};
@@ -93,6 +94,10 @@ enum Payload {
 	Text(String),
 
 	NewLine,
+	SoftHyphen,
+	NonBreakingSpace,
+	ColorId(u32),
+	EdgeColorId(u32),
 
 	Unknown(UnknownPayload),
 }
@@ -102,7 +107,9 @@ impl fmt::Display for Payload {
 		match self {
 			Self::Text(string) => string.fmt(formatter),
 			Self::NewLine => formatter.write_str("\n"),
-			Self::Unknown(_) => Ok(()),
+			Self::SoftHyphen => formatter.write_str("\u{00AD}"),
+			Self::NonBreakingSpace => formatter.write_str("\u{0020}"),
+			Self::Unknown(_) | Self::ColorId(_) | Self::EdgeColorId(_) => Ok(()),
 		}
 	}
 }
@@ -120,6 +127,10 @@ impl BinRead for Payload {
 
 		let payload = match kind {
 			0x10 => Self::NewLine,
+			0x16 => Self::SoftHyphen,
+			0x1D => Self::NonBreakingSpace,
+			0x48 => Self::ColorId(*PackedU32::read_options(reader, options, ())?),
+			0x49 => Self::EdgeColorId(*PackedU32::read_options(reader, options, ())?),
 			kind => Self::Unknown(UnknownPayload::read_options(
 				reader,
 				options,
@@ -129,6 +140,13 @@ impl BinRead for Payload {
 
 		Ok(payload)
 	}
+}
+
+#[binread]
+#[derive(Debug)]
+struct ColorIdPayload {
+	#[br(map = |value: PackedU32| *value)]
+	id: u32,
 }
 
 #[binread]
@@ -143,6 +161,14 @@ struct UnknownPayload {
 
 // TODO: Going by lumina, this is part of a more hollistic expression system that is used (i presume) in If payloads and such. Flesh out.
 struct PackedU32(u32);
+
+impl Deref for PackedU32 {
+	type Target = u32;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
 
 impl BinRead for PackedU32 {
 	type Args = ();
