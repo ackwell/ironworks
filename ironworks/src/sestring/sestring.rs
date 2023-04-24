@@ -1,18 +1,22 @@
 use std::{
 	fmt,
-	io::{Read, Seek, SeekFrom},
+	io::{self, Read, Seek},
+	mem,
 };
 
 use binrw::{binread, BinRead, BinResult, ReadOptions};
 
+const PAYLOAD_START: u8 = 0x02;
+const PAYLOAD_END: u8 = 0x03;
+
 /// Rich text format used in game data.
 #[derive(Debug)]
-pub struct SeString(Vec<Item>);
+pub struct SeString(Vec<Payload>);
 
 impl fmt::Display for SeString {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		for item in &self.0 {
-			item.fmt(formatter)?;
+		for payload in &self.0 {
+			payload.fmt(formatter)?;
 		}
 		Ok(())
 	}
@@ -26,117 +30,104 @@ impl BinRead for SeString {
 		options: &ReadOptions,
 		_args: Self::Args,
 	) -> BinResult<Self> {
-		let mut items = vec![];
+		let mut state = SeStringReader::default();
+
 		loop {
-			// TODO: I'm not a fan of this read-rewind, but it seems the sanest way to keep the understanding of null (mostly) isolated to the top level where it's actively relevant.
-			let maybe_null = u8::read_options(reader, options, ())?;
-			if maybe_null == 0 {
-				break;
+			match u8::read_options(reader, options, ()) {
+				// EOF or NULL signify the end of a SeString.
+				Err(error) if error.is_eof() => break,
+				Ok(0) => break,
+
+				// PAYLOAD_START signifies the start of non-text payload (there's a surprise!).
+				Ok(PAYLOAD_START) => {
+					// Push the current state as a payload.
+					state.push_buffer()?;
+
+					// Read the new marked payload.
+					let payload = Payload::read_options(reader, options, ())?;
+					state.payloads.push(payload);
+
+					// Ensure that the payload end marker exists.
+					let marker = u8::read_options(reader, options, ())?;
+					if marker != PAYLOAD_END {
+						return Err(binrw::Error::AssertFail {
+							pos: reader.stream_position()?,
+							message: "payload missing end marker".into(),
+						});
+					}
+				}
+
+				// All other values are treated as part of the current text payload.
+				maybe_byte => state.buffer.push(maybe_byte?),
 			}
-			reader.seek(SeekFrom::Current(-1))?;
-			items.push(Item::read_options(reader, options, ())?);
 		}
-		Ok(Self(items))
+
+		state.push_buffer()?;
+
+		Ok(Self(state.payloads))
 	}
 }
 
-const PAYLOAD_START: u8 = 0x02;
-const PAYLOAD_END: u8 = 0x03;
-
-#[binread]
-#[derive(Debug)]
-enum Item {
-	// All payloads are identified by a leading sigil. This variant must preceed
-	// Text to ensure payloads are checked first.
-	Payload(#[br(map = |container: PayloadContainer| container.payload)] Payload),
-
-	Text(#[br(parse_with = parse_text_item)] String),
+#[derive(Default)]
+struct SeStringReader {
+	payloads: Vec<Payload>,
+	buffer: Vec<u8>,
 }
 
-impl fmt::Display for Item {
-	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self {
-			Self::Payload(payload) => payload.fmt(formatter),
-			Self::Text(string) => string.fmt(formatter),
+impl SeStringReader {
+	fn push_buffer(&mut self) -> BinResult<()> {
+		if !self.buffer.is_empty() {
+			let bytes = mem::take(&mut self.buffer);
+			let string = String::from_utf8(bytes)
+				.map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
+
+			self.payloads.push(Payload::Text(string));
 		}
+
+		Ok(())
 	}
 }
 
-fn parse_text_item<R: Read + Seek>(
-	reader: &mut R,
-	options: &ReadOptions,
-	_args: (),
-) -> BinResult<String> {
-	// Collect the bytes of the string.
-	let mut bytes = vec![];
-	loop {
-		// Get the next byte. EOF or NULL signify the end of the stream, and a START
-		// signifies a payload. All other values should be treated as part of the string.
-		match u8::read_options(reader, options, ()) {
-			Ok(0) | Ok(PAYLOAD_START) => {
-				reader.seek(SeekFrom::Current(-1))?;
-				break;
-			}
-
-			other => bytes.push(other?),
-		};
-	}
-
-	let position = reader.stream_position()?;
-
-	if bytes.is_empty() {
-		return Err(binrw::Error::AssertFail {
-			pos: position,
-			message: "zero-length string".into(),
-		});
-	}
-
-	// Translate the bytes into a utf8 string, failing out early on invalid data.
-	String::from_utf8(bytes).map_err(|error| binrw::Error::Custom {
-		pos: position,
-		err: Box::new(error),
-	})
-}
-
-#[binread]
 #[derive(Debug)]
-struct PayloadContainer {
-	// Using a temp field rather tham magic to allow reuse of the const definition.
-	#[br(temp, assert(marker_start == PAYLOAD_START))]
-	marker_start: u8,
-
-	#[br(temp)]
-	kind: u8,
-
-	#[br(temp)]
-	length: PackedU32,
-
-	#[br(
-		args(kind, length.0),
-		pad_size_to = length.0,
-	)]
-	payload: Payload,
-
-	#[br(temp, assert(marker_end == PAYLOAD_END))]
-	marker_end: u8,
-}
-
-#[binread]
-#[derive(Debug)]
-#[br(import(kind: u8, length: u32))]
 enum Payload {
-	#[br(pre_assert(kind == 0x10))]
+	Text(String),
+
 	NewLine,
 
-	Unknown(#[br(args(kind, length))] UnknownPayload),
+	Unknown(UnknownPayload),
 }
 
 impl fmt::Display for Payload {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
+			Self::Text(string) => string.fmt(formatter),
 			Self::NewLine => formatter.write_str("\n"),
 			Self::Unknown(_) => Ok(()),
 		}
+	}
+}
+
+impl BinRead for Payload {
+	type Args = ();
+
+	fn read_options<R: Read + Seek>(
+		reader: &mut R,
+		options: &ReadOptions,
+		_args: Self::Args,
+	) -> BinResult<Self> {
+		let kind = u8::read_options(reader, options, ())?;
+		let length = PackedU32::read_options(reader, options, ())?.0;
+
+		let payload = match kind {
+			0x10 => Self::NewLine,
+			kind => Self::Unknown(UnknownPayload::read_options(
+				reader,
+				options,
+				(kind, length),
+			)?),
+		};
+
+		Ok(payload)
 	}
 }
 
