@@ -48,7 +48,7 @@ const PAYLOAD_END: u8 = 0x03;
 enum Item {
 	// All payloads are identified by a leading sigil. This variant must preceed
 	// Text to ensure payloads are checked first.
-	Payload(PayloadContainer),
+	Payload(#[br(map = |container: PayloadContainer| container.payload)] Payload),
 
 	Text(#[br(parse_with = parse_text_item)] String),
 }
@@ -56,7 +56,7 @@ enum Item {
 impl fmt::Display for Item {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
-			Self::Payload(_) => Ok(()),
+			Self::Payload(payload) => payload.fmt(formatter),
 			Self::Text(string) => string.fmt(formatter),
 		}
 	}
@@ -105,17 +105,49 @@ struct PayloadContainer {
 	#[br(temp, assert(marker_start == PAYLOAD_START))]
 	marker_start: u8,
 
-	_kind: u8,
+	#[br(temp)]
+	kind: u8,
 
 	#[br(temp)]
 	length: PackedU32,
 
-	// temp
-	#[br(count(length.0))]
-	_data: Vec<u8>,
+	#[br(
+		args(kind, length.0),
+		pad_size_to = length.0,
+	)]
+	payload: Payload,
 
 	#[br(temp, assert(marker_end == PAYLOAD_END))]
 	marker_end: u8,
+}
+
+#[binread]
+#[derive(Debug)]
+#[br(import(kind: u8, length: u32))]
+enum Payload {
+	#[br(pre_assert(kind == 0x10))]
+	NewLine,
+
+	Unknown(#[br(args(kind, length))] UnknownPayload),
+}
+
+impl fmt::Display for Payload {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::NewLine => formatter.write_str("\n"),
+			Self::Unknown(_) => Ok(()),
+		}
+	}
+}
+
+#[binread]
+#[derive(Debug)]
+#[br(import(kind: u8, length: u32))]
+struct UnknownPayload {
+	#[br(calc = kind)]
+	kind: u8,
+	#[br(count(length))]
+	data: Vec<u8>,
 }
 
 // TODO: Going by lumina, this is part of a more hollistic expression system that is used (i presume) in If payloads and such. Flesh out.
