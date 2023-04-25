@@ -106,7 +106,8 @@ impl fmt::Display for Payload {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::Text(string) => string.fmt(formatter),
-			Self::If(_, _, _) => Ok(()),
+			// TODO: this is omitting potentially relevant data by skipping the false branch - look into exposing a means to "format" sestring with actual values and so on.
+			Self::If(_expr, branch_true, _branch_false) => branch_true.fmt(formatter),
 			Self::NewLine => formatter.write_str("\n"),
 			Self::SoftHyphen => formatter.write_str("\u{00AD}"),
 			Self::NonBreakingSpace => formatter.write_str("\u{0020}"),
@@ -190,6 +191,17 @@ impl Expression {
 				pos: reader.stream_position()?,
 				message: format!("unexpected expression kind {other:?}, expected U32"),
 			}),
+		}
+	}
+}
+
+impl fmt::Display for Expression {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::U32(value) => value.fmt(formatter),
+			Self::String(value) => value.fmt(formatter),
+
+			_ => Ok(()),
 		}
 	}
 }
