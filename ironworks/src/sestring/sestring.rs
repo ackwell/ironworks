@@ -2,7 +2,6 @@ use std::{
 	fmt,
 	io::{self, Read, Seek},
 	mem,
-	ops::Deref,
 };
 
 use binrw::{binread, BinRead, BinResult, ReadOptions};
@@ -31,7 +30,7 @@ impl BinRead for SeString {
 		options: &ReadOptions,
 		_args: Self::Args,
 	) -> BinResult<Self> {
-		let mut state = SeStringReader::default();
+		let mut state = SeStringReadState::default();
 
 		loop {
 			match u8::read_options(reader, options, ()) {
@@ -70,12 +69,12 @@ impl BinRead for SeString {
 }
 
 #[derive(Default)]
-struct SeStringReader {
+struct SeStringReadState {
 	payloads: Vec<Payload>,
 	buffer: Vec<u8>,
 }
 
-impl SeStringReader {
+impl SeStringReadState {
 	fn push_buffer(&mut self) -> BinResult<()> {
 		if !self.buffer.is_empty() {
 			let bytes = mem::take(&mut self.buffer);
@@ -123,14 +122,14 @@ impl BinRead for Payload {
 		_args: Self::Args,
 	) -> BinResult<Self> {
 		let kind = u8::read_options(reader, options, ())?;
-		let length = PackedU32::read_options(reader, options, ())?.0;
+		let length = Expression::read_u32(reader, options)?;
 
 		let payload = match kind {
 			0x10 => Self::NewLine,
 			0x16 => Self::SoftHyphen,
 			0x1D => Self::NonBreakingSpace,
-			0x48 => Self::ColorId(*PackedU32::read_options(reader, options, ())?),
-			0x49 => Self::EdgeColorId(*PackedU32::read_options(reader, options, ())?),
+			0x48 => Self::ColorId(Expression::read_u32(reader, options)?),
+			0x49 => Self::EdgeColorId(Expression::read_u32(reader, options)?),
 			kind => Self::Unknown(UnknownPayload::read_options(
 				reader,
 				options,
@@ -144,13 +143,6 @@ impl BinRead for Payload {
 
 #[binread]
 #[derive(Debug)]
-struct ColorIdPayload {
-	#[br(map = |value: PackedU32| *value)]
-	id: u32,
-}
-
-#[binread]
-#[derive(Debug)]
 #[br(import(kind: u8, length: u32))]
 struct UnknownPayload {
 	#[br(calc = kind)]
@@ -159,18 +151,32 @@ struct UnknownPayload {
 	data: Vec<u8>,
 }
 
-// TODO: Going by lumina, this is part of a more hollistic expression system that is used (i presume) in If payloads and such. Flesh out.
-struct PackedU32(u32);
+#[derive(Debug)]
+enum Expression {
+	U32(u32),
+}
 
-impl Deref for PackedU32 {
-	type Target = u32;
+impl Expression {
+	// Utility for the commonly used read-expression-and-expect-it-to-be-a-number case.
+	fn read_u32<R: Read + Seek>(reader: &mut R, options: &ReadOptions) -> BinResult<u32> {
+		let expression = Self::read_options(reader, options, ())?;
+		match expression.as_u32() {
+			Some(value) => Ok(value),
+			None => Err(binrw::Error::AssertFail {
+				pos: reader.stream_position()?,
+				message: format!("unexpected expression kind {expression:?}, expected U32"),
+			}),
+		}
+	}
 
-	fn deref(&self) -> &Self::Target {
-		&self.0
+	fn as_u32(&self) -> Option<u32> {
+		match self {
+			Self::U32(value) => Some(*value),
+		}
 	}
 }
 
-impl BinRead for PackedU32 {
+impl BinRead for Expression {
 	type Args = ();
 
 	fn read_options<R: Read + Seek>(
@@ -178,29 +184,35 @@ impl BinRead for PackedU32 {
 		options: &ReadOptions,
 		_args: Self::Args,
 	) -> BinResult<Self> {
-		let marker = u8::read_options(reader, options, ())?;
+		let kind = u8::read_options(reader, options, ())?;
 
-		let value = match marker {
-			0x01..=0xCF => u32::from(marker - 1),
+		let expression = match kind {
+			0x01..=0xCF => Self::U32(u32::from(kind - 1)),
 
-			0xF0..=0xFD => {
-				let flags = (marker + 1) & 0b1111;
-				let mut bytes = [0; 4];
-				for i in (0..=3).rev() {
-					if (flags & (1 << i)) == 0 {
-						continue;
-					}
-					bytes[i] = u8::read_options(reader, options, ())?;
-				}
-				u32::from_le_bytes(bytes)
-			}
+			0xF0..=0xFD => Self::U32(read_packed_u32(kind, reader, options)?),
 
 			other => Err(binrw::Error::AssertFail {
 				pos: reader.stream_position()?,
-				message: format!("unexpected marker packed u32 marker {other}"),
+				message: format!("unknown expression kind {other}"),
 			})?,
 		};
 
-		Ok(Self(value))
+		Ok(expression)
 	}
+}
+
+fn read_packed_u32<R: Read + Seek>(
+	kind: u8,
+	reader: &mut R,
+	options: &ReadOptions,
+) -> BinResult<u32> {
+	let flags = (kind + 1) & 0b1111;
+	let mut bytes = [0; 4];
+	for (i, byte) in bytes.iter_mut().enumerate() {
+		if (flags & (1 << i)) == 0 {
+			continue;
+		}
+		*byte = u8::read_options(reader, options, ())?;
+	}
+	Ok(u32::from_be_bytes(bytes))
 }
