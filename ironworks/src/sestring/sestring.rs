@@ -1,6 +1,6 @@
 use std::{
 	fmt,
-	io::{self, Read, Seek},
+	io::{self, Read, Seek, SeekFrom},
 	mem,
 };
 
@@ -124,6 +124,8 @@ impl BinRead for Payload {
 		let kind = u8::read_options(reader, options, ())?;
 		let length = Expression::read_u32(reader, options)?;
 
+		let position = reader.stream_position()?;
+
 		let payload = match kind {
 			0x10 => Self::NewLine,
 			0x16 => Self::SoftHyphen,
@@ -136,6 +138,8 @@ impl BinRead for Payload {
 				(kind, length),
 			)?),
 		};
+
+		reader.seek(SeekFrom::Start(position + u64::from(length)))?;
 
 		Ok(payload)
 	}
