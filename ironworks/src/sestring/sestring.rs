@@ -1,6 +1,6 @@
 use std::{
 	fmt,
-	io::{self, Read, Seek, SeekFrom},
+	io::{self, Cursor, Read, Seek, SeekFrom},
 	mem,
 };
 
@@ -92,6 +92,7 @@ impl SeStringReadState {
 enum Payload {
 	Text(String),
 
+	If(Expression, Expression, Expression),
 	NewLine,
 	SoftHyphen,
 	NonBreakingSpace,
@@ -105,6 +106,7 @@ impl fmt::Display for Payload {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::Text(string) => string.fmt(formatter),
+			Self::If(_, _, _) => Ok(()),
 			Self::NewLine => formatter.write_str("\n"),
 			Self::SoftHyphen => formatter.write_str("\u{00AD}"),
 			Self::NonBreakingSpace => formatter.write_str("\u{0020}"),
@@ -127,6 +129,11 @@ impl BinRead for Payload {
 		let position = reader.stream_position()?;
 
 		let payload = match kind {
+			0x08 => Self::If(
+				Expression::read_options(reader, options, ())?,
+				Expression::read_options(reader, options, ())?,
+				Expression::read_options(reader, options, ())?,
+			),
 			0x10 => Self::NewLine,
 			0x16 => Self::SoftHyphen,
 			0x1D => Self::NonBreakingSpace,
@@ -158,24 +165,31 @@ struct UnknownPayload {
 #[derive(Debug)]
 enum Expression {
 	U32(u32),
+	String(SeString),
+
+	Gte(Box<Expression>, Box<Expression>),
+	Gt(Box<Expression>, Box<Expression>),
+	Lte(Box<Expression>, Box<Expression>),
+	Lt(Box<Expression>, Box<Expression>),
+	Eq(Box<Expression>, Box<Expression>),
+	Ne(Box<Expression>, Box<Expression>),
+
+	IntegerParameter(Box<Expression>),
+	PlayerParameter(Box<Expression>),
+	StringParameter(Box<Expression>),
+	ObjectParameter(Box<Expression>),
 }
 
 impl Expression {
 	// Utility for the commonly used read-expression-and-expect-it-to-be-a-number case.
 	fn read_u32<R: Read + Seek>(reader: &mut R, options: &ReadOptions) -> BinResult<u32> {
 		let expression = Self::read_options(reader, options, ())?;
-		match expression.as_u32() {
-			Some(value) => Ok(value),
-			None => Err(binrw::Error::AssertFail {
+		match expression {
+			Self::U32(value) => Ok(value),
+			other => Err(binrw::Error::AssertFail {
 				pos: reader.stream_position()?,
-				message: format!("unexpected expression kind {expression:?}, expected U32"),
+				message: format!("unexpected expression kind {other:?}, expected U32"),
 			}),
-		}
-	}
-
-	fn as_u32(&self) -> Option<u32> {
-		match self {
-			Self::U32(value) => Some(*value),
 		}
 	}
 }
@@ -190,10 +204,27 @@ impl BinRead for Expression {
 	) -> BinResult<Self> {
 		let kind = u8::read_options(reader, options, ())?;
 
+		let mut read_expr =
+			|| -> BinResult<_> { Ok(Box::new(Expression::read_options(reader, options, ())?)) };
+
 		let expression = match kind {
 			0x01..=0xCF => Self::U32(u32::from(kind - 1)),
 
+			0xE0 => Self::Gte(read_expr()?, read_expr()?),
+			0xE1 => Self::Gt(read_expr()?, read_expr()?),
+			0xE2 => Self::Lte(read_expr()?, read_expr()?),
+			0xE3 => Self::Lt(read_expr()?, read_expr()?),
+			0xE4 => Self::Eq(read_expr()?, read_expr()?),
+			0xE5 => Self::Ne(read_expr()?, read_expr()?),
+
+			0xE8 => Self::IntegerParameter(read_expr()?),
+			0xE9 => Self::PlayerParameter(read_expr()?),
+			0xEA => Self::StringParameter(read_expr()?),
+			0xEB => Self::ObjectParameter(read_expr()?),
+
 			0xF0..=0xFD => Self::U32(read_packed_u32(kind, reader, options)?),
+
+			0xFF => Self::String(read_inline_sestring(reader, options)?),
 
 			other => Err(binrw::Error::AssertFail {
 				pos: reader.stream_position()?,
@@ -212,11 +243,23 @@ fn read_packed_u32<R: Read + Seek>(
 ) -> BinResult<u32> {
 	let flags = (kind + 1) & 0b1111;
 	let mut bytes = [0; 4];
-	for (i, byte) in bytes.iter_mut().enumerate() {
+	for i in (0..=3).rev() {
 		if (flags & (1 << i)) == 0 {
 			continue;
 		}
-		*byte = u8::read_options(reader, options, ())?;
+		bytes[i] = u8::read_options(reader, options, ())?;
 	}
-	Ok(u32::from_be_bytes(bytes))
+	Ok(u32::from_le_bytes(bytes))
+}
+
+fn read_inline_sestring<R: Read + Seek>(
+	reader: &mut R,
+	options: &ReadOptions,
+) -> BinResult<SeString> {
+	let length = Expression::read_u32(reader, options)?;
+	let mut buffer = Cursor::new(Vec::with_capacity(length.try_into().unwrap()));
+	io::copy(&mut reader.take(length.into()), &mut buffer)?;
+	buffer.set_position(0);
+	let sestring = SeString::read_options(&mut buffer, options, ())?;
+	Ok(sestring)
 }
