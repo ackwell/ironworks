@@ -1,10 +1,11 @@
 use std::{
+	borrow::Cow,
 	fmt,
 	io::{self, Cursor, Read, Seek},
 	mem,
 };
 
-use binrw::{binread, BinRead, BinResult, ReadOptions};
+use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
 
 use crate::utility::TakeSeekableExt;
 
@@ -13,14 +14,41 @@ const PAYLOAD_END: u8 = 0x03;
 
 /// Rich text format used in game data.
 #[derive(Debug)]
-pub struct SeString(Vec<Payload>);
+pub struct SeString(Vec<Item>);
+
+impl Resolve for SeString {
+	fn resolve(&self, context: &ResolutionContext) -> Value {
+		// sestring should resolve to a string ergo resolving it should expect all values to be strings - numeric params are presumably going to be wrapped in a formatting call like number/float/digit
+		let string = self
+			.0
+			.iter()
+			.map(|item| match item {
+				Item::Text(text) => Cow::Borrowed(text.as_str()),
+				Item::Payload(payload) => {
+					let value = payload.resolve(context);
+					match value {
+						Value::String(string) => string,
+						Value::U32(_) => todo!(), //?
+					}
+				}
+			})
+			.collect::<String>();
+
+		Value::String(string.into())
+	}
+}
 
 impl fmt::Display for SeString {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		for payload in &self.0 {
-			payload.fmt(formatter)?;
+		// for payload in &self.0 {
+		// 	payload.fmt(formatter)?;
+		// }
+		let value = self.resolve(&ResolutionContext::default());
+		// should this have "as_" methods"?
+		match value {
+			Value::String(string) => string.fmt(formatter),
+			_ => todo!("what do"),
 		}
-		Ok(())
 	}
 }
 
@@ -46,8 +74,9 @@ impl BinRead for SeString {
 					state.push_buffer()?;
 
 					// Read the new marked payload.
-					let payload = Payload::read_options(reader, options, ())?;
-					state.payloads.push(payload);
+					// let payload = Payload::read_options(reader, options, ())?;
+					let payload = Payload2::read_options(reader, options, ())?;
+					state.payloads.push(Item::Payload(payload));
 
 					// Ensure that the payload end marker exists.
 					let marker = u8::read_options(reader, options, ())?;
@@ -72,7 +101,7 @@ impl BinRead for SeString {
 
 #[derive(Default)]
 struct SeStringReadState {
-	payloads: Vec<Payload>,
+	payloads: Vec<Item>,
 	buffer: Vec<u8>,
 }
 
@@ -83,12 +112,184 @@ impl SeStringReadState {
 			let string = String::from_utf8(bytes)
 				.map_err(|error| io::Error::new(io::ErrorKind::Other, error))?;
 
-			self.payloads.push(Payload::Text(string));
+			self.payloads.push(Item::Text(string));
 		}
 
 		Ok(())
 	}
 }
+
+// TESTING IDEAS
+// ------
+
+// these names are a bit dumb and should probably be tweaked to be invocative of it being a function call interface. in saying that though, they _are_ called payloads by most other libs, so
+
+// this is shit. maybe this should be payload and payload2 should be "call" or something
+#[derive(Debug)]
+enum Item {
+	Text(String),
+	Payload(Payload2),
+}
+
+// todo; if i take this approach, it probably shouldn't impl display - i should implement a render pathway through the payload trait, and the top-level sestring should impl display by providing a default context to it's own render path
+// impl fmt::Display for Item {
+// 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+// 		match self {
+// 			Self::Text(string) => string.fmt(formatter),
+// 			Self::Payload(payload) => payload.fmt(formatter),
+// 		}
+// 	}
+// }
+
+// #[binread]
+#[derive(Debug)]
+struct Payload2 {
+	kind: PayloadKind,
+	arguments: Vec<Expression>,
+}
+
+impl BinRead for Payload2 {
+	type Args = ();
+
+	fn read_options<R: Read + Seek>(
+		reader: &mut R,
+		options: &ReadOptions,
+		_args: Self::Args,
+	) -> BinResult<Self> {
+		let kind = PayloadKind::read_options(reader, options, ())?;
+		let length = Expression::read_u32(reader, options)?;
+
+		let mut payload_content = reader.take_seekable(length.into())?;
+		let arguments: Vec<Expression> = until_eof(&mut payload_content, options, ())?;
+
+		Ok(Self { kind, arguments })
+	}
+}
+
+impl Resolve for Payload2 {
+	fn resolve(&self, context: &ResolutionContext) -> Value {
+		// todo some manner of overridding kind impl mapping would be valuable for i.e. replacing color lookups with html spans or whatever
+		let call = self
+			.kind
+			.to_impl()
+			.expect("what do i do about default impls?");
+		call.resolve(context)
+	}
+}
+
+// impl fmt::Display for Payload2 {
+// 	fn fmt(&self, _formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+// 		Ok(())
+// 	}
+// }
+
+#[rustfmt::skip]
+#[non_exhaustive]
+#[binread]
+#[derive(Debug)]
+enum PayloadKind {
+	#[br(magic = 0x06_u8)] SetResetTime,           // (hour: number, day: number?)
+	#[br(magic = 0x07_u8)] SetTime,                // (time?: number)
+	#[br(magic = 0x08_u8)] If,                     // (condition: number, branch_true: expr, branch_false: expr)
+	#[br(magic = 0x09_u8)] Switch,                 // (value: number, ..branch: expr[])
+	#[br(magic = 0x0A_u8)] PlayerName,             // (?)
+	#[br(magic = 0x0F_u8)] IfSelf,                 // (playerid: number, branch_true: expr, branch_false: expr)
+	#[br(magic = 0x10_u8)] NewLine,                //
+	#[br(magic = 0x12_u8)] Icon,                   // (iconid: number)
+	#[br(magic = 0x13_u8)] Color,                  // (color: number | reset)
+	#[br(magic = 0x14_u8)] EdgeColor,              // (color: number | reset)
+	#[br(magic = 0x16_u8)] SoftHyphen,             //
+	#[br(magic = 0x17_u8)] PageSeparator,          //
+	#[br(magic = 0x19_u8)] Bold,                   // (bound: number)
+	#[br(magic = 0x1A_u8)] Italic,                 // (bound: number)
+	#[br(magic = 0x1B_u8)] Edge,                   // (bound: number)
+	#[br(magic = 0x1C_u8)] Shadow,                 // (bound: number)
+	#[br(magic = 0x1D_u8)] NonBreakingSpace,       //
+	#[br(magic = 0x1E_u8)] Icon2,                  // (iconid: number)
+	#[br(magic = 0x1F_u8)] Dash,                   //
+	#[br(magic = 0x20_u8)] Number,                 // (value: number)
+	#[br(magic = 0x22_u8)] Kilo,                   // (value: number, separator: string)
+	#[br(magic = 0x24_u8)] Second,                 // (value: number)
+	#[br(magic = 0x26_u8)] Float,                  // (value: number, radix: number, separator: string, ?: number?)
+	#[br(magic = 0x28_u8)] Sheet,                  // (sheet: string, row: number, column: number?, parameter: ?)
+	#[br(magic = 0x29_u8)] String,                 // TODO: fill out the rest of this or whatever
+	#[br(magic = 0x2B_u8)] Head,                   //
+	#[br(magic = 0x2C_u8)] Split,                  //
+	#[br(magic = 0x2D_u8)] HeadAll,                //
+	#[br(magic = 0x2E_u8)] AutoTranslate,          //
+	#[br(magic = 0x2F_u8)] Lower,                  //
+	#[br(magic = 0x30_u8)] NounJa,                 //
+	#[br(magic = 0x31_u8)] NounEn,                 //
+	#[br(magic = 0x32_u8)] NounDe,                 //
+	#[br(magic = 0x33_u8)] NounFr,                 //
+	#[br(magic = 0x34_u8)] NounZh,                 //
+	#[br(magic = 0x40_u8)] LowerHead,              //
+	#[br(magic = 0x48_u8)] ColorId,                //
+	#[br(magic = 0x49_u8)] EdgeColorId,            //
+	#[br(magic = 0x4A_u8)] Pronounciation,         //
+	#[br(magic = 0x50_u8)] Digit,                  //
+	#[br(magic = 0x51_u8)] Ordinal,                //
+	#[br(magic = 0x60_u8)] Sound,                  //
+	#[br(magic = 0x61_u8)] LevelPos,               //
+
+	Unknown(u8),
+}
+
+impl PayloadKind {
+	// todo: not sure if this should be on the kind or the pl2
+	fn to_impl(&self) -> Option<&dyn Resolve> {
+		let payload = match self {
+			Self::NewLine => &NewLinePayload2,
+			_ => todo!(),
+		};
+
+		Some(payload)
+	}
+}
+
+// note; ideally i want to flatten some of this, somewhat. item -> payload -> expression seems... difficult, especially when expressions resolve to arguments too. realistically, nested calls such as `head(playername())` are being treated as `head(string([playername()]))`, so is there some way to merge the _sestring_ concept with expressions such that we cut off the top/bottom of the tree instead of something in the middle? proabably easiest way to do that would be to remove sestring and make expression::string hold the vec directly, then return an expression directly. not sure i like that though. it does seem pretty clean conceptually though. can expose a """sestring""" publicly that just wraps an expression if it's a huge issue
+
+// so the idea is this is what provides parameters, as well as stores state such as set time
+struct ResolutionContext {}
+
+impl Default for ResolutionContext {
+	fn default() -> Self {
+		Self {}
+	}
+}
+
+// this needs an argument array but non-payloads don't care about arguments - perhaps payload is a seperate trait?
+trait Resolve {
+	fn resolve(&self, context: &ResolutionContext) -> Value;
+}
+
+// impl fmt::Display for dyn PayloadTraitThing {
+// 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+// 		// get render context default and use that to render self
+// 		self.some_name(/*ctx */);
+// 		todo!()
+// 	}
+// }
+
+struct NewLinePayload2;
+
+impl Resolve for NewLinePayload2 {
+	fn resolve(&self, context: &ResolutionContext) -> Value {
+		// so this is where render would execute
+		// need to look into an ext trait for vec<expr> to extract a tuple of resolved args.
+		// check binrw impl on how to make an expanding macro for that.
+		Value::String(Cow::Borrowed("\n"))
+	}
+}
+
+// so if expressions are the input, then values are the output
+enum Value {
+	U32(u32),
+	String(Cow<'static, str>),
+}
+
+// ------
+// ENDTEST
 
 // TODO: group these properly
 // TODO: these, bar text which isn't really a payload, are more like function calls, and while i've just given them arbitrary expression values, most of them take a specific array of integer and string params. would be good to encode that in some way - and given this structure, i'm honestly leaning more and more towards seperating text out of payloads.
