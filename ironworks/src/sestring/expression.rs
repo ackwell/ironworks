@@ -1,8 +1,11 @@
-use std::io::{self, Cursor, Read, Seek};
+use std::{
+	borrow::Cow,
+	io::{self, Cursor, Read, Seek},
+};
 
 use binrw::{BinRead, BinResult, ReadOptions};
 
-use super::SeString;
+use super::{context::Context, SeString};
 
 #[derive(Debug)]
 pub enum Expression {
@@ -37,6 +40,21 @@ pub enum Expression {
 	PlayerParameter(Box<Expression>),
 	StringParameter(Box<Expression>),
 	ObjectParameter(Box<Expression>),
+}
+
+pub enum Value<'a> {
+	U32(u32),
+	String(Cow<'a, str>),
+}
+
+impl Expression {
+	pub fn resolve(&self, context: &mut Context) -> Value {
+		match self {
+			Self::U32(value) => Value::U32(*value),
+			Self::String(string) => Value::String(string.resolve(context)),
+			other => todo!("resolve expression kind {other:?}"),
+		}
+	}
 }
 
 impl Expression {

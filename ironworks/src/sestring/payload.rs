@@ -1,4 +1,15 @@
+use std::borrow::Cow;
+
 use binrw::binread;
+
+use super::{
+	context::Context,
+	expression::{Expression, Value},
+};
+
+pub trait Payload {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Cow<'_, str>;
+}
 
 #[rustfmt::skip]
 #[non_exhaustive]
@@ -50,4 +61,31 @@ pub enum Kind {
 	#[br(magic = 0x61_u8)] LevelPos,
 
 	Unknown(u8),
+}
+
+impl Kind {
+	pub fn default_payload(&self) -> &dyn Payload {
+		match self {
+			// TODO: others
+			_ => &Fallback,
+		}
+	}
+}
+
+struct Fallback;
+
+impl Payload for Fallback {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Cow<'_, str> {
+		// Given this is a fallback and therefore we do not know the semantics of
+		// the arguments, err to collecting all valid string arguments and returning as-is.
+		let string = arguments
+			.iter()
+			.filter_map(|argument| match argument.resolve(context) {
+				Value::String(string) => Some(string),
+				Value::U32(_) => None,
+			})
+			.collect::<String>();
+
+		Cow::Owned(string)
+	}
 }

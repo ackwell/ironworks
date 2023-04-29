@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	io::{self, Read, Seek},
 	mem,
 };
@@ -7,28 +8,64 @@ use binrw::{until_eof, BinRead, BinResult, ReadOptions};
 
 use crate::utility::TakeSeekableExt;
 
-use super::{expression::Expression, payload::Kind};
+use super::{context::Context, expression::Expression, payload::Kind};
 
 const PAYLOAD_START: u8 = 0x02;
 const PAYLOAD_END: u8 = 0x03;
 
 // TEMPORARY
 impl std::fmt::Display for SeString {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		Ok(())
+	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let result = self.resolve(&mut Context::default());
+		result.fmt(formatter)
 	}
 }
 
 #[derive(Debug)]
 pub struct SeString(Vec<Segment>);
 
+impl SeString {
+	// TODO: Consider if I can internally use Cows to avoid string building until as late as possible
+	// TODO: should this be publicly accessible outside the module? i'm tempted to say yes, but think on it.
+	pub(super) fn resolve(&self, context: &mut Context) -> Cow<'_, str> {
+		let Self(segments) = self;
+
+		// Happy path - single segment can be treated as a pass-through.
+		if let [first] = &segments[..] {
+			return first.resolve(context);
+		}
+
+		// More than one segment, collect resolved segments into a string.
+		let string = segments
+			.iter()
+			.map(|segment| segment.resolve(context))
+			.collect::<String>();
+
+		Cow::Owned(string)
+	}
+}
+
 #[derive(Debug)]
 enum Segment {
 	Text(String),
+	// TODO: consider if this should have a payload container struct rather than struct variant
 	Payload {
 		kind: Kind,
 		arguments: Vec<Expression>,
 	},
+}
+
+impl Segment {
+	fn resolve(&self, context: &mut Context) -> Cow<'_, str> {
+		match self {
+			Self::Text(string) => Cow::Borrowed(string.as_ref()),
+			Self::Payload { kind, arguments } => {
+				// TODO: check the context for a provided impl first?
+				let payload = kind.default_payload();
+				payload.resolve(arguments, context)
+			}
+		}
+	}
 }
 
 impl BinRead for SeString {
