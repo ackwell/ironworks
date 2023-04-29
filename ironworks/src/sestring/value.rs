@@ -2,11 +2,16 @@ use crate::{error::Result, Error, ErrorValue};
 
 use super::{context::Context, expression::Expression};
 
-// TODO: this should probably go in a seperate module
 #[derive(Debug)]
 pub enum Value {
 	U32(u32),
 	String(String),
+}
+
+impl Value {
+	/// Representation of a u32-kind unknown value, used as the default value for
+	/// unspecified parameters. It is treated as an always-successful condition.
+	pub const UNKNOWN: u32 = u32::MAX;
 }
 
 impl TryFrom<Value> for u32 {

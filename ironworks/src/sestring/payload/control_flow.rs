@@ -9,11 +9,16 @@ pub struct IfSelf;
 
 impl Payload for IfSelf {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
-		let (_player_id, branch_true, _branch_false) =
+		let (player_id, branch_true, branch_false) =
 			arguments.resolve::<(u32, String, String)>(context)?;
 
-		// TODO: this is just assuming that every player id is the player - i'll need to decide how to handle this conceptually - maybe a faux `IfSelf::PLAYER_ID`? but that'd mean assuming which param is the player ID, which isn't safe
+		// Both parameters and the player ID on the context default to Value::UNKNOWN,
+		// so this effectively will always branch to true unless configuration is provided.
+		let branch = match player_id == context.player_id() {
+			true => branch_true,
+			false => branch_false,
+		};
 
-		Ok(branch_true)
+		Ok(branch)
 	}
 }
