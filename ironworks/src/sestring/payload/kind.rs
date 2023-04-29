@@ -1,7 +1,7 @@
 use binrw::binread;
 
 use super::{
-	character::NewLine,
+	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::IfSelf,
 	payload::{Fallback, Payload},
 	player::PlayerName,
@@ -75,7 +75,10 @@ pub enum Kind {
 impl Kind {
 	pub fn default_payload(&self) -> &dyn Payload {
 		match self {
-			Self::NewLine => &NewLine,
+			Self::NewLine | Self::PageSeparator => &NEW_LINE,
+			Self::SoftHyphen => &SOFT_HYPHEN,
+			Self::NonBreakingSpace => &NON_BREAKING_SPACE,
+			Self::Dash => &DASH,
 
 			Self::PlayerName => &PlayerName,
 
