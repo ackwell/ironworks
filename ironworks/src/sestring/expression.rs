@@ -5,6 +5,8 @@ use std::{
 
 use binrw::{BinRead, BinResult, ReadOptions};
 
+use crate::error::Result;
+
 use super::{context::Context, SeString};
 
 #[derive(Debug)]
@@ -48,12 +50,14 @@ pub enum Value<'a> {
 }
 
 impl Expression {
-	pub fn resolve(&self, context: &mut Context) -> Value {
-		match self {
+	pub fn resolve(&self, context: &mut Context) -> Result<Value> {
+		let value = match self {
 			Self::U32(value) => Value::U32(*value),
-			Self::String(string) => Value::String(string.resolve(context)),
+			Self::String(string) => Value::String(string.resolve(context)?),
 			other => todo!("resolve expression kind {other:?}"),
-		}
+		};
+
+		Ok(value)
 	}
 }
 

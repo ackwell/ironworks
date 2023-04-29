@@ -6,7 +6,7 @@ use std::{
 
 use binrw::{until_eof, BinRead, BinResult, ReadOptions};
 
-use crate::utility::TakeSeekableExt;
+use crate::{error::Result, utility::TakeSeekableExt};
 
 use super::{context::Context, expression::Expression, payload::Kind};
 
@@ -16,7 +16,9 @@ const PAYLOAD_END: u8 = 0x03;
 // TEMPORARY
 impl std::fmt::Display for SeString {
 	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let result = self.resolve(&mut Context::default());
+		let result = self
+			.resolve(&mut Context::default())
+			.map_err(|_| std::fmt::Error)?;
 		result.fmt(formatter)
 	}
 }
@@ -27,7 +29,7 @@ pub struct SeString(Vec<Segment>);
 impl SeString {
 	// TODO: Consider if I can internally use Cows to avoid string building until as late as possible
 	// TODO: should this be publicly accessible outside the module? i'm tempted to say yes, but think on it.
-	pub(super) fn resolve(&self, context: &mut Context) -> Cow<'_, str> {
+	pub(super) fn resolve(&self, context: &mut Context) -> Result<Cow<'_, str>> {
 		let Self(segments) = self;
 
 		// Happy path - single segment can be treated as a pass-through.
@@ -39,9 +41,9 @@ impl SeString {
 		let string = segments
 			.iter()
 			.map(|segment| segment.resolve(context))
-			.collect::<String>();
+			.collect::<Result<String>>()?;
 
-		Cow::Owned(string)
+		Ok(Cow::Owned(string))
 	}
 }
 
@@ -56,15 +58,17 @@ enum Segment {
 }
 
 impl Segment {
-	fn resolve(&self, context: &mut Context) -> Cow<'_, str> {
-		match self {
+	fn resolve(&self, context: &mut Context) -> Result<Cow<'_, str>> {
+		let value = match self {
 			Self::Text(string) => Cow::Borrowed(string.as_ref()),
 			Self::Payload { kind, arguments } => {
 				// TODO: check the context for a provided impl first?
 				let payload = kind.default_payload();
-				payload.resolve(arguments, context)
+				payload.resolve(arguments, context)?
 			}
-		}
+		};
+
+		Ok(value)
 	}
 }
 

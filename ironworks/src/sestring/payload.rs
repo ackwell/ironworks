@@ -2,13 +2,15 @@ use std::borrow::Cow;
 
 use binrw::binread;
 
+use crate::{error::Result, Error, ErrorValue};
+
 use super::{
 	context::Context,
 	expression::{Expression, Value},
 };
 
 pub trait Payload {
-	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Cow<'_, str>;
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<Cow<'_, str>>;
 }
 
 #[rustfmt::skip]
@@ -66,7 +68,7 @@ pub enum Kind {
 impl Kind {
 	pub fn default_payload(&self) -> &dyn Payload {
 		match self {
-			// TODO: others
+			Self::NewLine => &NewLine,
 			_ => &Fallback,
 		}
 	}
@@ -75,17 +77,34 @@ impl Kind {
 struct Fallback;
 
 impl Payload for Fallback {
-	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Cow<'_, str> {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<Cow<'_, str>> {
 		// Given this is a fallback and therefore we do not know the semantics of
 		// the arguments, err to collecting all valid string arguments and returning as-is.
 		let string = arguments
 			.iter()
 			.filter_map(|argument| match argument.resolve(context) {
-				Value::String(string) => Some(string),
-				Value::U32(_) => None,
+				Ok(Value::String(string)) => Some(Ok(string)),
+				Ok(Value::U32(_)) => None,
+				Err(error) => Some(Err(error)),
 			})
-			.collect::<String>();
+			.collect::<Result<String>>()?;
 
-		Cow::Owned(string)
+		Ok(Cow::Owned(string))
+	}
+}
+
+struct NewLine;
+
+impl Payload for NewLine {
+	fn resolve(&self, arguments: &[Expression], _context: &mut Context) -> Result<Cow<'_, str>> {
+		if !arguments.is_empty() {
+			return Err(Error::Invalid(
+				// Should i have a sestring error value? maybe once i add a feature i guess?
+				ErrorValue::Other("SeString".into()),
+				format!("NewLine expected 0 arguments, got {}", arguments.len()),
+			));
+		}
+
+		Ok(Cow::Borrowed("\n"))
 	}
 }
