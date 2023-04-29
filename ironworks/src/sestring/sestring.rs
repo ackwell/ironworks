@@ -5,7 +5,10 @@ use std::{
 
 use binrw::{until_eof, BinRead, BinResult, ReadOptions};
 
-use crate::{error::Result, utility::TakeSeekableExt};
+use crate::{
+	error::{Error, Result},
+	utility::TakeSeekableExt,
+};
 
 use super::{context::Context, expression::Expression, payload::Kind};
 
@@ -63,7 +66,14 @@ impl Segment {
 			Self::Payload { kind, arguments } => {
 				// TODO: check the context for a provided impl first?
 				let payload = kind.default_payload();
-				payload.resolve(arguments, context)?
+				payload
+					.resolve(arguments, context)
+					.map_err(|error| match error {
+						Error::Invalid(value, message) => {
+							Error::Invalid(value, format!("failed to resolve {kind:?}: {message}"))
+						}
+						other => other,
+					})?
 			}
 		};
 

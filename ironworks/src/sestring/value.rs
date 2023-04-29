@@ -61,18 +61,28 @@ pub trait FromArguments: Sized {
 	fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self>;
 }
 
+impl FromArguments for () {
+	fn resolve(arguments: &[Expression], _context: &mut Context) -> Result<Self> {
+		check_exhausted(&mut arguments.iter())
+	}
+}
+
 macro_rules! tuple_impl {
 	($arg:ident $(, $args:ident)*) => {
 		#[allow(non_camel_case_types)]
 		impl<$arg: TryFrom<Value, Error = Error>, $($args: TryFrom<Value, Error = Error>),*> FromArguments for ($arg, $($args),*) {
 			fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
 				let iter = &mut arguments.iter();
-				Ok((
+				let result = (
 					resolve_argument::<$arg>(iter, context)?,
 					$(resolve_argument::<$args>(iter, context)?),*
-				))
+				);
+				check_exhausted(iter)?;
+				Ok(result)
 			}
 		}
+
+		tuple_impl!($($args),*);
 	};
 
 	() => {};
@@ -94,4 +104,14 @@ where
 		)
 	})?;
 	expression.resolve(context)
+}
+
+fn check_exhausted<'a>(iter: &mut impl Iterator<Item = &'a Expression>) -> Result<()> {
+	match iter.next() {
+		None => Ok(()),
+		Some(_) => Err(Error::Invalid(
+			ErrorValue::Other("SeString".into()),
+			"too many arguments".into(),
+		)),
+	}
 }
