@@ -56,23 +56,24 @@ pub trait FromArguments: Sized {
 	fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self>;
 }
 
-// TODO: obv this should be macro'd
-// TODO: should the error be generic?
-impl<Arg1, Arg2, Arg3> FromArguments for (Arg1, Arg2, Arg3)
-where
-	Arg1: TryFrom<Value, Error = Error>,
-	Arg2: TryFrom<Value, Error = Error>,
-	Arg3: TryFrom<Value, Error = Error>,
-{
-	fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
-		let iter = &mut arguments.iter();
-		Ok((
-			resolve_argument(iter, context)?,
-			resolve_argument(iter, context)?,
-			resolve_argument(iter, context)?,
-		))
-	}
+macro_rules! tuple_impl {
+	($arg:ident $(, $args:ident)*) => {
+		#[allow(non_camel_case_types)]
+		impl<$arg: TryFrom<Value, Error = Error>, $($args: TryFrom<Value, Error = Error>),*> FromArguments for ($arg, $($args),*) {
+			fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
+				let iter = &mut arguments.iter();
+				Ok((
+					resolve_argument::<$arg>(iter, context)?,
+					$(resolve_argument::<$args>(iter, context)?),*
+				))
+			}
+		}
+	};
+
+	() => {};
 }
+
+tuple_impl!(arg1, arg2, arg3);
 
 fn resolve_argument<'a, T>(
 	iter: &mut impl Iterator<Item = &'a Expression>,
