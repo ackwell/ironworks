@@ -32,13 +32,10 @@ impl TryFrom<Value> for String {
 	type Error = Error;
 
 	fn try_from(value: Value) -> Result<Self, Self::Error> {
-		match value {
-			Value::String(value) => Ok(value),
-			Value::U32(_) => Err(Error::Invalid(
-				ErrorValue::Other("SeString".into()),
-				"cannot resolve u32 value to string".into(),
-			)),
-		}
+		Ok(match value {
+			Value::String(value) => value,
+			Value::U32(value) => value.to_string(),
+		})
 	}
 }
 

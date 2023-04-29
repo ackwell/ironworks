@@ -29,9 +29,7 @@ impl std::fmt::Display for SeString {
 pub struct SeString(Vec<Segment>);
 
 impl SeString {
-	// TODO: Consider if I can internally use Cows to avoid string building until as late as possible
-	// TODO: should this be publicly accessible outside the module? i'm tempted to say yes, but think on it.
-	pub(super) fn resolve(&self, context: &mut Context) -> Result<String> {
+	pub fn resolve(&self, context: &mut Context) -> Result<String> {
 		let Self(segments) = self;
 
 		// Happy path - single segment can be treated as a pass-through.

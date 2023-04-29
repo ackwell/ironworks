@@ -2,7 +2,7 @@ use binrw::binread;
 
 use super::{
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
-	control_flow::IfSelf,
+	control_flow::{If, IfSelf, Switch},
 	payload::{Fallback, Payload},
 	player::PlayerName,
 };
@@ -82,7 +82,9 @@ impl Kind {
 
 			Self::PlayerName => &PlayerName,
 
+			Self::If => &If,
 			Self::IfSelf => &IfSelf,
+			Self::Switch => &Switch,
 
 			_ => &Fallback,
 		}

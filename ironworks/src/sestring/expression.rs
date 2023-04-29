@@ -13,8 +13,8 @@ pub enum Expression {
 	String(SeString),
 
 	// PLaceholders
-	UnkD8, // used in a m:s:(this) setup, so presumably a sub-second value. is put in a two-digit zero-pad, so perhaps centiseconds?
-	Second, // maybe?
+	UnknownD8, // used in a m:s:(this) setup, so presumably a sub-second value. is put in a two-digit zero-pad, so perhaps centiseconds?
+	Second,    // maybe?
 	Minute,
 	Hour,
 	Day,
@@ -27,9 +27,9 @@ pub enum Expression {
 	UnknownEC,
 
 	// Comparators
-	Gte(Box<Expression>, Box<Expression>),
+	Ge(Box<Expression>, Box<Expression>),
 	Gt(Box<Expression>, Box<Expression>),
-	Lte(Box<Expression>, Box<Expression>),
+	Le(Box<Expression>, Box<Expression>),
 	Lt(Box<Expression>, Box<Expression>),
 	Eq(Box<Expression>, Box<Expression>),
 	Ne(Box<Expression>, Box<Expression>),
@@ -51,9 +51,20 @@ impl Expression {
 			Self::U32(value) => Value::U32(*value),
 			Self::String(string) => Value::String(string.resolve(context)?),
 
+			Self::Ge(left, right) => compare(u32::ge, left, right, context)?,
+			Self::Gt(left, right) => compare(u32::gt, left, right, context)?,
+			Self::Le(left, right) => compare(u32::le, left, right, context)?,
+			Self::Lt(left, right) => compare(u32::lt, left, right, context)?,
+			Self::Eq(left, right) => compare(u32::eq, left, right, context)?,
+			Self::Ne(left, right) => compare(u32::ne, left, right, context)?,
+
 			Self::IntegerParameter(expression) => {
-				let index: u32 = expression.resolve(context)?;
-				Value::U32(context.integer(index))
+				let index = expression.resolve(context)?;
+				Value::U32(context.integer_parameter(index))
+			}
+			Self::PlayerParameter(expression) => {
+				let index = expression.resolve(context)?;
+				Value::U32(context.player_parameter(index)?)
 			}
 
 			other => todo!("resolve expression kind {other:?}"),
@@ -66,6 +77,24 @@ impl Expression {
 			)
 		})
 	}
+}
+
+fn compare(
+	cmp: impl for<'a, 'b> FnOnce(&'a u32, &'b u32) -> bool,
+	left: &Expression,
+	right: &Expression,
+	context: &mut Context,
+) -> Result<Value> {
+	let left: u32 = left.resolve(context)?;
+	let right: u32 = right.resolve(context)?;
+
+	// Unknown is treated as always-successful.
+	let success = left == Value::UNKNOWN || right == Value::UNKNOWN || cmp(&left, &right);
+
+	Ok(Value::U32(match success {
+		true => 1,
+		false => 0,
+	}))
 }
 
 impl Expression {
@@ -98,7 +127,7 @@ impl BinRead for Expression {
 		let expression = match kind {
 			0x01..=0xCF => Self::U32(u32::from(kind - 1)),
 
-			0xD8 => Self::UnkD8,
+			0xD8 => Self::UnknownD8,
 			0xD9 => Self::Second,
 			0xDA => Self::Minute,
 			0xDB => Self::Hour,
@@ -107,9 +136,9 @@ impl BinRead for Expression {
 			0xDE => Self::Month,
 			0xDF => Self::Year,
 
-			0xE0 => Self::Gte(read_expr()?, read_expr()?),
+			0xE0 => Self::Ge(read_expr()?, read_expr()?),
 			0xE1 => Self::Gt(read_expr()?, read_expr()?),
-			0xE2 => Self::Lte(read_expr()?, read_expr()?),
+			0xE2 => Self::Le(read_expr()?, read_expr()?),
 			0xE3 => Self::Lt(read_expr()?, read_expr()?),
 			0xE4 => Self::Eq(read_expr()?, read_expr()?),
 			0xE5 => Self::Ne(read_expr()?, read_expr()?),
