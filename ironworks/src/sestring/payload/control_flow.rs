@@ -6,7 +6,6 @@ use crate::{
 use super::payload::Payload;
 
 pub struct IfSelf;
-
 impl Payload for IfSelf {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
 		let (player_id, branch_true, branch_false) =

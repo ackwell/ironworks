@@ -5,10 +5,10 @@ use crate::{
 
 use super::payload::Payload;
 
-pub struct NewLine;
-impl Payload for NewLine {
+pub struct PlayerName;
+impl Payload for PlayerName {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
-		arguments.resolve::<()>(context)?;
-		Ok("\n".into())
+		let player_id = arguments.resolve::<u32>(context)?;
+		Ok(context.player_name(player_id))
 	}
 }

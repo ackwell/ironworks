@@ -4,6 +4,7 @@ use super::{
 	character::NewLine,
 	control_flow::IfSelf,
 	payload::{Fallback, Payload},
+	player::PlayerName,
 };
 
 #[rustfmt::skip]
@@ -75,7 +76,11 @@ impl Kind {
 	pub fn default_payload(&self) -> &dyn Payload {
 		match self {
 			Self::NewLine => &NewLine,
+
+			Self::PlayerName => &PlayerName,
+
 			Self::IfSelf => &IfSelf,
+
 			_ => &Fallback,
 		}
 	}

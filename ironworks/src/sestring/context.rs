@@ -1,8 +1,14 @@
+use std::collections::HashMap;
+
 use super::value::Value;
 
 #[derive(Debug)]
 pub struct Context {
+	// Ambient state
 	player_id: u32,
+
+	player_names: HashMap<u32, String>,
+	default_name: String,
 
 	// Parameters
 	integers: Vec<u32>,
@@ -12,6 +18,8 @@ impl Default for Context {
 	fn default() -> Self {
 		Self {
 			player_id: Value::UNKNOWN,
+			player_names: Default::default(),
+			default_name: "Obtaining Signature".into(),
 			integers: Default::default(),
 		}
 	}
@@ -20,6 +28,13 @@ impl Default for Context {
 impl Context {
 	pub fn player_id(&self) -> u32 {
 		self.player_id
+	}
+
+	pub fn player_name(&self, id: u32) -> String {
+		self.player_names
+			.get(&id)
+			.unwrap_or(&self.default_name)
+			.clone()
 	}
 
 	pub fn integer(&self, index: u32) -> u32 {

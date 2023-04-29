@@ -67,6 +67,18 @@ impl FromArguments for () {
 	}
 }
 
+impl<T> FromArguments for T
+where
+	T: TryFrom<Value, Error = Error>,
+{
+	fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
+		let iter = &mut arguments.iter();
+		let value = resolve_argument(iter, context)?;
+		check_exhausted(iter)?;
+		Ok(value)
+	}
+}
+
 macro_rules! tuple_impl {
 	($arg:ident $(, $args:ident)*) => {
 		#[allow(non_camel_case_types)]
