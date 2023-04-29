@@ -1,16 +1,11 @@
-use std::borrow::Cow;
-
 use binrw::binread;
 
-use crate::{error::Result, Error, ErrorValue};
+use crate::{error::Result, sestring::value::ArgumentExt, Error, ErrorValue};
 
-use super::{
-	context::Context,
-	expression::{Expression, Value},
-};
+use super::{context::Context, expression::Expression, value::Value};
 
 pub trait Payload {
-	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<Cow<'_, str>>;
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String>;
 }
 
 #[rustfmt::skip]
@@ -69,6 +64,7 @@ impl Kind {
 	pub fn default_payload(&self) -> &dyn Payload {
 		match self {
 			Self::NewLine => &NewLine,
+			Self::IfSelf => &IfSelf,
 			_ => &Fallback,
 		}
 	}
@@ -77,7 +73,7 @@ impl Kind {
 struct Fallback;
 
 impl Payload for Fallback {
-	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<Cow<'_, str>> {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
 		// Given this is a fallback and therefore we do not know the semantics of
 		// the arguments, err to collecting all valid string arguments and returning as-is.
 		let string = arguments
@@ -89,14 +85,14 @@ impl Payload for Fallback {
 			})
 			.collect::<Result<String>>()?;
 
-		Ok(Cow::Owned(string))
+		Ok(string)
 	}
 }
 
 struct NewLine;
 
 impl Payload for NewLine {
-	fn resolve(&self, arguments: &[Expression], _context: &mut Context) -> Result<Cow<'_, str>> {
+	fn resolve(&self, arguments: &[Expression], _context: &mut Context) -> Result<String> {
 		if !arguments.is_empty() {
 			return Err(Error::Invalid(
 				// Should i have a sestring error value? maybe once i add a feature i guess?
@@ -105,6 +101,19 @@ impl Payload for NewLine {
 			));
 		}
 
-		Ok(Cow::Borrowed("\n"))
+		Ok("\n".into())
+	}
+}
+
+struct IfSelf;
+
+impl Payload for IfSelf {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (_player_id, branch_true, _branch_false) =
+			arguments.resolve::<(u32, String, String)>(context)?;
+
+		// TODO: this is just assuming that every player id is the player - i'll need to decide how to handle this conceptually - maybe a faux `IfSelf::PLAYER_ID`? but that'd mean assuming which param is the player ID, which isn't safe
+
+		Ok(branch_true)
 	}
 }

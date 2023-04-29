@@ -4,5 +4,6 @@ mod context;
 mod expression;
 mod payload;
 mod sestring;
+mod value;
 
 pub use sestring::SeString;

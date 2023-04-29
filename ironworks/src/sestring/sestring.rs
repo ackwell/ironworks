@@ -1,5 +1,4 @@
 use std::{
-	borrow::Cow,
 	io::{self, Read, Seek},
 	mem,
 };
@@ -29,7 +28,7 @@ pub struct SeString(Vec<Segment>);
 impl SeString {
 	// TODO: Consider if I can internally use Cows to avoid string building until as late as possible
 	// TODO: should this be publicly accessible outside the module? i'm tempted to say yes, but think on it.
-	pub(super) fn resolve(&self, context: &mut Context) -> Result<Cow<'_, str>> {
+	pub(super) fn resolve(&self, context: &mut Context) -> Result<String> {
 		let Self(segments) = self;
 
 		// Happy path - single segment can be treated as a pass-through.
@@ -43,7 +42,7 @@ impl SeString {
 			.map(|segment| segment.resolve(context))
 			.collect::<Result<String>>()?;
 
-		Ok(Cow::Owned(string))
+		Ok(string)
 	}
 }
 
@@ -58,9 +57,9 @@ enum Segment {
 }
 
 impl Segment {
-	fn resolve(&self, context: &mut Context) -> Result<Cow<'_, str>> {
+	fn resolve(&self, context: &mut Context) -> Result<String> {
 		let value = match self {
-			Self::Text(string) => Cow::Borrowed(string.as_ref()),
+			Self::Text(string) => string.clone(),
 			Self::Payload { kind, arguments } => {
 				// TODO: check the context for a provided impl first?
 				let payload = kind.default_payload();

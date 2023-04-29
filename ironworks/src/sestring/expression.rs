@@ -1,13 +1,10 @@
-use std::{
-	borrow::Cow,
-	io::{self, Cursor, Read, Seek},
-};
+use std::io::{self, Cursor, Read, Seek};
 
 use binrw::{BinRead, BinResult, ReadOptions};
 
-use crate::error::Result;
+use crate::{error::Result, Error, ErrorValue};
 
-use super::{context::Context, SeString};
+use super::{context::Context, value::Value, SeString};
 
 #[derive(Debug)]
 pub enum Expression {
@@ -37,27 +34,37 @@ pub enum Expression {
 	Eq(Box<Expression>, Box<Expression>),
 	Ne(Box<Expression>, Box<Expression>),
 
-	// Parameters
+	// Parameters, 1-indexed.
 	IntegerParameter(Box<Expression>),
 	PlayerParameter(Box<Expression>),
 	StringParameter(Box<Expression>),
 	ObjectParameter(Box<Expression>),
 }
 
-pub enum Value<'a> {
-	U32(u32),
-	String(Cow<'a, str>),
-}
-
 impl Expression {
-	pub fn resolve(&self, context: &mut Context) -> Result<Value> {
+	pub fn resolve<V>(&self, context: &mut Context) -> Result<V>
+	where
+		V: TryFrom<Value>,
+		V::Error: std::error::Error,
+	{
 		let value = match self {
 			Self::U32(value) => Value::U32(*value),
 			Self::String(string) => Value::String(string.resolve(context)?),
+
+			Self::IntegerParameter(expression) => {
+				let index: u32 = expression.resolve(context)?;
+				Value::U32(context.integer(index))
+			}
+
 			other => todo!("resolve expression kind {other:?}"),
 		};
 
-		Ok(value)
+		value.try_into().map_err(|error| {
+			Error::Invalid(
+				ErrorValue::Other("SeString".into()),
+				format!("could not resolve expression: {error}"),
+			)
+		})
 	}
 }
 
