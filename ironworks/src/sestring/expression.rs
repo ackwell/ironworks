@@ -66,6 +66,10 @@ impl Expression {
 				let index = expression.resolve(context)?;
 				Value::U32(context.player_parameter(index)?)
 			}
+			Self::StringParameter(expression) => {
+				let index = expression.resolve(context)?;
+				Value::String(context.string_parameter(index))
+			}
 
 			other => todo!("resolve expression kind {other:?}"),
 		};

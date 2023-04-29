@@ -31,15 +31,18 @@ pub struct Context {
 
 	// Parameters
 	integers: Vec<u32>,
+	strings: Vec<String>,
 }
 
 impl Default for Context {
 	fn default() -> Self {
 		Self {
+			default_name: "Obtaining Signature".into(),
+
 			player: Default::default(),
 			player_names: Default::default(),
-			default_name: "Obtaining Signature".into(),
 			integers: Default::default(),
+			strings: Default::default(),
 		}
 	}
 }
@@ -58,10 +61,9 @@ impl Context {
 
 	pub fn integer_parameter(&self, index: u32) -> u32 {
 		let raw_index = usize::try_from(index).unwrap() - 1;
-		// TODO: I'm falling back to 0 when a param isn't available, but I'm not convinced that's the correct approach - realistically this is modelling a string system where arguments are in sync with the string requirements, and a desync would be a failure of some kind. Right? Maybe I should make the fallback u32::MAX and treat that as a "special" value across the baord.
 		self.integers
 			.get(raw_index)
-			.cloned()
+			.copied()
 			.unwrap_or(Value::UNKNOWN)
 	}
 
@@ -85,5 +87,10 @@ impl Context {
 		};
 
 		Ok(value)
+	}
+
+	pub fn string_parameter(&self, index: u32) -> String {
+		let raw_index = usize::try_from(index).unwrap() - 1;
+		self.strings.get(raw_index).cloned().unwrap_or("".into())
 	}
 }

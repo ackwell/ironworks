@@ -3,6 +3,7 @@ use binrw::binread;
 use super::{
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
+	format::{Identity, Thousands},
 	payload::{Fallback, Payload},
 	player::PlayerName,
 };
@@ -37,7 +38,7 @@ pub enum Kind {
 	#[br(magic = 0x1F_u8)] Dash,
 	#[br(magic = 0x20_u8)] Number,
 
-	#[br(magic = 0x22_u8)] Kilo,
+	#[br(magic = 0x22_u8)] Thousands,
 
 	#[br(magic = 0x24_u8)] Second,
 
@@ -86,7 +87,9 @@ impl Kind {
 			Self::IfSelf => &IfSelf,
 			Self::Switch => &Switch,
 
+			Self::String | Self::Number => &Identity,
+			Self::Thousands => &Thousands,
+
 			_ => &Fallback,
-		}
 	}
 }
