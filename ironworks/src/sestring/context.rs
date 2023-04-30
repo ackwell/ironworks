@@ -29,6 +29,8 @@ pub struct Context {
 	player_names: HashMap<u32, String>,
 	default_name: String,
 
+	time: Option<u32>,
+
 	// Parameters
 	integers: Vec<u32>,
 	strings: Vec<String>,
@@ -38,6 +40,7 @@ impl Default for Context {
 	fn default() -> Self {
 		Self {
 			default_name: "Obtaining Signature".into(),
+			time: None,
 
 			player: Default::default(),
 			player_names: Default::default(),
@@ -57,6 +60,14 @@ impl Context {
 			.get(&id)
 			.unwrap_or(&self.default_name)
 			.clone()
+	}
+
+	pub fn time(&self) -> Option<u32> {
+		self.time
+	}
+
+	pub fn set_time(&mut self, time: u32) {
+		self.time = Some(time);
 	}
 
 	pub fn integer_parameter(&self, index: u32) -> u32 {

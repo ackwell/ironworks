@@ -1,6 +1,7 @@
 use std::io::{self, Cursor, Read, Seek};
 
 use binrw::{BinRead, BinResult, ReadOptions};
+use time::OffsetDateTime;
 
 use crate::{error::Result, Error, ErrorValue};
 
@@ -51,6 +52,14 @@ impl Expression {
 			Self::U32(value) => Value::U32(*value),
 			Self::String(string) => Value::String(string.resolve(context)?),
 
+			Self::Second => time(OffsetDateTime::second, context)?,
+			Self::Minute => time(OffsetDateTime::minute, context)?,
+			Self::Hour => time(OffsetDateTime::hour, context)?,
+			Self::Day => time(OffsetDateTime::day, context)?,
+			Self::Weekday => time(|dt| dt.weekday().number_from_sunday(), context)?,
+			Self::Month => time(|dt| u8::from(dt.month()), context)?,
+			Self::Year => time(OffsetDateTime::year, context)?,
+
 			Self::Ge(left, right) => compare(u32::ge, left, right, context)?,
 			Self::Gt(left, right) => compare(u32::gt, left, right, context)?,
 			Self::Le(left, right) => compare(u32::le, left, right, context)?,
@@ -81,6 +90,24 @@ impl Expression {
 			)
 		})
 	}
+}
+
+fn time<T>(get: impl FnOnce(OffsetDateTime) -> T, context: &mut Context) -> Result<Value>
+where
+	T: TryInto<u32>,
+	T::Error: std::error::Error,
+{
+	let timestamp = context.time().ok_or_else(|| {
+		Error::Invalid(
+			ErrorValue::SeString,
+			"time placeholder expression encountered, but no time has been set on the context"
+				.into(),
+		)
+	})?;
+	let datetime = OffsetDateTime::from_unix_timestamp(timestamp.into())
+		.map_err(|error| Error::Invalid(ErrorValue::SeString, error.to_string()))?;
+
+	Ok(Value::U32(get(datetime).try_into().unwrap()))
 }
 
 fn compare(

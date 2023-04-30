@@ -6,6 +6,7 @@ use super::{
 	format::{Identity, Thousands},
 	payload::{Fallback, Payload},
 	player::PlayerName,
+	time::SetTime,
 };
 
 #[rustfmt::skip]
@@ -83,12 +84,14 @@ impl Kind {
 
 			Self::PlayerName => &PlayerName,
 
+			Self::String | Self::Number => &Identity,
+			Self::Thousands => &Thousands,
+
 			Self::If => &If,
 			Self::IfSelf => &IfSelf,
 			Self::Switch => &Switch,
 
-			Self::String | Self::Number => &Identity,
-			Self::Thousands => &Thousands,
+			Self::SetTime => &SetTime,
 
 			_ => &Fallback,
 	}

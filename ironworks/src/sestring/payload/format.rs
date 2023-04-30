@@ -46,9 +46,8 @@ mod test {
 
 	use super::*;
 
-	fn str(value: &str) -> Expression {
-		let bytes = value.bytes().collect::<Vec<_>>();
-		// TODO: his is disgusting
+	// TODO: this is disgusting
+	fn str(bytes: &[u8]) -> Expression {
 		Expression::String(SeString::read_le(&mut Cursor::new(bytes)).unwrap())
 	}
 
@@ -57,7 +56,7 @@ mod test {
 		assert_eq!(
 			Thousands
 				.resolve(
-					&[Expression::U32(Value::UNKNOWN), str(",")],
+					&[Expression::U32(Value::UNKNOWN), str(b",")],
 					&mut Context::default()
 				)
 				.unwrap(),
@@ -69,7 +68,7 @@ mod test {
 	fn thousands_small() {
 		assert_eq!(
 			Thousands
-				.resolve(&[Expression::U32(420), str(",")], &mut Context::default())
+				.resolve(&[Expression::U32(420), str(b",")], &mut Context::default())
 				.unwrap(),
 			"420"
 		)
@@ -79,7 +78,10 @@ mod test {
 	fn thousands_large() {
 		assert_eq!(
 			Thousands
-				.resolve(&[Expression::U32(42069), str(",")], &mut Context::default())
+				.resolve(
+					&[Expression::U32(42069), str(b",")],
+					&mut Context::default()
+				)
 				.unwrap(),
 			"42,069"
 		)
