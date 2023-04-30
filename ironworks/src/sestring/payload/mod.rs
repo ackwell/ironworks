@@ -4,6 +4,7 @@ mod format;
 mod kind;
 mod payload;
 mod player;
+mod sheet;
 mod time;
 
 pub use kind::Kind;

@@ -67,9 +67,10 @@ impl Segment {
 				payload
 					.resolve(arguments, context)
 					.map_err(|error| match error {
-						Error::Invalid(value, message) => {
-							Error::Invalid(value, format!("failed to resolve {kind:?}: {message}"))
-						}
+						Error::Invalid(value, message) => Error::Invalid(
+							value,
+							format!("failed to resolve payload {kind:?}: {message}"),
+						),
 						other => other,
 					})?
 			}

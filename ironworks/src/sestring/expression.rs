@@ -5,7 +5,11 @@ use time::OffsetDateTime;
 
 use crate::{error::Result, Error, ErrorValue};
 
-use super::{context::Context, value::Value, SeString};
+use super::{
+	context::Context,
+	value::{TryFromValue, Value},
+	SeString,
+};
 
 #[derive(Debug)]
 pub enum Expression {
@@ -45,8 +49,7 @@ pub enum Expression {
 impl Expression {
 	pub fn resolve<V>(&self, context: &mut Context) -> Result<V>
 	where
-		V: TryFrom<Value>,
-		V::Error: std::error::Error,
+		V: TryFromValue,
 	{
 		let value = match self {
 			Self::U32(value) => Value::U32(*value),
@@ -85,12 +88,7 @@ impl Expression {
 			other => todo!("resolve expression kind {other:?}"),
 		};
 
-		value.try_into().map_err(|error| {
-			Error::Invalid(
-				ErrorValue::SeString,
-				format!("could not resolve expression: {error}"),
-			)
-		})
+		V::try_from_value(Some(value))
 	}
 }
 

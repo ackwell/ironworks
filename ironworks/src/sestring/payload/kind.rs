@@ -6,6 +6,7 @@ use super::{
 	format::{Identity, Thousands, TwoDigit},
 	payload::{Fallback, Payload},
 	player::PlayerName,
+	sheet::Sheet,
 	time::SetTime,
 };
 
@@ -93,6 +94,8 @@ impl Kind {
 			Self::Switch => &Switch,
 
 			Self::SetTime => &SetTime,
+
+			Self::Sheet => &Sheet,
 
 			_ => &Fallback,
 	}
