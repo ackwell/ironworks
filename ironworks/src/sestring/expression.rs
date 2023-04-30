@@ -76,7 +76,7 @@ impl Expression {
 
 		value.try_into().map_err(|error| {
 			Error::Invalid(
-				ErrorValue::Other("SeString".into()),
+				ErrorValue::SeString,
 				format!("could not resolve expression: {error}"),
 			)
 		})

@@ -80,7 +80,7 @@ impl Context {
 
 			other => {
 				return Err(Error::Invalid(
-					ErrorValue::Other("SeString".into()),
+					ErrorValue::SeString,
 					format!("unknown player parameter id {other}"),
 				))
 			}

@@ -55,6 +55,10 @@ pub enum ErrorValue {
 		sheet: Option<String>,
 	},
 
+	/// A SeString rich text value.
+	#[cfg(feature = "sestring")]
+	SeString,
+
 	/// A SqPack file.
 	#[cfg(feature = "sqpack")]
 	File(Vec<u8>),
@@ -81,6 +85,9 @@ impl fmt::Display for ErrorValue {
 				"Excel row {}/{row}:{subrow}",
 				sheet.as_deref().unwrap_or("(none)"),
 			),
+
+			#[cfg(feature = "sestring")]
+			Self::SeString => write!(formatter, "SeString"),
 
 			#[cfg(feature = "sqpack")]
 			Self::File(file) => write!(formatter, "SqPack file ({} bytes)", file.len()),

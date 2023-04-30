@@ -21,7 +21,7 @@ impl TryFrom<Value> for u32 {
 		match value {
 			Value::U32(value) => Ok(value),
 			Value::String(_) => Err(Error::Invalid(
-				ErrorValue::Other("SeString".into()),
+				ErrorValue::SeString,
 				"cannot resolve string value to u32".into(),
 			)),
 		}
@@ -106,12 +106,9 @@ fn resolve_argument<'a, T>(
 where
 	T: TryFrom<Value, Error = Error>,
 {
-	let expression = iter.next().ok_or_else(|| {
-		Error::Invalid(
-			ErrorValue::Other("SeString".into()),
-			"insufficient arguments".into(),
-		)
-	})?;
+	let expression = iter
+		.next()
+		.ok_or_else(|| Error::Invalid(ErrorValue::SeString, "insufficient arguments".into()))?;
 	expression.resolve(context)
 }
 
@@ -119,7 +116,7 @@ fn check_exhausted<'a>(iter: &mut impl Iterator<Item = &'a Expression>) -> Resul
 	match iter.next() {
 		None => Ok(()),
 		Some(_) => Err(Error::Invalid(
-			ErrorValue::Other("SeString".into()),
+			ErrorValue::SeString,
 			"too many arguments".into(),
 		)),
 	}

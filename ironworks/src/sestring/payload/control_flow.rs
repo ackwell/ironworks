@@ -43,7 +43,7 @@ impl Payload for Switch {
 		let count = arguments.len();
 		if count < 2 {
 			return Err(Error::Invalid(
-				ErrorValue::Other("SeString".into()),
+				ErrorValue::SeString,
 				format!("at least two arguments required, received {count}"),
 			));
 		}
@@ -59,7 +59,7 @@ impl Payload for Switch {
 			.get(usize::try_from(scrutinee).unwrap())
 			.ok_or_else(|| {
 				Error::Invalid(
-					ErrorValue::Other("SeString".into()),
+					ErrorValue::SeString,
 					format!("insufficient arguments, expected {scrutinee} found {count}"),
 				)
 			})?;
