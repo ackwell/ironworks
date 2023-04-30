@@ -52,6 +52,8 @@ impl Expression {
 			Self::U32(value) => Value::U32(*value),
 			Self::String(string) => Value::String(string.resolve(context)?),
 
+			// Given I have only educated guesses at what this does, and it's usage is relatively minimal, leaving as zero for now.
+			Self::UnknownD8 => Value::U32(0),
 			Self::Second => time(OffsetDateTime::second, context)?,
 			Self::Minute => time(OffsetDateTime::minute, context)?,
 			Self::Hour => time(OffsetDateTime::hour, context)?,

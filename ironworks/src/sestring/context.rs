@@ -81,6 +81,10 @@ impl Context {
 	// TODO: what's the return type? is it always going to be u32 or do i need to return an arbitrary value
 	pub fn player_parameter(&self, id: u32) -> Result<u32> {
 		let value = match id {
+			// TODO: 11 is an hour-of-the-day value, 12 is minutes of the hour. no idea how these are linked to the player object.
+			11 => Value::UNKNOWN,
+			12 => Value::UNKNOWN,
+
 			// TODO: seems to be related to classjob in some way?
 			68 => Value::UNKNOWN,
 

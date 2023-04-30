@@ -20,10 +20,17 @@ impl TryFrom<Value> for u32 {
 	fn try_from(value: Value) -> Result<Self, Self::Error> {
 		match value {
 			Value::U32(value) => Ok(value),
-			Value::String(_) => Err(Error::Invalid(
-				ErrorValue::SeString,
-				"cannot resolve string value to u32".into(),
-			)),
+			// This... doesn't really make sense, but there's real game data (addon@jp:29/0)
+			// that has a string expression in a numeric position. It's almost certainly
+			// a bug in the game, but it also doesn't crash (presumably) on that string,
+			// so I guess we're handling that case now. This implementation is a bit
+			// of a guess, but a nonsensical case gets a nonsensical impl so whatever.
+			Value::String(string) => string.trim().parse::<u32>().map_err(|error| {
+				Error::Invalid(
+					ErrorValue::SeString,
+					format!("could not coerce string to u32: {error}"),
+				)
+			}),
 		}
 	}
 }
@@ -66,7 +73,8 @@ impl FromArguments for () {
 
 impl<T> FromArguments for T
 where
-	T: TryFrom<Value, Error = Error>,
+	T: TryFrom<Value>,
+	T::Error: std::error::Error,
 {
 	fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
 		let iter = &mut arguments.iter();
@@ -79,7 +87,11 @@ where
 macro_rules! tuple_impl {
 	($arg:ident $(, $args:ident)*) => {
 		#[allow(non_camel_case_types)]
-		impl<$arg: TryFrom<Value, Error = Error>, $($args: TryFrom<Value, Error = Error>),*> FromArguments for ($arg, $($args),*) {
+		impl<$arg, $($args),*> FromArguments for ($arg, $($args),*)
+		where
+			$arg: TryFrom<Value>, $arg::Error: std::error::Error,
+			$($args: TryFrom<Value>, $args::Error: std::error::Error),*
+		{
 			fn resolve(arguments: &[Expression], context: &mut Context) -> Result<Self> {
 				let iter = &mut arguments.iter();
 				let result = (
@@ -104,7 +116,8 @@ fn resolve_argument<'a, T>(
 	context: &mut Context,
 ) -> Result<T>
 where
-	T: TryFrom<Value, Error = Error>,
+	T: TryFrom<Value>,
+	T::Error: std::error::Error,
 {
 	let expression = iter
 		.next()

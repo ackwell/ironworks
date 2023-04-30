@@ -3,7 +3,7 @@ use binrw::binread;
 use super::{
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
-	format::{Identity, Thousands},
+	format::{Identity, Thousands, TwoDigit},
 	payload::{Fallback, Payload},
 	player::PlayerName,
 	time::SetTime,
@@ -41,7 +41,7 @@ pub enum Kind {
 
 	#[br(magic = 0x22_u8)] Thousands,
 
-	#[br(magic = 0x24_u8)] Second,
+	#[br(magic = 0x24_u8)] TwoDigit,
 
 	#[br(magic = 0x26_u8)] Float,
 
@@ -86,6 +86,7 @@ impl Kind {
 
 			Self::String | Self::Number => &Identity,
 			Self::Thousands => &Thousands,
+			Self::TwoDigit => &TwoDigit,
 
 			Self::If => &If,
 			Self::IfSelf => &IfSelf,
