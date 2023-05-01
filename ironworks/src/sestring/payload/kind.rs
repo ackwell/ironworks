@@ -1,6 +1,7 @@
 use binrw::binread;
 
 use super::{
+	case::{LowerAll, LowerFirst, TitleAll, TitleFirst},
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
 	format::{Identity, Thousands, TwoDigit},
@@ -49,18 +50,18 @@ pub enum Kind {
 	#[br(magic = 0x28_u8)] Sheet,
 	#[br(magic = 0x29_u8)] String,
 
-	#[br(magic = 0x2B_u8)] Head,
+	#[br(magic = 0x2B_u8)] TitleFirst,
 	#[br(magic = 0x2C_u8)] Split,
-	#[br(magic = 0x2D_u8)] HeadAll,
+	#[br(magic = 0x2D_u8)] TitleAll,
 	#[br(magic = 0x2E_u8)] AutoTranslate,
-	#[br(magic = 0x2F_u8)] Lower,
+	#[br(magic = 0x2F_u8)] LowerAll,
 	#[br(magic = 0x30_u8)] NounJa,
 	#[br(magic = 0x31_u8)] NounEn,
 	#[br(magic = 0x32_u8)] NounDe,
 	#[br(magic = 0x33_u8)] NounFr,
 	#[br(magic = 0x34_u8)] NounZh,
 
-	#[br(magic = 0x40_u8)] LowerHead,
+	#[br(magic = 0x40_u8)] LowerFirst,
 
 	#[br(magic = 0x48_u8)] ColorId,
 	#[br(magic = 0x49_u8)] EdgeColorId,
@@ -88,6 +89,11 @@ impl Kind {
 			Self::String | Self::Number => &Identity,
 			Self::Thousands => &Thousands,
 			Self::TwoDigit => &TwoDigit,
+
+			Self::TitleFirst => &TitleFirst,
+			Self::TitleAll => &TitleAll,
+			Self::LowerFirst => &LowerFirst,
+			Self::LowerAll => &LowerAll,
 
 			Self::If => &If,
 			Self::IfSelf => &IfSelf,

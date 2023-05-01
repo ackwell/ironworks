@@ -1,3 +1,4 @@
+mod case;
 mod character;
 mod control_flow;
 mod format;

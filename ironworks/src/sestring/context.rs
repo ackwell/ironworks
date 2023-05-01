@@ -108,4 +108,9 @@ impl Context {
 		let raw_index = usize::try_from(index).unwrap() - 1;
 		self.strings.get(raw_index).cloned().unwrap_or("".into())
 	}
+
+	pub fn object_parameter(&self, _index: u32) -> String {
+		// TODO: I have a funny feeling that they provide _one_ object to the string, and the index in the parameter expression is an offset or index into that object's data. For now, leaving out.
+		"".into()
+	}
 }

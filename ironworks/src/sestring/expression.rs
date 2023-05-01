@@ -84,6 +84,10 @@ impl Expression {
 				let index = expression.resolve(context)?;
 				Value::String(context.string_parameter(index))
 			}
+			Self::ObjectParameter(expression) => {
+				let index = expression.resolve(context)?;
+				Value::String(context.object_parameter(index))
+			}
 
 			other => {
 				return Err(Error::Invalid(
