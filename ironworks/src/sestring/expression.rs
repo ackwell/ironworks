@@ -85,7 +85,12 @@ impl Expression {
 				Value::String(context.string_parameter(index))
 			}
 
-			other => todo!("resolve expression kind {other:?}"),
+			other => {
+				return Err(Error::Invalid(
+					ErrorValue::SeString,
+					format!("unhandled experssion kind {other:?}"),
+				))
+			}
 		};
 
 		V::try_from_value(Some(value))
