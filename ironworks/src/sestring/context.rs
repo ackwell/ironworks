@@ -31,6 +31,8 @@ pub struct Context {
 
 	time: Option<u32>,
 
+	constants: HashMap<String, u32>,
+
 	// Parameters
 	integers: Vec<u32>,
 	strings: Vec<String>,
@@ -41,6 +43,11 @@ impl Default for Context {
 		Self {
 			default_name: "Obtaining Signature".into(),
 			time: None,
+
+			constants: HashMap::from([
+				("AETHERYTE_TEXT_SGL".into(), 0), // Aetheryte text single?
+				("ADDONHUD_NAME".into(), 0),      // Targeting Hud sheet
+			]),
 
 			player: Default::default(),
 			player_names: Default::default(),
@@ -70,6 +77,10 @@ impl Context {
 		self.time = Some(time);
 	}
 
+	pub fn constant(&self, name: &str) -> Option<u32> {
+		self.constants.get(name).copied()
+	}
+
 	pub fn integer_parameter(&self, index: u32) -> u32 {
 		let raw_index = usize::try_from(index).unwrap() - 1;
 		self.integers
@@ -81,6 +92,9 @@ impl Context {
 	// TODO: what's the return type? is it always going to be u32 or do i need to return an arbitrary value
 	pub fn player_parameter(&self, id: u32) -> Result<u32> {
 		let value = match id {
+			// TODO: seems to be something related to game community tools, is used for fc and pvp team related messages
+			8 => Value::UNKNOWN,
+
 			// TODO: 11 is an hour-of-the-day value, 12 is minutes of the hour. no idea how these are linked to the player object.
 			11 => Value::UNKNOWN,
 			12 => Value::UNKNOWN,
@@ -92,6 +106,18 @@ impl Context {
 			69 => self.player.level,
 
 			72 => self.player.level,
+
+			// TODO: Related to controller state. 0 for "gamepad", >0 for "gamepad". addon@1760 suggests 1 might have something to do with xhb?
+			75 => Value::UNKNOWN,
+
+			// TODO: platform. 3 is OSX
+			78 => Value::UNKNOWN,
+
+			// TODO: I _think_ this is boolean of keyboard vs controller state, true is controller?
+			80 => Value::UNKNOWN,
+
+			// TODO: Something about keyboard?
+			94 => Value::UNKNOWN,
 
 			other => {
 				return Err(Error::Invalid(

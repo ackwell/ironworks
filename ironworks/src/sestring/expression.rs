@@ -65,6 +65,8 @@ impl Expression {
 			Self::Month => time(|dt| u8::from(dt.month()), context)?,
 			Self::Year => time(OffsetDateTime::year, context)?,
 
+			Self::UnknownEC => Value::U32(Value::UNKNOWN),
+
 			Self::Ge(left, right) => compare(u32::ge, left, right, context)?,
 			Self::Gt(left, right) => compare(u32::gt, left, right, context)?,
 			Self::Le(left, right) => compare(u32::le, left, right, context)?,
@@ -92,7 +94,7 @@ impl Expression {
 			other => {
 				return Err(Error::Invalid(
 					ErrorValue::SeString,
-					format!("unhandled experssion kind {other:?}"),
+					format!("unhandled expression kind {other:?}"),
 				))
 			}
 		};

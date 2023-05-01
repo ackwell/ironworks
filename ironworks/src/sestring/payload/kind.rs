@@ -7,7 +7,7 @@ use super::{
 	format::{Float, Identity, Thousands, TwoDigit, ZeroPad},
 	payload::{Fallback, Payload},
 	player::PlayerName,
-	sheet::Sheet,
+	sheet::{AutoTranslate, Sheet},
 	time::SetTime,
 };
 
@@ -104,6 +104,7 @@ impl Kind {
 			Self::SetTime => &SetTime,
 
 			Self::Sheet => &Sheet,
+			Self::AutoTranslate => &AutoTranslate,
 
 			_ => &Fallback,
 	}
