@@ -51,6 +51,36 @@ impl Payload for TwoDigit {
 	}
 }
 
+pub struct ZeroPad;
+impl Payload for ZeroPad {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (mut value, count) = arguments.resolve::<(u32, u32)>(context)?;
+		if value == Value::UNKNOWN {
+			value = 0;
+		}
+		Ok(format!(
+			"{value:0count$}",
+			count = usize::try_from(count).unwrap()
+		))
+	}
+}
+
+pub struct Float;
+impl Payload for Float {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (mut value, radix, separator) = arguments.resolve::<(u32, u32, String)>(context)?;
+
+		if value == Value::UNKNOWN {
+			value = 0
+		}
+
+		let left = (value as f32 / radix as f32).floor();
+		let right = value % radix;
+
+		Ok(format!("{left}{separator}{right}"))
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use std::io::Cursor;
@@ -129,6 +159,114 @@ mod test {
 				.resolve(&[Expression::U32(55)], &mut Context::default())
 				.unwrap(),
 			"55"
+		)
+	}
+
+	#[test]
+	fn zero_pad_unknown() {
+		assert_eq!(
+			ZeroPad
+				.resolve(
+					&[Expression::U32(Value::UNKNOWN), Expression::U32(5)],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"00000"
+		)
+	}
+
+	#[test]
+	fn zero_pad_small() {
+		assert_eq!(
+			ZeroPad
+				.resolve(
+					&[Expression::U32(420), Expression::U32(5)],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"00420"
+		)
+	}
+
+	#[test]
+	fn zero_pad_large() {
+		assert_eq!(
+			ZeroPad
+				.resolve(
+					&[Expression::U32(42069), Expression::U32(5)],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"42069"
+		)
+	}
+
+	#[test]
+	fn float_unknown() {
+		assert_eq!(
+			Float
+				.resolve(
+					&[
+						Expression::U32(Value::UNKNOWN),
+						Expression::U32(10),
+						str(b".")
+					],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"0.0"
+		)
+	}
+
+	#[test]
+	fn float_zero() {
+		assert_eq!(
+			Float
+				.resolve(
+					&[Expression::U32(0), Expression::U32(10), str(b".")],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"0.0"
+		)
+	}
+
+	#[test]
+	fn float_small() {
+		assert_eq!(
+			Float
+				.resolve(
+					&[Expression::U32(5), Expression::U32(10), str(b".")],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"0.5"
+		)
+	}
+
+	#[test]
+	fn float_large() {
+		assert_eq!(
+			Float
+				.resolve(
+					&[Expression::U32(55), Expression::U32(10), str(b".")],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"5.5"
+		)
+	}
+
+	#[test]
+	fn float_radix() {
+		assert_eq!(
+			Float
+				.resolve(
+					&[Expression::U32(55), Expression::U32(100), str(b".")],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"0.55"
 		)
 	}
 }

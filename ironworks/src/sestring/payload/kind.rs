@@ -4,7 +4,7 @@ use super::{
 	case::{LowerAll, LowerFirst, TitleAll, TitleFirst},
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
-	format::{Identity, Thousands, TwoDigit},
+	format::{Float, Identity, Thousands, TwoDigit, ZeroPad},
 	payload::{Fallback, Payload},
 	player::PlayerName,
 	sheet::Sheet,
@@ -67,7 +67,7 @@ pub enum Kind {
 	#[br(magic = 0x49_u8)] EdgeColorId,
 	#[br(magic = 0x4A_u8)] Pronounciation,
 
-	#[br(magic = 0x50_u8)] Digit,
+	#[br(magic = 0x50_u8)] ZeroPad,
 	#[br(magic = 0x51_u8)] Ordinal,
 
 	#[br(magic = 0x60_u8)] Sound,
@@ -89,6 +89,8 @@ impl Kind {
 			Self::String | Self::Number => &Identity,
 			Self::Thousands => &Thousands,
 			Self::TwoDigit => &TwoDigit,
+			Self::ZeroPad => &ZeroPad,
+			Self::Float => &Float,
 
 			Self::TitleFirst => &TitleFirst,
 			Self::TitleAll => &TitleAll,
