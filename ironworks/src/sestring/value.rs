@@ -32,11 +32,12 @@ impl TryFromValue for u32 {
 	fn try_from_value(value: Option<Value>) -> Result<Self> {
 		match value {
 			Some(Value::U32(number)) => Ok(number),
-			// This... doesn't really make sense, but there's real game data (addon@jp:29/0)
-			// that has a string expression in a numeric position. It's almost certainly
-			// a bug in the game, but it also doesn't crash (presumably) on that string,
-			// so I guess we're handling that case now. This implementation is a bit
-			// of a guess, but a nonsensical case gets a nonsensical impl so whatever.
+
+			// While unlikely to occur with real data, in a data-less environment a
+			// few payloads noop or otherwise cannot resolve, resulting in emptystring
+			// showing up in a few numeric-expecting locations. Normalise this case out as UNKNOWN.
+			Some(Value::String(string)) if string.is_empty() => Ok(Value::UNKNOWN),
+
 			Some(Value::String(string)) => string.trim().parse::<u32>().map_err(|error| {
 				Error::Invalid(
 					ErrorValue::SeString,
