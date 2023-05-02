@@ -71,8 +71,15 @@ impl Expression {
 			Self::Gt(left, right) => compare(u32::gt, left, right, context)?,
 			Self::Le(left, right) => compare(u32::le, left, right, context)?,
 			Self::Lt(left, right) => compare(u32::lt, left, right, context)?,
-			Self::Eq(left, right) => compare(u32::eq, left, right, context)?,
-			Self::Ne(left, right) => compare(u32::ne, left, right, context)?,
+
+			Self::Eq(left, right) => Value::U32(match equal(left, right, context)? {
+				true => 1,
+				false => 0,
+			}),
+			Self::Ne(left, right) => Value::U32(match equal(left, right, context)? {
+				true => 0,
+				false => 1,
+			}),
 
 			Self::IntegerParameter(expression) => {
 				let index = expression.resolve(context)?;
@@ -137,6 +144,22 @@ fn compare(
 		true => 1,
 		false => 0,
 	}))
+}
+
+fn equal(left: &Expression, right: &Expression, context: &mut Context) -> Result<bool> {
+	let left = left.resolve::<Value>(context)?;
+	let right = right.resolve::<Value>(context)?;
+
+	let success = match (left, right) {
+		// Either side being unknown is truthy.
+		(Value::U32(Value::UNKNOWN), _) | (_, Value::U32(Value::UNKNOWN)) => true,
+		// If both sides are strings, perform a string comparison.
+		(Value::String(left), Value::String(right)) => left == right,
+		// Otherwise, coerce to u32 and compare.
+		(left, right) => u32::try_from_value(Some(left))? == u32::try_from_value(Some(right))?,
+	};
+
+	Ok(success)
 }
 
 impl Expression {
