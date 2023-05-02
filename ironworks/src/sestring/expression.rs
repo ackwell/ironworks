@@ -115,13 +115,12 @@ where
 	T: TryInto<u32>,
 	T::Error: std::error::Error,
 {
-	let timestamp = context.time().ok_or_else(|| {
-		Error::Invalid(
-			ErrorValue::SeString,
-			"time placeholder expression encountered, but no time has been set on the context"
-				.into(),
-		)
-	})?;
+	// Per addon@fr:8834/0, time placeholders without a SetTime payload seemingly
+	// work fine? So i'm just UNKNOWN'ing this.
+	let Some(timestamp) = context.time() else {
+		return Ok(Value::U32(Value::UNKNOWN));
+	};
+
 	let datetime = OffsetDateTime::from_unix_timestamp(timestamp.into())
 		.map_err(|error| Error::Invalid(ErrorValue::SeString, error.to_string()))?;
 

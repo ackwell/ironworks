@@ -90,6 +90,11 @@ impl Context {
 	}
 
 	pub fn integer_parameter(&self, index: u32) -> u32 {
+		// This occurs on addon@en:1092/0 - i presume it's a typo, as it looks like it should be referencing param 1.
+		if index == 0 {
+			return Value::UNKNOWN;
+		}
+
 		let raw_index = usize::try_from(index).unwrap() - 1;
 		self.integers
 			.get(raw_index)
@@ -102,6 +107,12 @@ impl Context {
 		let value = match id {
 			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
 			4 => Value::UNKNOWN,
+
+			// TODO: Might be gender related? used in french to switch between some attributive lookups
+			5 => Value::UNKNOWN,
+
+			// TODO: Gender?
+			6 => Value::UNKNOWN,
 
 			// TODO: similar to 8
 			7 => Value::UNKNOWN,
@@ -117,6 +128,9 @@ impl Context {
 
 			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
 			52 | 53 | 54 => Value::UNKNOWN,
+
+			// TODO: Something to do with the french.
+			66 => Value::UNKNOWN,
 
 			// TODO: seems to be related to classjob in some way?
 			68 => Value::UNKNOWN,
@@ -165,7 +179,7 @@ impl Context {
 	}
 
 	pub fn string_parameter(&self, index: u32) -> String {
-		let raw_index = usize::try_from(index).unwrap() - 1;
+		let raw_index = usize::try_from(index).unwrap();
 		self.strings.get(raw_index).cloned().unwrap_or("".into())
 	}
 

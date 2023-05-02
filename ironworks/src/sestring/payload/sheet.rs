@@ -15,11 +15,12 @@ impl Payload for Sheet {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
 		// TODO: column is optional i think, but need to check what the default col id is.
 		let (_sheet, row, column, _parameter) =
-			arguments.resolve::<(String, u32, Value, Option<u32>)>(context)?;
+			arguments.resolve::<(String, u32, Option<Value>, Option<u32>)>(context)?;
 
 		let column = match column {
-			Value::U32(number) => number,
-			Value::String(string) => match context.constant(&string) {
+			None => 0,
+			Some(Value::U32(number)) => number,
+			Some(Value::String(string)) => match context.constant(&string) {
 				Some(value) => value,
 				None => u32::try_from_value(Some(Value::String(string)))?,
 			},
