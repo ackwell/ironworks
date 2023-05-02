@@ -33,17 +33,11 @@ impl TryFromValue for u32 {
 		match value {
 			Some(Value::U32(number)) => Ok(number),
 
-			// While unlikely to occur with real data, in a data-less environment a
-			// few payloads noop or otherwise cannot resolve, resulting in emptystring
-			// showing up in a few numeric-expecting locations. Normalise this case out as UNKNOWN.
-			Some(Value::String(string)) if string.is_empty() => Ok(Value::UNKNOWN),
+			// Falling back to 0 if the parse fails - it seems like SE's number parser
+			// is pretty leniant. In some cases there's constants left in the sheet
+			// column parameter, all of which invariably end up pointing to column 0.
+			Some(Value::String(string)) => Ok(string.trim().parse::<u32>().unwrap_or(0)),
 
-			Some(Value::String(string)) => string.trim().parse::<u32>().map_err(|error| {
-				Error::Invalid(
-					ErrorValue::SeString,
-					format!("could not coerce string to u32: {error}"),
-				)
-			}),
 			None => not_enough_arguments(),
 		}
 	}

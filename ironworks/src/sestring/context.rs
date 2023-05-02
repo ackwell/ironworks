@@ -32,8 +32,6 @@ pub struct Context {
 	time: Option<u32>,
 	current_time: Option<u32>,
 
-	constants: HashMap<String, u32>,
-
 	// Parameters
 	integers: Vec<u32>,
 	strings: Vec<String>,
@@ -45,13 +43,6 @@ impl Default for Context {
 			default_name: "Obtaining Signature".into(),
 			time: None,
 			current_time: None,
-
-			constants: HashMap::from([
-				("AETHERYTE_TEXT_SGL".into(), 0), // Aetheryte text single?
-				("ADDONHUD_NAME".into(), 0),      // Targeting Hud sheet
-				("QUEST_NAME".into(), 0),
-				("WORLDDCGROUPTYPE_NAME".into(), 0),
-			]),
 
 			player: Default::default(),
 			player_names: Default::default(),
@@ -83,10 +74,6 @@ impl Context {
 
 	pub fn current_time(&self) -> Option<u32> {
 		self.current_time
-	}
-
-	pub fn constant(&self, name: &str) -> Option<u32> {
-		self.constants.get(name).copied()
 	}
 
 	pub fn integer_parameter(&self, index: u32) -> u32 {
