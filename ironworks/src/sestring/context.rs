@@ -30,6 +30,7 @@ pub struct Context {
 	default_name: String,
 
 	time: Option<u32>,
+	current_time: Option<u32>,
 
 	constants: HashMap<String, u32>,
 
@@ -43,6 +44,7 @@ impl Default for Context {
 		Self {
 			default_name: "Obtaining Signature".into(),
 			time: None,
+			current_time: None,
 
 			constants: HashMap::from([
 				("AETHERYTE_TEXT_SGL".into(), 0), // Aetheryte text single?
@@ -75,6 +77,10 @@ impl Context {
 
 	pub fn set_time(&mut self, time: u32) {
 		self.time = Some(time);
+	}
+
+	pub fn current_time(&self) -> Option<u32> {
+		self.current_time
 	}
 
 	pub fn constant(&self, name: &str) -> Option<u32> {
@@ -115,6 +121,9 @@ impl Context {
 
 			// TODO: I _think_ this is boolean of keyboard vs controller state, true is controller?
 			80 => Value::UNKNOWN,
+
+			// TODO: Time... zone? addon:9280/0, uses a if/switch combo to check 0..=5, each of which has identical content but for the set reset time payload.
+			83 => Value::UNKNOWN,
 
 			// TODO: Something about keyboard?
 			94 => Value::UNKNOWN,

@@ -1,5 +1,7 @@
+use time::{ext::NumericalDuration, OffsetDateTime};
+
 use crate::{
-	error::Result,
+	error::{Error, ErrorValue, Result},
 	sestring::{
 		context::Context,
 		expression::Expression,
@@ -23,6 +25,45 @@ impl Payload for SetTime {
 		}
 
 		context.set_time(timestamp);
+
+		Ok("".into())
+	}
+}
+
+pub struct SetResetTime;
+impl Payload for SetResetTime {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (target_hour, target_weekday) = arguments.resolve::<(u32, Option<u32>)>(context)?;
+
+		let now = context.current_time().unwrap_or(FFXIV_EPOCH);
+		let mut datetime = OffsetDateTime::from_unix_timestamp(now.into())
+			.map_err(|error| Error::Invalid(ErrorValue::SeString, error.to_string()))?;
+
+		let mut day_offset = 0;
+
+		// Get the offset required to reach the target weekday. If the target is in
+		// the past this week, move to next week.
+		if let Some(target_weekday) = target_weekday {
+			let current_weekday = datetime.weekday().number_days_from_sunday();
+			day_offset += i64::from(target_weekday) - i64::from(current_weekday);
+			if day_offset < 0 {
+				day_offset += 7;
+			}
+		}
+
+		// If we've not moved forward on the day offset yet, and the target hour has
+		// passed, move to the next day.
+		if target_hour < datetime.hour().into() && day_offset <= 0 {
+			day_offset += 1;
+		}
+
+		// Update the datetime with the derived offsets.
+		datetime += day_offset.days();
+		datetime = datetime
+			.replace_hour(target_hour.try_into().unwrap())
+			.map_err(|error| Error::Invalid(ErrorValue::SeString, error.to_string()))?;
+
+		context.set_time(datetime.unix_timestamp().try_into().unwrap());
 
 		Ok("".into())
 	}
@@ -77,6 +118,61 @@ mod test {
 			.resolve(&mut Context::default())
 			.unwrap(),
 			"2023 4 5 20 6 9 42"
+		);
+	}
+
+	#[test]
+	fn set_reset_time_forward() {
+		assert_eq!(
+			// SetResetTime(12, 6)
+			str(&[&[0x02, 0x06, 0x03, 0x0D, 0x07, 0x03], render_date_time()].concat())
+				.resolve(&mut Context::default())
+				.unwrap(),
+			"2013 8 7 31 12 0 0"
+		);
+	}
+
+	#[test]
+	fn set_reset_time_same_day() {
+		assert_eq!(
+			// SetResetTime(6, 2)
+			str(&[&[0x02, 0x06, 0x03, 0x07, 0x03, 0x03], render_date_time()].concat())
+				.resolve(&mut Context::default())
+				.unwrap(),
+			"2013 8 4 28 6 0 0"
+		);
+	}
+
+	#[test]
+	fn set_reset_time_backward() {
+		assert_eq!(
+			// SetResetTime(12, 0)
+			str(&[&[0x02, 0x06, 0x03, 0x0D, 0x01, 0x03], render_date_time()].concat())
+				.resolve(&mut Context::default())
+				.unwrap(),
+			"2013 9 1 1 12 0 0"
+		);
+	}
+
+	#[test]
+	fn set_reset_time_time_forward() {
+		assert_eq!(
+			// SetResetTime(12)
+			str(&[&[0x02, 0x06, 0x02, 0x0D, 0x03], render_date_time()].concat())
+				.resolve(&mut Context::default())
+				.unwrap(),
+			"2013 8 3 27 12 0 0"
+		);
+	}
+
+	#[test]
+	fn set_reset_time_time_backward() {
+		assert_eq!(
+			// SetResetTime(6)
+			str(&[&[0x02, 0x06, 0x02, 0x07, 0x03], render_date_time()].concat())
+				.resolve(&mut Context::default())
+				.unwrap(),
+			"2013 8 4 28 6 0 0"
 		);
 	}
 }

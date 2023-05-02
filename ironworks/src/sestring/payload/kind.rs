@@ -8,7 +8,7 @@ use super::{
 	payload::{Fallback, Payload},
 	player::PlayerName,
 	sheet::{AutoTranslate, Sheet},
-	time::SetTime,
+	time::{SetResetTime, SetTime},
 };
 
 #[rustfmt::skip]
@@ -102,6 +102,7 @@ impl Kind {
 			Self::Switch => &Switch,
 
 			Self::SetTime => &SetTime,
+			Self::SetResetTime => &SetResetTime,
 
 			Self::Sheet => &Sheet,
 			Self::AutoTranslate => &AutoTranslate,
