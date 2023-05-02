@@ -5,9 +5,8 @@ use super::{
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
 	format::{Float, Identity, Thousands, TwoDigit, ZeroPad},
-	payload::{Fallback, Payload},
+	payload::{Fallback, NoOp, Payload},
 	player::PlayerName,
-	sheet::{AutoTranslate, Sheet},
 	time::{SetResetTime, SetTime},
 };
 
@@ -78,6 +77,18 @@ pub enum Kind {
 
 impl Kind {
 	pub fn default_payload(&self) -> &dyn Payload {
+		#[cfg(feature = "excel")]
+		match self {
+			Self::Sheet => return &super::sheet::Sheet,
+			Self::AutoTranslate => return &super::sheet::AutoTranslate,
+			Self::NounJa => return &super::sheet::Noun(crate::excel::Language::Japanese),
+			Self::NounEn => return &super::sheet::Noun(crate::excel::Language::English),
+			Self::NounDe => return &super::sheet::Noun(crate::excel::Language::German),
+			Self::NounFr => return &super::sheet::Noun(crate::excel::Language::French),
+			Self::NounZh => return &super::sheet::Noun(crate::excel::Language::ChineseSimplified),
+			_ => {}
+		};
+
 		match self {
 			Self::NewLine | Self::PageSeparator => &NEW_LINE,
 			Self::SoftHyphen => &SOFT_HYPHEN,
@@ -104,8 +115,15 @@ impl Kind {
 			Self::SetTime => &SetTime,
 			Self::SetResetTime => &SetResetTime,
 
-			Self::Sheet => &Sheet,
-			Self::AutoTranslate => &AutoTranslate,
+			// If excel is not available, explicitly NoOp all of these - they commonly
+			// contain strings that fallback logic would pick up on errnoeously.
+			Self::Sheet => &NoOp,
+			Self::AutoTranslate => &NoOp,
+			Self::NounJa => &NoOp,
+			Self::NounEn => &NoOp,
+			Self::NounDe => &NoOp,
+			Self::NounFr => &NoOp,
+			Self::NounZh => &NoOp,
 
 			_ => &Fallback,
 	}

@@ -5,6 +5,7 @@ mod format;
 mod kind;
 mod payload;
 mod player;
+#[cfg(feature = "excel")]
 mod sheet;
 mod time;
 

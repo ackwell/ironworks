@@ -1,5 +1,6 @@
 use crate::{
 	error::Result,
+	excel::Language,
 	sestring::{
 		context::Context,
 		expression::Expression,
@@ -50,6 +51,14 @@ pub struct AutoTranslate;
 impl Payload for AutoTranslate {
 	fn resolve(&self, _arguments: &[Expression], _context: &mut Context) -> Result<String> {
 		// TODO: do lookup in excel
+		Ok("".into())
+	}
+}
+
+pub struct Noun(pub Language);
+impl Payload for Noun {
+	fn resolve(&self, _arguments: &[Expression], _context: &mut Context) -> Result<String> {
+		// TODO: do lookup in excel. this has a _whole_ lot of messy stuff w/r/t attributives and so on.
 		Ok("".into())
 	}
 }

@@ -8,7 +8,6 @@ pub trait Payload {
 }
 
 pub struct Fallback;
-
 impl Payload for Fallback {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
 		// Given this is a fallback and therefore we do not know the semantics of
@@ -23,5 +22,12 @@ impl Payload for Fallback {
 			.collect::<Result<String>>()?;
 
 		Ok(string)
+	}
+}
+
+pub struct NoOp;
+impl Payload for NoOp {
+	fn resolve(&self, _arguments: &[Expression], _context: &mut Context) -> Result<String> {
+		Ok("".into())
 	}
 }
