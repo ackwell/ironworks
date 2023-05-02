@@ -51,6 +51,26 @@ impl Payload for LowerAll {
 	}
 }
 
+pub struct Split;
+impl Payload for Split {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (string, pattern, index) = arguments.resolve::<(String, String, u32)>(context)?;
+		let output = string
+			.split(&pattern)
+			.nth(index.try_into().unwrap())
+			.unwrap_or("");
+		Ok(output.into())
+	}
+}
+
+pub struct Pronounciation;
+impl Payload for Pronounciation {
+	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
+		let (string, pronounciation) = arguments.resolve::<(String, String)>(context)?;
+		Ok(format!("{string} ({pronounciation})"))
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use std::io::Cursor;
@@ -104,5 +124,18 @@ mod test {
 				.unwrap(),
 			"eeby jeeby"
 		);
+	}
+
+	#[test]
+	fn split() {
+		assert_eq!(
+			Split
+				.resolve(
+					&[str(b"zero one two"), str(b" "), Expression::U32(1)],
+					&mut Context::default()
+				)
+				.unwrap(),
+			"one"
+		)
 	}
 }

@@ -1,12 +1,12 @@
 use binrw::binread;
 
 use super::{
-	case::{LowerAll, LowerFirst, TitleAll, TitleFirst},
 	character::{DASH, NEW_LINE, NON_BREAKING_SPACE, SOFT_HYPHEN},
 	control_flow::{If, IfSelf, Switch},
 	format::{Float, Identity, Thousands, TwoDigit, ZeroPad},
 	payload::{Fallback, NoOp, Payload},
 	player::PlayerName,
+	text::{LowerAll, LowerFirst, Pronounciation, Split, TitleAll, TitleFirst},
 	time::{SetResetTime, SetTime},
 };
 
@@ -107,6 +107,8 @@ impl Kind {
 			Self::TitleAll => &TitleAll,
 			Self::LowerFirst => &LowerFirst,
 			Self::LowerAll => &LowerAll,
+			Self::Split => &Split,
+			Self::Pronounciation => &Pronounciation,
 
 			Self::If => &If,
 			Self::IfSelf => &IfSelf,
