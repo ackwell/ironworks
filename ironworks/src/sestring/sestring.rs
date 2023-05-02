@@ -1,4 +1,5 @@
 use std::{
+	fmt,
 	io::{self, Read, Seek},
 	mem,
 };
@@ -15,21 +16,17 @@ use super::{context::Context, expression::Expression, payload::Kind};
 const PAYLOAD_START: u8 = 0x02;
 const PAYLOAD_END: u8 = 0x03;
 
-// TEMPORARY
-impl std::fmt::Display for SeString {
-	fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let result = self
-			.resolve(&mut Context::default())
-			.map_err(|_| std::fmt::Error)?;
-		result.fmt(formatter)
-	}
-}
-
+/// Square Enix rich text format.
+///
+/// SeString data consists of standard UTF8 text interspersed with "payloads",
+/// which perform further operations ranging from text colour and style, to
+/// control flow and data lookups.
 #[derive(Debug)]
 pub struct SeString(Vec<Segment>);
 
 impl SeString {
-	pub fn resolve(&self, context: &mut Context) -> Result<String> {
+	// TODO: Make this publicly accessible once context is a bit more fleshed out and usable.
+	pub(crate) fn resolve(&self, context: &mut Context) -> Result<String> {
 		let Self(segments) = self;
 
 		// Happy path - single segment can be treated as a pass-through.
@@ -44,6 +41,17 @@ impl SeString {
 			.collect::<Result<String>>()?;
 
 		Ok(string)
+	}
+}
+
+/// Simple display implementation for SeString. Functions as a `.resolve` call
+/// with a default-state context.
+impl fmt::Display for SeString {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let result = self
+			.resolve(&mut Context::default())
+			.map_err(|_| fmt::Error)?;
+		result.fmt(formatter)
 	}
 }
 

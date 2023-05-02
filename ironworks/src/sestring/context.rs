@@ -38,7 +38,7 @@ pub struct Context {
 impl Default for Context {
 	fn default() -> Self {
 		Self {
-			default_name: "Obtaining Signature".into(),
+			default_name: "Firstname Lastname".into(),
 			time: None,
 			current_time: None,
 
