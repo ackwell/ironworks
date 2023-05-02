@@ -87,7 +87,7 @@ impl Expression {
 			}
 			Self::PlayerParameter(expression) => {
 				let index = expression.resolve(context)?;
-				Value::U32(context.player_parameter(index)?)
+				Value::U32(context.player_parameter(index))
 			}
 			Self::StringParameter(expression) => {
 				let index = expression.resolve(context)?;
@@ -96,13 +96,6 @@ impl Expression {
 			Self::ObjectParameter(expression) => {
 				let index = expression.resolve(context)?;
 				Value::String(context.object_parameter(index))
-			}
-
-			other => {
-				return Err(Error::Invalid(
-					ErrorValue::SeString,
-					format!("unhandled expression kind {other:?}"),
-				))
 			}
 		};
 

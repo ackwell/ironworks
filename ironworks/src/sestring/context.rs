@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use crate::error::{Error, ErrorValue, Result};
-
 use super::value::Value;
 
 #[derive(Debug)]
@@ -90,95 +88,36 @@ impl Context {
 	}
 
 	// TODO: what's the return type? is it always going to be u32 or do i need to return an arbitrary value
-	pub fn player_parameter(&self, id: u32) -> Result<u32> {
-		let value = match id {
-			// TODO: Very unsure on this one. Switches some copy about ending a duty recording?
-			0 => Value::UNKNOWN,
-
-			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
-			4 => Value::UNKNOWN,
-
-			// TODO: Might be gender related? used in french to switch between some attributive lookups
-			5 => Value::UNKNOWN,
-
-			// TODO: Gender?
-			6 => Value::UNKNOWN,
-
-			// TODO: similar to 8
-			7 => Value::UNKNOWN,
-			// TODO: seems to be something related to game community tools, is used for fc and pvp team related messages
-			8 => Value::UNKNOWN,
-
-			// TODO: 11 is an hour-of-the-day value, 12 is minutes of the hour. no idea how these are linked to the player object. xivapi calls them in_game_hours and in_game_minutes
-			11 => Value::UNKNOWN,
-			12 => Value::UNKNOWN,
-
-			// TODO: according to xivapi, these are all configured colours? lines up with their use in logmessage i guess
-			13..=44 => Value::UNKNOWN,
-			57..=65 => Value::UNKNOWN,
-
-			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
-			52 | 53 | 54 => Value::UNKNOWN,
-
-			// TODO: Something to do with the french.
-			66 | 67 => Value::UNKNOWN,
-
-			// TODO: seems to be related to classjob in some way?
-			68 => Value::UNKNOWN,
-
-			// TODO: what? seems to be level as well, but used exclusively for gatherers?
+	pub fn player_parameter(&self, id: u32) -> u32 {
+		match id {
 			69 => self.player.level,
-
-			// TODO: seemingly used to pick from the 3 starting town consortium NPCs. might be starting city?
-			70 => Value::UNKNOWN,
-
-			// TODO: Race. 3 is lala, not sure about the others.
-			71 => Value::UNKNOWN,
-
 			72 => self.player.level,
 
-			// TODO: quest/005/ManFst300_00511 (2466) Japanese 112/0 col 1, seems to be related to whether you've met ralph before? possibly NG+ related?
-			74 => Value::UNKNOWN,
-
-			// TODO: Related to controller state. 0 for "gamepad", >0 for "gamepad". addon@1760 suggests 1 might have something to do with xhb?
-			75 => Value::UNKNOWN,
-
-			// Legacy character status, presumably bool. 1 is legacy, 0 not.
-			76 => Value::UNKNOWN,
-
-			// TODO: Seemingly related to region? used in a date formatting string, 3 formats as D/M/Y, non-3 is formatted as M/D/Y, so i assume 3 is europe.
-			77 => Value::UNKNOWN,
-
-			// TODO: platform. 3 is OSX
-			78 => Value::UNKNOWN,
-
-			// TODO: quest/005/FesVlt102_00515:2/0
-			79 => Value::UNKNOWN,
-
-			// TODO: I _think_ this is boolean of keyboard vs controller state, true is controller?
-			80 => Value::UNKNOWN,
-
-			// TODO: Time... zone? addon:9280/0, uses a if/switch combo to check 0..=5, each of which has identical content but for the set reset time payload.
-			83 => Value::UNKNOWN,
-
-			// TODO: CWLS2..=8 colour?
-			84 | 85 | 86 | 87 | 88 | 89 | 90 => Value::UNKNOWN,
-
-			// TODO: similar to 70, but picks between GC quartermasters. Might be GC affiliation of the player?
-			92 => Value::UNKNOWN,
-
-			// TODO: Something about keyboard?
-			94 => Value::UNKNOWN,
-
-			other => {
-				return Err(Error::Invalid(
-					ErrorValue::SeString,
-					format!("unknown player parameter id {other}"),
-				))
-			}
-		};
-
-		Ok(value)
+			// 0: Very unsure on this one. Switches some copy about ending a duty recording?
+			// 4: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+			// 5: Might be gender related? used in french to switch between some attributive lookups
+			// 6: Gender?
+			// 7 | 8: seems to be something related to game community tools, is used for fc and pvp team related messages
+			// 11 | 12: 11 is an hour-of-the-day value, 12 is minutes of the hour. no idea how these are linked to the player object. xivapi calls them in_game_hours and in_game_minutes
+			// 13..=44 | 57..=65: according to xivapi, these are all configured colours? lines up with their use in logmessage i guess
+			// 52 | 53 | 54: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+			// 66 | 67: Something to do with the french.
+			// 68: seems to be related to classjob in some way? xivapi has as classjob_id
+			// 70: seemingly used to pick from the 3 starting town consortium NPCs. might be starting city?
+			// 71: Race. 3 is lala, not sure about the others.
+			// 74: quest/005/ManFst300_00511 (2466) Japanese 112/0 col 1, seems to be related to whether you've met ralph before? possibly NG+ related?
+			// 75: Related to controller state. 0 for "gamepad", >0 for "gamepad". addon@1760 suggests 1 might have something to do with xhb?
+			// 76: Legacy character status, presumably bool. 1 is legacy, 0 not.
+			// 77: Seemingly related to region? used in a date formatting string, 3 formats as D/M/Y, non-3 is formatted as M/D/Y, so i assume 3 is europe.
+			// 78: platform. 3 is OSX
+			// 79: quest/005/FesVlt102_00515:2/0
+			// 80: I _think_ this is boolean of keyboard vs controller state, true is controller?
+			// 83: Time... zone? addon:9280/0, uses a if/switch combo to check 0..=5, each of which has identical content but for the set reset time payload.
+			// 84..=90: CWLS2..=8 colour?
+			// 92: similar to 70, but picks between GC quartermasters. Might be GC affiliation of the player?
+			// 94: Something about keyboard?
+			_ => Value::UNKNOWN,
+		}
 	}
 
 	pub fn string_parameter(&self, index: u32) -> String {

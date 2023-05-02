@@ -128,5 +128,6 @@ impl Kind {
 			Self::NounZh => &NoOp,
 
 			_ => &Fallback,
+		}
 	}
 }
