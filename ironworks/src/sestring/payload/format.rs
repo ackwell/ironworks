@@ -68,7 +68,12 @@ impl Payload for ZeroPad {
 pub struct Float;
 impl Payload for Float {
 	fn resolve(&self, arguments: &[Expression], context: &mut Context) -> Result<String> {
-		let (mut value, radix, separator) = arguments.resolve::<(u32, u32, String)>(context)?;
+		let (mut value, radix, separator, unused) =
+			arguments.resolve::<(u32, u32, String, Option<u32>)>(context)?;
+
+		if let Some(unused_value) = unused {
+			println!("FLOAT ARG4: {value} {radix} {separator} {unused_value}");
+		}
 
 		if value == Value::UNKNOWN {
 			value = 0

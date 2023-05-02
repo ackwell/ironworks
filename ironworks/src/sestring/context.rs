@@ -49,6 +49,8 @@ impl Default for Context {
 			constants: HashMap::from([
 				("AETHERYTE_TEXT_SGL".into(), 0), // Aetheryte text single?
 				("ADDONHUD_NAME".into(), 0),      // Targeting Hud sheet
+				("QUEST_NAME".into(), 0),
+				("WORLDDCGROUPTYPE_NAME".into(), 0),
 			]),
 
 			player: Default::default(),
@@ -98,6 +100,11 @@ impl Context {
 	// TODO: what's the return type? is it always going to be u32 or do i need to return an arbitrary value
 	pub fn player_parameter(&self, id: u32) -> Result<u32> {
 		let value = match id {
+			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+			4 => Value::UNKNOWN,
+
+			// TODO: similar to 8
+			7 => Value::UNKNOWN,
 			// TODO: seems to be something related to game community tools, is used for fc and pvp team related messages
 			8 => Value::UNKNOWN,
 
@@ -105,16 +112,28 @@ impl Context {
 			11 => Value::UNKNOWN,
 			12 => Value::UNKNOWN,
 
+			// TODO: CWLS 1 colour?
+			35 => Value::UNKNOWN,
+
+			// TODO: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+			52 | 53 | 54 => Value::UNKNOWN,
+
 			// TODO: seems to be related to classjob in some way?
 			68 => Value::UNKNOWN,
 
 			// TODO: what? seems to be level as well, but used exclusively for gatherers?
 			69 => self.player.level,
 
+			// TODO: seemingly used to pick from the 3 starting town consortium NPCs. might be starting city?
+			70 => Value::UNKNOWN,
+
 			72 => self.player.level,
 
 			// TODO: Related to controller state. 0 for "gamepad", >0 for "gamepad". addon@1760 suggests 1 might have something to do with xhb?
 			75 => Value::UNKNOWN,
+
+			// TODO: Seemingly related to region? used in a date formatting string, 3 formats as D/M/Y, non-3 is formatted as M/D/Y, so i assume 3 is europe.
+			77 => Value::UNKNOWN,
 
 			// TODO: platform. 3 is OSX
 			78 => Value::UNKNOWN,
@@ -124,6 +143,12 @@ impl Context {
 
 			// TODO: Time... zone? addon:9280/0, uses a if/switch combo to check 0..=5, each of which has identical content but for the set reset time payload.
 			83 => Value::UNKNOWN,
+
+			// TODO: CWLS2..=8 colour?
+			84 | 85 | 86 | 87 | 88 | 89 | 90 => Value::UNKNOWN,
+
+			// TODO: similar to 70, but picks between GC quartermasters. Might be GC affiliation of the player?
+			92 => Value::UNKNOWN,
 
 			// TODO: Something about keyboard?
 			94 => Value::UNKNOWN,
