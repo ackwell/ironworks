@@ -118,13 +118,23 @@ impl ExcelData {
 
 	fn row_meta(&self, row_id: u32) -> Result<(RowHeader, usize)> {
 		// Find the row definition for the requested row ID.
-		let row_definition = self.rows.iter().find(|row| row.id == row_id).ok_or({
-			Error::NotFound(ErrorValue::Row {
-				row: row_id,
-				subrow: 0,
-				sheet: None,
-			})
-		})?;
+		let row_definition = {
+			// In all likelihood the row can be found simply by indexing
+			// the vector based on the ID's offset from the first row.
+			let first_row_id = self.rows.get(0).map_or(0, |row| row.id);
+			let row_idx = (row_id - first_row_id) as usize;
+			if row_idx < self.rows.len() && self.rows[row_idx].id == row_id {
+				&self.rows[row_idx]
+			} else {
+				self.rows.iter().find(|row| row.id == row_id).ok_or({
+					Error::NotFound(ErrorValue::Row {
+						row: row_id,
+						subrow: 0,
+						sheet: None,
+					})
+				})?
+			}
+		};
 
 		// Get a cursor to the start of the row.
 		let mut cursor = Cursor::new(&self.data);
