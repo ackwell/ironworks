@@ -5,18 +5,18 @@ use std::{fmt, io};
 #[non_exhaustive]
 pub enum Error {
 	/// The requested value could not be found.
-	#[error("The {0} could not be found.")]
+	#[error("the {0} could not be found")]
 	NotFound(ErrorValue),
 
 	/// The requested value did not confirm to expected behavior/shape.
-	#[error("The {0} is invalid: {1}.")]
+	#[error("the {0} is invalid: {1}")]
 	Invalid(ErrorValue, String),
 
 	/// An error occured while working with a resource. This is typically IO-related,
 	/// stemming from an inability to read or parse various expected structures.
 	/// In most circumstances, recovery from this error is not possible without
 	/// re-instantiating ironworks and/or the related module.
-	#[error("An error occured while working with the provided resource: {0}")]
+	#[error("an error occured while working with the provided resource: {0}")]
 	Resource(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -55,6 +55,10 @@ pub enum ErrorValue {
 		sheet: Option<String>,
 	},
 
+	/// A SeString rich text value.
+	#[cfg(feature = "sestring")]
+	SeString,
+
 	/// A SqPack file.
 	#[cfg(feature = "sqpack")]
 	File(Vec<u8>),
@@ -81,6 +85,9 @@ impl fmt::Display for ErrorValue {
 				"Excel row {}/{row}:{subrow}",
 				sheet.as_deref().unwrap_or("(none)"),
 			),
+
+			#[cfg(feature = "sestring")]
+			Self::SeString => write!(formatter, "SeString"),
 
 			#[cfg(feature = "sqpack")]
 			Self::File(file) => write!(formatter, "SqPack file ({} bytes)", file.len()),

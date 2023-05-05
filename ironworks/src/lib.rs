@@ -13,6 +13,7 @@ mod utility;
 #[cfg(feature = "excel")]
 pub mod excel;
 pub mod file;
+#[cfg(feature = "sestring")]
 pub mod sestring;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;

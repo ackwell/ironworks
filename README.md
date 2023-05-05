@@ -13,11 +13,12 @@ ironworks is pre-1.0, and as such its API should be considered unstable. Breakin
 
 To minimise unused code & dependencies, ironworks is split into a number of discrete features. No features are enabled by default - pick the ones you want to use!
 
-| Feature   | Description                                                             |
-| --------- | ----------------------------------------------------------------------- |
-| `excel`   | Read data from Excel databases.                                         |
-| `sqpack`  | Navigate and extract files from the SqPack package format.              |
-| `zipatch` | Adapters to allow working with game data directly out of ZiPatch files. |
+| Feature    | Description                                                             |
+| ---------- | ----------------------------------------------------------------------- |
+| `excel`    | Read data from Excel databases.                                         |
+| `sestring` | Parse and format SeString rich text values.                             |
+| `sqpack`   | Navigate and extract files from the SqPack package format.              |
+| `zipatch`  | Adapters to allow working with game data directly out of ZiPatch files. |
 
 Additionally, file type readers are opt-in. The feature modules above will automatically enable the file types they need, however if you need additional file types for bespoke purposes, they can be enabled manually. File type features are named by the file's extension, i.e. `exl` for `.exl` files.
 
