@@ -75,7 +75,7 @@ impl QueryResolver<'_> {
 		// Run the inner query on the target index.
 		let results =
 			self.executor
-				.search(self.version, &relation.target.sheet, &relation.query)?;
+				.search(self.version, &relation.target.sheet, &relation.query, None)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?

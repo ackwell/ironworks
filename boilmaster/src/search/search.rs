@@ -19,7 +19,14 @@ use super::{
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+	pagination: PaginationConfig,
 	tantivy: tantivy::Config,
+}
+
+#[derive(Debug, Deserialize)]
+struct PaginationConfig {
+	limit_default: u32,
+	limit_max: u32,
 }
 
 #[derive(Debug)]
@@ -32,6 +39,8 @@ pub struct SearchResult {
 }
 
 pub struct Search {
+	pagination_config: PaginationConfig,
+
 	provider: Arc<tantivy::Provider>,
 
 	data: Arc<Data>,
@@ -40,6 +49,7 @@ pub struct Search {
 impl Search {
 	pub fn new(config: Config, data: Arc<Data>) -> Result<Self> {
 		Ok(Self {
+			pagination_config: config.pagination,
 			provider: Arc::new(tantivy::Provider::new(config.tantivy)?),
 			data,
 		})
@@ -94,6 +104,7 @@ impl Search {
 		query: &pre::Node,
 		language: excel::Language,
 		sheet_filter: Option<HashSet<String>>,
+		limit: Option<u32>,
 		schema: &dyn Schema,
 	) -> Result<Warnings<Vec<SearchResult>>> {
 		// Get references to the game data we'll need.
@@ -103,6 +114,15 @@ impl Search {
 			.with_context(|| format!("data for version {version} not ready"))?
 			.excel();
 		let list = excel.list()?;
+
+		// Work out the actual result limit we'll use for this query.
+		let limit = limit
+			.unwrap_or(self.pagination_config.limit_default)
+			.min(self.pagination_config.limit_max);
+		// NOTE: This +1 is intentional - we intentionally request one more
+		// than we'll actually return to make it trivial to distinguish when more
+		// results exist, even when one index is suppling all data.
+		let result_limit = limit + 1;
 
 		// Build the helpers for this search call.
 		let normalizer = Normalizer::new(&excel, schema);
@@ -118,7 +138,8 @@ impl Search {
 		let index_results = sheet_names
 			.map(|name| -> Result<_> {
 				let normalized_query = normalizer.normalize(query, &name, language)?;
-				let results = executor.search(version, &name, &normalized_query)?;
+				let results =
+					executor.search(version, &name, &normalized_query, Some(result_limit))?;
 				let tagged_results = results.map(move |result| SearchResult {
 					score: result.score,
 					sheet: name.to_string(),
@@ -163,12 +184,15 @@ pub struct Executor<'a> {
 }
 
 impl Executor<'_> {
+	// TODO: The Option on limit is to represent the "no limit" case required for inner queries in relationships, where outer filtering may lead to any theoretical bounded inner query to be insufficient. For obvious reasons this is... _not_ a particulary efficient approach, though I'm not sure what better approaches exist. If nothing else, would be good to cache common queries in memory to avoid constant repetition of unbounded limits.
 	pub fn search(
 		&self,
 		version: VersionKey,
 		sheet_name: &str,
 		query: &post::Node,
+		limit: Option<u32>,
 	) -> Result<impl Iterator<Item = tantivy::IndexResult>> {
-		self.provider.search(version, sheet_name, query, self)
+		self.provider
+			.search(version, sheet_name, query, limit, self)
 	}
 }

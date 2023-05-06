@@ -14,8 +14,9 @@ pub fn router() -> Router<service::State> {
 
 #[derive(Debug, Deserialize)]
 struct SearchQuery {
-	sheets: Option<String>,
 	query: query::Node,
+	limit: Option<u32>,
+	sheets: Option<String>,
 }
 
 // TODO: reuse this with sheets
@@ -69,6 +70,7 @@ async fn search(
 			&search_query.query,
 			language,
 			sheets,
+			search_query.limit,
 			schema.as_ref(),
 		)?
 		.decompose();

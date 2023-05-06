@@ -76,6 +76,7 @@ impl Index {
 		version: VersionKey,
 		sheet_key: u64,
 		boilmaster_query: &post::Node,
+		limit: Option<u32>,
 		executor: &Executor,
 	) -> Result<impl Iterator<Item = IndexResult>> {
 		let searcher = self.reader.searcher();
@@ -106,9 +107,11 @@ impl Index {
 		]);
 
 		// Execute the search.
-		// TODO: this results in each individuial index having a limit, as opposed to the whole query itself - think about how to approach this.
+		let doc_limit = limit
+			.map(|value| usize::try_from(value).unwrap())
+			.unwrap_or(usize::MAX);
 		let top_docs = searcher
-			.search(&tantivy_query, &TopDocs::with_limit(100))
+			.search(&tantivy_query, &TopDocs::with_limit(doc_limit))
 			.map_err(anyhow::Error::from)?;
 
 		// Map the results into usable IDs.

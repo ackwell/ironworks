@@ -144,6 +144,7 @@ impl Provider {
 		version: VersionKey,
 		sheet_name: &str,
 		query: &post::Node,
+		limit: Option<u32>,
 		executor: &Executor<'_>,
 	) -> Result<impl Iterator<Item = IndexResult>> {
 		let sheet_map = self.sheet_map.read().expect("poisoned");
@@ -155,7 +156,7 @@ impl Provider {
 			.and_then(|key| indicies.get(key))
 			.with_context(|| format!("no index found for {sheet_name} @ {version}"))?;
 
-		index.search(version, sheet_key, query, executor)
+		index.search(version, sheet_key, query, limit, executor)
 	}
 }
 
