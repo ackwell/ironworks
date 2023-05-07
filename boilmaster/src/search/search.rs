@@ -1,4 +1,9 @@
-use std::{borrow::Cow, cmp::Ordering, collections::HashSet, sync::Arc};
+use std::{
+	borrow::Cow,
+	cmp::Ordering,
+	collections::{HashMap, HashSet},
+	sync::Arc,
+};
 
 use anyhow::Context;
 use either::Either;
@@ -167,10 +172,33 @@ impl Search {
 		// TODO: a zero-length array here implies all indices were query mismatches, or no index was queried at all. disambiguate and error out.
 		// TODO: following the introduction of warnings; that's not quite right - it might all have ended up as warnings, too. While that's possibly _fine_ for i.e. a multi-sheet query, for a _single_ sheet query, it might be more-sane to raise as a top-level error. Think about it a bit, because... yeah. That's not exactly _consistent_ but maybe it's expected?
 
-		// Merge the results from each index into a single vector, sorting by score across all results.
+		// Run processing on the results.
 		let results = index_results.map(|vec| {
+			// Merge the results from each index into a single vector, sorting by score across all results.
 			let mut results = vec.into_iter().flatten().collect::<Vec<_>>();
 			results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+
+			// If there's more results than required to fill the limit, then pagination should be permitted.
+			let limit_usize = usize::try_from(limit).unwrap();
+			let more_results = results.len() > limit_usize;
+
+			// Cull any results sitting outside the limit.
+			results.truncate(limit_usize);
+			results.shrink_to_fit();
+
+			// Only calculate cursor offsets if there's a need to specify a cursor.
+			if more_results {
+				let offsets =
+					results
+						.iter()
+						.fold(HashMap::<String, u32>::new(), |mut map, result| {
+							*map.entry(result.sheet.clone()).or_default() += 1;
+							map
+						});
+
+				tracing::info!("more results! {offsets:#?}")
+			}
+
 			results
 		});
 
