@@ -14,7 +14,7 @@ pub fn build_schema(
 	let mut schema_builder = schema::SchemaBuilder::new();
 
 	// Discriminator field for sheets across versions.
-	schema_builder.add_u64_field(SHEET_KEY, schema::INDEXED);
+	schema_builder.add_u64_field(SHEET_KEY, schema::INDEXED | schema::STORED);
 
 	// RowID and SubrowID are the only stored fields, search results can be looked up in real excel for the full dataset.
 	schema_builder.add_u64_field(ROW_ID, schema::STORED);

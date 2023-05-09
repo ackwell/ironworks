@@ -4,4 +4,4 @@ mod provider;
 mod resolve;
 mod schema;
 
-pub use provider::{Config, IndexResult, Provider};
+pub use provider::{Config, Provider};

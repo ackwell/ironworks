@@ -1,6 +1,10 @@
 use std::{
-	collections::{hash_map::Entry, HashMap},
-	hash::{Hash, Hasher},
+	borrow::Borrow,
+	collections::{
+		hash_map::{DefaultHasher, Entry},
+		HashMap,
+	},
+	hash::{BuildHasherDefault, Hash, Hasher},
 	path::PathBuf,
 	sync::{Arc, RwLock},
 };
@@ -8,13 +12,18 @@ use std::{
 use anyhow::Context;
 use figment::value::magic::RelativePathBuf;
 use ironworks::excel::Sheet;
+use itertools::Itertools;
 use seahash::SeaHasher;
 use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-	search::{error::Result, internal_query::post, search::Executor},
+	search::{
+		error::Result,
+		internal_query::post,
+		search::{Executor, SearchResult},
+	},
 	version::VersionKey,
 };
 
@@ -27,14 +36,6 @@ use super::{
 pub struct Config {
 	directory: RelativePathBuf,
 	memory: usize,
-}
-
-// TODO: This, and the overall interface of the Provider, should be shared in the main search namespace.
-#[derive(Debug)]
-pub struct IndexResult {
-	pub score: f32,
-	pub row_id: u32,
-	pub subrow_id: u16,
 }
 
 pub struct Provider {
@@ -142,21 +143,70 @@ impl Provider {
 	pub fn search(
 		&self,
 		version: VersionKey,
-		sheet_name: &str,
-		query: &post::Node,
+		queries: impl IntoIterator<Item = (String, impl Borrow<post::Node>)>,
 		limit: Option<u32>,
 		executor: &Executor<'_>,
-	) -> Result<impl Iterator<Item = IndexResult>> {
+	) -> Result<Vec<SearchResult>> {
 		let sheet_map = self.sheet_map.read().expect("poisoned");
-		let indicies = self.indicies.read().expect("poisoned");
 
-		let sheet_key = sheet_key(version, sheet_name);
-		let index = sheet_map
-			.get(&sheet_key)
-			.and_then(|key| indicies.get(key))
-			.with_context(|| format!("no index found for {sheet_name} @ {version}"))?;
+		// Group queries by index, maintaining a reverse mapping for the sheet keys.
+		// NOTE: this is overriding the default RandomState intentionally, to ensure that bucket ordering is consistent between queries.
+		let mut buckets = HashMap::<u64, Vec<_>, BuildHasherDefault<DefaultHasher>>::default();
+		let mut reverse_map = HashMap::<u64, String>::new();
+		for (sheet_name, query) in queries {
+			let sheet_key = sheet_key(version, &sheet_name);
+			let index_key = sheet_map
+				.get(&sheet_key)
+				.with_context(|| format!("no index mapping for {sheet_name} @ {version}"))?;
+			buckets
+				.entry(*index_key)
+				.or_default()
+				.push((sheet_key, query));
+			reverse_map.insert(sheet_key, sheet_name);
+		}
 
-		index.search(version, sheet_key, query, limit, executor)
+		drop(sheet_map);
+
+		// Execute searches.
+		// TODO: parellise
+		// TODO: move cursor logic down here
+		let indices = self.indicies.read().expect("poisoned");
+
+		buckets
+			.into_iter()
+			// Fetch the index and perform the search.
+			.map(|(index_key, queries)| {
+				let index = indices
+					.get(&index_key)
+					.with_context(|| format!("no prepared index for {index_key}"))?;
+
+				index.search(version, queries, limit, executor)
+			})
+			// Flatten results from all the indices.
+			.flatten_ok()
+			// Replace sheet keys with resolved sheet names.
+			.map(|maybe_result| {
+				maybe_result.and_then(|result| {
+					// NOTE: This should technically never fail, but as the assumption crosses a module boundry, I'm being extra sure.
+					let sheet = reverse_map
+						.get(&result.sheet_key)
+						.with_context(|| {
+							format!(
+								"sheet key {} missing from reverse name mapping",
+								result.sheet_key
+							)
+						})?
+						.clone();
+
+					Ok(SearchResult {
+						sheet,
+						score: result.score,
+						row_id: result.row_id,
+						subrow_id: result.subrow_id,
+					})
+				})
+			})
+			.collect::<Result<Vec<_>>>()
 	}
 }
 

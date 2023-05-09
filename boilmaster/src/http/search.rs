@@ -64,16 +64,14 @@ async fn search(
 
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
-	let (results, warnings) = search
-		.search(
-			version_key,
-			&search_query.query,
-			language,
-			sheets,
-			search_query.limit,
-			schema.as_ref(),
-		)?
-		.decompose();
+	let results = search.search(
+		version_key,
+		&search_query.query,
+		language,
+		sheets,
+		search_query.limit,
+		schema.as_ref(),
+	)?;
 
 	let http_results = results
 		.into_iter()
@@ -85,5 +83,5 @@ async fn search(
 		})
 		.collect::<Vec<_>>();
 
-	Ok(Json((http_results, warnings)))
+	Ok(Json(http_results))
 }

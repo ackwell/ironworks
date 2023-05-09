@@ -1,5 +1,5 @@
 use std::{
-	borrow::Cow,
+	borrow::{Borrow, Cow},
 	cmp::Ordering,
 	collections::{HashMap, HashSet},
 	sync::Arc,
@@ -14,7 +14,7 @@ use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
 
-use crate::{data::Data, utility::warnings::Warnings, version::VersionKey};
+use crate::{data::Data, version::VersionKey};
 
 use super::{
 	error::{Error, Result},
@@ -111,7 +111,7 @@ impl Search {
 		sheet_filter: Option<HashSet<String>>,
 		limit: Option<u32>,
 		schema: &dyn Schema,
-	) -> Result<Warnings<Vec<SearchResult>>> {
+	) -> Result<Vec<SearchResult>> {
 		// Get references to the game data we'll need.
 		let excel = self
 			.data
@@ -140,67 +140,43 @@ impl Search {
 			.map(|filter| Either::Left(filter.into_iter().map(Cow::from)))
 			.unwrap_or_else(|| Either::Right(list.iter()));
 
-		let index_results = sheet_names
-			.map(|name| -> Result<_> {
+		let normalized_queries = sheet_names
+			.map(|name| {
 				let normalized_query = normalizer.normalize(query, &name, language)?;
-				let results =
-					executor.search(version, &name, &normalized_query, Some(result_limit))?;
-				let tagged_results = results.map(move |result| SearchResult {
-					score: result.score,
-					sheet: name.to_string(),
-					row_id: result.row_id,
-					subrow_id: result.subrow_id,
-				});
-				Ok(tagged_results)
+				Ok((name.to_string(), normalized_query))
 			})
-			.try_fold(Warnings::new(vec![]), |warnings, result| match result {
-				// Successful search results can be pushed to the inner vector in the warnings.
-				Ok(results) => Ok(warnings.map(|mut vec| {
-					vec.push(results);
-					vec
-				})),
-				// Failures should short circuit completely.
-				Err(error @ Error::Failure(_)) => Err(error),
-				// Query mismatches will be raised for most sheets, and aren't particularly meaningful for end-users. Skip.
-				// TODO: ... right? i mean, it kind of sucks to not be able to say "oi this field doesn't exist" but... idk.
-				Err(Error::QuerySchemaMismatch(_)) => Ok(warnings),
-				// Other errors can be raised as warnings without halting the process.
-				// TODO: find some way to tag this with the sheet name because at the moment the warnings are entirely unactionable.
-				Err(error) => Ok(warnings.with_warning(error.to_string())),
-			})?;
+			// TODO: Much like the analogue in index, this is filtering out non-fatal errors. To raise as warnings, these will need to be split out at this point.
+			.filter(|query| match query {
+				Err(Error::Failure(_)) | Ok(_) => true,
+				Err(_) => false,
+			})
+			.collect::<Result<Vec<_>>>()?;
 
-		// TODO: a zero-length array here implies all indices were query mismatches, or no index was queried at all. disambiguate and error out.
-		// TODO: following the introduction of warnings; that's not quite right - it might all have ended up as warnings, too. While that's possibly _fine_ for i.e. a multi-sheet query, for a _single_ sheet query, it might be more-sane to raise as a top-level error. Think about it a bit, because... yeah. That's not exactly _consistent_ but maybe it's expected?
+		let mut results = executor.search(version, normalized_queries, Some(result_limit))?;
 
-		// Run processing on the results.
-		let results = index_results.map(|vec| {
-			// Merge the results from each index into a single vector, sorting by score across all results.
-			let mut results = vec.into_iter().flatten().collect::<Vec<_>>();
-			results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+		// Merge the results from each index into a single vector, sorting by score across all results.
+		// let mut results = vec.into_iter().flatten().collect::<Vec<_>>();
+		results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
 
-			// If there's more results than required to fill the limit, then pagination should be permitted.
-			let limit_usize = usize::try_from(limit).unwrap();
-			let more_results = results.len() > limit_usize;
+		// If there's more results than required to fill the limit, then pagination should be permitted.
+		let limit_usize = usize::try_from(limit).unwrap();
+		let more_results = results.len() > limit_usize;
 
-			// Cull any results sitting outside the limit.
-			results.truncate(limit_usize);
-			results.shrink_to_fit();
+		// Cull any results sitting outside the limit.
+		results.truncate(limit_usize);
+		results.shrink_to_fit();
 
-			// Only calculate cursor offsets if there's a need to specify a cursor.
-			if more_results {
-				let offsets =
-					results
-						.iter()
-						.fold(HashMap::<String, u32>::new(), |mut map, result| {
-							*map.entry(result.sheet.clone()).or_default() += 1;
-							map
-						});
+		// Only calculate cursor offsets if there's a need to specify a cursor.
+		if more_results {
+			let offsets = results
+				.iter()
+				.fold(HashMap::<String, u32>::new(), |mut map, result| {
+					*map.entry(result.sheet.clone()).or_default() += 1;
+					map
+				});
 
-				tracing::info!("more results! {offsets:#?}")
-			}
-
-			results
-		});
+			tracing::info!("more results! {offsets:#?}")
+		}
 
 		Ok(results)
 	}
@@ -216,11 +192,9 @@ impl Executor<'_> {
 	pub fn search(
 		&self,
 		version: VersionKey,
-		sheet_name: &str,
-		query: &post::Node,
+		queries: impl IntoIterator<Item = (String, impl Borrow<post::Node>)>,
 		limit: Option<u32>,
-	) -> Result<impl Iterator<Item = tantivy::IndexResult>> {
-		self.provider
-			.search(version, sheet_name, query, limit, self)
+	) -> Result<Vec<SearchResult>> {
+		self.provider.search(version, queries, limit, self)
 	}
 }

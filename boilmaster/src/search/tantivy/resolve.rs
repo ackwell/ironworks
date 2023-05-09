@@ -73,14 +73,18 @@ impl QueryResolver<'_> {
 
 	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>> {
 		// Run the inner query on the target index.
-		let results =
-			self.executor
-				.search(self.version, &relation.target.sheet, &relation.query, None)?;
+		// TODO: this is fairly wasteful - down the road, it may be worth eagerly collecting these relation lookups across a query group and collate as many as possible.
+		let results = self.executor.search(
+			self.version,
+			[(relation.target.sheet.to_owned(), relation.query.as_ref())],
+			None,
+		)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
 		// TODO: I have access to a score from the inside here. I should propagate that, somehow.
 		let terms = results
+			.into_iter()
 			.map(|result| self.value_to_term(&Value::U64(result.row_id.into()), field))
 			.collect::<Result<Vec<_>, _>>()?;
 
