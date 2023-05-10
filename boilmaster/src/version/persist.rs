@@ -17,13 +17,16 @@ impl JsonFile {
 	pub fn read<T>(&self) -> Result<T>
 	where
 		T: for<'de> Deserialize<'de>,
+		T: Default,
 	{
 		let file = match fs::File::open(&self.path) {
 			Ok(file) => file,
-			Err(error) => match error.kind() {
-				io::ErrorKind::NotFound => todo!("default value?"),
-				_ => Err(error)?,
-			},
+			Err(error) => {
+				return match error.kind() {
+					io::ErrorKind::NotFound => Ok(T::default()),
+					_ => Err(error.into()),
+				}
+			}
 		};
 
 		file.lock_shared()?;
