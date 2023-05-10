@@ -102,7 +102,9 @@ impl Index {
 		// Resolve the queries into the final tantivy queries. Each query will be
 		// paired with a sheet discriminator, resulting in a final query along the lines of
 		//   || (sheet1 && sheet1_query)
-		//   || (sheet2 && sheet2_query) ...
+		//   || (sheet2 && sheet2_query)
+		//   ...
+		// TODO: This structure detailed above can lead to some really gnarly request times (over 1.2 _seconds_ on an unbounded `FEEABA8E338E5349`). It should be possible to drastically improve the speed of searches for these queries by merging equivalent query clauses (i.e. same fields on multiple sheets) with a `TermSetQuery` or similar for the sheet key, but that will require some careful query-planner-esque logic that I'm not about to build in this branch. Investigate along with relationship DAG at a later date.
 		let query_resolver = QueryResolver {
 			version,
 			schema,
