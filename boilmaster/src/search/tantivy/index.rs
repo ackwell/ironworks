@@ -7,7 +7,7 @@ use ironworks::{
 use tantivy::{
 	collector::TopDocs,
 	directory::MmapDirectory,
-	query::{BooleanQuery, ConstScoreQuery, Occur, Query, TermQuery},
+	query::{BooleanQuery, ConstScoreQuery, Query, TermQuery},
 	schema, Document, IndexReader, IndexSettings, ReloadPolicy, Term, UserOperation,
 };
 
@@ -112,17 +112,14 @@ impl Index {
 		};
 
 		// Resolve queries into tantivy's format, filtering any non-fatal errors.
-		let tantivy_queries = boilmaster_queries
+		let sheet_queries = boilmaster_queries
 			.into_iter()
 			.map(|(sheet_key, boilmaster_query)| -> Result<_> {
-				let query = BooleanQuery::new(vec![
-					(
-						Occur::Must,
-						query_resolver.resolve(boilmaster_query.borrow())?,
-					),
-					(Occur::Must, sheet_key_query(sheet_key)),
+				let query = BooleanQuery::intersection(vec![
+					sheet_key_query(sheet_key),
+					query_resolver.resolve(boilmaster_query.borrow())?,
 				]);
-				Ok((Occur::Should, Box::new(query) as Box<dyn Query>))
+				Ok(Box::new(query) as Box<dyn Query>)
 			})
 			// TODO: This filters non-fatal resolution errors. If wishing to raise these as warnings, hook here - will likely need to distinguish at an type level between fatal and non-fatal for safety.
 			.filter(|query| match query {
@@ -130,7 +127,7 @@ impl Index {
 				Err(_) => false,
 			})
 			.collect::<Result<Vec<_>>>()?;
-		let tantivy_query = BooleanQuery::new(tantivy_queries);
+		let tantivy_query = BooleanQuery::union(sheet_queries);
 
 		// Execute the search.
 		let doc_limit = limit

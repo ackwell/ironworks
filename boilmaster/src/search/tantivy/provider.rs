@@ -1,5 +1,6 @@
 use std::{
 	borrow::Borrow,
+	cmp::Ordering,
 	collections::{
 		hash_map::{DefaultHasher, Entry},
 		HashMap,
@@ -167,12 +168,17 @@ impl Provider {
 
 		drop(sheet_map);
 
+		// NOTE: This +1 is intentional - we intentionally request one more
+		// than we'll actually return to make it trivial to distinguish when more
+		// results exist, even when one index is suppling all data.
+		let result_limit = limit.map(|value| value + 1);
+
 		// Execute searches.
 		// TODO: parellise
 		// TODO: move cursor logic down here
 		let indices = self.indicies.read().expect("poisoned");
 
-		buckets
+		let mut results = buckets
 			.into_iter()
 			// Fetch the index and perform the search.
 			.map(|(index_key, queries)| {
@@ -180,13 +186,17 @@ impl Provider {
 					.get(&index_key)
 					.with_context(|| format!("no prepared index for {index_key}"))?;
 
-				index.search(version, queries, limit, executor)
+				let results = index
+					.search(version, queries, result_limit, executor)?
+					.map(move |result| (index_key, result));
+
+				Ok(results)
 			})
 			// Flatten results from all the indices.
 			.flatten_ok()
 			// Replace sheet keys with resolved sheet names.
 			.map(|maybe_result| {
-				maybe_result.and_then(|result| {
+				maybe_result.and_then(|(index_key, result)| {
 					// NOTE: This should technically never fail, but as the assumption crosses a module boundry, I'm being extra sure.
 					let sheet = reverse_map
 						.get(&result.sheet_key)
@@ -198,15 +208,47 @@ impl Provider {
 						})?
 						.clone();
 
-					Ok(SearchResult {
-						sheet,
-						score: result.score,
-						row_id: result.row_id,
-						subrow_id: result.subrow_id,
-					})
+					Ok((
+						index_key,
+						SearchResult {
+							sheet,
+							score: result.score,
+							row_id: result.row_id,
+							subrow_id: result.subrow_id,
+						},
+					))
 				})
 			})
-			.collect::<Result<Vec<_>>>()
+			.collect::<Result<Vec<_>>>()?;
+
+		// The results produced by the above are effectively grouped by index - sort them by their scores.
+		results.sort_by(|a, b| b.1.score.partial_cmp(&a.1.score).unwrap_or(Ordering::Equal));
+
+		// If a limit is set and there's more results, trim down and set up a cursor.
+		if let Some(limit) = limit {
+			let _todo_cursor = self.paginate_results(limit, &mut results);
+		}
+
+		Ok(results.into_iter().map(|(_, result)| result).collect())
+	}
+
+	fn paginate_results(&self, limit: u32, results: &mut Vec<(u64, SearchResult)>) -> Option<()> {
+		// If the results fit within the limit, there's nothing to do.
+		let limit_usize = usize::try_from(limit).unwrap();
+		if results.len() <= limit_usize {
+			return None;
+		}
+
+		// Truncate the results to the limit.
+		results.truncate(limit_usize);
+		results.shrink_to_fit();
+
+		// Count the results per index.
+		let offsets = results.iter().counts_by(|item| item.0);
+
+		tracing::info!("recorded counts {offsets:#?}");
+
+		Some(())
 	}
 }
 
