@@ -38,7 +38,10 @@ fn add_column_field(
 
 	use exh::ColumnKind as CK;
 	match column.kind() {
-		CK::String => builder.add_text_field(&name, schema::STRING),
+		CK::String => {
+			builder.add_text_field(&name, schema::STRING);
+			builder.add_u64_field(&string_length_field_name(&name), schema::FAST)
+		}
 
 		CK::Int8 | CK::Int16 | CK::Int32 | CK::Int64 => {
 			builder.add_i64_field(&name, schema::INDEXED)
@@ -82,4 +85,8 @@ pub fn column_field_name(column: &exh::ColumnDefinition, language: excel::Langua
 	let language_string = LanguageString::from(language);
 	let offset = column.offset();
 	format!("{language_string}_{offset}{suffix}")
+}
+
+pub fn string_length_field_name(field_name: &str) -> String {
+	format!("{field_name}_length")
 }

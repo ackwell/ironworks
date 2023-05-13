@@ -12,7 +12,10 @@ use tantivy::{
 };
 
 use crate::{
-	search::{error::Result, internal_query::post, search::Executor, Error},
+	search::{
+		error::Result, internal_query::post, search::Executor,
+		tantivy::schema::string_length_field_name, Error,
+	},
 	version::VersionKey,
 };
 
@@ -209,15 +212,22 @@ fn hydrate_row_document(
 	schema: &schema::Schema,
 ) -> Result<()> {
 	for column in columns {
-		let field = schema
-			.get_field(&column_field_name(column, language))
-			.unwrap();
+		let field_name = column_field_name(column, language);
+		let field = schema.get_field(&field_name).unwrap();
 		let value = row.field(column)?;
 		// TODO: this feels pretty repetetive given the column kind schema build - is it avoidable or nah?
 		use Field as F;
 		match value {
-			// TODO: need to make sure the ingested strings don't contain non-string payloads
-			F::String(value) => document.add_text(field, value),
+			F::String(sestring) => {
+				let string_value = sestring.to_string();
+				let string_length = string_value.len();
+
+				let length_field_name = string_length_field_name(&field_name);
+				let length_field = schema.get_field(&length_field_name).unwrap();
+
+				document.add_text(field, string_value);
+				document.add_u64(length_field, string_length.try_into().unwrap());
+			}
 
 			F::I8(value) => document.add_i64(field, value.into()),
 			F::I16(value) => document.add_i64(field, value.into()),
