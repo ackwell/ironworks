@@ -6,7 +6,7 @@ use serde::Deserialize;
 use super::{error::Error, saint_coinach, Specifier};
 
 pub trait Source: Send + Sync {
-	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema + '_>, Error>;
+	fn version(&self, version: Option<&str>) -> Result<Box<dyn Schema>, Error>;
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,7 +34,7 @@ impl Provider {
 		})
 	}
 
-	pub fn schema(&self, specifier: Option<&Specifier>) -> Result<Box<dyn Schema + '_>, Error> {
+	pub fn schema(&self, specifier: Option<&Specifier>) -> Result<Box<dyn Schema>, Error> {
 		let specifier = specifier.unwrap_or(&self.default);
 
 		let source = self

@@ -1,10 +1,7 @@
-use std::{
-	borrow::{Borrow, Cow},
-	collections::HashSet,
-	sync::Arc,
-};
+use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use anyhow::Context;
+use derivative::Derivative;
 use either::Either;
 use ironworks::excel;
 use ironworks_schema::Schema;
@@ -17,8 +14,8 @@ use crate::{data::Data, version::VersionKey};
 
 use super::{
 	error::{Error, Result},
-	internal_query::{post, pre, Normalizer},
-	tantivy,
+	internal_query::{pre, Normalizer},
+	tantivy::{self, SearchRequest as ProviderSearchRequest},
 };
 
 #[derive(Debug, Deserialize)]
@@ -31,6 +28,24 @@ pub struct Config {
 struct PaginationConfig {
 	limit_default: u32,
 	limit_max: u32,
+}
+
+#[derive(Debug)]
+pub enum SearchRequest {
+	Query(SearchRequestQuery),
+	Cursor,
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct SearchRequestQuery {
+	pub version: VersionKey,
+	pub query: pre::Node,
+	pub language: excel::Language,
+	pub sheets: Option<HashSet<String>>,
+
+	#[derivative(Debug = "ignore")]
+	pub schema: Box<dyn Schema>,
 }
 
 #[derive(Debug)]
@@ -101,42 +116,47 @@ impl Search {
 		Ok(())
 	}
 
-	pub fn search(
-		&self,
-		version: VersionKey,
-		query: &pre::Node,
-		language: excel::Language,
-		sheet_filter: Option<HashSet<String>>,
-		limit: Option<u32>,
-		schema: &dyn Schema,
-	) -> Result<Vec<SearchResult>> {
-		// Get references to the game data we'll need.
-		let excel = self
-			.data
-			.version(version)
-			.with_context(|| format!("data for version {version} not ready"))?
-			.excel();
-		let list = excel.list()?;
-
+	pub fn search(&self, request: SearchRequest, limit: Option<u32>) -> Result<Vec<SearchResult>> {
 		// Work out the actual result limit we'll use for this query.
 		let result_limit = limit
 			.unwrap_or(self.pagination_config.limit_default)
 			.min(self.pagination_config.limit_max);
 
-		// Build the helpers for this search call.
-		let normalizer = Normalizer::new(&excel, schema);
+		// Translate the request into the format used by providers.
+		let provider_request = match request {
+			SearchRequest::Query(query) => self.normalize_request_query(query)?,
+			SearchRequest::Cursor => ProviderSearchRequest::Cursor,
+		};
+
+		// Execute the search.
 		let executor = Executor {
 			provider: &self.provider,
 		};
 
+		executor.search(provider_request, Some(result_limit))
+	}
+
+	fn normalize_request_query(&self, query: SearchRequestQuery) -> Result<ProviderSearchRequest> {
+		// Get references to the game data we'll need.
+		let excel = self
+			.data
+			.version(query.version)
+			.with_context(|| format!("data for version {} not ready", query.version))?
+			.excel();
+		let list = excel.list()?;
+
+		// Build the helpers for this search call.
+		let normalizer = Normalizer::new(&excel, query.schema.as_ref());
+
 		// Get an iterator over the provided sheet filter, falling back to the full list of sheets.
-		let sheet_names = sheet_filter
+		let sheet_names = query
+			.sheets
 			.map(|filter| Either::Left(filter.into_iter().map(Cow::from)))
 			.unwrap_or_else(|| Either::Right(list.iter()));
 
 		let normalized_queries = sheet_names
 			.map(|name| {
-				let normalized_query = normalizer.normalize(query, &name, language)?;
+				let normalized_query = normalizer.normalize(&query.query, &name, query.language)?;
 				Ok((name.to_string(), normalized_query))
 			})
 			// TODO: Much like the analogue in index, this is filtering out non-fatal errors. To raise as warnings, these will need to be split out at this point.
@@ -146,9 +166,10 @@ impl Search {
 			})
 			.collect::<Result<Vec<_>>>()?;
 
-		let results = executor.search(version, normalized_queries, Some(result_limit))?;
-
-		Ok(results)
+		Ok(ProviderSearchRequest::Query {
+			version: query.version,
+			queries: normalized_queries,
+		})
 	}
 }
 
@@ -161,10 +182,9 @@ impl Executor<'_> {
 	// TODO: The Option on limit is to represent the "no limit" case required for inner queries in relationships, where outer filtering may lead to any theoretical bounded inner query to be insufficient. For obvious reasons this is... _not_ a particulary efficient approach, though I'm not sure what better approaches exist. If nothing else, would be good to cache common queries in memory to avoid constant repetition of unbounded limits.
 	pub fn search(
 		&self,
-		version: VersionKey,
-		queries: impl IntoIterator<Item = (String, impl Borrow<post::Node>)>,
+		request: ProviderSearchRequest,
 		limit: Option<u32>,
 	) -> Result<Vec<SearchResult>> {
-		self.provider.search(version, queries, limit, self)
+		self.provider.search(request, limit, self)
 	}
 }

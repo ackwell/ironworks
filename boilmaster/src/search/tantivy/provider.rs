@@ -1,5 +1,4 @@
 use std::{
-	borrow::Borrow,
 	cmp::Ordering,
 	collections::{
 		hash_map::{DefaultHasher, Entry},
@@ -33,6 +32,16 @@ use super::{
 	metadata::{Metadata, MetadataStore},
 };
 
+type StableHashMap<K, V> = HashMap<K, V, BuildHasherDefault<DefaultHasher>>;
+
+pub enum SearchRequest {
+	Query {
+		version: VersionKey,
+		queries: Vec<(String, post::Node)>,
+	},
+	Cursor,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
 	directory: RelativePathBuf,
@@ -43,7 +52,9 @@ pub struct Provider {
 	directory: PathBuf,
 	memory: usize,
 
-	sheet_map: RwLock<HashMap<u64, u64>>,
+	sheet_index_map: RwLock<HashMap<u64, u64>>,
+	sheet_name_map: RwLock<HashMap<u64, (VersionKey, String)>>,
+
 	indicies: RwLock<HashMap<u64, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
 }
@@ -55,7 +66,8 @@ impl Provider {
 		Ok(Self {
 			directory,
 			memory: config.memory,
-			sheet_map: Default::default(),
+			sheet_index_map: Default::default(),
+			sheet_name_map: Default::default(),
 			indicies: Default::default(),
 			metadata,
 		})
@@ -102,12 +114,14 @@ impl Provider {
 	) -> Result<HashMap<u64, Vec<(u64, Sheet<'static, String>)>>> {
 		// Bucket sheets by their index and ensure that the indices exist.
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
-		let mut sheet_map = self.sheet_map.write().expect("poisoned");
+		let mut sheet_index_map = self.sheet_index_map.write().expect("poisoned");
+		let mut sheet_name_map = self.sheet_name_map.write().expect("poisoned");
 		let mut indices = self.indicies.write().expect("poisoned");
 		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
 		let mut skipped = 0;
 		for (version, sheet) in sheets {
-			let sheet_key = sheet_key(version, &sheet.name());
+			let sheet_name = sheet.name();
+			let sheet_key = sheet_key(version, &sheet_name);
 			let index_key = index_key(&sheet)?;
 
 			// Ensure that the index for this sheet exists & is known.
@@ -119,8 +133,9 @@ impl Provider {
 				entry.insert(Arc::new(index));
 			}
 
-			// Record the index mapping for this sheet.
-			sheet_map.insert(sheet_key, index_key);
+			// Record the mappings for this sheet.
+			sheet_index_map.insert(sheet_key, index_key);
+			sheet_name_map.insert(sheet_key, (version, sheet_name));
 
 			// If the sheet has already been ingested, skip adding it to the ingestion bucket.
 			if self.metadata.exists(sheet_key)? {
@@ -143,39 +158,67 @@ impl Provider {
 
 	pub fn search(
 		&self,
-		version: VersionKey,
-		queries: impl IntoIterator<Item = (String, impl Borrow<post::Node>)>,
+		request: SearchRequest,
 		limit: Option<u32>,
 		executor: &Executor<'_>,
 	) -> Result<Vec<SearchResult>> {
-		let sheet_map = self.sheet_map.read().expect("poisoned");
+		let (version, buckets) = match request {
+			SearchRequest::Query { version, queries } => {
+				(version, self.bucket_queries(version, queries)?)
+			}
+			SearchRequest::Cursor => todo!(),
+		};
+
+		let mut results = self.execute_search(version, buckets, limit, executor)?;
+
+		// If a limit is set and there's more results, trim down and set up a cursor.
+		if let Some(limit) = limit {
+			let _todo_cursor = self.paginate_results(limit, &mut results);
+		}
+
+		Ok(results.into_iter().map(|(_, result)| result).collect())
+	}
+
+	fn bucket_queries(
+		&self,
+		version: VersionKey,
+		queries: Vec<(String, post::Node)>,
+	) -> Result<StableHashMap<u64, Vec<(u64, post::Node)>>> {
+		let sheet_index_map = self.sheet_index_map.read().expect("poisoned");
 
 		// Group queries by index, maintaining a reverse mapping for the sheet keys.
 		// NOTE: this is overriding the default RandomState intentionally, to ensure that bucket ordering is consistent between queries.
-		let mut buckets = HashMap::<u64, Vec<_>, BuildHasherDefault<DefaultHasher>>::default();
-		let mut reverse_map = HashMap::<u64, String>::new();
+		let mut buckets = StableHashMap::<_, _>::default();
 		for (sheet_name, query) in queries {
 			let sheet_key = sheet_key(version, &sheet_name);
-			let index_key = sheet_map
+			let index_key = sheet_index_map
 				.get(&sheet_key)
 				.with_context(|| format!("no index mapping for {sheet_name} @ {version}"))?;
 			buckets
 				.entry(*index_key)
-				.or_default()
+				.or_insert_with(Vec::new)
 				.push((sheet_key, query));
-			reverse_map.insert(sheet_key, sheet_name);
 		}
 
-		drop(sheet_map);
+		Ok(buckets)
+	}
 
-		// NOTE: This +1 is intentional - we intentionally request one more
-		// than we'll actually return to make it trivial to distinguish when more
-		// results exist, even when one index is suppling all data.
+	fn execute_search(
+		&self,
+		version: VersionKey,
+		buckets: StableHashMap<u64, Vec<(u64, post::Node)>>,
+		limit: Option<u32>,
+		executor: &Executor<'_>,
+	) -> Result<Vec<(u64, SearchResult)>> {
+		let sheet_name_map = self.sheet_name_map.read().expect("poisoned");
+
+		// NOTE: This +1 is intentional - we request one more than we'll actually
+		// return to make it trivial to distinguish when more results exist, even
+		// when one index is suppling all data.
 		let result_limit = limit.map(|value| value + 1);
 
 		// Execute searches.
-		// TODO: parellise
-		// TODO: move cursor logic down here
+		// TODO: parellise?
 		let indices = self.indicies.read().expect("poisoned");
 
 		let mut results = buckets
@@ -197,21 +240,17 @@ impl Provider {
 			// Replace sheet keys with resolved sheet names.
 			.map(|maybe_result| {
 				maybe_result.and_then(|(index_key, result)| {
-					// NOTE: This should technically never fail, but as the assumption crosses a module boundry, I'm being extra sure.
-					let sheet = reverse_map
-						.get(&result.sheet_key)
-						.with_context(|| {
-							format!(
-								"sheet key {} missing from reverse name mapping",
-								result.sheet_key
-							)
-						})?
-						.clone();
+					let (_, name) = sheet_name_map.get(&result.sheet_key).with_context(|| {
+						format!(
+							"sheet key {} missing from sheet name mapping",
+							result.sheet_key
+						)
+					})?;
 
 					Ok((
 						index_key,
 						SearchResult {
-							sheet,
+							sheet: name.clone(),
 							score: result.score,
 							row_id: result.row_id,
 							subrow_id: result.subrow_id,
@@ -224,12 +263,7 @@ impl Provider {
 		// The results produced by the above are effectively grouped by index - sort them by their scores.
 		results.sort_by(|a, b| b.1.score.partial_cmp(&a.1.score).unwrap_or(Ordering::Equal));
 
-		// If a limit is set and there's more results, trim down and set up a cursor.
-		if let Some(limit) = limit {
-			let _todo_cursor = self.paginate_results(limit, &mut results);
-		}
-
-		Ok(results.into_iter().map(|(_, result)| result).collect())
+		Ok(results)
 	}
 
 	fn paginate_results(&self, limit: u32, results: &mut Vec<(u64, SearchResult)>) -> Option<()> {

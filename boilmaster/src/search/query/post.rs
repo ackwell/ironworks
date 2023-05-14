@@ -14,7 +14,7 @@ pub use query::{Occur, Value};
 // Types specific to post-normalised queries
 pub type LeafField = (exh::ColumnDefinition, excel::Language);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RelationTarget {
 	pub sheet: String,
 	pub condition: Option<Box<Node>>,

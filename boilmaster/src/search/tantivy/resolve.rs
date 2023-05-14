@@ -14,6 +14,7 @@ use crate::{
 };
 
 use super::{
+	provider::SearchRequest,
 	query::MatchQuery,
 	schema::{column_field_name, string_length_field_name},
 };
@@ -78,8 +79,10 @@ impl QueryResolver<'_> {
 		// Run the inner query on the target index.
 		// TODO: this is fairly wasteful - down the road, it may be worth eagerly collecting these relation lookups across a query group and collate as many as possible.
 		let results = self.executor.search(
-			self.version,
-			[(relation.target.sheet.to_owned(), relation.query.as_ref())],
+			SearchRequest::Query {
+				version: self.version,
+				queries: vec![(relation.target.sheet.to_owned(), *relation.query.clone())],
+			},
 			None,
 		)?;
 

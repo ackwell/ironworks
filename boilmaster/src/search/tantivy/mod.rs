@@ -5,4 +5,4 @@ mod query;
 mod resolve;
 mod schema;
 
-pub use provider::{Config, Provider};
+pub use provider::{Config, Provider, SearchRequest};

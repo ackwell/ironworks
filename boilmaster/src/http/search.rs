@@ -4,7 +4,12 @@ use axum::{debug_handler, extract::State, response::IntoResponse, routing::get, 
 use ironworks::excel::Language;
 use serde::{Deserialize, Serialize};
 
-use crate::{data::LanguageString, schema, search::query, version::VersionKey};
+use crate::{
+	data::LanguageString,
+	schema,
+	search::{query, SearchRequest, SearchRequestQuery},
+	version::VersionKey,
+};
 
 use super::{error::Result, extract::Query, service};
 
@@ -65,12 +70,14 @@ async fn search(
 	let schema = schema_provider.schema(schema_query.schema.as_ref())?;
 
 	let results = search.search(
-		version_key,
-		&search_query.query,
-		language,
-		sheets,
+		SearchRequest::Query(SearchRequestQuery {
+			version: version_key,
+			query: search_query.query,
+			language,
+			sheets,
+			schema,
+		}),
 		search_query.limit,
-		schema.as_ref(),
 	)?;
 
 	let http_results = results
