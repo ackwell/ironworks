@@ -4,6 +4,7 @@ use std::{
 		hash_map::{DefaultHasher, Entry},
 		HashMap,
 	},
+	fmt,
 	hash::{BuildHasherDefault, Hash, Hasher},
 	path::PathBuf,
 	sync::{Arc, RwLock},
@@ -52,10 +53,10 @@ pub struct Provider {
 	directory: PathBuf,
 	memory: usize,
 
-	sheet_index_map: RwLock<HashMap<u64, u64>>,
-	sheet_name_map: RwLock<HashMap<u64, (VersionKey, String)>>,
+	sheet_index_map: RwLock<HashMap<SheetKey, IndexKey>>,
+	sheet_name_map: RwLock<HashMap<SheetKey, (VersionKey, String)>>,
 
-	indicies: RwLock<HashMap<u64, Arc<Index>>>,
+	indicies: RwLock<HashMap<IndexKey, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
 }
 
@@ -111,13 +112,13 @@ impl Provider {
 	fn prepare_indices(
 		&self,
 		sheets: impl IntoIterator<Item = (VersionKey, Sheet<'static, String>)>,
-	) -> Result<HashMap<u64, Vec<(u64, Sheet<'static, String>)>>> {
+	) -> Result<HashMap<IndexKey, Vec<(SheetKey, Sheet<'static, String>)>>> {
 		// Bucket sheets by their index and ensure that the indices exist.
 		// TODO: this seems dumb, but it avoids locking the rwlock for write while ingestion is ongoing. think of a better approach.
 		let mut sheet_index_map = self.sheet_index_map.write().expect("poisoned");
 		let mut sheet_name_map = self.sheet_name_map.write().expect("poisoned");
 		let mut indices = self.indicies.write().expect("poisoned");
-		let mut buckets = HashMap::<u64, Vec<(u64, Sheet<String>)>>::new();
+		let mut buckets = HashMap::<IndexKey, Vec<(SheetKey, Sheet<String>)>>::new();
 		let mut skipped = 0;
 		for (version, sheet) in sheets {
 			let sheet_name = sheet.name();
@@ -126,10 +127,8 @@ impl Provider {
 
 			// Ensure that the index for this sheet exists & is known.
 			if let Entry::Vacant(entry) = indices.entry(index_key) {
-				let index = Index::new(
-					&self.directory.join(format!("sheets-{index_key:016x}")),
-					&sheet,
-				)?;
+				let index =
+					Index::new(&self.directory.join(format!("sheets-{index_key}")), &sheet)?;
 				entry.insert(Arc::new(index));
 			}
 
@@ -183,7 +182,7 @@ impl Provider {
 		&self,
 		version: VersionKey,
 		queries: Vec<(String, post::Node)>,
-	) -> Result<StableHashMap<u64, Vec<(u64, post::Node)>>> {
+	) -> Result<StableHashMap<IndexKey, Vec<(SheetKey, post::Node)>>> {
 		let sheet_index_map = self.sheet_index_map.read().expect("poisoned");
 
 		// Group queries by index, maintaining a reverse mapping for the sheet keys.
@@ -206,10 +205,10 @@ impl Provider {
 	fn execute_search(
 		&self,
 		version: VersionKey,
-		buckets: StableHashMap<u64, Vec<(u64, post::Node)>>,
+		buckets: StableHashMap<IndexKey, Vec<(SheetKey, post::Node)>>,
 		limit: Option<u32>,
 		executor: &Executor<'_>,
-	) -> Result<Vec<(u64, SearchResult)>> {
+	) -> Result<Vec<(IndexKey, SearchResult)>> {
 		let sheet_name_map = self.sheet_name_map.read().expect("poisoned");
 
 		// NOTE: This +1 is intentional - we request one more than we'll actually
@@ -266,7 +265,11 @@ impl Provider {
 		Ok(results)
 	}
 
-	fn paginate_results(&self, limit: u32, results: &mut Vec<(u64, SearchResult)>) -> Option<()> {
+	fn paginate_results(
+		&self,
+		limit: u32,
+		results: &mut Vec<(IndexKey, SearchResult)>,
+	) -> Option<()> {
 		// If the results fit within the limit, there's nothing to do.
 		let limit_usize = usize::try_from(limit).unwrap();
 		if results.len() <= limit_usize {
@@ -286,14 +289,45 @@ impl Provider {
 	}
 }
 
-fn sheet_key(version: VersionKey, sheet_name: &str) -> u64 {
+// TODO: consider moving these to a seperate module
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct SheetKey(u64);
+
+impl fmt::Display for SheetKey {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		formatter.write_fmt(format_args!("{:016x}", self.0))
+	}
+}
+
+impl From<SheetKey> for u64 {
+	fn from(value: SheetKey) -> Self {
+		value.0
+	}
+}
+
+impl From<u64> for SheetKey {
+	fn from(value: u64) -> Self {
+		Self(value)
+	}
+}
+
+fn sheet_key(version: VersionKey, sheet_name: &str) -> SheetKey {
 	let mut hasher = SeaHasher::new();
 	version.hash(&mut hasher);
 	sheet_name.hash(&mut hasher);
-	hasher.finish()
+	SheetKey(hasher.finish())
 }
 
-fn index_key(sheet: &Sheet<String>) -> Result<u64> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+struct IndexKey(u64);
+
+impl fmt::Display for IndexKey {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		formatter.write_fmt(format_args!("{:016x}", self.0))
+	}
+}
+
+fn index_key(sheet: &Sheet<String>) -> Result<IndexKey> {
 	// TODO: consider using fixed seeds?
 	let mut hasher = SeaHasher::new();
 	sheet.kind()?.hash(&mut hasher);
@@ -307,5 +341,5 @@ fn index_key(sheet: &Sheet<String>) -> Result<u64> {
 	columns.sort_by_key(|column| column.offset());
 	columns.hash(&mut hasher);
 
-	Ok(hasher.finish())
+	Ok(IndexKey(hasher.finish()))
 }

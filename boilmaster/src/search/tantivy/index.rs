@@ -20,13 +20,14 @@ use crate::{
 };
 
 use super::{
+	provider::SheetKey,
 	resolve::QueryResolver,
 	schema::{build_schema, column_field_name, ROW_ID, SHEET_KEY, SUBROW_ID},
 };
 
 pub struct IndexResult {
 	pub score: f32,
-	pub sheet_key: u64,
+	pub sheet_key: SheetKey,
 	pub row_id: u32,
 	pub subrow_id: u16,
 }
@@ -58,7 +59,7 @@ impl Index {
 		Ok(Self { index, reader })
 	}
 
-	pub fn ingest(&self, writer_memory: usize, sheets: &[(u64, Sheet<String>)]) -> Result<()> {
+	pub fn ingest(&self, writer_memory: usize, sheets: &[(SheetKey, Sheet<String>)]) -> Result<()> {
 		let mut writer = self.index.writer(writer_memory)?;
 		let schema = self.index.schema();
 
@@ -83,7 +84,7 @@ impl Index {
 	pub fn search(
 		&self,
 		version: VersionKey,
-		boilmaster_queries: Vec<(u64, impl Borrow<post::Node>)>,
+		boilmaster_queries: Vec<(SheetKey, impl Borrow<post::Node>)>,
 		limit: Option<u32>,
 		executor: &Executor,
 	) -> Result<impl Iterator<Item = IndexResult>> {
@@ -92,10 +93,10 @@ impl Index {
 
 		// Prep a utility to create a query clause that matches a sheet key.
 		let field_sheet_key = schema.get_field(SHEET_KEY).unwrap();
-		let sheet_key_query = |sheet_key: u64| {
+		let sheet_key_query = |sheet_key: SheetKey| {
 			Box::new(ConstScoreQuery::new(
 				Box::new(TermQuery::new(
-					Term::from_field_u64(field_sheet_key, sheet_key),
+					Term::from_field_u64(field_sheet_key, sheet_key.into()),
 					schema::IndexRecordOption::Basic,
 				)),
 				0.0,
@@ -145,8 +146,8 @@ impl Index {
 		let field_subrow_id = schema.get_field(SUBROW_ID).unwrap();
 
 		let get_u64 = |doc: &Document, field: schema::Field| doc.get_first(field)?.as_u64();
-		let ids = move |document: &Document| -> Option<(u64, u32, u16)> {
-			let sheet_key = get_u64(document, field_sheet_key)?;
+		let ids = move |document: &Document| -> Option<(SheetKey, u32, u16)> {
+			let sheet_key = get_u64(document, field_sheet_key)?.into();
 			let row_id = get_u64(document, field_row_id)?.try_into().ok()?;
 			let subrow_id = get_u64(document, field_subrow_id)?.try_into().ok()?;
 			Some((sheet_key, row_id, subrow_id))
@@ -170,7 +171,7 @@ impl Index {
 }
 
 fn sheet_documents(
-	key: u64,
+	key: SheetKey,
 	sheet: &Sheet<String>,
 	schema: &schema::Schema,
 ) -> Result<impl ExactSizeIterator<Item = Document>> {
@@ -196,7 +197,7 @@ fn sheet_documents(
 	let field_row_id = schema.get_field(ROW_ID).unwrap();
 	let field_subrow_id = schema.get_field(SUBROW_ID).unwrap();
 	for ((row_id, subrow_id), document) in documents.iter_mut() {
-		document.add_u64(field_sheet_key, key);
+		document.add_u64(field_sheet_key, key.into());
 		document.add_u64(field_row_id, (*row_id).into());
 		document.add_u64(field_subrow_id, (*subrow_id).into());
 	}
