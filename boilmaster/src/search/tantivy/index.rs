@@ -12,14 +12,12 @@ use tantivy::{
 };
 
 use crate::{
-	search::{
-		error::Result, internal_query::post, search::Executor,
-		tantivy::schema::string_length_field_name, Error,
-	},
+	search::{error::Result, search::Executor, tantivy::schema::string_length_field_name, Error},
 	version::VersionKey,
 };
 
 use super::{
+	cursor::IndexCursor,
 	provider::SheetKey,
 	resolve::QueryResolver,
 	schema::{build_schema, column_field_name, ROW_ID, SHEET_KEY, SUBROW_ID},
@@ -84,7 +82,7 @@ impl Index {
 	pub fn search(
 		&self,
 		version: VersionKey,
-		boilmaster_queries: Vec<(SheetKey, impl Borrow<post::Node>)>,
+		cursor: &IndexCursor,
 		limit: Option<u32>,
 		executor: &Executor,
 	) -> Result<impl Iterator<Item = IndexResult>> {
@@ -116,11 +114,12 @@ impl Index {
 		};
 
 		// Resolve queries into tantivy's format, filtering any non-fatal errors.
-		let sheet_queries = boilmaster_queries
-			.into_iter()
+		let sheet_queries = cursor
+			.queries
+			.iter()
 			.map(|(sheet_key, boilmaster_query)| -> Result<_> {
 				let query = BooleanQuery::intersection(vec![
-					sheet_key_query(sheet_key),
+					sheet_key_query(*sheet_key),
 					query_resolver.resolve(boilmaster_query.borrow())?,
 				]);
 				Ok(Box::new(query) as Box<dyn Query>)
@@ -137,8 +136,10 @@ impl Index {
 		let doc_limit = limit
 			.map(|value| usize::try_from(value).unwrap())
 			.unwrap_or(usize::MAX);
+		let collector = TopDocs::with_limit(doc_limit).and_offset(cursor.offset);
+
 		let top_docs = searcher
-			.search(&tantivy_query, &TopDocs::with_limit(doc_limit))
+			.search(&tantivy_query, &collector)
 			.map_err(anyhow::Error::from)?;
 
 		// Hydrate the results with identifying data.

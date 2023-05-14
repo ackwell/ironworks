@@ -78,7 +78,7 @@ impl QueryResolver<'_> {
 	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>> {
 		// Run the inner query on the target index.
 		// TODO: this is fairly wasteful - down the road, it may be worth eagerly collecting these relation lookups across a query group and collate as many as possible.
-		let results = self.executor.search(
+		let (results, _) = self.executor.search(
 			SearchRequest::Query {
 				version: self.version,
 				queries: vec![(relation.target.sheet.to_owned(), *relation.query.clone())],

@@ -1,3 +1,4 @@
+mod cursor;
 mod index;
 mod metadata;
 mod provider;

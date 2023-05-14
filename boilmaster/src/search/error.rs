@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
 	#[error("invalid field value on {}: could not coerce {} value to {}", .0.field, .0.got, .0.expected)]
@@ -17,6 +19,9 @@ pub enum Error {
 	/// The sheet schema in use does not map cleanly to the search index (and hence game data).
 	#[error("schema <-> game mismatch on {}: {}", .0.field, .0.reason)]
 	SchemaGameMismatch(MismatchError),
+
+	#[error("unknown cursor {0}")]
+	UnknownCursor(Uuid),
 
 	#[error(transparent)]
 	Failure(anyhow::Error),

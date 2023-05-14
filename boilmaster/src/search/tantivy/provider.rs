@@ -1,11 +1,8 @@
 use std::{
 	cmp::Ordering,
-	collections::{
-		hash_map::{DefaultHasher, Entry},
-		HashMap,
-	},
+	collections::{hash_map::Entry, HashMap},
 	fmt,
-	hash::{BuildHasherDefault, Hash, Hasher},
+	hash::{Hash, Hasher},
 	path::PathBuf,
 	sync::{Arc, RwLock},
 };
@@ -18,29 +15,30 @@ use seahash::SeaHasher;
 use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 use crate::{
 	search::{
 		error::Result,
 		internal_query::post,
 		search::{Executor, SearchResult},
+		Error,
 	},
 	version::VersionKey,
 };
 
 use super::{
+	cursor::{Cursor, CursorCache, IndexCursor, StableHashMap},
 	index::Index,
 	metadata::{Metadata, MetadataStore},
 };
-
-type StableHashMap<K, V> = HashMap<K, V, BuildHasherDefault<DefaultHasher>>;
 
 pub enum SearchRequest {
 	Query {
 		version: VersionKey,
 		queries: Vec<(String, post::Node)>,
 	},
-	Cursor,
+	Cursor(Uuid),
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,12 +56,14 @@ pub struct Provider {
 
 	indicies: RwLock<HashMap<IndexKey, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
+	cursors: CursorCache,
 }
 
 impl Provider {
 	pub fn new(config: Config) -> Result<Self> {
 		let directory = config.directory.relative();
 		let metadata = Arc::new(MetadataStore::new(&directory.join("metadata"))?);
+
 		Ok(Self {
 			directory,
 			memory: config.memory,
@@ -71,6 +71,7 @@ impl Provider {
 			sheet_name_map: Default::default(),
 			indicies: Default::default(),
 			metadata,
+			cursors: CursorCache::new(),
 		})
 	}
 
@@ -160,29 +161,36 @@ impl Provider {
 		request: SearchRequest,
 		limit: Option<u32>,
 		executor: &Executor<'_>,
-	) -> Result<Vec<SearchResult>> {
-		let (version, buckets) = match request {
+	) -> Result<(Vec<SearchResult>, Option<Uuid>)> {
+		let cursor = match request {
 			SearchRequest::Query { version, queries } => {
-				(version, self.bucket_queries(version, queries)?)
+				Arc::new(self.bucket_queries(version, queries)?)
 			}
-			SearchRequest::Cursor => todo!(),
+			SearchRequest::Cursor(uuid) => self
+				.cursors
+				.get(uuid)
+				.ok_or_else(|| Error::UnknownCursor(uuid))?,
 		};
 
-		let mut results = self.execute_search(version, buckets, limit, executor)?;
+		let mut results = self.execute_search(&cursor, limit, executor)?;
 
 		// If a limit is set and there's more results, trim down and set up a cursor.
+		let mut cursor_key = None;
 		if let Some(limit) = limit {
-			let _todo_cursor = self.paginate_results(limit, &mut results);
+			cursor_key = self.paginate_results(&cursor, limit, &mut results);
 		}
 
-		Ok(results.into_iter().map(|(_, result)| result).collect())
+		Ok((
+			results.into_iter().map(|(_, result)| result).collect(),
+			cursor_key,
+		))
 	}
 
 	fn bucket_queries(
 		&self,
 		version: VersionKey,
 		queries: Vec<(String, post::Node)>,
-	) -> Result<StableHashMap<IndexKey, Vec<(SheetKey, post::Node)>>> {
+	) -> Result<Cursor> {
 		let sheet_index_map = self.sheet_index_map.read().expect("poisoned");
 
 		// Group queries by index, maintaining a reverse mapping for the sheet keys.
@@ -195,17 +203,20 @@ impl Provider {
 				.with_context(|| format!("no index mapping for {sheet_name} @ {version}"))?;
 			buckets
 				.entry(*index_key)
-				.or_insert_with(Vec::new)
+				.or_insert_with(IndexCursor::default)
+				.queries
 				.push((sheet_key, query));
 		}
 
-		Ok(buckets)
+		Ok(Cursor {
+			version,
+			indices: buckets,
+		})
 	}
 
 	fn execute_search(
 		&self,
-		version: VersionKey,
-		buckets: StableHashMap<IndexKey, Vec<(SheetKey, post::Node)>>,
+		cursor: &Cursor,
 		limit: Option<u32>,
 		executor: &Executor<'_>,
 	) -> Result<Vec<(IndexKey, SearchResult)>> {
@@ -220,16 +231,17 @@ impl Provider {
 		// TODO: parellise?
 		let indices = self.indicies.read().expect("poisoned");
 
-		let mut results = buckets
-			.into_iter()
+		let mut results = cursor
+			.indices
+			.iter()
 			// Fetch the index and perform the search.
-			.map(|(index_key, queries)| {
+			.map(|(index_key, index_cursor)| {
 				let index = indices
-					.get(&index_key)
+					.get(index_key)
 					.with_context(|| format!("no prepared index for {index_key}"))?;
 
 				let results = index
-					.search(version, queries, result_limit, executor)?
+					.search(cursor.version, index_cursor, result_limit, executor)?
 					.map(move |result| (index_key, result));
 
 				Ok(results)
@@ -247,7 +259,7 @@ impl Provider {
 					})?;
 
 					Ok((
-						index_key,
+						*index_key,
 						SearchResult {
 							sheet: name.clone(),
 							score: result.score,
@@ -267,9 +279,10 @@ impl Provider {
 
 	fn paginate_results(
 		&self,
+		cursor: &Cursor,
 		limit: u32,
 		results: &mut Vec<(IndexKey, SearchResult)>,
-	) -> Option<()> {
+	) -> Option<Uuid> {
 		// If the results fit within the limit, there's nothing to do.
 		let limit_usize = usize::try_from(limit).unwrap();
 		if results.len() <= limit_usize {
@@ -283,9 +296,28 @@ impl Provider {
 		// Count the results per index.
 		let offsets = results.iter().counts_by(|item| item.0);
 
-		tracing::info!("recorded counts {offsets:#?}");
+		// Build the new cursor.
+		// TODO: this is pretty clunky, consider a helper on cursor to do this?
+		let new_cursor = Cursor {
+			version: cursor.version,
+			indices: cursor
+				.indices
+				.iter()
+				.map(|(key, index_cursor)| {
+					(
+						*key,
+						IndexCursor {
+							queries: index_cursor.queries.clone(),
+							offset: index_cursor.offset + offsets.get(key).copied().unwrap_or(0),
+						},
+					)
+				})
+				.collect(),
+		};
 
-		Some(())
+		let key = self.cursors.insert(new_cursor);
+
+		Some(key)
 	}
 }
 
@@ -319,7 +351,7 @@ fn sheet_key(version: VersionKey, sheet_name: &str) -> SheetKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-struct IndexKey(u64);
+pub struct IndexKey(u64);
 
 impl fmt::Display for IndexKey {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -9,6 +9,7 @@ use itertools::Itertools;
 use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
 use crate::{data::Data, version::VersionKey};
 
@@ -33,7 +34,7 @@ struct PaginationConfig {
 #[derive(Debug)]
 pub enum SearchRequest {
 	Query(SearchRequestQuery),
-	Cursor,
+	Cursor(Uuid),
 }
 
 #[derive(Derivative)]
@@ -116,7 +117,11 @@ impl Search {
 		Ok(())
 	}
 
-	pub fn search(&self, request: SearchRequest, limit: Option<u32>) -> Result<Vec<SearchResult>> {
+	pub fn search(
+		&self,
+		request: SearchRequest,
+		limit: Option<u32>,
+	) -> Result<(Vec<SearchResult>, Option<Uuid>)> {
 		// Work out the actual result limit we'll use for this query.
 		let result_limit = limit
 			.unwrap_or(self.pagination_config.limit_default)
@@ -125,7 +130,7 @@ impl Search {
 		// Translate the request into the format used by providers.
 		let provider_request = match request {
 			SearchRequest::Query(query) => self.normalize_request_query(query)?,
-			SearchRequest::Cursor => ProviderSearchRequest::Cursor,
+			SearchRequest::Cursor(uuid) => ProviderSearchRequest::Cursor(uuid),
 		};
 
 		// Execute the search.
@@ -184,7 +189,7 @@ impl Executor<'_> {
 		&self,
 		request: ProviderSearchRequest,
 		limit: Option<u32>,
-	) -> Result<Vec<SearchResult>> {
+	) -> Result<(Vec<SearchResult>, Option<Uuid>)> {
 		self.provider.search(request, limit, self)
 	}
 }
