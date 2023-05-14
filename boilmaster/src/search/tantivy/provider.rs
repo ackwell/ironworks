@@ -127,7 +127,7 @@ impl Provider {
 			// Ensure that the index for this sheet exists & is known.
 			if let Entry::Vacant(entry) = indices.entry(index_key) {
 				let index = Index::new(
-					&self.directory.join(format!("sheets-{index_key:x}")),
+					&self.directory.join(format!("sheets-{index_key:016x}")),
 					&sheet,
 				)?;
 				entry.insert(Arc::new(index));
