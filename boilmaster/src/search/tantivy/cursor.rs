@@ -5,7 +5,8 @@ use std::{
 	time::Duration,
 };
 
-use mini_moka::sync::Cache;
+use mini_moka::sync as moka;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::{search::internal_query::post, version::VersionKey};
@@ -25,17 +26,29 @@ pub struct IndexCursor {
 	pub offset: usize,
 }
 
-pub struct CursorCache {
-	cache: Cache<Uuid, Arc<Cursor>>,
+#[derive(Debug, Deserialize)]
+pub struct Config {
+	ttl: Option<u64>,
+	tti: Option<u64>,
 }
 
-impl CursorCache {
-	pub fn new() -> Self {
-		// TODO: configuration for this
-		let cache = Cache::builder()
-			.time_to_idle(Duration::from_secs(5 * 60))
-			.build();
-		Self { cache }
+pub struct Cache {
+	cache: moka::Cache<Uuid, Arc<Cursor>>,
+}
+
+impl Cache {
+	pub fn new(config: Config) -> Self {
+		let mut builder = moka::Cache::builder();
+		if let Some(ttl) = config.ttl {
+			builder = builder.time_to_live(Duration::from_secs(ttl));
+		}
+		if let Some(tti) = config.tti {
+			builder = builder.time_to_idle(Duration::from_secs(tti));
+		}
+
+		Self {
+			cache: builder.build(),
+		}
 	}
 
 	pub fn get(&self, key: Uuid) -> Option<Arc<Cursor>> {

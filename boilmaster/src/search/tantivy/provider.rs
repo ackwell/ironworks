@@ -28,7 +28,7 @@ use crate::{
 };
 
 use super::{
-	cursor::{Cursor, CursorCache, IndexCursor, StableHashMap},
+	cursor::{self, Cursor, IndexCursor, StableHashMap},
 	index::Index,
 	metadata::{Metadata, MetadataStore},
 };
@@ -45,6 +45,8 @@ pub enum SearchRequest {
 pub struct Config {
 	directory: RelativePathBuf,
 	memory: usize,
+
+	cursor: cursor::Config,
 }
 
 pub struct Provider {
@@ -56,7 +58,7 @@ pub struct Provider {
 
 	indicies: RwLock<HashMap<IndexKey, Arc<Index>>>,
 	metadata: Arc<MetadataStore>,
-	cursors: CursorCache,
+	cursors: cursor::Cache,
 }
 
 impl Provider {
@@ -71,7 +73,7 @@ impl Provider {
 			sheet_name_map: Default::default(),
 			indicies: Default::default(),
 			metadata,
-			cursors: CursorCache::new(),
+			cursors: cursor::Cache::new(config.cursor),
 		})
 	}
 
