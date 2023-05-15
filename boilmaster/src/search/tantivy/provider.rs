@@ -1,8 +1,6 @@
 use std::{
 	cmp::Ordering,
 	collections::{hash_map::Entry, HashMap},
-	fmt,
-	hash::{Hash, Hasher},
 	path::PathBuf,
 	sync::{Arc, RwLock},
 };
@@ -11,7 +9,6 @@ use anyhow::Context;
 use figment::value::magic::RelativePathBuf;
 use ironworks::excel::Sheet;
 use itertools::Itertools;
-use seahash::SeaHasher;
 use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
@@ -30,6 +27,7 @@ use crate::{
 use super::{
 	cursor::{self, Cursor, IndexCursor, StableHashMap},
 	index::Index,
+	key::{IndexKey, SheetKey},
 	metadata::{Metadata, MetadataStore},
 };
 
@@ -125,8 +123,8 @@ impl Provider {
 		let mut skipped = 0;
 		for (version, sheet) in sheets {
 			let sheet_name = sheet.name();
-			let sheet_key = sheet_key(version, &sheet_name);
-			let index_key = index_key(&sheet)?;
+			let sheet_key = SheetKey::from_sheet_version(version, &sheet_name);
+			let index_key = IndexKey::try_from_sheet(&sheet)?;
 
 			// Ensure that the index for this sheet exists & is known.
 			if let Entry::Vacant(entry) = indices.entry(index_key) {
@@ -199,7 +197,7 @@ impl Provider {
 		// NOTE: this is overriding the default RandomState intentionally, to ensure that bucket ordering is consistent between queries.
 		let mut buckets = StableHashMap::<_, _>::default();
 		for (sheet_name, query) in queries {
-			let sheet_key = sheet_key(version, &sheet_name);
+			let sheet_key = SheetKey::from_sheet_version(version, &sheet_name);
 			let index_key = sheet_index_map
 				.get(&sheet_key)
 				.with_context(|| format!("no index mapping for {sheet_name} @ {version}"))?;
@@ -321,59 +319,4 @@ impl Provider {
 
 		Some(key)
 	}
-}
-
-// TODO: consider moving these to a seperate module
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SheetKey(u64);
-
-impl fmt::Display for SheetKey {
-	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		formatter.write_fmt(format_args!("{:016x}", self.0))
-	}
-}
-
-impl From<SheetKey> for u64 {
-	fn from(value: SheetKey) -> Self {
-		value.0
-	}
-}
-
-impl From<u64> for SheetKey {
-	fn from(value: u64) -> Self {
-		Self(value)
-	}
-}
-
-fn sheet_key(version: VersionKey, sheet_name: &str) -> SheetKey {
-	let mut hasher = SeaHasher::new();
-	version.hash(&mut hasher);
-	sheet_name.hash(&mut hasher);
-	SheetKey(hasher.finish())
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct IndexKey(u64);
-
-impl fmt::Display for IndexKey {
-	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		formatter.write_fmt(format_args!("{:016x}", self.0))
-	}
-}
-
-fn index_key(sheet: &Sheet<String>) -> Result<IndexKey> {
-	// TODO: consider using fixed seeds?
-	let mut hasher = SeaHasher::new();
-	sheet.kind()?.hash(&mut hasher);
-
-	let mut languages = sheet.languages()?;
-	languages.sort_by_key(|language| u8::from(*language));
-	languages.hash(&mut hasher);
-
-	// TODO: this encodes the offsets of the columns as well as their kind (and position due to the vec) - technically the actual offset is irrelevant, so would be good to ignore it, but doing so would require decoupling column names from offsets, which I can't do without changes to a lot of stuff in search query resolution. i'm not convinced that different offset layouts for the same structure are going to be common enough to bother.
-	let mut columns = sheet.columns()?;
-	columns.sort_by_key(|column| column.offset());
-	columns.hash(&mut hasher);
-
-	Ok(IndexKey(hasher.finish()))
 }

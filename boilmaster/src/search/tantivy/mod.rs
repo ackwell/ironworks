@@ -1,5 +1,6 @@
 mod cursor;
 mod index;
+mod key;
 mod metadata;
 mod provider;
 mod query;

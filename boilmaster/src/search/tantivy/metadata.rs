@@ -8,7 +8,7 @@ use tantivy::{
 
 use crate::search::error::Result;
 
-use super::provider::SheetKey;
+use super::key::SheetKey;
 
 const SHEET_KEY: &str = "sheet_key";
 const METADATA: &str = "metadata";

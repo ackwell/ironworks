@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
 	cursor::IndexCursor,
-	provider::SheetKey,
+	key::SheetKey,
 	resolve::QueryResolver,
 	schema::{build_schema, column_field_name, ROW_ID, SHEET_KEY, SUBROW_ID},
 };

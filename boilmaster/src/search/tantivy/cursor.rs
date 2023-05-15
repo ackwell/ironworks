@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::{search::internal_query::post, version::VersionKey};
 
-use super::provider::{IndexKey, SheetKey};
+use super::key::{IndexKey, SheetKey};
 
 pub struct Cursor {
 	pub version: VersionKey,
