@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::HashSet, sync::Arc};
 
 use anyhow::Context;
+use derivative::Derivative;
 use either::Either;
 use ironworks::excel;
 use ironworks_schema::Schema;
@@ -8,18 +9,44 @@ use itertools::Itertools;
 use serde::Deserialize;
 use tokio::select;
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 
-use crate::{data::Data, utility::warnings::Warnings, version::VersionKey};
+use crate::{data::Data, version::VersionKey};
 
 use super::{
 	error::{Error, Result},
-	internal_query::{post, pre, Normalizer},
-	tantivy,
+	internal_query::{pre, Normalizer},
+	tantivy::{self, SearchRequest as ProviderSearchRequest},
 };
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
+	pagination: PaginationConfig,
 	tantivy: tantivy::Config,
+}
+
+#[derive(Debug, Deserialize)]
+struct PaginationConfig {
+	limit_default: u32,
+	limit_max: u32,
+}
+
+#[derive(Debug)]
+pub enum SearchRequest {
+	Query(SearchRequestQuery),
+	Cursor(Uuid),
+}
+
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct SearchRequestQuery {
+	pub version: VersionKey,
+	pub query: pre::Node,
+	pub language: excel::Language,
+	pub sheets: Option<HashSet<String>>,
+
+	#[derivative(Debug = "ignore")]
+	pub schema: Box<dyn Schema>,
 }
 
 #[derive(Debug)]
@@ -32,6 +59,8 @@ pub struct SearchResult {
 }
 
 pub struct Search {
+	pagination_config: PaginationConfig,
+
 	provider: Arc<tantivy::Provider>,
 
 	data: Arc<Data>,
@@ -40,6 +69,7 @@ pub struct Search {
 impl Search {
 	pub fn new(config: Config, data: Arc<Data>) -> Result<Self> {
 		Ok(Self {
+			pagination_config: config.pagination,
 			provider: Arc::new(tantivy::Provider::new(config.tantivy)?),
 			data,
 		})
@@ -87,70 +117,64 @@ impl Search {
 		Ok(())
 	}
 
-	// TODO: This code path is effectively ported from the pre-multi-sheet search index implementation, and as such, eagerly splits queries by sheet, preventing the provider from using it's knowledge of grouping to reduce the number of queries executed. Given that no changes to index schema or ingestion behavior is required to improve this, I'm leaving this as a problem to solve if/when query speed can do with some measurable improvement.
 	pub fn search(
 		&self,
-		version: VersionKey,
-		query: &pre::Node,
-		language: excel::Language,
-		sheet_filter: Option<HashSet<String>>,
-		schema: &dyn Schema,
-	) -> Result<Warnings<Vec<SearchResult>>> {
-		// Get references to the game data we'll need.
-		let excel = self
-			.data
-			.version(version)
-			.with_context(|| format!("data for version {version} not ready"))?
-			.excel();
-		let list = excel.list()?;
+		request: SearchRequest,
+		limit: Option<u32>,
+	) -> Result<(Vec<SearchResult>, Option<Uuid>)> {
+		// Work out the actual result limit we'll use for this query.
+		let result_limit = limit
+			.unwrap_or(self.pagination_config.limit_default)
+			.min(self.pagination_config.limit_max);
 
-		// Build the helpers for this search call.
-		let normalizer = Normalizer::new(&excel, schema);
+		// Translate the request into the format used by providers.
+		let provider_request = match request {
+			SearchRequest::Query(query) => self.normalize_request_query(query)?,
+			SearchRequest::Cursor(uuid) => ProviderSearchRequest::Cursor(uuid),
+		};
+
+		// Execute the search.
 		let executor = Executor {
 			provider: &self.provider,
 		};
 
+		executor.search(provider_request, Some(result_limit))
+	}
+
+	fn normalize_request_query(&self, query: SearchRequestQuery) -> Result<ProviderSearchRequest> {
+		// Get references to the game data we'll need.
+		let excel = self
+			.data
+			.version(query.version)
+			.with_context(|| format!("data for version {} not ready", query.version))?
+			.excel();
+		let list = excel.list()?;
+
+		// Build the helpers for this search call.
+		let normalizer = Normalizer::new(&excel, query.schema.as_ref());
+
 		// Get an iterator over the provided sheet filter, falling back to the full list of sheets.
-		let sheet_names = sheet_filter
+		let sheet_names = query
+			.sheets
 			.map(|filter| Either::Left(filter.into_iter().map(Cow::from)))
 			.unwrap_or_else(|| Either::Right(list.iter()));
 
-		let index_results = sheet_names
-			.map(|name| -> Result<_> {
-				let normalized_query = normalizer.normalize(query, &name, language)?;
-				let results = executor.search(version, &name, &normalized_query)?;
-				let tagged_results = results.map(move |result| SearchResult {
-					score: result.score,
-					sheet: name.to_string(),
-					row_id: result.row_id,
-					subrow_id: result.subrow_id,
-				});
-				Ok(tagged_results)
+		let normalized_queries = sheet_names
+			.map(|name| {
+				let normalized_query = normalizer.normalize(&query.query, &name, query.language)?;
+				Ok((name.to_string(), normalized_query))
 			})
-			.try_fold(Warnings::new(vec![]), |warnings, result| match result {
-				// Successful search results can be pushed to the inner vector in the warnings.
-				Ok(results) => Ok(warnings.map(|mut vec| {
-					vec.push(results);
-					vec
-				})),
-				// Failures should short circuit completely.
-				Err(error @ Error::Failure(_)) => Err(error),
-				// Query mismatches will be raised for most sheets, and aren't particularly meaningful for end-users. Skip.
-				// TODO: ... right? i mean, it kind of sucks to not be able to say "oi this field doesn't exist" but... idk.
-				Err(Error::QuerySchemaMismatch(_)) => Ok(warnings),
-				// Other errors can be raised as warnings without halting the process.
-				// TODO: find some way to tag this with the sheet name because at the moment the warnings are entirely unactionable.
-				Err(error) => Ok(warnings.with_warning(error.to_string())),
-			})?;
+			// TODO: Much like the analogue in index, this is filtering out non-fatal errors. To raise as warnings, these will need to be split out at this point.
+			.filter(|query| match query {
+				Err(Error::Failure(_)) | Ok(_) => true,
+				Err(_) => false,
+			})
+			.collect::<Result<Vec<_>>>()?;
 
-		// TODO: a zero-length array here implies all indices were query mismatches, or no index was queried at all. disambiguate and error out.
-		// TODO: following the introduction of warnings; that's not quite right - it might all have ended up as warnings, too. While that's possibly _fine_ for i.e. a multi-sheet query, for a _single_ sheet query, it might be more-sane to raise as a top-level error. Think about it a bit, because... yeah. That's not exactly _consistent_ but maybe it's expected?
-
-		// TODO: this just groups by index, effectively - should probably sort by score at this point
-		// Merge the results from each index into a single vector.
-		let results = index_results.map(|vec| vec.into_iter().flatten().collect::<Vec<_>>());
-
-		Ok(results)
+		Ok(ProviderSearchRequest::Query {
+			version: query.version,
+			queries: normalized_queries,
+		})
 	}
 }
 
@@ -160,12 +184,12 @@ pub struct Executor<'a> {
 }
 
 impl Executor<'_> {
+	// TODO: The Option on limit is to represent the "no limit" case required for inner queries in relationships, where outer filtering may lead to any theoretical bounded inner query to be insufficient. For obvious reasons this is... _not_ a particulary efficient approach, though I'm not sure what better approaches exist. If nothing else, would be good to cache common queries in memory to avoid constant repetition of unbounded limits.
 	pub fn search(
 		&self,
-		version: VersionKey,
-		sheet_name: &str,
-		query: &post::Node,
-	) -> Result<impl Iterator<Item = tantivy::IndexResult>> {
-		self.provider.search(version, sheet_name, query, self)
+		request: ProviderSearchRequest,
+		limit: Option<u32>,
+	) -> Result<(Vec<SearchResult>, Option<Uuid>)> {
+		self.provider.search(request, limit, self)
 	}
 }

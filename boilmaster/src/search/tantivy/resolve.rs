@@ -1,7 +1,7 @@
 use tantivy::{
-	query::{BooleanQuery, Query, RegexQuery, TermQuery, TermSetQuery},
+	query::{BooleanQuery, Query, TermQuery, TermSetQuery},
 	schema::{Field, IndexRecordOption, Schema, Type},
-	TantivyError, Term,
+	Term,
 };
 
 use crate::{
@@ -13,7 +13,11 @@ use crate::{
 	version::VersionKey,
 };
 
-use super::schema::column_field_name;
+use super::{
+	provider::SearchRequest,
+	query::MatchQuery,
+	schema::{column_field_name, string_length_field_name},
+};
 
 pub struct QueryResolver<'a> {
 	pub version: VersionKey,
@@ -73,14 +77,20 @@ impl QueryResolver<'_> {
 
 	fn resolve_relation(&self, relation: &Relation, field: Field) -> Result<Box<dyn Query>> {
 		// Run the inner query on the target index.
-		let results =
-			self.executor
-				.search(self.version, &relation.target.sheet, &relation.query)?;
+		// TODO: this is fairly wasteful - down the road, it may be worth eagerly collecting these relation lookups across a query group and collate as many as possible.
+		let (results, _) = self.executor.search(
+			SearchRequest::Query {
+				version: self.version,
+				queries: vec![(relation.target.sheet.to_owned(), *relation.query.clone())],
+			},
+			None,
+		)?;
 
 		// Map the results to terms for the query we're building.
 		// TODO: I'm ignoring the subrow here - is that sane? AFAIK subrow relations act as a pivot table, many:many - I don't _think_ it references the subrow anywhere?
 		// TODO: I have access to a score from the inside here. I should propagate that, somehow.
 		let terms = results
+			.into_iter()
 			.map(|result| self.value_to_term(&Value::U64(result.row_id.into()), field))
 			.collect::<Result<Vec<_>, _>>()?;
 
@@ -91,28 +101,25 @@ impl QueryResolver<'_> {
 		Ok(Box::new(TermSetQuery::new(terms)))
 	}
 
-	fn resolve_match(&self, string: &str, field: Field) -> Result<Box<dyn Query>> {
+	fn resolve_match(&self, string: &str, field_string: Field) -> Result<Box<dyn Query>> {
+		let field_entry = self.schema.get_field_entry(field_string);
+
 		// Match queries only make sense on string fields.
-		if self.schema.get_field_entry(field).field_type().value_type() != Type::Str {
+		if field_entry.field_type().value_type() != Type::Str {
 			return Err(Error::QueryGameMismatch(MismatchError {
-				field: format!("field {}", self.schema.get_field_name(field)),
+				field: format!("field {}", self.schema.get_field_name(field_string)),
 				reason: "match queries can only be executed on string columns".into(),
 			}));
 		}
 
-		// TODO: What behavior should an empty string perform?
+		let field_name_length = string_length_field_name(field_entry.name());
+		let field_length = self.schema.get_field(&field_name_length).unwrap();
 
-		// String columns are ingested untokenised, so we can run "matches" using a regex partial match.
-		// TODO: consider allowing ^$ (impl by removing leading/trailing .*) and * (repl. with .*)
-		let pattern = format!("(?i).*{}.*", regex_syntax::escape(string));
-		let query = RegexQuery::from_pattern(&pattern, field).map_err(|error| match error {
-			TantivyError::InvalidArgument(_) => {
-				Error::MalformedQuery(format!("invalid match string \"{string}\""))
-			}
-			other => Error::Failure(other.into()),
-		})?;
-
-		Ok(Box::new(query))
+		Ok(Box::new(MatchQuery::new(
+			string,
+			field_string,
+			field_length,
+		)?))
 	}
 
 	fn value_to_term(&self, value: &Value, field: Field) -> Result<Term> {

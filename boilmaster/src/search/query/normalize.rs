@@ -263,7 +263,13 @@ impl<'a> Normalizer<'a> {
 						// TODO: target_queries.len() == 0 here means none of the relations matched, which should be raised as a query mismatch
 
 						// There might be multiple viable relation paths, group them together.
-						create_or_group(target_queries.into_iter())
+						create_or_group(target_queries.into_iter()).ok_or_else(|| {
+							Error::QuerySchemaMismatch(MismatchError {
+								field: "TODO: query path".into(),
+								reason: "no target queries can be resolved against this schema"
+									.into(),
+							})
+						})?
 					}
 
 					other => todo!("i think this is a schema mismatch {other:?}"),
@@ -294,7 +300,14 @@ impl<'a> Normalizer<'a> {
 						field: (column, context.language),
 						operation: post::Operation::Match(string.clone()),
 					})
-				}));
+				}))
+				.ok_or_else(|| {
+					Error::QuerySchemaMismatch(MismatchError {
+						// TODO: i'll need to wire down the current query path for this field to be meaningful
+						field: "query".into(),
+						reason: "no string columns with this name exist.".into(),
+					})
+				})?;
 
 				Ok(group)
 			}
@@ -316,7 +329,14 @@ impl<'a> Normalizer<'a> {
 						field: (column, context.language),
 						operation: post::Operation::Equal(value.clone()),
 					})
-				}));
+				}))
+				.ok_or_else(|| {
+					Error::QueryGameMismatch(MismatchError {
+						// TODO: i'll need to wire down the current query path for this field to be meaningful
+						field: "query".into(),
+						reason: "no scalar columns with this name exist".into(),
+					})
+				})?;
 
 				Ok(group)
 			}
@@ -324,14 +344,16 @@ impl<'a> Normalizer<'a> {
 	}
 }
 
-fn create_or_group(mut nodes: impl ExactSizeIterator<Item = post::Node>) -> post::Node {
-	match nodes.len() {
-		0 => todo!("what do i do for the zero case? it's possibly a schema mismatch but i'm not sure. consider callsites"),
+fn create_or_group(mut nodes: impl ExactSizeIterator<Item = post::Node>) -> Option<post::Node> {
+	let node = match nodes.len() {
+		0 => return None,
 		1 => nodes.next().unwrap(),
 		_ => post::Node::Group(post::Group {
 			clauses: nodes.map(|node| (post::Occur::Should, node)).collect(),
-		})
-	}
+		}),
+	};
+
+	Some(node)
 }
 
 // The whole premise of this is that we want to _exclude_ references. If that premise does not hold, then the `columns` slice itself is basically exactly what we want.

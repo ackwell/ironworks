@@ -27,7 +27,7 @@ impl From<asset::Error> for Error {
 		use asset::Error as AE;
 		match error {
 			AE::NotFound(value) => Self::NotFound(value),
-			AE::UnsupportedSource(_, _) | AE::InvalidConversion(_, _) | AE::UnknownFormat(_) => {
+			AE::UnsupportedSource(..) | AE::InvalidConversion(..) | AE::UnknownFormat(..) => {
 				Self::Invalid(error.to_string())
 			}
 			AE::Failure(inner) => Self::Other(inner),
@@ -39,7 +39,7 @@ impl From<schema::Error> for Error {
 	fn from(error: schema::Error) -> Self {
 		use schema::Error as SE;
 		match error {
-			SE::UnknownSource(_) | SE::InvalidVersion(_) => Self::Invalid(error.to_string()),
+			SE::UnknownSource(..) | SE::InvalidVersion(..) => Self::Invalid(error.to_string()),
 			SE::Failure(inner) => Self::Other(inner),
 		}
 	}
@@ -49,11 +49,12 @@ impl From<search::Error> for Error {
 	fn from(error: search::Error) -> Self {
 		use search::Error as SE;
 		match error {
-			SE::FieldType(_)
-			| SE::MalformedQuery(_)
-			| SE::QuerySchemaMismatch(_)
-			| SE::QueryGameMismatch(_)
-			| SE::SchemaGameMismatch(_) => Self::Invalid(error.to_string()),
+			SE::FieldType(..)
+			| SE::MalformedQuery(..)
+			| SE::QuerySchemaMismatch(..)
+			| SE::QueryGameMismatch(..)
+			| SE::SchemaGameMismatch(..)
+			| SE::UnknownCursor(..) => Self::Invalid(error.to_string()),
 			SE::Failure(inner) => Self::Other(inner),
 		}
 	}
@@ -68,9 +69,9 @@ impl IntoResponse for Error {
 
 		// TODO: INCREDIBLY IMPORTANT: work out how to worm IM_A_TEAPOT into this
 		let status_code = match self {
-			Self::NotFound(_) => StatusCode::NOT_FOUND,
-			Self::Invalid(_) => StatusCode::BAD_REQUEST,
-			Self::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
+			Self::NotFound(..) => StatusCode::NOT_FOUND,
+			Self::Invalid(..) => StatusCode::BAD_REQUEST,
+			Self::Other(..) => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
 		(

@@ -7,5 +7,5 @@ mod tantivy;
 pub use {
 	error::{Error, FieldTypeError, MismatchError},
 	internal_query::pre as query,
-	search::{Config, Search},
+	search::{Config, Search, SearchRequest, SearchRequestQuery},
 };

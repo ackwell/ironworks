@@ -8,6 +8,8 @@ use tantivy::{
 
 use crate::search::error::Result;
 
+use super::key::SheetKey;
+
 const SHEET_KEY: &str = "sheet_key";
 const METADATA: &str = "metadata";
 
@@ -45,7 +47,7 @@ impl MetadataStore {
 		})
 	}
 
-	pub fn write(&self, entries: impl IntoIterator<Item = (u64, Metadata)>) -> Result<()> {
+	pub fn write(&self, entries: impl IntoIterator<Item = (SheetKey, Metadata)>) -> Result<()> {
 		// Execute the bulk of write logic on a read-lock, we only need to gain exclusive access for the commit.
 		let writer = self.writer.read().expect("poisoned");
 		let schema = writer.index().schema();
@@ -54,9 +56,9 @@ impl MetadataStore {
 
 		// Insert all the entries. We delete by the key term first to make this act as an upsert.
 		for (key, metadata) in entries {
-			writer.delete_term(Term::from_field_u64(field_key, key));
+			writer.delete_term(Term::from_field_u64(field_key, key.into()));
 			writer.add_document(doc!(
-				field_key => key,
+				field_key => u64::from(key),
 				field_metadata => serde_json::to_value(&metadata)?,
 			))?;
 		}
@@ -69,11 +71,11 @@ impl MetadataStore {
 		Ok(())
 	}
 
-	pub fn exists(&self, key: u64) -> Result<bool> {
+	pub fn exists(&self, key: SheetKey) -> Result<bool> {
 		let searcher = self.reader.searcher();
 		let field = searcher.schema().get_field(SHEET_KEY).unwrap();
 		let query = TermQuery::new(
-			Term::from_field_u64(field, key),
+			Term::from_field_u64(field, key.into()),
 			schema::IndexRecordOption::Basic,
 		);
 		let count = searcher.search(&query, &Count)?;
