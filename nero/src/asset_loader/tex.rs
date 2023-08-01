@@ -53,10 +53,10 @@ fn convert_tex(tex: tex::Texture) -> Image {
 		},
 		mip_level_count: tex.mip_levels().into(),
 		format,
-		dimension: match tex.dimension() {
-			tex::Dimension::D1 => TextureDimension::D1,
-			tex::Dimension::D2 => TextureDimension::D2,
-			tex::Dimension::D3 => TextureDimension::D3,
+		dimension: match tex.kind() {
+			tex::TextureKind::D1 => TextureDimension::D1,
+			tex::TextureKind::D2 => TextureDimension::D2,
+			tex::TextureKind::D3 => TextureDimension::D3,
 			other => todo!("Texture dimension: {other:?}"),
 		},
 		..image.texture_descriptor

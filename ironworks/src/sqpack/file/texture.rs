@@ -26,9 +26,11 @@ struct TexHeader {
 	// width: u16,
 	// height: u16,
 	// depth: u16,
-	// mip_levels: u16,
+	// mip_levels: u8,
+	#[br(pad_before = 11)]
+	array_size: u8,
 	// lod_offsets: [u32; 3],
-	#[br(pad_before = 24)]
+	#[br(pad_before = 12)]
 	surface_offsets: [u32; 13],
 }
 
@@ -76,17 +78,31 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 		)?;
 	}
 
-	// The attribute field is a bitset, index 26 signifies if the texture is a cube. Check `file/tex` for full bitset definition.
-	let stride = match texture_header {
+	// Each entry in an array of surfaces has a seperate top-level surface block
+	// for each defined mip level, which means we need to know how many entries
+	// are in the array to accurately distribute the blocks across the expected
+	// mip level offsets. Check `file/tex` for the full definition of the bitset
+	// being queried in this block.
+	let array_size = match texture_header {
+		// Cube textures always have precisely 6 array items.
 		Some(TexHeader { attribute, .. }) if (attribute >> 25) & 1 == 1 => 6,
+
+		// 2D texture arrays have N array items, as specified by the header.
+		Some(TexHeader {
+			attribute,
+			array_size,
+			..
+		}) if (attribute >> 28) & 1 == 1 => usize::from(array_size),
+
+		// All other texture kinds do not utilise arrays (have 1 entry).
 		_ => 1,
 	};
 
 	for (index, block) in blocks.iter().enumerate() {
 		// Move to the expected start position of the block.
 		if let Some(ref header) = texture_header {
-			if index % stride == 0 {
-				writer.set_position(header.surface_offsets[index / stride].into());
+			if index % array_size == 0 {
+				writer.set_position(header.surface_offsets[index / array_size].into());
 			}
 		}
 

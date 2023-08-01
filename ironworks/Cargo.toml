@@ -14,7 +14,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Modules
-excel = ["dep:enum-as-inner", "dep:num_enum", "dep:strum", "sestring", "exd", "exh", "exl"]
+excel = [
+  "dep:enum-as-inner",
+  "dep:num_enum",
+  "dep:strum",
+  "sestring",
+  "exd",
+  "exh",
+  "exl",
+]
 sestring = ["dep:time"]
 sqpack = ["dep:flate2"]
 zipatch = ["patch", "sqpack"]
@@ -29,7 +37,7 @@ mtrl = []
 patch = []
 pbd = []
 sklb = []
-tex = ["dep:modular-bitfield", "dep:num_enum"]
+tex = ["dep:num_enum"]
 
 [dependencies]
 binrw = "0.10.0"
@@ -38,10 +46,10 @@ either = "1.8.0"
 getset = "0.1.2"
 thiserror = "1.0.30"
 
-enum-as-inner = {version = "0.5.0", optional = true}
-flate2 = {version = "1.0.22", optional = true}
-half = {version = "2.1.0", optional = true}
-modular-bitfield = {version = "0.11.2", optional = true}
-num_enum = {version = "0.5.7", optional = true}
-strum = {version = "0.24.1", features = ["derive"], optional = true}
-time = {version = "0.3.20", optional = true}
+enum-as-inner = { version = "0.5.0", optional = true }
+flate2 = { version = "1.0.22", optional = true }
+half = { version = "2.1.0", optional = true }
+modular-bitfield = { version = "0.11.2", optional = true }
+num_enum = { version = "0.5.7", optional = true }
+strum = { version = "0.24.1", features = ["derive"], optional = true }
+time = { version = "0.3.20", optional = true }

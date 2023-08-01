@@ -3,7 +3,6 @@
 use binrw::{binread, until_eof, BinRead};
 use derivative::Derivative;
 use getset::{CopyGetters, Getters};
-use modular_bitfield::BitfieldSpecifier;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::{error::Result, FileStream};
@@ -16,7 +15,8 @@ use super::file::File;
 #[derive(Derivative, Getters, CopyGetters)]
 #[derivative(Debug)]
 pub struct Texture {
-	attributes: bitfield::Attributes,
+	attributes: u32,
+
 	/// Pixel data format.
 	#[get_copy = "pub"]
 	format: Format,
@@ -24,15 +24,22 @@ pub struct Texture {
 	/// Width in pixels.
 	#[get_copy = "pub"]
 	width: u16,
+
 	/// Height in pixels.
 	#[get_copy = "pub"]
 	height: u16,
+
 	/// Depth. Unknown interpretation.
 	#[get_copy = "pub"]
 	depth: u16,
+
 	/// Mipmap level count.
 	#[get_copy = "pub"]
-	mip_levels: u16,
+	mip_levels: u8,
+
+	/// Texture array size. Only used by D2Array texture kinds.
+	#[get_copy = "pub"]
+	array_size: u8,
 
 	// TODO: work out how these should be exposed.
 	lod_surfaces: [u32; 3],
@@ -46,9 +53,16 @@ pub struct Texture {
 }
 
 impl Texture {
-	/// Dimension kind.
-	pub fn dimension(&self) -> Dimension {
-		self.attributes.dimension()
+	/// Kind of texture represented by this file.
+	pub fn kind(&self) -> TextureKind {
+		match (self.attributes & TextureKind::MASK) >> TextureKind::SHIFT {
+			0b0000001 => TextureKind::D1,
+			0b0000010 => TextureKind::D2,
+			0b0000100 => TextureKind::D3,
+			0b0001000 => TextureKind::Cube,
+			0b1000000 => TextureKind::D2Array,
+			_ => TextureKind::Unknown,
+		}
 	}
 }
 
@@ -58,64 +72,22 @@ impl File for Texture {
 	}
 }
 
-// Isolating bitfield in a module so modular_bitfield lint disables don't pollute the entire file.
-#[allow(dead_code, clippy::identity_op)]
-mod bitfield {
-	use binrw::binread;
-	use modular_bitfield::prelude::*;
-
-	use super::Dimension;
-
-	#[bitfield]
-	#[binread]
-	#[derive(Debug)]
-	#[br(map = Self::from_bytes)]
-	pub struct Attributes {
-		discard_per_frame: bool,
-		discard_per_map: bool,
-		managed: bool,
-		user_managed: bool,
-		cpu_read: bool,
-		location_main: bool,
-		no_gpu_read: bool,
-		aligned_size: bool,
-		edge_culling: bool,
-		location_onion: bool,
-		read_write: bool,
-		immutable: bool,
-		// 0x1000,
-		// 0x2000,
-		// 0x4000,
-		// 0x8000,
-		// 0x10000,
-		// 0x20000,
-		// 0x40000,
-		// 0x80000,
-		#[skip]
-		unknown1: B8,
-		texture_render_target: bool,
-		texture_depth_stencil: bool,
-		pub dimension: Dimension,
-		texture_swizzle: bool,
-		texture_no_tiled: bool,
-		// 0x10000000
-		// 0x20000000
-		// 0x40000000
-		#[skip]
-		unknown2: B3,
-		texture_no_swizzle: bool,
-	}
+/// The kind of a texture, or resource. This value implies the semantics of the
+/// rest of the texture metadata.
+#[allow(missing_docs)]
+#[derive(Debug)]
+pub enum TextureKind {
+	Unknown,
+	D1,
+	D2,
+	D3,
+	Cube,
+	D2Array,
 }
 
-/// The dimension kind of a texture.
-#[allow(missing_docs)]
-#[derive(BitfieldSpecifier, Debug, PartialEq, Eq)]
-#[bits = 4]
-pub enum Dimension {
-	D1 = 1,
-	D2 = 2,
-	D3 = 4,
-	Cube = 8,
+impl TextureKind {
+	const SHIFT: u32 = 22;
+	const MASK: u32 = 0x13C00000;
 }
 
 /// Pixel format of a texture.
