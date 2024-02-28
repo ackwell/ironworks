@@ -2,7 +2,7 @@
 
 use std::io::{Cursor, Read, Seek};
 
-use binrw::{binread, BinRead, BinResult, ReadOptions};
+use binrw::{binread, BinRead, BinResult, Endian};
 use getset::{CopyGetters, Getters};
 
 use crate::{
@@ -168,11 +168,11 @@ impl RowDefinition {
 	const SIZE: u32 = 8;
 }
 
-fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
+fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
 	Ok(reader.stream_position()?)
 }
 
-fn until_eof<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<Vec<u8>> {
+fn until_eof<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<Vec<u8>> {
 	let mut v = Vec::new();
 	reader.read_to_end(&mut v)?;
 	Ok(v)

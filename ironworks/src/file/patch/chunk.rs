@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-use binrw::{binread, BinRead, BinResult, ReadOptions};
+use binrw::{binread, BinRead, BinResult, Endian};
 use getset::{CopyGetters, Getters};
 
 use super::command::{
@@ -205,12 +205,12 @@ pub enum SqPackChunk {
 
 // Manual BinRead implementation because of that pesky size: u32 at the start of sqpack chunks that we don't want.
 impl BinRead for SqPackChunk {
-	type Args = (u32,);
+	type Args<'a> = (u32,);
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		options: &ReadOptions,
-		(chunk_size,): Self::Args,
+		options: Endian,
+		(chunk_size,): Self::Args<'_>,
 	) -> BinResult<Self> {
 		// NOTE: in all observed instances, this size value is equivalent to the parent size on the chunk container.
 		let inner_size = u32::read_options(reader, options, ())?;

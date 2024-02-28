@@ -2,7 +2,8 @@
 
 use std::io::{Read, Seek, SeekFrom};
 
-use binrw::{binread, count, until_eof, BinRead, BinResult, ReadOptions};
+use binrw::helpers::{count, until_eof};
+use binrw::{binread, BinRead, BinResult, Endian};
 use getset::{CopyGetters, Getters};
 
 use crate::{error::Result, FileStream};
@@ -133,12 +134,12 @@ impl Header {
 }
 
 impl BinRead for Header {
-	type Args = (Version,);
+	type Args<'a> = (Version,);
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		_options: &ReadOptions,
-		(version,): Self::Args,
+		_options: Endian,
+		(version,): Self::Args<'_>,
 	) -> BinResult<Self> {
 		match version {
 			Version::V1100 | Version::V1110 | Version::V1200 => {
@@ -186,12 +187,12 @@ pub struct AnimationLayer {
 }
 
 impl BinRead for AnimationLayer {
-	type Args = (u64,);
+	type Args<'a> = (u64,);
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		options: &ReadOptions,
-		(base_offset,): Self::Args,
+		options: Endian,
+		(base_offset,): Self::Args<'_>,
 	) -> BinResult<Self> {
 		let offset = u16::read_le(reader)?;
 		let position = reader.stream_position()?;

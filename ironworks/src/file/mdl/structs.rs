@@ -3,7 +3,8 @@
 
 use std::io::{Read, Seek};
 
-use binrw::{binread, until_eof, BinRead, BinResult, ReadOptions};
+use binrw::helpers::until_eof;
+use binrw::{binread, BinRead, BinResult, Endian};
 use derivative::Derivative;
 use modular_bitfield::bitfield;
 
@@ -165,7 +166,7 @@ pub struct File {
 	pub data: Vec<u8>,
 }
 
-fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
+fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
 	Ok(reader.stream_position()?)
 }
 
@@ -176,12 +177,12 @@ fn to_bool(value: u8) -> bool {
 #[derive(Debug)]
 pub struct VertexDeclaration(pub Vec<VertexElement>);
 impl BinRead for VertexDeclaration {
-	type Args = ();
+	type Args<'a> = ();
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		options: &ReadOptions,
-		args: Self::Args,
+		options: Endian,
+		args: Self::Args<'_>,
 	) -> BinResult<Self> {
 		// There's always space for 17, but the element with stream == 255 and after are
 		// invalid data - remove them.

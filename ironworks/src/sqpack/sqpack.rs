@@ -93,8 +93,9 @@ impl<R: sqpack::Resource> SqPack<R> {
 		let path_not_found = || Error::NotFound(ErrorValue::Path(path.to_string()));
 
 		let mut split = path.split('/');
-		let (Some(category_segment), Some(repository_segment)) = (split.next(), split.next()) else {
-			return Err(path_not_found())
+		let (Some(category_segment), Some(repository_segment)) = (split.next(), split.next())
+		else {
+			return Err(path_not_found());
 		};
 
 		let repository = REPOSITORIES

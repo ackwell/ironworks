@@ -7,8 +7,8 @@ use std::{
 use binrw::{binrw, BinRead, BinWrite};
 
 // Traits literally just to clean up the code a bit.
-pub trait BinReadWrite: BinRead<Args = ()> + BinWrite<Args = ()> {}
-impl<T> BinReadWrite for T where T: BinRead<Args = ()> + BinWrite<Args = ()> {}
+pub trait BinReadWrite: for<'a> BinRead<Args<'a> = ()> + for<'a> BinWrite<Args<'a> = ()> {}
+impl<T> BinReadWrite for T where T: for<'a> BinRead<Args<'a> = ()> + for<'a> BinWrite<Args<'a> = ()> {}
 
 pub trait BrwMapKey: Clone + Eq + Hash + BinReadWrite {}
 impl<T> BrwMapKey for T where T: Clone + Eq + Hash + BinReadWrite {}
@@ -19,7 +19,7 @@ impl<T> BrwMapValue for T where T: Clone + BinReadWrite {}
 /// HashMap wrapper that can be serialized to a binary format represented as a count and array of items.
 #[binrw]
 #[derive(Debug)]
-pub struct BrwMap<K: BrwMapKey, V: BrwMapValue> {
+pub struct BrwMap<K: BrwMapKey + 'static, V: BrwMapValue + 'static> {
 	#[br(temp)]
 	#[bw(calc = map.len().try_into().unwrap())]
 	count: u32,
@@ -59,7 +59,7 @@ impl<K: BrwMapKey, V: BrwMapValue> DerefMut for BrwMap<K, V> {
 /// Vec wrapper that can be serialized to a binary format represented as a count and array of items.
 #[binrw]
 #[derive(Debug, Clone)]
-pub struct BrwVec<T: BinReadWrite> {
+pub struct BrwVec<T: BinReadWrite + 'static> {
 	#[br(temp)]
 	#[bw(calc = vec.len().try_into().unwrap())]
 	count: u32,

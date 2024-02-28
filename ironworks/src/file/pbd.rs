@@ -6,7 +6,7 @@ use std::{
 	io::{Read, Seek, SeekFrom},
 };
 
-use binrw::{binread, BinRead, BinResult, NullString, ReadOptions};
+use binrw::{binread, BinRead, BinResult, Endian, NullString};
 
 use crate::{error::Result, FileStream};
 
@@ -214,6 +214,6 @@ struct NodeData {
 	deformer_index: u16,
 }
 
-fn current_position<R: Read + Seek>(reader: &mut R, _: &ReadOptions, _: ()) -> BinResult<u64> {
+fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
 	Ok(reader.stream_position()?)
 }

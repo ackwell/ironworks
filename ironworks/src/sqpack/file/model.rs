@@ -28,7 +28,7 @@ struct ModelHeader {
 #[binread]
 #[derive(Debug)]
 #[br(little)]
-struct SectionInfo<T: BinRead<Args = ()> + 'static> {
+struct SectionInfo<T: for<'a> BinRead<Args<'a> = ()> + 'static> {
 	stack: T,
 	runtime: T,
 	vertex_buffer: [T; MAX_LODS],
