@@ -1,6 +1,6 @@
 use std::io::{self, Cursor, Read, Seek};
 
-use binrw::{BinRead, BinResult, ReadOptions};
+use binrw::{BinRead, BinResult, Endian};
 use time::OffsetDateTime;
 
 use crate::{error::Result, Error, ErrorValue};
@@ -156,7 +156,7 @@ fn equal(left: &Expression, right: &Expression, context: &mut Context) -> Result
 
 impl Expression {
 	// Utility for the commonly used read-expression-and-expect-it-to-be-a-number case.
-	pub fn read_u32<R: Read + Seek>(reader: &mut R, options: &ReadOptions) -> BinResult<u32> {
+	pub fn read_u32<R: Read + Seek>(reader: &mut R, options: Endian) -> BinResult<u32> {
 		let expression = Self::read_options(reader, options, ())?;
 		match expression {
 			Self::U32(value) => Ok(value),
@@ -169,12 +169,12 @@ impl Expression {
 }
 
 impl BinRead for Expression {
-	type Args = ();
+	type Args<'a> = ();
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		options: &ReadOptions,
-		_args: Self::Args,
+		options: Endian,
+		_args: Self::Args<'_>,
 	) -> BinResult<Self> {
 		let kind = u8::read_options(reader, options, ())?;
 
@@ -222,11 +222,7 @@ impl BinRead for Expression {
 	}
 }
 
-fn read_packed_u32<R: Read + Seek>(
-	kind: u8,
-	reader: &mut R,
-	options: &ReadOptions,
-) -> BinResult<u32> {
+fn read_packed_u32<R: Read + Seek>(kind: u8, reader: &mut R, options: Endian) -> BinResult<u32> {
 	let flags = (kind + 1) & 0b1111;
 	let mut bytes = [0; 4];
 	for i in (0..=3).rev() {
@@ -238,10 +234,7 @@ fn read_packed_u32<R: Read + Seek>(
 	Ok(u32::from_le_bytes(bytes))
 }
 
-fn read_inline_sestring<R: Read + Seek>(
-	reader: &mut R,
-	options: &ReadOptions,
-) -> BinResult<SeString> {
+fn read_inline_sestring<R: Read + Seek>(reader: &mut R, options: Endian) -> BinResult<SeString> {
 	let length = Expression::read_u32(reader, options)?;
 
 	// Using take_seekable here causes an infinte recursion on type resolution that I can't quite work out how to fix.

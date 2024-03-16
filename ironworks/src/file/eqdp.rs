@@ -2,7 +2,8 @@
 
 use std::{fmt::Debug, io::Cursor};
 
-use binrw::{binread, until_eof, BinRead};
+use binrw::helpers::until_eof;
+use binrw::{binread, BinRead};
 
 use crate::{error::Result, FileStream};
 

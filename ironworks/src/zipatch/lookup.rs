@@ -149,7 +149,7 @@ fn process_file_operation(data: &mut PatchLookupData, command: FileOperationComm
 	}
 
 	let FileOperation::AddFile(blocks) = command.operation() else {
-		return Ok(())
+		return Ok(());
 	};
 
 	let chunk = FileChunk {

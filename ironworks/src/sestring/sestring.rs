@@ -4,7 +4,8 @@ use std::{
 	mem,
 };
 
-use binrw::{until_eof, BinRead, BinResult, ReadOptions};
+use binrw::helpers::until_eof;
+use binrw::{BinRead, BinResult, Endian};
 
 use crate::{
 	error::{Error, Result},
@@ -89,12 +90,12 @@ impl Segment {
 }
 
 impl BinRead for SeString {
-	type Args = ();
+	type Args<'a> = ();
 
 	fn read_options<R: Read + Seek>(
 		reader: &mut R,
-		options: &ReadOptions,
-		_args: Self::Args,
+		options: Endian,
+		_args: Self::Args<'_>,
 	) -> BinResult<Self> {
 		let mut state = ReadState::default();
 
@@ -132,10 +133,7 @@ impl BinRead for SeString {
 	}
 }
 
-fn read_payload_segment<R: Read + Seek>(
-	reader: &mut R,
-	options: &ReadOptions,
-) -> BinResult<Segment> {
+fn read_payload_segment<R: Read + Seek>(reader: &mut R, options: Endian) -> BinResult<Segment> {
 	let kind = Kind::read_options(reader, options, ())?;
 	let length = Expression::read_u32(reader, options)?;
 

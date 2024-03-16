@@ -1,6 +1,7 @@
 use std::io::{Read, Seek, SeekFrom};
 
-use binrw::{binread, BinRead, BinResult, NullString, PosValue, ReadOptions};
+use binrw::helpers::until_eof;
+use binrw::{binread, BinRead, BinResult, Endian, NullString, PosValue};
 use getset::{CopyGetters, Getters};
 
 const UNCOMPRESSED_MARKER_SIZE: u32 = 32_000;
@@ -160,7 +161,7 @@ pub enum FileOperation {
 
 fn parse_block_headers<R: Read + Seek>(
 	reader: &mut R,
-	options: &ReadOptions,
+	options: Endian,
 	(command_start, command_size): (u64, u32),
 ) -> BinResult<Vec<BlockHeader>> {
 	let command_end = u64::from(command_size) + command_start;
