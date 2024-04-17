@@ -76,7 +76,7 @@ impl File for Texture {
 /// The kind of a texture, or resource. This value implies the semantics of the
 /// rest of the texture metadata.
 #[allow(missing_docs)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TextureKind {
 	Unknown,
 	D1,
