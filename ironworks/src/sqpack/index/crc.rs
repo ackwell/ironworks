@@ -27,7 +27,7 @@ const fn build_table() -> Table {
 				k += 1;
 			}
 
-			table[((t * 256) + i)] = res;
+			table[(t * 256) + i] = res;
 
 			t += 1;
 		}
