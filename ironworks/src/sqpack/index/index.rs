@@ -144,7 +144,7 @@ impl IndexChunk {
 	fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
 		match self {
 			Self::Index1(index) => index.find(path),
-			Self::Index2(_index) => todo!("index2"),
+			Self::Index2(index) => index.find(path),
 		}
 	}
 }
