@@ -1,6 +1,5 @@
 use std::io::{Read, Seek, SeekFrom};
 
-use binrw::helpers::until_eof;
 use binrw::{binread, BinRead, BinResult, Endian, NullString, PosValue};
 use getset::{CopyGetters, Getters};
 

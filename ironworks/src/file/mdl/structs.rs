@@ -45,7 +45,7 @@ pub struct File {
 	pub vertex_declarations: Vec<VertexDeclaration>,
 
 	#[br(temp)]
-	string_count: u16,
+	_string_count: u16,
 	// padding: u16,
 	#[br(pad_before = 2, temp)]
 	string_size: u32,
