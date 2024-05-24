@@ -2,6 +2,7 @@ use std::{
 	borrow::Cow,
 	env::current_exe,
 	path::{Path, PathBuf},
+	sync::Arc,
 };
 
 use derivative::Derivative;
@@ -12,7 +13,7 @@ use crate::{
 	git::open_repository,
 };
 
-use super::{specifier::Specifier, IntoSpecifier};
+use super::{specifier::Specifier, version::Version, IntoSpecifier};
 
 const DEFAULT_REMOTE: &str = "https://github.com/xivdev/EXDSchema.git";
 const DEFAULT_DIRECTORY: &str = "exdschema";
@@ -21,7 +22,7 @@ const DEFAULT_DIRECTORY: &str = "exdschema";
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
-	pub(super) repository: Repository,
+	pub(super) repository: Arc<Repository>,
 }
 
 impl Provider {
@@ -45,7 +46,9 @@ impl Provider {
 
 		let repository = open_repository(remote, &directory)?;
 
-		Ok(Self { repository })
+		Ok(Self {
+			repository: Arc::new(repository),
+		})
 	}
 
 	// this works
@@ -65,10 +68,11 @@ impl Provider {
 		(reference, game_version).into_specifier(self)
 	}
 
-	// get version (impl into specifier? - two axes make this a little hard unless it's over a tuple)
-	// pub fn version(specifier: impl IntoSpecifier) {
-	// 	let specifier = specifier.into_specifier();
-	// }
+	pub fn version(&self, specifier: impl IntoSpecifier) -> Result<Version> {
+		let specifier = specifier.into_specifier(self)?;
+
+		Ok(Version::new(Arc::clone(&self.repository), specifier))
+	}
 }
 
 #[derive(Debug)]

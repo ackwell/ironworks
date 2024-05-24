@@ -2,6 +2,7 @@
 
 mod provider;
 mod specifier;
+mod version;
 
 pub use {
 	provider::{Provider, ProviderOptions},

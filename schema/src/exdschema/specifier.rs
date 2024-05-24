@@ -11,8 +11,9 @@ use super::provider::Provider;
 
 #[derive(Debug)]
 pub struct Specifier {
-	commit: Oid,
-	game_version: String,
+	// TODO: would be neat to make this either an oid or full commit, but doing so would infect this struct with repository lifetimes
+	pub(super) commit: Oid,
+	pub(super) game_version: String,
 }
 
 pub trait IntoSpecifier: Sized {
