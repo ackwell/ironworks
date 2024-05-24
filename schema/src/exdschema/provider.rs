@@ -8,10 +8,11 @@ use derivative::Derivative;
 use git2::Repository;
 
 use crate::{
-	error::Result,
-	git::{open_repository, resolve_commit},
+	error::{Error, ErrorValue, Result},
+	git::open_repository,
 };
 
+use super::{specifier::Specifier, IntoSpecifier};
 
 const DEFAULT_REMOTE: &str = "https://github.com/xivdev/EXDSchema.git";
 const DEFAULT_DIRECTORY: &str = "exdschema";
@@ -20,7 +21,7 @@ const DEFAULT_DIRECTORY: &str = "exdschema";
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
-	repository: Repository,
+	pub(super) repository: Repository,
 }
 
 impl Provider {
@@ -46,6 +47,16 @@ impl Provider {
 
 		Ok(Self { repository })
 	}
+
+	// get specifier
+	pub fn specifier(&self, reference: &str, game_version: &str) -> Result<Specifier> {
+		(reference, game_version).into_specifier(self)
+	}
+
+	// get version (impl into specifier? - two axes make this a little hard unless it's over a tuple)
+	// pub fn version(specifier: impl IntoSpecifier) {
+	// 	let specifier = specifier.into_specifier();
+	// }
 }
 
 #[derive(Debug)]
