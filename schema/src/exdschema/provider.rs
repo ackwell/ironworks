@@ -48,7 +48,19 @@ impl Provider {
 		Ok(Self { repository })
 	}
 
-	// get specifier
+	// this works
+	pub fn update(&self) -> Result<()> {
+		self.repository
+			.find_remote("origin")?
+			.fetch::<&str>(&[], None, None)?;
+
+		// todo: need to flag in some way that an update occured?
+		//       a success does not mean anything changed, just that the attempt didn't fail
+
+		Ok(())
+	}
+
+	// TODO: should this accept intospecifier? would allow it to be used as a one-stop canonicalisation pass
 	pub fn specifier(&self, reference: &str, game_version: &str) -> Result<Specifier> {
 		(reference, game_version).into_specifier(self)
 	}
