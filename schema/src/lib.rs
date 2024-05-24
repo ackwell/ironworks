@@ -11,6 +11,9 @@ mod schema;
 #[cfg(feature = "git2")]
 mod git;
 
+#[cfg(feature = "exdschema")]
+pub mod exdschema;
+
 #[cfg(feature = "saint_coinach")]
 pub mod saint_coinach;
 

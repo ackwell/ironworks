@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
+exdschema = ["derivative", "git2"]
 saint_coinach = ["derivative", "git2", "serde_json"]
 
 [dependencies]
