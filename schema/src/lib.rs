@@ -8,6 +8,9 @@
 mod error;
 mod schema;
 
+#[cfg(feature = "git2")]
+mod git;
+
 #[cfg(feature = "saint_coinach")]
 pub mod saint_coinach;
 
