@@ -56,10 +56,6 @@ impl Schema for Version {
 				))
 			})?;
 
-		let parsed_content = parse(blob.content())?;
-
-		println!("parsed: {parsed_content:#?}");
-
-		todo!()
+		parse(blob.content())
 	}
 }
