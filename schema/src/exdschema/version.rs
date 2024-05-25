@@ -7,7 +7,7 @@ use crate::{
 	schema::{Schema, Sheet},
 };
 
-use super::specifier::Specifier;
+use super::{parse::parse, specifier::Specifier};
 
 pub struct Version {
 	repository: Arc<Repository>,
@@ -56,11 +56,9 @@ impl Schema for Version {
 				))
 			})?;
 
-		// this is a hack, just pass the byte string to serde
-		let fdsa = str::from_utf8(blob.content()).map_err(|error| {
-			Error::Repository(format!("failed to read {name} as utf8: {error}"))
-		})?;
-		println!("{fdsa}");
+		let parsed_content = parse(blob.content())?;
+
+		println!("parsed: {parsed_content:#?}");
 
 		todo!()
 	}
