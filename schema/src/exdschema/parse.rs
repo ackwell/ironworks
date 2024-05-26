@@ -7,9 +7,8 @@ use crate::{
 	schema,
 };
 
-// TODO: unpub this
 #[derive(Debug, Deserialize)]
-pub struct Sheet {
+struct Sheet {
 	name: String,
 	_display_field: Option<String>,
 	fields: Vec<Field>,
@@ -19,13 +18,14 @@ pub struct Sheet {
 struct Field {
 	// Only optional to support single-element arrays.
 	name: Option<String>,
-	count: Option<u32>,
+	_comment: Option<String>,
 
 	#[serde(rename = "type", default)]
 	kind: FieldKind,
 
-	_comment: Option<String>,
+	count: Option<u32>,
 	fields: Option<Vec<Field>>,
+
 	condition: Option<Condition>,
 	targets: Option<Vec<String>>,
 }
@@ -60,7 +60,6 @@ pub fn parse(data: &[u8]) -> Result<schema::Sheet> {
 	map_sheet(sheet)
 }
 
-// maybe this should be a tryfrom impl?
 fn map_sheet(sheet: Sheet) -> Result<schema::Sheet> {
 	Ok(schema::Sheet {
 		name: sheet.name,
@@ -101,7 +100,7 @@ fn map_field(field: Field) -> Result<schema::Node> {
 			..
 		} => schema::Node::Scalar,
 
-		// Arrays
+		// Arrays.
 		Field {
 			kind: FieldKind::Array,
 			count: Some(count),

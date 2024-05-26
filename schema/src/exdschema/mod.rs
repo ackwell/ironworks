@@ -7,5 +7,5 @@ mod version;
 
 pub use {
 	provider::{Provider, ProviderOptions},
-	specifier::{IntoSpecifier, Specifier},
+	specifier::{Specifier, TryIntoSpecifier},
 };
