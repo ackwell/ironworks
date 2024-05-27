@@ -18,34 +18,18 @@ pub struct Specifier {
 	pub(super) game_version: String,
 }
 
-/// Trait implemented for types that can be converted to a `Specifier`.
-pub trait TryIntoSpecifier: Sized {
-	/// Convert the type into a `Specifier`.
-	fn try_into_specifier(self, provider: &Provider) -> Result<Specifier>;
-}
-
-impl TryIntoSpecifier for Specifier {
-	fn try_into_specifier(self, _provider: &Provider) -> Result<Specifier> {
-		Ok(self)
-	}
-}
-
-impl<R, V> TryIntoSpecifier for (R, V)
-where
-	R: AsRef<str>,
-	V: AsRef<str>,
-{
-	fn try_into_specifier(self, provider: &Provider) -> Result<Specifier> {
-		let (reference, game_version) = (self.0.as_ref(), self.1.as_ref());
+impl Specifier {
+	pub(super) fn new(provider: &Provider, reference: &str, game_version: &str) -> Result<Self> {
+		let repository = provider.repository.lock().unwrap();
 
 		// Resolve the ref into a commit.
-		let commit = resolve_commit(&provider.repository, reference)?;
+		let commit = resolve_commit(&repository, reference)?;
 
 		// Fetch the schema list for the given commit.
 		let mut schemas = commit
 			.tree()?
 			.get_path(Path::new("Schemas"))?
-			.to_object(&provider.repository)?
+			.to_object(&repository)?
 			.peel_to_tree()?
 			.into_iter()
 			.filter_map(|entry| entry.name().map(|name| name.to_string()))
@@ -66,5 +50,15 @@ where
 			commit: commit.id(),
 			game_version: found_version.into(),
 		})
+	}
+
+	/// Get a string representative of this specifier's repository reference.
+	pub fn reference(&self) -> String {
+		self.commit.to_string()
+	}
+
+	/// Get a string representing the game version targeted by this specifier.
+	pub fn game_version(&self) -> String {
+		self.game_version.clone()
 	}
 }

@@ -13,7 +13,7 @@ use crate::{
 	git::{open_repository, resolve_commit},
 };
 
-use super::{specifier::Specifier, version::Version, TryIntoSpecifier};
+use super::{specifier::Specifier, version::Version};
 
 const DEFAULT_REMOTE: &str = "https://github.com/xivdev/EXDSchema.git";
 const DEFAULT_DIRECTORY: &str = "exdschema";
@@ -75,13 +75,11 @@ impl Provider {
 
 	/// Fetch a `Specifier` that matches the specified git reference and game version as closely as possible.
 	pub fn specifier(&self, reference: &str, game_version: &str) -> Result<Specifier> {
-		(reference, game_version).try_into_specifier(self)
+		Specifier::new(self, reference, game_version)
 	}
 
 	/// Fetch the specified version of the schema.
-	pub fn version(&self, specifier: impl TryIntoSpecifier) -> Result<Version> {
-		let specifier = specifier.try_into_specifier(self)?;
-
+	pub fn version(&self, specifier: Specifier) -> Result<Version> {
 		Ok(Version::new(Arc::clone(&self.repository), specifier))
 	}
 }
