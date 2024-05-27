@@ -68,21 +68,34 @@ fn map_sheet(sheet: Sheet) -> Result<schema::Sheet> {
 	})
 }
 
+macro_rules! scan_try {
+	($expr:expr) => {
+		match $expr {
+			Ok(value) => value,
+			Err(err) => return Some(Err(err)),
+		}
+	};
+}
+
 fn map_struct(fields: Vec<Field>) -> Result<schema::Node> {
 	let struct_fields = fields
 		.into_iter()
-		.zip(0..)
-		.map(|(field, offset)| {
-			Ok(schema::StructField {
-				offset,
-				// TODO: would be good to avoid cloning this but i don't really want to work out partial borrowing for everything.
-				name: field
-					.name
-					.clone()
-					.ok_or_else(|| Error::Schema(format!("struct fields must have names")))?,
+		.scan(0u32, |offset, field| {
+			let name = scan_try!(field
+				.name
+				.clone()
+				.ok_or_else(|| Error::Schema(format!("struct fields must have names"))));
+			let node = scan_try!(map_field(field));
 
-				node: map_field(field)?,
-			})
+			let this_offset = *offset;
+			*offset += node.size();
+
+			Some(Ok(schema::StructField {
+				offset: this_offset,
+				// TODO: would be good to avoid cloning this but i don't really want to work out partial borrowing for everything.
+				name,
+				node,
+			}))
 		})
 		.collect::<Result<Vec<_>>>()?;
 
