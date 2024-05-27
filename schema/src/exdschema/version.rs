@@ -1,4 +1,8 @@
-use std::{path::PathBuf, str, sync::Arc};
+use std::{
+	path::PathBuf,
+	str,
+	sync::{Arc, Mutex},
+};
 
 use derivative::Derivative;
 use git2::{ErrorCode, Repository};
@@ -15,13 +19,13 @@ use super::{parse::parse, specifier::Specifier};
 #[derivative(Debug)]
 pub struct Version {
 	#[derivative(Debug = "ignore")]
-	repository: Arc<Repository>,
+	repository: Arc<Mutex<Repository>>,
 
 	specifier: Specifier,
 }
 
 impl Version {
-	pub(super) fn new(repository: Arc<Repository>, specifier: Specifier) -> Self {
+	pub(super) fn new(repository: Arc<Mutex<Repository>>, specifier: Specifier) -> Self {
 		Self {
 			repository,
 			specifier,
@@ -29,7 +33,8 @@ impl Version {
 	}
 
 	fn sheet(&self, sheet: &str) -> Result<Sheet> {
-		let commit = self.repository.find_commit(self.specifier.commit)?;
+		let repository = self.repository.lock().unwrap();
+		let commit = repository.find_commit(self.specifier.commit)?;
 
 		let path: PathBuf = [
 			"Schemas",
@@ -48,7 +53,7 @@ impl Version {
 			})?;
 
 		let blob = entry
-			.to_object(&self.repository)?
+			.to_object(&repository)?
 			.into_blob()
 			.map_err(|object| {
 				Error::Repository(format!(

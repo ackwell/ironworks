@@ -2,7 +2,7 @@ use std::{
 	borrow::Cow,
 	env::current_exe,
 	path::{Path, PathBuf},
-	sync::Arc,
+	sync::{Arc, Mutex},
 };
 
 use derivative::Derivative;
@@ -23,7 +23,7 @@ const DEFAULT_DIRECTORY: &str = "exdschema";
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
-	pub(super) repository: Arc<Repository>,
+	pub(super) repository: Arc<Mutex<Repository>>,
 }
 
 impl Provider {
@@ -50,7 +50,7 @@ impl Provider {
 		let repository = open_repository(remote, &directory)?;
 
 		Ok(Self {
-			repository: Arc::new(repository),
+			repository: Arc::new(Mutex::new(repository)),
 		})
 	}
 
@@ -59,16 +59,18 @@ impl Provider {
 	/// represents whether a change to the repository's HEAD was observed as a
 	/// result of the update.
 	pub fn update(&self) -> Result<bool> {
+		let repository = self.repository.lock().unwrap();
+
 		// Get the current HEAD commit oid.
-		let old_head = resolve_commit(&self.repository, "HEAD")?.id();
+		let old_head = resolve_commit(&repository, "HEAD")?.id();
 
 		// Fetch + update the origin.
-		self.repository
+		repository
 			.find_remote("origin")?
 			.fetch::<&str>(&[], None, None)?;
 
 		// Check if we've got a new HEAD.
-		let new_head = resolve_commit(&self.repository, "HEAD")?.id();
+		let new_head = resolve_commit(&repository, "HEAD")?.id();
 
 		Ok(new_head != old_head)
 	}
