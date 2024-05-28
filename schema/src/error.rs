@@ -27,8 +27,8 @@ impl From<git2::Error> for Error {
 /// A value associated with an error.
 #[derive(Debug, Clone)]
 pub enum ErrorValue {
-	#[cfg(feature = "saint_coinach")]
-	/// A version of a Saint Coinach schema.
+	#[cfg(any(feature = "saint_coinach", feature = "exdschema"))]
+	/// A version of a schema.
 	Version(String),
 
 	/// A value not represented by other variants.
@@ -42,7 +42,7 @@ pub enum ErrorValue {
 impl fmt::Display for ErrorValue {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
-			#[cfg(feature = "saint_coinach")]
+			#[cfg(any(feature = "saint_coinach", feature = "exdschema"))]
 			Self::Version(value) => write!(formatter, "version {value}"),
 
 			Self::Other(value) => write!(formatter, "{value}"),

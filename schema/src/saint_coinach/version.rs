@@ -1,12 +1,11 @@
 use std::{
 	collections::hash_map::Entry,
 	path::{Path, PathBuf},
-	sync::{Arc, Mutex},
+	sync::{Arc, Mutex, OnceLock},
 };
 
 use derivative::Derivative;
 use git2::{Object, Oid, Repository};
-use lazy_static::lazy_static;
 use serde_json::Value;
 
 use crate::{
@@ -17,8 +16,9 @@ use crate::{
 
 use super::{parse::parse_sheet_definition, provider::SheetCache};
 
-lazy_static! {
-	static ref DEFINITION_PATH: PathBuf = ["SaintCoinach", "Definitions"].iter().collect();
+fn definition_path() -> &'static PathBuf {
+	static DEFINITION_PATH: OnceLock<PathBuf> = OnceLock::new();
+	DEFINITION_PATH.get_or_init(|| ["SaintCoinach", "Definitions"].iter().collect())
 }
 
 /// A single version of the SaintCoinach schema.
@@ -57,11 +57,12 @@ impl Version {
 		let repository = self.repository.lock().unwrap();
 
 		// Get the tree containing sheet definitions.
-		let object = self.object_at_path(&repository, &DEFINITION_PATH)?;
+		let definition_path = definition_path();
+		let object = self.object_at_path(&repository, definition_path)?;
 		let tree = object.into_tree().map_err(|object| {
 			Error::Repository(format!(
 				"Definition path {:?} should be a tree, got {:?}",
-				*DEFINITION_PATH,
+				*definition_path,
 				object.kind()
 			))
 		})?;
@@ -85,7 +86,7 @@ impl Version {
 	fn read_sheet_schema(&self, name: &str) -> Result<Sheet> {
 		// TODO: This currently locks the repository for all consumers until it has completed parsing, with the benefit of not copying the blob data into memory before running the parse. If the potential contention on this proves problematic, pull blob data into memory and drop the guard early.
 		let repository = self.repository.lock().unwrap();
-		let path = DEFINITION_PATH.join(format!("{name}.json"));
+		let path = definition_path().join(format!("{name}.json"));
 
 		let object =
 			self.object_at_path(&repository, &path)

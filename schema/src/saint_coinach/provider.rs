@@ -7,10 +7,11 @@ use std::{
 };
 
 use derivative::Derivative;
-use git2::{build::RepoBuilder, ErrorCode, Oid, Repository};
+use git2::{Oid, Repository};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
+	git::{open_repository, resolve_commit},
 	Sheet,
 };
 
@@ -113,17 +114,7 @@ impl Provider {
 	pub fn version(&self, version: &str) -> Result<Version> {
 		let repository = self.repository.lock().unwrap();
 
-		let commit = repository
-			.revparse_single(version)
-			.and_then(|object| object.peel_to_commit())
-			.map_err(|error| match error.code() {
-				// NotFound stems from invalid input to revparse, and InvalidSpec is
-				// from a valid object reference that did not point to a commit.
-				ErrorCode::NotFound | ErrorCode::InvalidSpec => {
-					Error::NotFound(ErrorValue::Version(version.into()))
-				}
-				_ => Error::from(error),
-			})?;
+		let commit = resolve_commit(&repository, version)?;
 
 		Ok(Version::new(
 			self.repository.clone(),
@@ -136,61 +127,4 @@ impl Provider {
 fn default_directory<'a>() -> Option<Cow<'a, Path>> {
 	let path = current_exe().ok()?.parent()?.join(REPOSITORY_DIRECTORY);
 	Some(path.into())
-}
-
-fn open_repository(remote: &str, directory: &Path) -> Result<Repository> {
-	match Repository::open_bare(directory) {
-		Ok(repository) => validate_repository(repository, remote, directory),
-
-		Err(error) => match error.code() {
-			ErrorCode::NotFound => clone_repository(remote, directory),
-			_ => Err(error)?,
-		},
-	}
-}
-
-fn validate_repository(
-	repository: Repository,
-	remote: &str,
-	directory: &Path,
-) -> Result<Repository> {
-	if repository.find_remote("origin")?.url() != Some(remote) {
-		return Err(Error::Repository(format!(
-			"Repository at {directory:?} exists, does not have origin {remote}."
-		)));
-	}
-	Ok(repository)
-}
-
-fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
-	let mut default_branch = None;
-
-	let repository = RepoBuilder::new()
-		.bare(true)
-		.remote_create(|repo, name, url| {
-			// Create a remote with a mirror refspec.
-			let mut remote = repo.remote_with_fetch(name, url, "+refs/*:refs/*")?;
-
-			// Eagerly connect and save out the default branch of the remote.
-			remote.connect(git2::Direction::Fetch)?;
-			let branch_name = remote
-				.default_branch()?
-				.as_str()
-				.ok_or_else(|| git2::Error::from_str("default branch contains invalid utf8"))?
-				.to_string();
-			default_branch = Some(branch_name);
-
-			Ok(remote)
-		})
-		.clone(remote, directory)?;
-
-	// Explicitly set the repository's head to the remote's default branch. With
-	// a mirror refspec, the default selection of the head may fall back to
-	// `init.defaultbranch`, which may be provided by a system git install that
-	// does not match StC's actual branch names.
-	if let Some(branch_name) = default_branch {
-		repository.set_head(&branch_name)?;
-	}
-
-	Ok(repository)
 }
