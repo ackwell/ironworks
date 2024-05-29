@@ -19,5 +19,7 @@ pub mod saint_coinach;
 
 pub use {
 	error::{Error, ErrorValue},
-	schema::{Node, Order, ReferenceCondition, ReferenceTarget, Schema, Sheet, StructField},
+	schema::{
+		Node, Order, ReferenceCondition, ReferenceTarget, Scalar, Schema, Sheet, StructField,
+	},
 };

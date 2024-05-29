@@ -38,11 +38,8 @@ pub enum Node {
 	#[allow(missing_docs)]
 	Array { count: u32, node: Box<Node> },
 
-	/// A reference to one or more rows in other sheets.
-	Reference(Vec<ReferenceTarget>),
-
-	/// A single scalar field with no further semantics.
-	Scalar,
+	/// A single scalar field with optional further semantics.
+	Scalar(Scalar),
 
 	/// A collection of named sub-schemas.
 	Struct(Vec<StructField>),
@@ -53,8 +50,7 @@ impl Node {
 	pub fn size(&self) -> u32 {
 		match self {
 			Self::Array { count, node } => count * node.size(),
-			Self::Reference(_) => 1,
-			Self::Scalar => 1,
+			Self::Scalar(_) => 1,
 			Self::Struct(fields) => {
 				let Some(last_field) = fields.last() else {
 					return 0;
@@ -64,6 +60,25 @@ impl Node {
 			}
 		}
 	}
+}
+
+/// Metadata for a single column's representation.
+#[derive(Debug, Clone)]
+pub enum Scalar {
+	/// No futher metadata is meaningful for this column.
+	Default,
+
+	/// Column acts as a foreign key in a cross-table reference.
+	Reference(Vec<ReferenceTarget>),
+
+	/// Column represents an icon in the `ui/icon/` structure.
+	Icon,
+
+	/// Column stores a packed representation of model identifiers.
+	Model,
+
+	/// Column stores a colour in (A?)RGB.
+	Color,
 }
 
 // TODO: Should this all be public?

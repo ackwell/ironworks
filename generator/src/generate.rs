@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use heck::ToSnakeCase;
 use ironworks::file::exh;
-use ironworks_schema::{Node, Order, ReferenceTarget, Sheet, StructField};
+use ironworks_schema::{Node, Order, Scalar, Sheet, StructField};
 use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
@@ -87,8 +87,7 @@ pub fn generate_sheet(sheet: Sheet, columns: Vec<exh::ColumnDefinition>) -> Modu
 fn generate_node(context: &mut Context, node: &Node) -> NodeResult {
 	match node {
 		Node::Array { count, node } => generate_array(context, count, node),
-		Node::Reference(targets) => generate_reference(context, targets),
-		Node::Scalar => generate_scalar(context),
+		Node::Scalar(scalar) => generate_scalar(context, scalar),
 		Node::Struct(fields) => generate_struct(context, fields),
 	}
 }
@@ -133,12 +132,9 @@ fn generate_array(context: &mut Context, count: &u32, node: &Node) -> NodeResult
 	}
 }
 
-fn generate_reference(context: &mut Context, _targets: &[ReferenceTarget]) -> NodeResult {
-	// TODO: reference logic
-	generate_scalar(context)
-}
+fn generate_scalar(context: &mut Context, _scalar: &Scalar) -> NodeResult {
+	// TODO: handle subtypes i.e. references
 
-fn generate_scalar(context: &mut Context) -> NodeResult {
 	let (field_index, column) = match context.columns.get(0) {
 		Some(column) => column,
 		None => {
@@ -226,7 +222,7 @@ fn generate_struct(context: &mut Context, fields: &[StructField]) -> NodeResult 
 
 				context.path.push(name.clone());
 				context.columns = &original_columns[index..=index];
-				let NodeResult { type_, reader } = generate_scalar(context);
+				let NodeResult { type_, reader } = generate_scalar(context, &Scalar::Default);
 				context.path.pop();
 
 				FieldResult {

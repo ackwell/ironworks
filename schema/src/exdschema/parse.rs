@@ -107,11 +107,25 @@ fn map_field(field: Field) -> Result<schema::Node> {
 
 	let node = match field {
 		// Scalar columns.
-		// TODO: store the sub-types in some manner
 		Field {
-			kind: FieldKind::Scalar | FieldKind::Icon | FieldKind::ModelId | FieldKind::Color,
+			kind: FieldKind::Scalar,
 			..
-		} => schema::Node::Scalar,
+		} => schema::Node::Scalar(schema::Scalar::Default),
+
+		Field {
+			kind: FieldKind::Icon,
+			..
+		} => schema::Node::Scalar(schema::Scalar::Icon),
+
+		Field {
+			kind: FieldKind::ModelId,
+			..
+		} => schema::Node::Scalar(schema::Scalar::Model),
+
+		Field {
+			kind: FieldKind::Color,
+			..
+		} => schema::Node::Scalar(schema::Scalar::Color),
 
 		// Arrays.
 		Field {
@@ -121,7 +135,7 @@ fn map_field(field: Field) -> Result<schema::Node> {
 			..
 		} => {
 			let node = match fields {
-				None => schema::Node::Scalar,
+				None => schema::Node::Scalar(schema::Scalar::Default),
 				Some(mut fields) => match fields.len() {
 					0 => Err(Error::Schema(format!(
 						"arrays must contain at least one field"
@@ -143,7 +157,7 @@ fn map_field(field: Field) -> Result<schema::Node> {
 			targets: Some(targets),
 			condition: None,
 			..
-		} => schema::Node::Reference(
+		} => schema::Node::Scalar(schema::Scalar::Reference(
 			targets
 				.into_iter()
 				.map(|target| schema::ReferenceTarget {
@@ -152,7 +166,7 @@ fn map_field(field: Field) -> Result<schema::Node> {
 					condition: None,
 				})
 				.collect(),
-		),
+		)),
 
 		// Conditional links.
 		Field {
@@ -175,7 +189,7 @@ fn map_field(field: Field) -> Result<schema::Node> {
 				})
 				.collect::<Vec<_>>();
 
-			schema::Node::Reference(targets)
+			schema::Node::Scalar(schema::Scalar::Reference(targets))
 		}
 
 		other => Err(Error::Schema(format!(

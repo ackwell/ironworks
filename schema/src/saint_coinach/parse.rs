@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use crate::{
 	error::{Error, Result},
-	schema::{Node, ReferenceCondition, ReferenceTarget, StructField},
+	schema::{Node, ReferenceCondition, ReferenceTarget, Scalar, StructField},
 };
 
 use super::lcs::longest_common_subsequence;
@@ -56,7 +56,7 @@ fn parse_single_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 
 	let converter = match value.get("converter") {
 		Some(object) => object,
-		None => return Ok((Node::Scalar, name)),
+		None => return Ok((Node::Scalar(Scalar::Default), name)),
 	};
 
 	// TODO: There's also a "quad" type with a converter but I've got no idea how it's instantiated.
@@ -141,22 +141,20 @@ fn parse_repeat_data_definition(value: &Value) -> Result<(Node, Option<String>)>
 /// See also:
 /// - [ColorConverter.cs#L46](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/ColorConverter.cs#L46)
 fn parse_color_converter(_value: &Value) -> Result<Node> {
-	// TODO: ?
-	Ok(Node::Scalar)
+	Ok(Node::Scalar(Scalar::Color))
 }
 
 /// See also:
 /// - [GenericReferenceConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/GenericReferenceConverter.cs#L33)
 fn parse_generic_reference_converter(_value: &Value) -> Result<Node> {
 	// TODO: ?
-	Ok(Node::Scalar)
+	Ok(Node::Scalar(Scalar::Default))
 }
 
 /// See also:
 /// - [IconConverter.cs#L33](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/IconConverter.cs#L33)
 fn parse_icon_converter(_value: &Value) -> Result<Node> {
-	// TODO: ?
-	Ok(Node::Scalar)
+	Ok(Node::Scalar(Scalar::Icon))
 }
 
 /// See also:
@@ -172,7 +170,7 @@ fn parse_multi_reference_converter(value: &Value) -> Result<Node> {
 		})
 		.collect::<Vec<_>>();
 
-	Ok(Node::Reference(targets))
+	Ok(Node::Scalar(Scalar::Reference(targets)))
 }
 
 /// See also:
@@ -183,18 +181,18 @@ fn parse_sheet_link_converter(value: &Value) -> Result<Node> {
 		.and_then(Value::as_string)
 		.ok_or_else(|| Error::Schema("Link missing target".to_string()))?;
 
-	Ok(Node::Reference(vec![ReferenceTarget {
+	Ok(Node::Scalar(Scalar::Reference(vec![ReferenceTarget {
 		sheet: target,
 		selector: None,
 		condition: None,
-	}]))
+	}])))
 }
 
 /// See also:
 /// - [TomestoneOrItemReferenceConverter.cs#L54](https://github.com/xivapi/SaintCoinach/blob/800eab3e9dd4a2abc625f53ce84dad24c8579920/SaintCoinach/Ex/Relational/ValueConverters/TomestoneOrItemReferenceConverter.cs#L54)
 fn parse_tomestone_or_item_reference_converter(_value: &Value) -> Result<Node> {
 	// TODO: ?
-	Ok(Node::Scalar)
+	Ok(Node::Scalar(Scalar::Default))
 }
 
 /// See also:
@@ -219,7 +217,7 @@ fn parse_complex_link_converter(value: &Value) -> Result<Node> {
 		targets.extend(sheets);
 	}
 
-	Ok(Node::Reference(targets))
+	Ok(Node::Scalar(Scalar::Reference(targets)))
 }
 
 fn parse_when_clause(value: &Value) -> Result<ReferenceCondition> {
