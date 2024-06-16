@@ -11,7 +11,7 @@ use super::provider::Provider;
 
 /// Canonical specifier for a schema version.
 /// Represents a game version at a schema commit.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Specifier {
 	// TODO: would be neat to make this either an oid or full commit, but doing so would infect this struct with repository lifetimes
 	pub(super) commit: Oid,

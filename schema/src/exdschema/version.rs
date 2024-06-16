@@ -1,4 +1,5 @@
 use std::{
+	collections::hash_map::Entry,
 	path::PathBuf,
 	str,
 	sync::{Arc, Mutex},
@@ -12,7 +13,7 @@ use crate::{
 	schema::{Schema, Sheet},
 };
 
-use super::{parse::parse, specifier::Specifier};
+use super::{parse::parse, provider::SheetCache, specifier::Specifier};
 
 /// A single version of the EXDSchema definitions.
 #[derive(Derivative)]
@@ -21,14 +22,41 @@ pub struct Version {
 	#[derivative(Debug = "ignore")]
 	repository: Arc<Mutex<Repository>>,
 
+	#[derivative(Debug = "ignore")]
+	cache: SheetCache,
+
 	specifier: Specifier,
 }
 
 impl Version {
-	pub(super) fn new(repository: Arc<Mutex<Repository>>, specifier: Specifier) -> Self {
+	pub(super) fn new(
+		repository: Arc<Mutex<Repository>>,
+		cache: SheetCache,
+		specifier: Specifier,
+	) -> Self {
 		Self {
 			repository,
+			cache,
 			specifier,
+		}
+	}
+
+	fn cached_sheet(&self, sheet: &str) -> Result<Sheet> {
+		match &self.cache {
+			None => self.sheet(sheet),
+			Some(mutex) => {
+				let mut cache = mutex.lock().expect("poisoned");
+				match cache.entry((self.specifier.clone(), sheet.into())) {
+					Entry::Occupied(entry) => entry.get().clone(),
+					Entry::Vacant(entry) => {
+						let result = match self.sheet(sheet) {
+							result @ Ok(_) | result @ Err(Error::NotFound(_)) => result,
+							Err(other_error) => return Err(other_error),
+						};
+						entry.insert(result).clone()
+					}
+				}
+			}
 		}
 	}
 
@@ -68,6 +96,6 @@ impl Version {
 
 impl Schema for Version {
 	fn sheet(&self, name: &str) -> Result<Sheet> {
-		self.sheet(name)
+		self.cached_sheet(name)
 	}
 }

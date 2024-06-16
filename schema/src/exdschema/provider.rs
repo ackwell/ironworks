@@ -1,5 +1,6 @@
 use std::{
 	borrow::Cow,
+	collections::HashMap,
 	env::current_exe,
 	path::{Path, PathBuf},
 	sync::{Arc, Mutex},
@@ -11,6 +12,7 @@ use git2::Repository;
 use crate::{
 	error::{Error, ErrorValue, Result},
 	git::{open_repository, resolve_commit},
+	schema::Sheet,
 };
 
 use super::{specifier::Specifier, version::Version};
@@ -18,12 +20,16 @@ use super::{specifier::Specifier, version::Version};
 const DEFAULT_REMOTE: &str = "https://github.com/xivdev/EXDSchema.git";
 const DEFAULT_DIRECTORY: &str = "exdschema";
 
+pub type SheetCache = Option<Arc<Mutex<HashMap<(Specifier, String), Result<Sheet>>>>>;
+
 /// Schema provider sourcing data from the xivdev EXDSchema repository.
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct Provider {
 	#[derivative(Debug = "ignore")]
 	pub(super) repository: Arc<Mutex<Repository>>,
+
+	cache: SheetCache,
 }
 
 impl Provider {
@@ -51,6 +57,7 @@ impl Provider {
 
 		Ok(Self {
 			repository: Arc::new(Mutex::new(repository)),
+			cache: options.cache.then(|| Default::default()),
 		})
 	}
 
@@ -82,7 +89,11 @@ impl Provider {
 
 	/// Fetch the specified version of the schema.
 	pub fn version(&self, specifier: Specifier) -> Result<Version> {
-		Ok(Version::new(Arc::clone(&self.repository), specifier))
+		Ok(Version::new(
+			Arc::clone(&self.repository),
+			self.cache.clone(),
+			specifier,
+		))
 	}
 }
 
@@ -91,6 +102,7 @@ impl Provider {
 pub struct ProviderOptions {
 	remote: Option<String>,
 	directory: Option<PathBuf>,
+	cache: bool,
 }
 
 impl ProviderOptions {
@@ -98,6 +110,7 @@ impl ProviderOptions {
 		Self {
 			remote: None,
 			directory: None,
+			cache: false,
 		}
 	}
 
@@ -110,6 +123,12 @@ impl ProviderOptions {
 	/// Set the local directory to clone SaintCoinach into.
 	pub fn directory(mut self, directory: impl Into<PathBuf>) -> Self {
 		self.directory = Some(directory.into());
+		self
+	}
+
+	/// Enable or disable the caching of sheet schemas.
+	pub fn cache(mut self, cache: bool) -> Self {
+		self.cache = cache;
 		self
 	}
 
