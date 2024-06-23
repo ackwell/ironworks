@@ -76,7 +76,7 @@ impl Version {
 			.tree()?
 			.get_path(&path)
 			.map_err(|error| match error.code() {
-				ErrorCode::NotFound => Error::NotFound(ErrorValue::Other(format!("sheet {sheet}"))),
+				ErrorCode::NotFound => Error::NotFound(ErrorValue::Sheet(sheet.into())),
 				_ => Error::from(error),
 			})?;
 

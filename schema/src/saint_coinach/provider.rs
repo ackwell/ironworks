@@ -100,7 +100,7 @@ impl Provider {
 			.as_ref()
 			.map(Cow::from)
 			.or_else(default_directory)
-			.ok_or_else(|| Error::NotFound(ErrorValue::Other("Repository directory".into())))?;
+			.ok_or_else(|| Error::NotFound(ErrorValue::Other("repository directory".into())))?;
 
 		let repository = open_repository(remote, &directory)?;
 

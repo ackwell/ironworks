@@ -91,9 +91,7 @@ impl Version {
 		let object =
 			self.object_at_path(&repository, &path)
 				.map_err(|error| match error.code() {
-					git2::ErrorCode::NotFound => {
-						Error::NotFound(ErrorValue::Other(format!("Sheet {name}")))
-					}
+					git2::ErrorCode::NotFound => Error::NotFound(ErrorValue::Sheet(name.into())),
 					_ => Error::from(error),
 				})?;
 

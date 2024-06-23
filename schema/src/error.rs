@@ -26,10 +26,14 @@ impl From<git2::Error> for Error {
 
 /// A value associated with an error.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum ErrorValue {
 	#[cfg(any(feature = "saint_coinach", feature = "exdschema"))]
 	/// A version of a schema.
 	Version(String),
+
+	/// A sheet by name.
+	Sheet(String),
 
 	/// A value not represented by other variants.
 	///
@@ -45,6 +49,7 @@ impl fmt::Display for ErrorValue {
 			#[cfg(any(feature = "saint_coinach", feature = "exdschema"))]
 			Self::Version(value) => write!(formatter, "version {value}"),
 
+			Self::Sheet(name) => write!(formatter, "sheet {name}"),
 			Self::Other(value) => write!(formatter, "{value}"),
 		}
 	}
