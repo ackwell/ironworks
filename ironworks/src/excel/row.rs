@@ -1,16 +1,14 @@
-use std::{
-	io::Cursor,
-	sync::{Arc, Mutex},
-};
+use std::{io::Cursor, sync::Arc};
 
 use binrw::{BinReaderExt, BinResult};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::field::Field,
 	file::exh,
 	sestring::SeString,
 };
+
+use super::field::Field;
 
 /// Specifier for targeting a single column within a sheet.
 #[derive(Debug)]
@@ -40,7 +38,7 @@ pub struct Row {
 	subrow_id: u16,
 
 	header: Arc<exh::ExcelHeader>,
-	data: Mutex<Cursor<Vec<u8>>>,
+	data: Vec<u8>,
 }
 
 impl Row {
@@ -54,7 +52,7 @@ impl Row {
 			row_id,
 			subrow_id,
 			header,
-			data: Cursor::new(data).into(),
+			data,
 		}
 	}
 
@@ -87,7 +85,7 @@ impl Row {
 		use exh::ColumnKind as K;
 		use Field as F;
 
-		let mut cursor = self.data.lock().expect("Data mutex poisoned.");
+		let mut cursor = Cursor::new(&self.data);
 
 		cursor.set_position(column.offset().into());
 

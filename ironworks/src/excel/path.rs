@@ -1,4 +1,4 @@
-use crate::excel::language::Language;
+use super::language::Language;
 
 pub fn exl() -> &'static str {
 	"exd/root.exl"

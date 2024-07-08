@@ -53,7 +53,7 @@ fn main() -> Result<()> {
 		None => Install::search().context("Game path search failed.")?,
 	};
 	let ironworks = Ironworks::new().with_resource(SqPack::new(fs_resource));
-	let excel = Excel::new(&ironworks);
+	let excel = Excel::new(ironworks);
 
 	let (provider, version, schemas) = saint_coinach()?;
 	let src_dir = build_scaffold(provider, version, excel.version()?, &out_dir)?;

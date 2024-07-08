@@ -1,18 +1,16 @@
-use std::{fmt::Debug, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	excel::SheetMetadata,
 	file::{exd, exh},
 };
 
-use super::{row_options::RowConfig, Sheet};
+use super::{metadata::SheetMetadata, sheet::Sheet};
 
-/// An iterator that iterates over the rows of an excel sheet.
+/// Iterator over the rows in a sheet.
 #[derive(Debug)]
-pub struct SheetIterator<'i, S> {
-	sheet: &'i Sheet<'i, S>,
-	config: RowConfig,
+pub struct SheetIterator<S> {
+	sheet: Sheet<S>,
 
 	page_index: usize,
 	row_index: usize,
@@ -21,11 +19,10 @@ pub struct SheetIterator<'i, S> {
 	subrow_max: Option<u16>,
 }
 
-impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
-	pub(super) fn new(sheet: &'i Sheet<S>, config: RowConfig) -> Self {
-		SheetIterator {
+impl<S: SheetMetadata> SheetIterator<S> {
+	pub(super) fn new(sheet: Sheet<S>) -> Self {
+		Self {
 			sheet,
-			config,
 
 			page_index: 0,
 			row_index: 0,
@@ -36,7 +33,7 @@ impl<'i, S: SheetMetadata> SheetIterator<'i, S> {
 	}
 }
 
-impl<S: SheetMetadata> Iterator for SheetIterator<'_, S> {
+impl<S: SheetMetadata> Iterator for SheetIterator<S> {
 	type Item = S::Row;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -53,11 +50,7 @@ impl<S: SheetMetadata> Iterator for SheetIterator<'_, S> {
 		}));
 
 		while let Err(Error::NotFound(ErrorValue::Row { .. })) = row {
-			row = self.sheet.subrow_with_options(
-				self.row_id().ok()?,
-				self.subrow_id,
-				self.config.clone(),
-			);
+			row = self.sheet.subrow(self.row_id().ok()?, self.subrow_id);
 			self.step().ok()?;
 		}
 
@@ -65,7 +58,7 @@ impl<S: SheetMetadata> Iterator for SheetIterator<'_, S> {
 	}
 }
 
-impl<S: SheetMetadata> SheetIterator<'_, S> {
+impl<S: SheetMetadata> SheetIterator<S> {
 	fn step(&mut self) -> Result<()> {
 		self.subrow_id += 1;
 
@@ -122,8 +115,10 @@ impl<S: SheetMetadata> SheetIterator<'_, S> {
 	}
 
 	fn page(&self) -> Result<Arc<exd::ExcelData>> {
-		self.sheet
-			.page(self.page_definition()?.start_id(), self.config.language)
+		self.sheet.page(
+			self.page_definition()?.start_id(),
+			self.sheet.default_language,
+		)
 	}
 
 	fn page_definition(&self) -> Result<exh::PageDefinition> {
