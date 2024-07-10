@@ -117,7 +117,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	fn page(&self) -> Result<Arc<exd::ExcelData>> {
 		self.sheet.page(
 			self.page_definition()?.start_id(),
-			self.sheet.default_language,
+			self.sheet.resolve_language(self.sheet.default_language)?,
 		)
 	}
 

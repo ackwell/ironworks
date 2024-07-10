@@ -169,7 +169,7 @@ impl<S: SheetMetadata> Sheet<S> {
 			})
 	}
 
-	fn resolve_language(&self, language: Language) -> Result<Language> {
+	pub(super) fn resolve_language(&self, language: Language) -> Result<Language> {
 		let header = self.header()?;
 
 		// Get the language to load, or NONE if the language is not supported by this sheet.
