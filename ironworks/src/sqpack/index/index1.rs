@@ -43,11 +43,11 @@ pub struct Index1 {
 		entry.file_metadata.data_file_id,
 		entry.file_metadata.offset
 	)).collect())]
-	offsets: BTreeSet<(u8, u32)>,
+	offsets: BTreeSet<(u8, u64)>,
 }
 
 impl Index1 {
-	pub fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
+	pub fn find(&self, path: &str) -> Result<(FileMetadata, Option<u64>)> {
 		// Calculate the Index1 hash of the path
 		let hashed_segments = path
 			.rsplitn(2, '/')

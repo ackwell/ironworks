@@ -52,7 +52,7 @@ impl fmt::Debug for Digest {
 pub struct FileMetadata {
 	is_synonym: bool,
 	pub data_file_id: u8,
-	pub offset: u32,
+	pub offset: u64,
 }
 
 impl FileMetadata {
@@ -60,7 +60,7 @@ impl FileMetadata {
 		Self {
 			is_synonym: (input & 0b1) == 0b1,
 			data_file_id: ((input & 0b1110) >> 1) as u8,
-			offset: (input & !0xF) * 0x08,
+			offset: (input as u64 & !0xF) * 0x08,
 		}
 	}
 }

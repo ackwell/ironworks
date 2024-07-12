@@ -19,10 +19,10 @@ pub struct Location {
 	/// Data file the file is in, i.e. `000000.win32.datX`.
 	data_file: u8,
 	/// Offset within the targeted data file that the file starts at.
-	offset: u32,
+	offset: u64,
 	/// Estimated size of the target file, if known. This will typically err on
 	/// the larger side, as files commonly have some amount of padding at the end.
-	size: Option<u32>,
+	size: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -141,7 +141,7 @@ impl IndexChunk {
 			})
 	}
 
-	fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
+	fn find(&self, path: &str) -> Result<(FileMetadata, Option<u64>)> {
 		match self {
 			Self::Index1(index) => index.find(path),
 			Self::Index2(index) => index.find(path),
