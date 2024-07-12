@@ -41,12 +41,12 @@ pub struct Index2 {
 		entry.file_metadata.data_file_id,
 		entry.file_metadata.offset
 	)).collect())]
-	offsets: BTreeSet<(u8, u32)>,
+	offsets: BTreeSet<(u8, u64)>,
 }
 
 impl Index2 {
 	// TODO: this is almost purely duplicated with index1 - dedupe somehow?
-	pub fn find(&self, path: &str) -> Result<(FileMetadata, Option<u32>)> {
+	pub fn find(&self, path: &str) -> Result<(FileMetadata, Option<u64>)> {
 		let hash = crc32(path.as_bytes());
 
 		self.indexes
