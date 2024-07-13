@@ -1,6 +1,5 @@
 use std::{
 	collections::{hash_map::Entry, HashMap},
-	fs,
 	path::PathBuf,
 	sync::{
 		atomic::{AtomicBool, Ordering},
@@ -8,15 +7,9 @@ use std::{
 	},
 };
 
-use binrw::{BinRead, BinWrite};
-
 use crate::error::Result;
 
-use super::{
-	lookup::{PatchLookup, VersionedPatchLookupData},
-	repository::Patch,
-	view::ViewBuilder,
-};
+use super::{lookup::PatchLookup, repository::Patch, view::ViewBuilder};
 
 /// A struct providing access to data contained in ZiPatch-formatted patch files.
 #[derive(Debug)]
@@ -118,30 +111,13 @@ impl LookupCache {
 	fn read_lookup(&self, patch: &Patch) -> Result<PatchLookup> {
 		let persist_lookups = self.persist_lookups.load(Ordering::SeqCst);
 		if !persist_lookups {
-			return PatchLookup::new(&patch.path);
+			return PatchLookup::build(&patch.path);
 		}
 
 		let mut lut_path = patch.path.as_os_str().to_owned();
 		lut_path.push(".lut");
 		let lut_path = PathBuf::from(lut_path);
 
-		let lookup = match lut_path.exists() {
-			true => {
-				let mut file = fs::File::open(lut_path)?;
-				PatchLookup {
-					path: patch.path.to_owned(),
-					data: VersionedPatchLookupData::read(&mut file)?,
-				}
-			}
-
-			false => {
-				let lookup = PatchLookup::new(&patch.path)?;
-				let mut file = fs::File::create(lut_path)?;
-				lookup.data.write(&mut file)?;
-				lookup
-			}
-		};
-
-		Ok(lookup)
+		PatchLookup::from_cache(&patch.path, &lut_path)
 	}
 }

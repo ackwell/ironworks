@@ -109,7 +109,7 @@ impl View {
 		for maybe_lookup in self.lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
 			let lookup = maybe_lookup?;
-			let chunks = match lookup.data().file_chunks.get(&target_specifier) {
+			let chunks = match lookup.data.file_chunks.get(&target_specifier) {
 				Some(chunks) => chunks,
 				None => continue,
 			};
@@ -204,7 +204,7 @@ impl sqpack::Resource for View {
 			// ASSUMPTION: Square seemingly never breaks new files up across multiple
 			// chunks - an entire file can be read by looking for the single add
 			// command starting at the precise offset we're looking for.
-			if let Some(command) = lookup.data().resource_chunks.get(&target) {
+			if let Some(command) = lookup.data.resource_chunks.get(&target) {
 				return read_resource_chunk(&lookup, command);
 			};
 
@@ -214,7 +214,7 @@ impl sqpack::Resource for View {
 			// realistically possible, the chances of it occuring are vanishingly
 			// remote. If everything has blown up in your face because of this and you
 			// find this comment, bap me.
-			if let Some(chunks) = lookup.data().file_chunks.get(&target.0) {
+			if let Some(chunks) = lookup.data.file_chunks.get(&target.0) {
 				// File chunks for one target dat file may be spread across multiple
 				// patch files - if the target couldn't be found in this lookup, continue
 				// to the next.

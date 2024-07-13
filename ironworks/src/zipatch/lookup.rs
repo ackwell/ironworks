@@ -1,11 +1,11 @@
 use std::{
 	fs,
 	hash::Hash,
-	io::BufReader,
+	io,
 	path::{Path, PathBuf},
 };
 
-use binrw::binrw;
+use binrw::{binrw, BinRead, BinWrite};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -20,13 +20,50 @@ use super::utility::{BrwMap, BrwVec};
 #[derive(Debug)]
 pub struct PatchLookup {
 	pub path: PathBuf,
-	pub data: VersionedPatchLookupData,
+	pub data: PatchLookupData,
 }
 
 impl PatchLookup {
-	pub fn data(&self) -> &PatchLookupData {
-		match &self.data {
-			VersionedPatchLookupData::V1(data) => data,
+	pub fn build(path: &Path) -> Result<Self> {
+		read_lookup(path)
+	}
+
+	pub fn from_cache(path: &Path, cache: &Path) -> Result<Self> {
+		// Try to read data from an existing cache.
+		let data = match fs::File::open(cache) {
+			// File exists, make try to read, but bail if it's an old version.
+			Ok(mut file) => match VersionedPatchLookupData::read(&mut file)? {
+				VersionedPatchLookupData::V2(data) => Some(data),
+				_old => None,
+			},
+
+			// No cache yet.
+			Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+
+			Err(error) => Err(error)?,
+		};
+
+		match data {
+			Some(data) => Ok(Self {
+				path: path.to_owned(),
+				data,
+			}),
+
+			None => {
+				let lookup = Self::build(path)?;
+
+				let mut file = fs::File::create(cache)?;
+				let versioned_data = VersionedPatchLookupData::V2(lookup.data);
+				versioned_data.write(&mut file)?;
+
+				let VersionedPatchLookupData::V2(data) = versioned_data else {
+					unreachable!()
+				};
+				Ok(Self {
+					path: path.to_owned(),
+					data,
+				})
+			}
 		}
 	}
 }
@@ -34,9 +71,12 @@ impl PatchLookup {
 #[binrw]
 #[brw(little)]
 #[derive(Debug)]
-pub enum VersionedPatchLookupData {
+enum VersionedPatchLookupData {
 	#[brw(magic = b"1")]
-	V1(PatchLookupData),
+	V1,
+
+	#[brw(magic = b"2")]
+	V2(PatchLookupData),
 }
 
 #[binrw]
@@ -89,14 +129,8 @@ pub struct ResourceChunk {
 	pub size: u64,
 }
 
-impl PatchLookup {
-	pub fn new(path: &Path) -> Result<Self> {
-		read_lookup(path)
-	}
-}
-
 fn read_lookup(path: &Path) -> Result<PatchLookup> {
-	let file = BufReader::new(fs::File::open(path)?);
+	let file = io::BufReader::new(fs::File::open(path)?);
 	let zipatch = ZiPatchFile::read(file)?;
 
 	// TODO: Retry on failure?
@@ -138,7 +172,7 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 		})
 		.map(|data| PatchLookup {
 			path: path.to_owned(),
-			data: VersionedPatchLookupData::V1(data),
+			data,
 		})
 }
 
