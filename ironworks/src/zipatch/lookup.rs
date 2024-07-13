@@ -44,7 +44,7 @@ pub enum VersionedPatchLookupData {
 #[derive(Debug, Default)]
 pub struct PatchLookupData {
 	pub file_chunks: BrwMap<SqPackSpecifier, BrwVec<FileChunk>>,
-	pub resource_chunks: BrwMap<(SqPackSpecifier, u32), ResourceChunk>,
+	pub resource_chunks: BrwMap<(SqPackSpecifier, u64), ResourceChunk>,
 }
 
 #[binrw]

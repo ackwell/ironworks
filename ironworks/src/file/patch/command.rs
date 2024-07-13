@@ -38,14 +38,14 @@ pub struct AddCommand {
 	#[br(pad_before = 3)]
 	file: SqPackFile,
 	/// Target file offset to start writing, in bytes.
-	#[br(map = |value: u32| value << 7)]
-	target_offset: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	target_offset: u64,
 	/// Size of data to copy, in bytes.
-	#[br(map = |value: u32| value << 7)]
-	data_size: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	data_size: u64,
 	/// Number of bytes to blank after writing.
-	#[br(map = |value: u32| value << 7)]
-	delete_size: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	delete_size: u64,
 
 	/// Offset in bytes within the patch file to read the data from.
 	#[br(map = |value: PosValue<()>| value.pos)]
@@ -63,11 +63,11 @@ pub struct DeleteCommand {
 	#[br(pad_before = 3)]
 	file: SqPackFile,
 	/// Offset to start writing at.
-	#[br(map = |value: u32| value << 7)]
-	target_offset: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	target_offset: u64,
 	/// Number of blank bytes that that should be written.
-	#[br(map = |value: u32| value << 7)]
-	delete_size: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	delete_size: u64,
 }
 
 /// Expand the size of a file.
@@ -81,11 +81,11 @@ pub struct ExpandCommand {
 	#[br(pad_before = 3)]
 	file: SqPackFile,
 	/// Offset to start writing at.
-	#[br(map = |value: u32| value << 7)]
-	target_offset: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	target_offset: u64,
 	/// Number of blank bytes that that should be written.
-	#[br(map = |value: u32| value << 7)]
-	delete_size: u32,
+	#[br(map = |value: u32| u64::from(value) << 7)]
+	delete_size: u64,
 }
 
 /// Perform a file operation.
