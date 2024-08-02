@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use derivative::Derivative;
 use num_enum::TryFromPrimitive;
@@ -7,7 +7,7 @@ use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{exd, exh},
 	ironworks::Ironworks,
-	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
+	utility::{HashMapCache, HashMapCacheExt},
 };
 
 use super::{iterator::SheetIterator, language::Language, metadata::SheetMetadata, path, row::Row};
@@ -143,10 +143,15 @@ impl<S: SheetMetadata> Sheet<S> {
 	}
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
-		self.cache.header.try_get_or_insert(|| {
-			let path = path::exh(&self.name());
-			self.ironworks.file(&path)
-		})
+		// TODO: get_or_try_init once (if?) that gets stabilised.
+		if let Some(header) = self.cache.header.get() {
+			return Ok(header.clone());
+		}
+
+		let path = path::exh(&self.name());
+		let header = self.ironworks.file(&path)?;
+
+		Ok(self.cache.header.get_or_init(|| Arc::new(header)).clone())
 	}
 
 	// TODO: not a fan of the subrow id in this
@@ -195,7 +200,7 @@ impl<S: SheetMetadata> IntoIterator for Sheet<S> {
 /// Data cache for raw values, decoupled from mapping/metadata concerns.
 #[derive(Default)]
 pub struct SheetCache {
-	header: OptionCache<exh::ExcelHeader>,
+	header: OnceLock<Arc<exh::ExcelHeader>>,
 	pages: HashMapCache<(u32, Language), exd::ExcelData>,
 }
 
