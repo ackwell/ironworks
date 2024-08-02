@@ -16,6 +16,7 @@ pub struct SheetIterator<S> {
 	row_index: usize,
 	subrow_id: u16,
 
+	page: Option<Arc<exd::ExcelData>>,
 	subrow_max: Option<u16>,
 }
 
@@ -28,6 +29,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 			row_index: 0,
 			subrow_id: 0,
 
+			page: None,
 			subrow_max: None,
 		}
 	}
@@ -50,7 +52,8 @@ impl<S: SheetMetadata> Iterator for SheetIterator<S> {
 		}));
 
 		while let Err(Error::NotFound(ErrorValue::Row { .. })) = row {
-			row = self.sheet.subrow(self.row_id().ok()?, self.subrow_id);
+			let row_id = self.row_id().ok()?;
+			row = self.sheet.subrow(row_id, self.subrow_id);
 			self.step().ok()?;
 		}
 
@@ -72,6 +75,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		// If the page bounds have been exceeded, move on to the next page.
 		if self.row_index >= self.page()?.rows().len() {
 			self.row_index = 0;
+			self.page = None;
 			self.page_index += 1;
 		}
 
@@ -103,7 +107,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		Ok(count)
 	}
 
-	fn row_id(&self) -> Result<u32> {
+	fn row_id(&mut self) -> Result<u32> {
 		let id = self
 			.page()?
 			.rows()
@@ -114,11 +118,20 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		Ok(id)
 	}
 
-	fn page(&self) -> Result<Arc<exd::ExcelData>> {
-		self.sheet.page(
-			self.page_definition()?.start_id(),
-			self.sheet.resolve_language(self.sheet.default_language)?,
-		)
+	fn page(&mut self) -> Result<Arc<exd::ExcelData>> {
+		let page = match &self.page {
+			Some(value) => value,
+			None => {
+				let page = self.sheet.page(
+					self.page_definition()?.start_id(),
+					self.sheet.resolve_language(self.sheet.default_language)?,
+				)?;
+
+				self.page.insert(page)
+			}
+		};
+
+		Ok(page.clone())
 	}
 
 	fn page_definition(&self) -> Result<exh::PageDefinition> {

@@ -1,4 +1,7 @@
-use std::sync::Arc;
+use std::{
+	collections::HashMap,
+	sync::{Arc, OnceLock, RwLock},
+};
 
 use derivative::Derivative;
 use num_enum::TryFromPrimitive;
@@ -7,7 +10,6 @@ use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{exd, exh},
 	ironworks::Ironworks,
-	utility::{HashMapCache, HashMapCacheExt, OptionCache, OptionCacheExt},
 };
 
 use super::{iterator::SheetIterator, language::Language, metadata::SheetMetadata, path, row::Row};
@@ -143,13 +145,17 @@ impl<S: SheetMetadata> Sheet<S> {
 	}
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
-		self.cache.header.try_get_or_insert(|| {
-			let path = path::exh(&self.name());
-			self.ironworks.file(&path)
-		})
+		// TODO: get_or_try_init once (if?) that gets stabilised.
+		if let Some(header) = self.cache.header.get() {
+			return Ok(header.clone());
+		}
+
+		let path = path::exh(&self.name());
+		let header = self.ironworks.file(&path)?;
+
+		Ok(self.cache.header.get_or_init(|| Arc::new(header)).clone())
 	}
 
-	// TODO: not a fan of the subrow id in this
 	fn start_id_for_row(&self, row_id: u32) -> Option<u32> {
 		let header = self.header().ok()?;
 
@@ -161,12 +167,25 @@ impl<S: SheetMetadata> Sheet<S> {
 	}
 
 	pub(super) fn page(&self, start_id: u32, language: Language) -> Result<Arc<exd::ExcelData>> {
-		self.cache
-			.pages
-			.try_get_or_insert((start_id, language), || {
-				let path = path::exd(&self.name(), start_id, language);
-				self.ironworks.file(&path)
-			})
+		let key = (start_id, language);
+
+		// Try to fetch from the hot path.
+		let pages = self.cache.pages.read().expect("poisoned");
+		if let Some(page) = pages.get(&key) {
+			return Ok(page.clone());
+		}
+
+		// No page already present, take ownership over reading + caching it.
+		// This is likely slightly susceptible to a race, but that's a lot cheaper than a mutex.
+		drop(pages);
+		let mut pages_mut = self.cache.pages.write().expect("poisoned");
+
+		let path = path::exd(&self.name(), start_id, language);
+		let data = Arc::new(self.ironworks.file::<exd::ExcelData>(&path)?);
+
+		pages_mut.insert(key, data.clone());
+
+		Ok(data)
 	}
 
 	pub(super) fn resolve_language(&self, language: Language) -> Result<Language> {
@@ -195,8 +214,8 @@ impl<S: SheetMetadata> IntoIterator for Sheet<S> {
 /// Data cache for raw values, decoupled from mapping/metadata concerns.
 #[derive(Default)]
 pub struct SheetCache {
-	header: OptionCache<exh::ExcelHeader>,
-	pages: HashMapCache<(u32, Language), exd::ExcelData>,
+	header: OnceLock<Arc<exh::ExcelHeader>>,
+	pages: RwLock<HashMap<(u32, Language), Arc<exd::ExcelData>>>,
 }
 
 /// Options used when reading a row from a sheet.
