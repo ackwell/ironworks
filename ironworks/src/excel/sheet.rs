@@ -156,7 +156,6 @@ impl<S: SheetMetadata> Sheet<S> {
 		Ok(self.cache.header.get_or_init(|| Arc::new(header)).clone())
 	}
 
-	// TODO: not a fan of the subrow id in this
 	fn start_id_for_row(&self, row_id: u32) -> Option<u32> {
 		let header = self.header().ok()?;
 
