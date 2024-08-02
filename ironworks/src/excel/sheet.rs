@@ -1,4 +1,7 @@
-use std::sync::{Arc, OnceLock};
+use std::{
+	collections::HashMap,
+	sync::{Arc, OnceLock, RwLock},
+};
 
 use derivative::Derivative;
 use num_enum::TryFromPrimitive;
@@ -7,7 +10,6 @@ use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{exd, exh},
 	ironworks::Ironworks,
-	utility::{HashMapCache, HashMapCacheExt},
 };
 
 use super::{iterator::SheetIterator, language::Language, metadata::SheetMetadata, path, row::Row};
@@ -166,12 +168,25 @@ impl<S: SheetMetadata> Sheet<S> {
 	}
 
 	pub(super) fn page(&self, start_id: u32, language: Language) -> Result<Arc<exd::ExcelData>> {
-		self.cache
-			.pages
-			.try_get_or_insert((start_id, language), || {
-				let path = path::exd(&self.name(), start_id, language);
-				self.ironworks.file(&path)
-			})
+		let key = (start_id, language);
+
+		// Try to fetch from the hot path.
+		let pages = self.cache.pages.read().expect("poisoned");
+		if let Some(page) = pages.get(&key) {
+			return Ok(page.clone());
+		}
+
+		// No page already present, take ownership over reading + caching it.
+		// This is likely slightly susceptible to a race, but that's a lot cheaper than a mutex.
+		drop(pages);
+		let mut pages_mut = self.cache.pages.write().expect("poisoned");
+
+		let path = path::exd(&self.name(), start_id, language);
+		let data = Arc::new(self.ironworks.file::<exd::ExcelData>(&path)?);
+
+		pages_mut.insert(key, data.clone());
+
+		Ok(data)
 	}
 
 	pub(super) fn resolve_language(&self, language: Language) -> Result<Language> {
@@ -201,7 +216,7 @@ impl<S: SheetMetadata> IntoIterator for Sheet<S> {
 #[derive(Default)]
 pub struct SheetCache {
 	header: OnceLock<Arc<exh::ExcelHeader>>,
-	pages: HashMapCache<(u32, Language), exd::ExcelData>,
+	pages: RwLock<HashMap<(u32, Language), Arc<exd::ExcelData>>>,
 }
 
 /// Options used when reading a row from a sheet.
