@@ -75,7 +75,7 @@ fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> 
 			return Err(Error::InvalidMacro);
 		}
 
-		return Ok(Payload::Macro(kind));
+		return Ok(Payload::Macro(kind, body));
 	}
 
 	// Otherwise, read plain text until a macro is detected.
@@ -84,10 +84,11 @@ fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> 
 	Ok(Payload::Text(text_bytes))
 }
 
+// TODO: the variants should probably have dedicated types so i can add per-type trait impls people can use
 #[derive(Debug, PartialEq)]
 pub enum Payload<'a> {
 	Text(&'a [u8]),
-	Macro(MacroKind),
+	Macro(MacroKind, &'a [u8]),
 }
 
 #[non_exhaustive]
@@ -190,34 +191,54 @@ mod test {
 	use super::*;
 
 	#[test]
-	fn plain_string() {
-		let bytes = b"string";
-		let sestring = SeString {
-			data: bytes.to_vec(),
-		};
-		iter_eq(sestring.iter(), [Ok(Payload::Text(bytes))].into_iter());
+	fn empty_string() {
+		assert_payloads(&[], []);
 	}
 
 	#[test]
-	fn expressionless_macro() {
-		let bytes = &[0x02, 0x10, 0x01, 0x03];
+	fn plain_string() {
+		let bytes = b"string";
+		assert_payloads(bytes, [Payload::Text(bytes)]);
+	}
+
+	#[test]
+	fn macro_without_arguments() {
+		assert_payloads(
+			&[0x02, 0xFF, 0x01, 0x03],
+			[Payload::Macro(MacroKind::Unknown(0xFF), &[])],
+		)
+	}
+
+	#[test]
+	fn macro_with_arguments() {
+		// Two arguments of U32(0)
+		assert_payloads(
+			&[0x02, 0xFF, 0x03, 0x01, 0x01, 0x03],
+			[Payload::Macro(MacroKind::Unknown(0xFF), &[0x01, 0x01])],
+		)
+	}
+
+	#[test]
+	fn mixed_payloads() {
+		assert_payloads(
+			b"before\x02\xFF\x02\x01\x03after",
+			[
+				Payload::Text(b"before"),
+				Payload::Macro(MacroKind::Unknown(0xFF), &[0x01]),
+				Payload::Text(b"after"),
+			],
+		)
+	}
+
+	fn assert_payloads<'a>(bytes: &'a [u8], payloads: impl IntoIterator<Item = Payload<'a>>) {
 		let sestring = SeString {
 			data: bytes.to_vec(),
 		};
 		iter_eq(
 			sestring.iter(),
-			[Ok(Payload::Macro(MacroKind::NewLine))].into_iter(),
+			payloads.into_iter().map(|payload| Ok(payload)),
 		)
 	}
-
-	#[test]
-	fn macro_with_argument() {}
-
-	#[test]
-	fn mixed_payloads() {}
-
-	#[test]
-	fn nested_macros() {}
 
 	// Yoinked from itertools.
 	fn iter_eq<T>(mut a: impl Iterator<Item = T>, mut b: impl Iterator<Item = T>)
