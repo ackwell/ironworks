@@ -1,3 +1,5 @@
+use std::str;
+
 use binrw::{binread, helpers::until_exclusive};
 
 use super::{cursor::SliceCursor, error::Error, expression::Expression, macro_kind::MacroKind};
@@ -87,6 +89,12 @@ pub enum Payload<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct TextPayload<'a>(&'a [u8]);
+
+impl<'a> TextPayload<'a> {
+	pub fn as_utf8(&self) -> Result<&'a str, Error> {
+		str::from_utf8(&self.0).map_err(|_error| Error::InvalidText)
+	}
+}
 
 #[derive(Debug, PartialEq)]
 pub struct MacroPayload<'a>(MacroKind, &'a [u8]);
