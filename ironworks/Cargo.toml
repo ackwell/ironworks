@@ -23,7 +23,7 @@ excel = [
   "exh",
   "exl",
 ]
-sestring = ["dep:time"]
+sestring = ["dep:num_enum", "dep:time"]
 sqpack = ["dep:flate2"]
 zipatch = ["patch", "sqpack"]
 
