@@ -1,5 +1,3 @@
-use std::slice::SliceIndex;
-
 use binrw::{binread, helpers::until_exclusive};
 
 // TODO: debug on this should probably be overwritten
@@ -27,16 +25,16 @@ impl<'a> IntoIterator for &'a SeString {
 const MACRO_START: u8 = 0x02;
 const MACRO_END: u8 = 0x03;
 
-// TODO: debug on this should probably be overwritten
 #[derive(Debug)]
 pub struct PayloadIterator<'a> {
-	data: &'a [u8],
-	offset: usize,
+	cursor: SliceCursor<'a>,
 }
 
 impl<'a> PayloadIterator<'a> {
 	fn new(data: &'a [u8]) -> Self {
-		Self { data, offset: 0 }
+		Self {
+			cursor: SliceCursor::new(data),
+		}
 	}
 }
 
@@ -45,56 +43,45 @@ impl<'a> Iterator for PayloadIterator<'a> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		// EOF, stop iteration.
-		if self.offset >= self.data.len() {
+		if self.cursor.eof() {
 			return None;
 		}
 
-		let (payload, read_bytes) = match read_payload(&self.data[self.offset..]) {
-			// TODO: should we move the offset on error to prevent infinite loops? to the end? +1?
+		// Read the next payload.
+		let payload = match read_payload(&mut self.cursor) {
 			Err(error) => return Some(Err(error)),
 			Ok(value) => value,
 		};
-
-		self.offset += read_bytes;
 
 		Some(Ok(payload))
 	}
 }
 
-fn read_payload<'a>(bytes: &'a [u8]) -> Result<(Payload<'a>, usize), Error> {
+fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> {
 	// Next byte is the start of a macro.
-	if *get(bytes, 0)? == MACRO_START {
-		let mut used = 1;
+	if cursor.peek()? == MACRO_START {
+		cursor.seek(1);
 
-		let kind = MacroKind::from(*get(bytes, 1)?);
-		used += 1;
+		let kind = MacroKind::from(cursor.next()?);
 
 		// TODO: this will need some invalid error handling for non-u32
-		let (Expression::U32(length), length_length) = Expression::read(get(bytes, 2..)?)?;
-		used += length_length;
+		let Expression::U32(length) = Expression::read(cursor)?;
 
 		let body_length = usize::try_from(length).expect("todo: error handling");
-		let start = 2 + length_length;
-		let end = start + body_length;
 
-		let body = get(bytes, start..end)?;
-		used += body_length;
+		let body = cursor.take(body_length)?;
 
-		if *get(bytes, end)? != MACRO_END {
+		if cursor.next()? != MACRO_END {
 			return Err(Error::InvalidMacro);
 		}
-		used += 1;
 
-		return Ok((Payload::Macro(kind), used));
+		return Ok(Payload::Macro(kind));
 	}
 
-	// Otherwise, read plain text until a macro or EOF is detected.
-	let text_bytes = match bytes.iter().position(|&byte| byte == MACRO_START) {
-		Some(position) => &bytes[..position],
-		None => bytes,
-	};
+	// Otherwise, read plain text until a macro is detected.
+	let text_bytes = cursor.take_until(|&byte| byte == MACRO_START)?;
 
-	Ok((Payload::Text(text_bytes), text_bytes.len()))
+	Ok(Payload::Text(text_bytes))
 }
 
 #[derive(Debug, PartialEq)]
@@ -124,16 +111,16 @@ impl From<u8> for MacroKind {
 #[derive(Debug)]
 pub enum Expression {
 	U32(u32),
-	// unknown?
+	// unknown? - will need non_exhaustive
 }
 
 impl Expression {
-	// todo: can i avoid needing to return the length?
-	fn read(slice: &[u8]) -> Result<(Self, usize), Error> {
-		let foo = get(slice, 0)?;
+	// todo: probably need a lifetime on this?
+	fn read(cursor: &mut SliceCursor) -> Result<Self, Error> {
+		let kind = cursor.next()?;
 
-		match foo {
-			value @ 0x01..=0xCF => Ok((Self::U32(u32::from(value - 1)), 1)),
+		match kind {
+			value @ 0x01..=0xCF => Ok(Self::U32(u32::from(value - 1))),
 			other => todo!("unhandled expression kind {other:?}"),
 		}
 	}
@@ -145,13 +132,54 @@ pub enum Error {
 	InvalidMacro,
 }
 
-fn get<T, I>(slice: &[T], index: I) -> Result<&I::Output, Error>
-where
-	I: SliceIndex<[T]>,
-{
-	match slice.get(index) {
-		Some(output) => Ok(output),
-		None => Err(Error::UnexpectedEof),
+// TODO: debug on this should probably be overwritten to (len,offset)
+#[derive(Debug)]
+struct SliceCursor<'a> {
+	data: &'a [u8],
+	offset: usize,
+}
+
+impl<'a> SliceCursor<'a> {
+	fn new(data: &'a [u8]) -> Self {
+		Self { data, offset: 0 }
+	}
+
+	fn eof(&self) -> bool {
+		self.offset >= self.data.len()
+	}
+
+	fn peek(&self) -> Result<u8, Error> {
+		match self.data.get(self.offset) {
+			Some(&value) => Ok(value),
+			None => Err(Error::UnexpectedEof),
+		}
+	}
+
+	fn seek(&mut self, distance: usize) {
+		self.offset += distance;
+	}
+
+	fn next(&mut self) -> Result<u8, Error> {
+		let value = self.peek()?;
+		self.seek(1);
+		Ok(value)
+	}
+
+	fn take(&mut self, count: usize) -> Result<&'a [u8], Error> {
+		let Some(value) = self.data.get(self.offset..(self.offset + count)) else {
+			return Err(Error::UnexpectedEof);
+		};
+		self.seek(count);
+		Ok(value)
+	}
+
+	fn take_until(&mut self, predicate: impl FnMut(&u8) -> bool) -> Result<&'a [u8], Error> {
+		let length = match self.data.iter().skip(self.offset).position(predicate) {
+			Some(position) => position,
+			None => self.data.len() - self.offset,
+		};
+
+		self.take(length)
 	}
 }
 
