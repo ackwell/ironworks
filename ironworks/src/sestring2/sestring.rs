@@ -78,21 +78,26 @@ fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> 
 			return Err(Error::InvalidMacro);
 		}
 
-		return Ok(Payload::Macro(kind, body));
+		return Ok(Payload::Macro(MacroPayload(kind, body)));
 	}
 
 	// Otherwise, read plain text until a macro is detected.
 	let text_bytes = cursor.take_until(|&byte| byte == MACRO_START)?;
 
-	Ok(Payload::Text(text_bytes))
+	Ok(Payload::Text(TextPayload(text_bytes)))
 }
 
-// TODO: the variants should probably have dedicated types so i can add per-type trait impls people can use
 #[derive(Debug, PartialEq)]
 pub enum Payload<'a> {
-	Text(&'a [u8]),
-	Macro(MacroKind, &'a [u8]),
+	Text(TextPayload<'a>),
+	Macro(MacroPayload<'a>),
 }
+
+#[derive(Debug, PartialEq)]
+pub struct TextPayload<'a>(&'a [u8]);
+
+#[derive(Debug, PartialEq)]
+pub struct MacroPayload<'a>(MacroKind, &'a [u8]);
 
 #[cfg(test)]
 mod test {
@@ -108,14 +113,14 @@ mod test {
 	#[test]
 	fn plain_string() {
 		let bytes = b"string";
-		assert_payloads(bytes, [Payload::Text(bytes)]);
+		assert_payloads(bytes, [Payload::Text(TextPayload(bytes))]);
 	}
 
 	#[test]
 	fn macro_without_arguments() {
 		assert_payloads(
 			&[0x02, 0xFF, 0x01, 0x03],
-			[Payload::Macro(MacroKind::Unknown(0xFF), &[])],
+			[Payload::Macro(MacroPayload(MacroKind::Unknown(0xFF), &[]))],
 		)
 	}
 
@@ -124,7 +129,10 @@ mod test {
 		// Two arguments of U32(0)
 		assert_payloads(
 			&[0x02, 0xFF, 0x03, 0x01, 0x01, 0x03],
-			[Payload::Macro(MacroKind::Unknown(0xFF), &[0x01, 0x01])],
+			[Payload::Macro(MacroPayload(
+				MacroKind::Unknown(0xFF),
+				&[0x01, 0x01],
+			))],
 		)
 	}
 
@@ -133,9 +141,9 @@ mod test {
 		assert_payloads(
 			b"before\x02\xFF\x02\x01\x03after",
 			[
-				Payload::Text(b"before"),
-				Payload::Macro(MacroKind::Unknown(0xFF), &[0x01]),
-				Payload::Text(b"after"),
+				Payload::Text(TextPayload(b"before")),
+				Payload::Macro(MacroPayload(MacroKind::Unknown(0xFF), &[0x01])),
+				Payload::Text(TextPayload(b"after")),
 			],
 		)
 	}
