@@ -4,7 +4,7 @@ use num_enum::FromPrimitive;
 // https://github.com/NotAdam/Lumina/blob/e99b736f18b0962a28d326cd290490b121ed679b/src/Lumina/Text/Payloads/MacroCode.cs
 
 #[non_exhaustive]
-#[derive(Debug, PartialEq, FromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 #[repr(u8)]
 pub enum MacroKind {
 	SetResetTime = 0x06,

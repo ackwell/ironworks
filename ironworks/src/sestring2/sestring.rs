@@ -11,16 +11,8 @@ pub struct SeString {
 }
 
 impl SeString {
-	pub fn iter(&self) -> PayloadIterator {
+	pub fn payloads(&self) -> PayloadIterator {
 		PayloadIterator::new(&self.data)
-	}
-}
-
-impl<'a> IntoIterator for &'a SeString {
-	type Item = Result<Payload<'a>, Error>;
-	type IntoIter = PayloadIterator<'a>;
-	fn into_iter(self) -> Self::IntoIter {
-		self.iter()
 	}
 }
 
@@ -153,7 +145,7 @@ mod test {
 			data: bytes.to_vec(),
 		};
 		iter_eq(
-			sestring.iter(),
+			sestring.payloads(),
 			payloads.into_iter().map(|payload| Ok(payload)),
 		)
 	}
