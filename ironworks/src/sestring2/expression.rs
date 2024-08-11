@@ -95,3 +95,68 @@ fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>
 	let string = SeString::from(cursor.take(string_length)?);
 	Ok(string)
 }
+
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	macro_rules! assert_matches {
+		($got:expr, $($expected:tt)+) => {
+			match $got {
+				$($expected)+ => (),
+				ref got => panic!("assertion failed: got {:?}, expected {}", got, stringify!($($expected)+))
+			}
+		}
+	}
+
+	#[test]
+	fn u32_simple() {
+		assert_matches!(read(&[0x01]), Expression::U32(0));
+		assert_matches!(read(&[0xB5]), Expression::U32(180));
+	}
+
+	#[test]
+	fn u32_packed() {
+		assert_matches!(read(&[0xF0, 0x34]), Expression::U32(52));
+		assert_matches!(read(&[0xF5, 0x18, 0x59]), Expression::U32(1595648));
+	}
+
+	#[test]
+	fn string() {
+		let got = read(b"\xFF\x05test");
+		let Expression::SeString(sestring) = got else {
+			panic!("expected SeString(_), got {got:?}")
+		};
+		assert_eq!(sestring.payloads().count(), 1);
+	}
+
+	#[test]
+	fn nullary() {
+		assert_matches!(read(&[0xD8]), Expression::Millisecond);
+		assert_matches!(read(&[0xEC]), Expression::StackColor);
+	}
+
+	#[test]
+	fn unary() {
+		let got = read(&[0xE9, 0x49]);
+		let Expression::GlobalNumber(inner) = got else {
+			panic!("expected GlobalNumber(_), got {got:?}");
+		};
+		assert_matches!(inner.as_ref(), Expression::U32(72));
+	}
+
+	#[test]
+	fn binary() {
+		let got = read(&[0xE0, 0x49, 0x65]);
+		let Expression::Ge(one, two) = got else {
+			panic!("expected Ge(_, _), got {got:?}");
+		};
+		assert_matches!(one.as_ref(), Expression::U32(72));
+		assert_matches!(two.as_ref(), Expression::U32(100));
+	}
+
+	fn read<'a>(bytes: &'a [u8]) -> Expression<'a> {
+		let mut cursor = SliceCursor::new(bytes);
+		Expression::read(&mut cursor).expect("read should not fail")
+	}
+}
