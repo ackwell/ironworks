@@ -6,5 +6,7 @@ mod sestring;
 
 pub use {
 	error::Error,
-	sestring::{MacroPayload, Payload, PayloadIterator, SeString, TextPayload},
+	expression::Expression,
+	macro_kind::MacroKind,
+	sestring::{Expressions, MacroPayload, Payload, Payloads, SeString, TextPayload},
 };

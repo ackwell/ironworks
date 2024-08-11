@@ -1,4 +1,4 @@
-use std::str;
+use std::{borrow::Cow, str};
 
 use binrw::{binread, helpers::until_exclusive};
 
@@ -7,26 +7,31 @@ use super::{cursor::SliceCursor, error::Error, expression::Expression, macro_kin
 // TODO: debug on this should probably be overwritten
 #[binread]
 #[derive(Debug)]
-pub struct SeString {
+pub struct SeString<'a> {
 	#[br(parse_with = until_exclusive(|&byte| byte == 0))]
-	data: Vec<u8>,
+	data: Cow<'a, [u8]>,
 }
 
-impl SeString {
-	pub fn payloads(&self) -> PayloadIterator {
-		PayloadIterator::new(&self.data)
+impl<'a> From<&'a [u8]> for SeString<'a> {
+	fn from(value: &'a [u8]) -> Self {
+		Self {
+			data: Cow::Borrowed(value),
+		}
 	}
 }
 
-const MACRO_START: u8 = 0x02;
-const MACRO_END: u8 = 0x03;
+impl SeString<'_> {
+	pub fn payloads<'a>(&'a self) -> Payloads<'a> {
+		Payloads::new(&self.data)
+	}
+}
 
 #[derive(Debug)]
-pub struct PayloadIterator<'a> {
+pub struct Payloads<'a> {
 	cursor: SliceCursor<'a>,
 }
 
-impl<'a> PayloadIterator<'a> {
+impl<'a> Payloads<'a> {
 	fn new(data: &'a [u8]) -> Self {
 		Self {
 			cursor: SliceCursor::new(data),
@@ -34,7 +39,7 @@ impl<'a> PayloadIterator<'a> {
 	}
 }
 
-impl<'a> Iterator for PayloadIterator<'a> {
+impl<'a> Iterator for Payloads<'a> {
 	type Item = Result<Payload<'a>, Error>;
 
 	fn next(&mut self) -> Option<Self::Item> {
@@ -44,14 +49,12 @@ impl<'a> Iterator for PayloadIterator<'a> {
 		}
 
 		// Read the next payload.
-		let payload = match read_payload(&mut self.cursor) {
-			Err(error) => return Some(Err(error)),
-			Ok(value) => value,
-		};
-
-		Some(Ok(payload))
+		Some(read_payload(&mut self.cursor))
 	}
 }
+
+const MACRO_START: u8 = 0x02;
+const MACRO_END: u8 = 0x03;
 
 fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> {
 	// Next byte is the start of a macro.
@@ -60,8 +63,9 @@ fn read_payload<'a>(cursor: &mut SliceCursor<'a>) -> Result<Payload<'a>, Error> 
 
 		let kind = MacroKind::from(cursor.next()?);
 
-		// TODO: this will need some invalid error handling for non-u32
-		let Expression::U32(length) = Expression::read(cursor)?;
+		let Expression::U32(length) = Expression::read(cursor)? else {
+			return Err(Error::InvalidMacro);
+		};
 
 		let body_length =
 			usize::try_from(length).expect("Are you seriously running this on a 16bit system?");
@@ -98,6 +102,41 @@ impl<'a> TextPayload<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct MacroPayload<'a>(MacroKind, &'a [u8]);
+
+impl<'a> MacroPayload<'a> {
+	pub fn kind(&self) -> MacroKind {
+		self.0
+	}
+
+	pub fn expressions(&self) -> Expressions<'a> {
+		Expressions::new(self.1)
+	}
+}
+
+#[derive(Debug)]
+pub struct Expressions<'a> {
+	cursor: SliceCursor<'a>,
+}
+
+impl<'a> Expressions<'a> {
+	fn new(data: &'a [u8]) -> Self {
+		Self {
+			cursor: SliceCursor::new(data),
+		}
+	}
+}
+
+impl<'a> Iterator for Expressions<'a> {
+	type Item = Result<Expression<'a>, Error>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		if self.cursor.eof() {
+			return None;
+		}
+
+		Some(Expression::read(&mut self.cursor))
+	}
+}
 
 #[cfg(test)]
 mod test {
@@ -150,7 +189,7 @@ mod test {
 
 	fn assert_payloads<'a>(bytes: &'a [u8], payloads: impl IntoIterator<Item = Payload<'a>>) {
 		let sestring = SeString {
-			data: bytes.to_vec(),
+			data: Cow::Owned(bytes.to_vec()),
 		};
 		iter_eq(
 			sestring.payloads(),

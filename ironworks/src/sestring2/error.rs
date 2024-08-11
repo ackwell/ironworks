@@ -8,4 +8,7 @@ pub enum Error {
 
 	#[error("invalid macro payload")]
 	InvalidMacro,
+
+	#[error("invalid expression")]
+	InvalidExpression,
 }
