@@ -2,11 +2,13 @@ mod cursor;
 mod error;
 mod expression;
 mod macro_kind;
+mod payload;
 mod sestring;
 
 pub use {
 	error::Error,
 	expression::Expression,
 	macro_kind::MacroKind,
-	sestring::{Expressions, MacroPayload, Payload, Payloads, SeString, TextPayload},
+	payload::{Expressions, MacroPayload, Payload, TextPayload},
+	sestring::{Payloads, SeString},
 };
