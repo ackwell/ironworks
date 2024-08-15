@@ -55,18 +55,13 @@ pub trait Resolve: Sized {
 		}
 	}
 
-	fn resolve_macro_if(
-		&mut self,
-		mut args: Expressions,
-		context: &Context,
-	) -> Result<String, Error> {
-		let a1 = u32::try_from_argument(args.next().transpose()?, self, context)?;
-		let a2 = String::try_from_argument(args.next().transpose()?, self, context)?;
-		let a3 = String::try_from_argument(args.next().transpose()?, self, context)?;
+	fn resolve_macro_if(&mut self, args: Expressions, context: &Context) -> Result<String, Error> {
+		let (condition, branch_true, branch_false) =
+			args.evaluate::<(u32, String, String)>(self, context)?;
 
-		Ok(match a1 > 0 {
-			true => a2,
-			false => a3,
+		Ok(match condition > 0 {
+			true => branch_true,
+			false => branch_false,
 		})
 	}
 
@@ -215,6 +210,47 @@ impl From<Value> for String {
 			Value::String(string) => string,
 			Value::Unknown => todo!("unknown?"),
 		}
+	}
+}
+
+trait TryFromArguments<'a>: Sized {
+	fn try_from_arguments(
+		arguments: Expressions<'a>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error>;
+}
+
+// this will be implemented with a macro once i do it properly
+impl<'a, Arg1: TryFromArgument<'a>, Arg2: TryFromArgument<'a>, Arg3: TryFromArgument<'a>>
+	TryFromArguments<'a> for (Arg1, Arg2, Arg3)
+{
+	fn try_from_arguments(
+		mut arguments: Expressions<'a>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		let result = (
+			Arg1::try_from_argument(arguments.next().transpose()?, resolver, context)?,
+			Arg2::try_from_argument(arguments.next().transpose()?, resolver, context)?,
+			Arg3::try_from_argument(arguments.next().transpose()?, resolver, context)?,
+		);
+
+		// todo: check exhausted
+		if let Some(_) = arguments.next() {
+			todo!("not exhausted")
+		}
+
+		Ok(result)
+	}
+}
+
+impl<'a> Expressions<'a> {
+	fn evaluate<T>(self, resolver: &mut impl Resolve, context: &Context) -> Result<T, Error>
+	where
+		T: TryFromArguments<'a>,
+	{
+		T::try_from_arguments(self, resolver, context)
 	}
 }
 
