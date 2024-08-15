@@ -55,8 +55,19 @@ pub trait Resolve: Sized {
 		}
 	}
 
-	fn resolve_macro_if(&mut self, args: Expressions, context: &Context) -> Result<String, Error> {
-		todo!("impl if")
+	fn resolve_macro_if(
+		&mut self,
+		mut args: Expressions,
+		context: &Context,
+	) -> Result<String, Error> {
+		let a1 = u32::try_from_argument(args.next().transpose()?, self, context)?;
+		let a2 = String::try_from_argument(args.next().transpose()?, self, context)?;
+		let a3 = String::try_from_argument(args.next().transpose()?, self, context)?;
+
+		Ok(match a1 > 0 {
+			true => a2,
+			false => a3,
+		})
 	}
 
 	fn resolve_macro_new_line(
@@ -113,6 +124,100 @@ THOUGHTS
 
 */
 
+// pub? this logic will need to be usable by external consumers... will it? they'll be using it via the args thingo
+trait TryFromArgument<'a>: Sized {
+	fn try_from_argument(
+		argument: Option<Expression<'a>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error>;
+}
+
+impl<'a> TryFromArgument<'a> for Expression<'a> {
+	fn try_from_argument(
+		argument: Option<Expression<'a>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		argument.ok_or_else(|| todo!("error type"))
+	}
+}
+
+impl TryFromArgument<'_> for Value {
+	fn try_from_argument(
+		argument: Option<Expression<'_>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		let expresssion = Expression::try_from_argument(argument, resolver, context)?;
+		context.evaluate(expresssion, resolver)
+	}
+}
+
+// note can't blanket impl these on from/into because it conflicts with the option<T> impl
+impl TryFromArgument<'_> for u32 {
+	fn try_from_argument(
+		argument: Option<Expression<'_>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		let value = Value::try_from_argument(argument, resolver, context)?;
+		Ok(value.into())
+	}
+}
+
+impl TryFromArgument<'_> for String {
+	fn try_from_argument(
+		argument: Option<Expression<'_>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		let value = Value::try_from_argument(argument, resolver, context)?;
+		Ok(value.into())
+	}
+}
+
+impl<'a, T> TryFromArgument<'a> for Option<T>
+where
+	T: TryFromArgument<'a>,
+{
+	fn try_from_argument(
+		argument: Option<Expression<'a>>,
+		resolver: &mut impl Resolve,
+		context: &Context,
+	) -> Result<Self, Error> {
+		Ok(match argument {
+			None => None,
+			some => Some(T::try_from_argument(some, resolver, context)?),
+		})
+	}
+}
+
+impl From<Value> for u32 {
+	fn from(value: Value) -> Self {
+		match value {
+			Value::U32(number) => number,
+
+			// Falling back to 0 if the parse fails - it seems like SE's number parser
+			// is pretty leniant. In some cases there's constants left in the sheet
+			// column parameter, all of which invariably end up pointing to column 0.
+			Value::String(string) => string.trim().parse::<u32>().unwrap_or(0),
+
+			Value::Unknown => todo!("unknown?"),
+		}
+	}
+}
+
+impl From<Value> for String {
+	fn from(value: Value) -> Self {
+		match value {
+			Value::U32(number) => number.to_string(),
+			Value::String(string) => string,
+			Value::Unknown => todo!("unknown?"),
+		}
+	}
+}
+
 enum Value {
 	U32(u32),
 	String(String),
@@ -133,7 +238,7 @@ impl Context {
 		expression: Expression,
 		resolver: &mut impl Resolve,
 	) -> Result<Value, Error> {
-		// let res = |expr: Expression<'a>| self.evaluate(expr, resolver);
+		let mut eval = |expr: Expression| self.evaluate(expr, resolver);
 
 		let value = match expression {
 			Expression::U32(value) => Value::U32(value),
@@ -159,17 +264,51 @@ impl Context {
 			Expression::LocalString(_expr) => self.unknown(),
 			Expression::GlobalString(_expr) => self.unknown(),
 
-			Expression::Ge(_, _) => todo!(),
+			Expression::Ge(left, right) => self.cmp(u32::ge, eval(*left)?, eval(*right)?),
 			Expression::Gt(_, _) => todo!(),
 			Expression::Le(_, _) => todo!(),
 			Expression::Lt(_, _) => todo!(),
-			Expression::Eq(_, _) => todo!(),
+			Expression::Eq(left, right) => match self.eq(eval(*left)?, eval(*right)?) {
+				true => Value::U32(1),
+				false => Value::U32(0),
+			},
 			Expression::Ne(_, _) => todo!(),
 
 			Expression::Unknown(_kind) => Value::Unknown,
 		};
 
 		Ok(value)
+	}
+
+	fn cmp(
+		&self,
+		cmp: impl for<'a, 'b> FnOnce(&'a u32, &'b u32) -> bool,
+		left: Value,
+		right: Value,
+	) -> Value {
+		// Unknown is treated as always-successful.
+		if matches!(left, Value::Unknown) || matches!(right, Value::Unknown) {
+			return Value::U32(1);
+		}
+
+		let left = u32::from(left);
+		let right = u32::from(right);
+
+		Value::U32(match cmp(&left, &right) {
+			true => 1,
+			false => 0,
+		})
+	}
+
+	fn eq(&self, left: Value, right: Value) -> bool {
+		match (left, right) {
+			// Either side being UNKNOWN is truthy.
+			(Value::Unknown, _) | (_, Value::Unknown) => true,
+			// If both sides are strings, try to do a string comparison.
+			(Value::String(left), Value::String(right)) => left == right,
+			// Otherwise, coerce to u32 and compare.
+			(left, right) => u32::from(left) == u32::from(right),
+		}
 	}
 
 	fn unknown(&self) -> Value {
