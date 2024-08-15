@@ -3,6 +3,7 @@ mod error;
 mod expression;
 mod macro_kind;
 mod payload;
+mod resolve;
 mod sestring;
 
 pub use {

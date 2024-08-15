@@ -2,7 +2,12 @@ use std::borrow::Cow;
 
 use binrw::{binread, helpers::until_exclusive};
 
-use super::{cursor::SliceCursor, error::Error, payload::Payload};
+use super::{
+	cursor::SliceCursor,
+	error::Error,
+	payload::Payload,
+	resolve::{Context, PlainString, Resolve},
+};
 
 // TODO: debug on this should probably be overwritten
 #[binread]
@@ -21,9 +26,20 @@ impl<'a> From<&'a [u8]> for SeString<'a> {
 	}
 }
 
-impl SeString<'_> {
-	pub fn payloads<'a>(&'a self) -> Payloads<'a> {
+impl<'a> SeString<'a> {
+	pub fn as_ref(&'a self) -> SeString<'a> {
+		Self::from(self.data.as_ref())
+	}
+
+	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
+	}
+
+	// todo: if feature gating resolve, this might warrant moving to a seperate impl
+	pub fn resolve(&'a self) -> Result<String, Error> {
+		let mut resolver = PlainString::new();
+		let context = Context::new();
+		resolver.resolve_sestring(self.as_ref(), &context)
 	}
 }
 

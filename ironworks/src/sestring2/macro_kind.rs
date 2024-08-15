@@ -22,7 +22,7 @@ pub enum MacroKind {
 	Icon = 0x12,
 	Color = 0x13,
 	EdgeColor = 0x14,
-	ShafowColor = 0x15,
+	ShadowColor = 0x15,
 	SoftHyphen = 0x16,
 	Key = 0x17,
 	Scale = 0x18,
