@@ -6,7 +6,7 @@ use super::{
 	cursor::SliceCursor,
 	error::Error,
 	payload::Payload,
-	resolve::{Context, PlainString, Resolve},
+	resolve::{Context, DefaultString, Resolve},
 };
 
 // TODO: debug on this should probably be overwritten
@@ -36,8 +36,9 @@ impl<'a> SeString<'a> {
 	}
 
 	// todo: if feature gating resolve, this might warrant moving to a seperate impl
+	// todo: should i have a special endpoint for this that takes extra args, or should this, and we just use display for no-args and trash the error. idk
 	pub fn resolve(&'a self) -> Result<String, Error> {
-		let mut resolver = PlainString::new();
+		let mut resolver = DefaultString::new();
 		let context = Context::new();
 		resolver.resolve_sestring(self.as_ref(), &context)
 	}
