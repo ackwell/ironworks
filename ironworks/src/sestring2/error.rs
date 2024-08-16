@@ -12,3 +12,5 @@ pub enum Error {
 	#[error("invalid expression")]
 	InvalidExpression,
 }
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;

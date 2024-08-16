@@ -1,4 +1,4 @@
-use super::error::Error;
+use super::error::{Error, Result};
 
 // TODO: debug on this should probably be overwritten to (len,offset)
 #[derive(Debug)]
@@ -16,7 +16,7 @@ impl<'a> SliceCursor<'a> {
 		self.offset >= self.data.len()
 	}
 
-	pub fn peek(&self) -> Result<u8, Error> {
+	pub fn peek(&self) -> Result<u8> {
 		match self.data.get(self.offset) {
 			Some(&value) => Ok(value),
 			None => Err(Error::UnexpectedEof),
@@ -27,13 +27,13 @@ impl<'a> SliceCursor<'a> {
 		self.offset += distance;
 	}
 
-	pub fn next(&mut self) -> Result<u8, Error> {
+	pub fn next(&mut self) -> Result<u8> {
 		let value = self.peek()?;
 		self.seek(1);
 		Ok(value)
 	}
 
-	pub fn take(&mut self, count: usize) -> Result<&'a [u8], Error> {
+	pub fn take(&mut self, count: usize) -> Result<&'a [u8]> {
 		let Some(value) = self.data.get(self.offset..(self.offset + count)) else {
 			return Err(Error::UnexpectedEof);
 		};
@@ -41,7 +41,7 @@ impl<'a> SliceCursor<'a> {
 		Ok(value)
 	}
 
-	pub fn take_until(&mut self, predicate: impl FnMut(&u8) -> bool) -> Result<&'a [u8], Error> {
+	pub fn take_until(&mut self, predicate: impl FnMut(&u8) -> bool) -> Result<&'a [u8]> {
 		let length = match self.data.iter().skip(self.offset).position(predicate) {
 			Some(position) => position,
 			None => self.data.len() - self.offset,

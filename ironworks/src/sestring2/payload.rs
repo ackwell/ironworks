@@ -1,6 +1,11 @@
 use std::str;
 
-use super::{cursor::SliceCursor, error::Error, expression::Expression, macro_kind::MacroKind};
+use super::{
+	cursor::SliceCursor,
+	error::{Error, Result},
+	expression::Expression,
+	macro_kind::MacroKind,
+};
 
 const MACRO_START: u8 = 0x02;
 const MACRO_END: u8 = 0x03;
@@ -12,7 +17,7 @@ pub enum Payload<'a> {
 }
 
 impl<'a> Payload<'a> {
-	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self, Error> {
+	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self> {
 		// Next byte is the start of a macro.
 		if cursor.peek()? == MACRO_START {
 			cursor.seek(1);
@@ -46,7 +51,7 @@ impl<'a> Payload<'a> {
 pub struct TextPayload<'a>(&'a [u8]);
 
 impl<'a> TextPayload<'a> {
-	pub fn as_utf8(&self) -> Result<&'a str, Error> {
+	pub fn as_utf8(&self) -> Result<&'a str> {
 		str::from_utf8(&self.0).map_err(|_error| Error::InvalidText)
 	}
 }
@@ -78,7 +83,7 @@ impl<'a> Expressions<'a> {
 }
 
 impl<'a> Iterator for Expressions<'a> {
-	type Item = Result<Expression<'a>, Error>;
+	type Item = Result<Expression<'a>>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		if self.cursor.eof() {

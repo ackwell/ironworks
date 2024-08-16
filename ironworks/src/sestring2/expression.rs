@@ -1,4 +1,8 @@
-use super::{cursor::SliceCursor, error::Error, sestring::SeString};
+use super::{
+	cursor::SliceCursor,
+	error::{Error, Result},
+	sestring::SeString,
+};
 
 #[non_exhaustive]
 #[derive(Debug)]
@@ -33,7 +37,7 @@ pub enum Expression<'a> {
 }
 
 impl<'a> Expression<'a> {
-	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self, Error> {
+	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self> {
 		let kind = cursor.next()?;
 
 		let mut read_inner = || Ok(Box::new(Expression::read(cursor)?));
@@ -75,7 +79,7 @@ impl<'a> Expression<'a> {
 	}
 }
 
-fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32, Error> {
+fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32> {
 	let flags = (kind + 1) & 0b1111;
 	let mut bytes = [0; 4];
 	for i in (0..=3).rev() {
@@ -87,7 +91,7 @@ fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32, Error> {
 	Ok(u32::from_le_bytes(bytes))
 }
 
-fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>, Error> {
+fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>> {
 	let Expression::U32(length) = Expression::read(cursor)? else {
 		return Err(Error::InvalidExpression);
 	};

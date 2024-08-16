@@ -1,5 +1,5 @@
 use crate::sestring2::{
-	error::Error,
+	error::Result,
 	macro_kind::MacroKind,
 	payload::{Expressions, MacroPayload, Payload, TextPayload},
 	sestring::SeString,
@@ -20,11 +20,7 @@ impl DefaultString {
 impl Resolve for DefaultString {}
 
 pub trait Resolve: Sized {
-	fn resolve_sestring<'a>(
-		&mut self,
-		string: SeString<'a>,
-		context: &Context,
-	) -> Result<String, Error> {
+	fn resolve_sestring<'a>(&mut self, string: SeString<'a>, context: &Context) -> Result<String> {
 		let mut resolved_payloads = string
 			.payloads()
 			.map(|payload| self.resolve_payload(payload?, context));
@@ -32,11 +28,7 @@ pub trait Resolve: Sized {
 		resolved_payloads.try_fold(String::from(""), |acc, cur| Ok(acc + &cur?))
 	}
 
-	fn resolve_payload<'a>(
-		&mut self,
-		payload: Payload<'a>,
-		context: &Context,
-	) -> Result<String, Error> {
+	fn resolve_payload<'a>(&mut self, payload: Payload<'a>, context: &Context) -> Result<String> {
 		match payload {
 			Payload::Text(inner) => self.resolve_payload_text(inner, context),
 			Payload::Macro(inner) => self.resolve_payload_macro(inner, context),
@@ -47,7 +39,7 @@ pub trait Resolve: Sized {
 		&mut self,
 		payload: TextPayload<'a>,
 		context: &Context,
-	) -> Result<String, Error> {
+	) -> Result<String> {
 		let _ = context;
 		Ok(payload.as_utf8()?.to_owned())
 	}
@@ -56,7 +48,7 @@ pub trait Resolve: Sized {
 		&mut self,
 		payload: MacroPayload<'a>,
 		context: &Context,
-	) -> Result<String, Error> {
+	) -> Result<String> {
 		let args = payload.expressions();
 
 		match payload.kind() {
@@ -68,7 +60,7 @@ pub trait Resolve: Sized {
 		}
 	}
 
-	fn resolve_macro_if(&mut self, args: Expressions, context: &Context) -> Result<String, Error> {
+	fn resolve_macro_if(&mut self, args: Expressions, context: &Context) -> Result<String> {
 		let (condition, branch_true, branch_false) =
 			args.evaluate::<(u32, String, String)>(self, context)?;
 
@@ -78,20 +70,12 @@ pub trait Resolve: Sized {
 		})
 	}
 
-	fn resolve_macro_new_line(
-		&mut self,
-		args: Expressions,
-		context: &Context,
-	) -> Result<String, Error> {
+	fn resolve_macro_new_line(&mut self, args: Expressions, context: &Context) -> Result<String> {
 		let _ = (args, context);
 		Ok("\n".into())
 	}
 
-	fn resolve_macro_color_type(
-		&mut self,
-		args: Expressions,
-		context: &Context,
-	) -> Result<String, Error> {
+	fn resolve_macro_color_type(&mut self, args: Expressions, context: &Context) -> Result<String> {
 		let _ = (args, context);
 		Ok("".into())
 	}
@@ -100,7 +84,7 @@ pub trait Resolve: Sized {
 		&mut self,
 		args: Expressions,
 		context: &Context,
-	) -> Result<String, Error> {
+	) -> Result<String> {
 		let _ = (args, context);
 		Ok("".into())
 	}

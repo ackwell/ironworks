@@ -1,4 +1,8 @@
-use crate::sestring2::{error::Error, expression::Expression, payload::Expressions};
+use crate::sestring2::{
+	error::{Error, Result},
+	expression::Expression,
+	payload::Expressions,
+};
 
 use super::{context::Context, resolve::Resolve, value::Value};
 
@@ -16,7 +20,7 @@ pub trait TryFromArguments<'a>: Sized {
 		arguments: Expressions<'a>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error>;
+	) -> Result<Self>;
 }
 
 // pub? this logic will need to be usable by external consumers... will it? they'll be using it via the args thingo
@@ -25,7 +29,7 @@ trait TryFromArgument<'a>: Sized {
 		argument: Option<Expression<'a>>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error>;
+	) -> Result<Self>;
 }
 
 impl<'a> TryFromArgument<'a> for Expression<'a> {
@@ -33,7 +37,7 @@ impl<'a> TryFromArgument<'a> for Expression<'a> {
 		argument: Option<Expression<'a>>,
 		_resolver: &mut impl Resolve,
 		_context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		argument.ok_or_else(|| todo!("error type"))
 	}
 }
@@ -43,7 +47,7 @@ impl TryFromArgument<'_> for Value {
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		let expresssion = Expression::try_from_argument(argument, resolver, context)?;
 		context.evaluate(expresssion, resolver)
 	}
@@ -55,7 +59,7 @@ impl TryFromArgument<'_> for u32 {
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		let value = Value::try_from_argument(argument, resolver, context)?;
 		Ok(value.into())
 	}
@@ -66,7 +70,7 @@ impl TryFromArgument<'_> for String {
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		let value = Value::try_from_argument(argument, resolver, context)?;
 		Ok(value.into())
 	}
@@ -80,7 +84,7 @@ where
 		argument: Option<Expression<'a>>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		Ok(match argument {
 			None => None,
 			some => Some(T::try_from_argument(some, resolver, context)?),
@@ -96,7 +100,7 @@ where
 		mut arguments: Expressions<'a>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		let result = T::try_from_argument(arguments.next().transpose()?, resolver, context)?;
 
 		// todo: check exhausted
@@ -116,7 +120,7 @@ impl<'a, Arg1: TryFromArgument<'a>, Arg2: TryFromArgument<'a>, Arg3: TryFromArgu
 		mut arguments: Expressions<'a>,
 		resolver: &mut impl Resolve,
 		context: &Context,
-	) -> Result<Self, Error> {
+	) -> Result<Self> {
 		let result = (
 			Arg1::try_from_argument(arguments.next().transpose()?, resolver, context)?,
 			Arg2::try_from_argument(arguments.next().transpose()?, resolver, context)?,

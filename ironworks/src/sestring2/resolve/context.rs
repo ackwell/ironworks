@@ -1,4 +1,4 @@
-use crate::sestring2::{error::Error, expression::Expression};
+use crate::sestring2::{error::Result, expression::Expression};
 
 use super::{resolve::Resolve, value::Value};
 
@@ -16,7 +16,7 @@ impl Context {
 		&self,
 		expression: Expression,
 		resolver: &mut impl Resolve,
-	) -> Result<Value, Error> {
+	) -> Result<Value> {
 		let mut eval = |expr: Expression| self.evaluate(expr, resolver);
 
 		let value = match expression {
