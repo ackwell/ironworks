@@ -38,7 +38,7 @@ impl<'a> TryFromArgument<'a> for Expression<'a> {
 		_resolver: &mut impl Resolve,
 		_context: &Context,
 	) -> Result<Self> {
-		argument.ok_or_else(|| todo!("error type"))
+		argument.ok_or(Error::InsufficientArguments)
 	}
 }
 
@@ -102,36 +102,44 @@ where
 		context: &Context,
 	) -> Result<Self> {
 		let result = T::try_from_argument(arguments.next().transpose()?, resolver, context)?;
-
-		// todo: check exhausted
-		if let Some(_) = arguments.next() {
-			todo!("not exhausted")
-		}
-
+		check_exhausted(arguments)?;
 		Ok(result)
 	}
 }
 
-// this will be implemented with a macro once i do it properly
-impl<'a, Arg1: TryFromArgument<'a>, Arg2: TryFromArgument<'a>, Arg3: TryFromArgument<'a>>
-	TryFromArguments<'a> for (Arg1, Arg2, Arg3)
-{
-	fn try_from_arguments(
-		mut arguments: Expressions<'a>,
-		resolver: &mut impl Resolve,
-		context: &Context,
-	) -> Result<Self> {
-		let result = (
-			Arg1::try_from_argument(arguments.next().transpose()?, resolver, context)?,
-			Arg2::try_from_argument(arguments.next().transpose()?, resolver, context)?,
-			Arg3::try_from_argument(arguments.next().transpose()?, resolver, context)?,
-		);
-
-		// todo: check exhausted
-		if let Some(_) = arguments.next() {
-			todo!("not exhausted")
+macro_rules! tuple_impl {
+	($arg:ident $(, $args:ident)*) => {
+		#[allow(non_camel_case_types)]
+		impl<
+			'a,
+			$arg: TryFromArgument<'a>,
+			$($args: TryFromArgument<'a>),*
+		> TryFromArguments<'a> for ($arg, $($args),*) {
+			fn try_from_arguments(
+				mut arguments: Expressions<'a>,
+				resolver: &mut impl Resolve,
+				context: &Context,
+			) -> Result<Self> {
+				let result = (
+					$arg::try_from_argument(arguments.next().transpose()?, resolver, context)?,
+					$($args::try_from_argument(arguments.next().transpose()?, resolver, context)?),*
+				);
+				check_exhausted(arguments)?;
+				Ok(result)
+			}
 		}
 
-		Ok(result)
+		tuple_impl!($($args),*);
+	};
+
+	() => {};
+}
+
+tuple_impl!(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+
+fn check_exhausted(mut arguments: Expressions<'_>) -> Result<()> {
+	match arguments.next() {
+		None => Ok(()),
+		Some(_) => Err(Error::TooManyArguments),
 	}
 }
