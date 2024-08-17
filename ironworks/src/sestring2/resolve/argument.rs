@@ -1,13 +1,19 @@
 use crate::sestring2::{
 	error::{Error, Result},
 	expression::Expression,
-	payload::Expressions,
 };
 
 use super::{context::Context, resolve::Resolve, value::Value};
 
-impl<'a> Expressions<'a> {
-	pub fn evaluate<T>(self, resolver: &mut impl Resolve, context: &Context) -> Result<T, Error>
+pub trait Arguments<'a>: Sized + Iterator<Item = Result<Expression<'a>>> {
+	fn next_as<T>(&mut self, resolver: &mut impl Resolve, context: &Context) -> Result<T>
+	where
+		T: TryFromArgument<'a>,
+	{
+		T::try_from_argument(self.next().transpose()?, resolver, context)
+	}
+
+	fn evaluate<T>(self, resolver: &mut impl Resolve, context: &Context) -> Result<T>
 	where
 		T: TryFromArguments<'a>,
 	{
@@ -15,16 +21,17 @@ impl<'a> Expressions<'a> {
 	}
 }
 
+impl<'a, T> Arguments<'a> for T where T: Iterator<Item = Result<Expression<'a>>> {}
+
 pub trait TryFromArguments<'a>: Sized {
 	fn try_from_arguments(
-		arguments: Expressions<'a>,
+		arguments: impl Arguments<'a>,
 		resolver: &mut impl Resolve,
 		context: &Context,
 	) -> Result<Self>;
 }
 
-// pub? this logic will need to be usable by external consumers... will it? they'll be using it via the args thingo
-trait TryFromArgument<'a>: Sized {
+pub trait TryFromArgument<'a>: Sized {
 	fn try_from_argument(
 		argument: Option<Expression<'a>>,
 		resolver: &mut impl Resolve,
@@ -92,12 +99,23 @@ where
 	}
 }
 
+impl<'a> TryFromArguments<'a> for () {
+	fn try_from_arguments(
+		arguments: impl Arguments<'a>,
+		_resolver: &mut impl Resolve,
+		_context: &Context,
+	) -> Result<Self> {
+		check_exhausted(arguments)?;
+		Ok(())
+	}
+}
+
 impl<'a, T> TryFromArguments<'a> for T
 where
 	T: TryFromArgument<'a>,
 {
 	fn try_from_arguments(
-		mut arguments: Expressions<'a>,
+		mut arguments: impl Arguments<'a>,
 		resolver: &mut impl Resolve,
 		context: &Context,
 	) -> Result<Self> {
@@ -116,7 +134,7 @@ macro_rules! tuple_impl {
 			$($args: TryFromArgument<'a>),*
 		> TryFromArguments<'a> for ($arg, $($args),*) {
 			fn try_from_arguments(
-				mut arguments: Expressions<'a>,
+				mut arguments: impl Arguments<'a>,
 				resolver: &mut impl Resolve,
 				context: &Context,
 			) -> Result<Self> {
@@ -137,7 +155,7 @@ macro_rules! tuple_impl {
 
 tuple_impl!(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
-fn check_exhausted(mut arguments: Expressions<'_>) -> Result<()> {
+fn check_exhausted<'a>(mut arguments: impl Arguments<'a>) -> Result<()> {
 	match arguments.next() {
 		None => Ok(()),
 		Some(_) => Err(Error::TooManyArguments),

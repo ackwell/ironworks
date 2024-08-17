@@ -15,7 +15,7 @@ impl From<Value> for u32 {
 			// column parameter, all of which invariably end up pointing to column 0.
 			Value::String(string) => string.trim().parse::<u32>().unwrap_or(0),
 
-			Value::Unknown => todo!("unknown?"),
+			Value::Unknown => 0,
 		}
 	}
 }

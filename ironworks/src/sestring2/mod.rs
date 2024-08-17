@@ -12,6 +12,8 @@ pub use {
 	macro_kind::MacroKind,
 	payload::{Expressions, MacroPayload, Payload, TextPayload},
 	// todo: do i want this to be a top level export?
-	resolve::{Context, DefaultString, Resolve, TryFromArguments, Value},
+	resolve::{
+		Arguments, Context, DefaultString, Resolve, TryFromArgument, TryFromArguments, Value,
+	},
 	sestring::{Payloads, SeString},
 };
