@@ -6,14 +6,14 @@ use crate::sestring2::{
 use super::{context::Context, resolve::Resolve, value::Value};
 
 pub trait Arguments<'a>: Sized + Iterator<Item = Result<Expression<'a>>> {
-	fn next_as<T>(&mut self, resolver: &mut impl Resolve, context: &Context) -> Result<T>
+	fn next_as<T>(&mut self, resolver: &mut impl Resolve, context: &mut Context) -> Result<T>
 	where
 		T: TryFromArgument<'a>,
 	{
 		T::try_from_argument(self.next().transpose()?, resolver, context)
 	}
 
-	fn evaluate<T>(self, resolver: &mut impl Resolve, context: &Context) -> Result<T>
+	fn evaluate<T>(self, resolver: &mut impl Resolve, context: &mut Context) -> Result<T>
 	where
 		T: TryFromArguments<'a>,
 	{
@@ -27,7 +27,7 @@ pub trait TryFromArguments<'a>: Sized {
 	fn try_from_arguments(
 		arguments: impl Arguments<'a>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self>;
 }
 
@@ -35,7 +35,7 @@ pub trait TryFromArgument<'a>: Sized {
 	fn try_from_argument(
 		argument: Option<Expression<'a>>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self>;
 }
 
@@ -43,7 +43,7 @@ impl<'a> TryFromArgument<'a> for Expression<'a> {
 	fn try_from_argument(
 		argument: Option<Expression<'a>>,
 		_resolver: &mut impl Resolve,
-		_context: &Context,
+		_context: &mut Context,
 	) -> Result<Self> {
 		argument.ok_or(Error::InsufficientArguments)
 	}
@@ -53,7 +53,7 @@ impl TryFromArgument<'_> for Value {
 	fn try_from_argument(
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self> {
 		let expresssion = Expression::try_from_argument(argument, resolver, context)?;
 		context.evaluate(expresssion, resolver)
@@ -65,7 +65,7 @@ impl TryFromArgument<'_> for u32 {
 	fn try_from_argument(
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self> {
 		let value = Value::try_from_argument(argument, resolver, context)?;
 		Ok(value.into())
@@ -76,7 +76,7 @@ impl TryFromArgument<'_> for String {
 	fn try_from_argument(
 		argument: Option<Expression<'_>>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self> {
 		let value = Value::try_from_argument(argument, resolver, context)?;
 		Ok(value.into())
@@ -90,7 +90,7 @@ where
 	fn try_from_argument(
 		argument: Option<Expression<'a>>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self> {
 		Ok(match argument {
 			None => None,
@@ -103,7 +103,7 @@ impl<'a> TryFromArguments<'a> for () {
 	fn try_from_arguments(
 		arguments: impl Arguments<'a>,
 		_resolver: &mut impl Resolve,
-		_context: &Context,
+		_context: &mut Context,
 	) -> Result<Self> {
 		check_exhausted(arguments)?;
 		Ok(())
@@ -117,7 +117,7 @@ where
 	fn try_from_arguments(
 		mut arguments: impl Arguments<'a>,
 		resolver: &mut impl Resolve,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<Self> {
 		let result = T::try_from_argument(arguments.next().transpose()?, resolver, context)?;
 		check_exhausted(arguments)?;
@@ -136,7 +136,7 @@ macro_rules! tuple_impl {
 			fn try_from_arguments(
 				mut arguments: impl Arguments<'a>,
 				resolver: &mut impl Resolve,
-				context: &Context,
+				context: &mut Context,
 			) -> Result<Self> {
 				let result = (
 					$arg::try_from_argument(arguments.next().transpose()?, resolver, context)?,

@@ -25,7 +25,7 @@ impl From<Value> for String {
 		match value {
 			Value::U32(number) => number.to_string(),
 			Value::String(string) => string,
-			Value::Unknown => todo!("unknown?"),
+			Value::Unknown => "UNKNOWN".to_string(),
 		}
 	}
 }

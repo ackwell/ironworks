@@ -5,7 +5,7 @@ use super::{argument::Arguments, context::Context, resolve::Resolve};
 pub fn identity<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	args.evaluate::<String>(resolver, context)
 }
@@ -13,7 +13,7 @@ pub fn identity<'a>(
 pub fn kilo<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let (value, separator) = args.evaluate::<(u32, String)>(resolver, context)?;
 
@@ -29,7 +29,7 @@ pub fn kilo<'a>(
 pub fn sec<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let value = args.evaluate::<u32>(resolver, context)?;
 	Ok(format!("{value:02}"))
@@ -38,7 +38,7 @@ pub fn sec<'a>(
 pub fn digit<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let (value, length) = args.evaluate::<(u32, u32)>(resolver, context)?;
 	Ok(format!(
@@ -50,7 +50,7 @@ pub fn digit<'a>(
 pub fn float<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let (value, radix, separator, _unused) =
 		args.evaluate::<(u32, u32, String, Option<u32>)>(resolver, context)?;

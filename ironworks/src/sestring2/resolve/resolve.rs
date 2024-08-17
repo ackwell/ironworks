@@ -5,7 +5,10 @@ use crate::sestring2::{
 	sestring::SeString,
 };
 
-use super::{argument::Arguments, character, context::Context, control_flow, number, shared, text};
+use super::{
+	argument::Arguments, character, context::Context, control_flow, excel, number, shared, text,
+	time,
+};
 
 #[derive(Debug)]
 pub struct DefaultString(());
@@ -20,7 +23,11 @@ impl DefaultString {
 impl Resolve for DefaultString {}
 
 pub trait Resolve: Sized {
-	fn resolve_sestring<'a>(&mut self, string: SeString<'a>, context: &Context) -> Result<String> {
+	fn resolve_sestring<'a>(
+		&mut self,
+		string: SeString<'a>,
+		context: &mut Context,
+	) -> Result<String> {
 		let mut resolved_payloads = string
 			.payloads()
 			.map(|payload| self.resolve_payload(payload?, context));
@@ -28,7 +35,11 @@ pub trait Resolve: Sized {
 		resolved_payloads.try_fold(String::from(""), |acc, cur| Ok(acc + &cur?))
 	}
 
-	fn resolve_payload<'a>(&mut self, payload: Payload<'a>, context: &Context) -> Result<String> {
+	fn resolve_payload<'a>(
+		&mut self,
+		payload: Payload<'a>,
+		context: &mut Context,
+	) -> Result<String> {
 		match payload {
 			Payload::Text(inner) => self.resolve_payload_text(inner, context),
 			Payload::Macro(inner) => self.resolve_payload_macro(inner, context),
@@ -38,7 +49,7 @@ pub trait Resolve: Sized {
 	fn resolve_payload_text<'a>(
 		&mut self,
 		payload: TextPayload<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		let _ = context;
 		Ok(payload.as_utf8()?.to_owned())
@@ -47,7 +58,7 @@ pub trait Resolve: Sized {
 	fn resolve_payload_macro<'a>(
 		&mut self,
 		payload: MacroPayload<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		let args = payload.expressions();
 
@@ -106,14 +117,14 @@ pub trait Resolve: Sized {
 			MacroKind::Ordinal => self.resolve_macro_ordinal(args, context),
 			MacroKind::Sound => self.resolve_macro_sound(args, context),
 			MacroKind::LevelPos => self.resolve_macro_level_pos(args, context),
-			MacroKind::Unknown(_) => todo!(),
+			MacroKind::Unknown(UNK) => todo!("unknown macro kind {UNK:x}"),
 		}
 	}
 
 	fn resolve_macro_set_reset_time<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("SetResetTime")
 	}
@@ -121,15 +132,15 @@ pub trait Resolve: Sized {
 	fn resolve_macro_set_time<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("SetTime")
+		time::set_time(self, args, context)
 	}
 
 	fn resolve_macro_if<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		control_flow::r#if(self, args, context)
 	}
@@ -137,7 +148,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_switch<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		control_flow::switch(self, args, context)
 	}
@@ -145,7 +156,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_pc_name<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("PcName")
 	}
@@ -153,7 +164,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_if_pc_gender<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("IfPcGender")
 	}
@@ -161,7 +172,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_if_pc_name<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("IfPcName")
 	}
@@ -169,7 +180,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_josa<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Josa")
 	}
@@ -177,7 +188,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_josaro<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Josaro")
 	}
@@ -185,7 +196,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_if_self<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("IfSelf")
 	}
@@ -193,7 +204,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_new_line<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		character::new_line(self, args, context)
 	}
@@ -201,7 +212,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_wait<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -209,7 +220,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_icon<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Icon")
 	}
@@ -217,7 +228,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_color<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -225,7 +236,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_edge_color<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -233,7 +244,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_shadow_color<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("ShadowColor")
 	}
@@ -241,7 +252,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_soft_hyphen<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		character::soft_hyphen(self, args, context)
 	}
@@ -249,7 +260,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_key<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Key")
 	}
@@ -257,7 +268,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_scale<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Scale")
 	}
@@ -265,7 +276,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_bold<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -273,7 +284,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_italic<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -281,7 +292,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_edge<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -289,7 +300,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_shadow<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -297,7 +308,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_non_breaking_space<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		character::non_breaking_space(self, args, context)
 	}
@@ -305,7 +316,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_icon2<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Icon2")
 	}
@@ -313,7 +324,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_hyphen<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		character::hyphen(self, args, context)
 	}
@@ -321,7 +332,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_num<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::identity(self, args, context)
 	}
@@ -329,7 +340,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_hex<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Hex")
 	}
@@ -337,7 +348,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_kilo<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::kilo(self, args, context)
 	}
@@ -345,7 +356,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_byte<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Byte")
 	}
@@ -353,7 +364,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_sec<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::sec(self, args, context)
 	}
@@ -361,7 +372,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_time<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Time")
 	}
@@ -369,7 +380,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_float<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::float(self, args, context)
 	}
@@ -377,7 +388,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_link<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Link")
 	}
@@ -385,15 +396,15 @@ pub trait Resolve: Sized {
 	fn resolve_macro_sheet<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("Sheet")
+		excel::sheet(self, args, context)
 	}
 
 	fn resolve_macro_string<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::identity(self, args, context)
 	}
@@ -401,7 +412,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_caps<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Caps")
 	}
@@ -409,7 +420,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_head<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		text::head(self, args, context)
 	}
@@ -417,7 +428,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_split<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		text::split(self, args, context)
 	}
@@ -425,7 +436,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_head_all<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		text::head_all(self, args, context)
 	}
@@ -433,7 +444,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_fixed<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Fixed")
 	}
@@ -441,7 +452,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_lower<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		text::lower(self, args, context)
 	}
@@ -449,47 +460,47 @@ pub trait Resolve: Sized {
 	fn resolve_macro_ja_noun<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("JaNoun")
+		excel::ja_noun(self, args, context)
 	}
 
 	fn resolve_macro_en_noun<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("EnNoun")
+		excel::en_noun(self, args, context)
 	}
 
 	fn resolve_macro_de_noun<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("DeNoun")
+		excel::de_noun(self, args, context)
 	}
 
 	fn resolve_macro_fr_noun<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("FrNoun")
+		excel::fr_noun(self, args, context)
 	}
 
 	fn resolve_macro_ch_noun<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
-		todo!("ChNoun")
+		excel::ch_noun(self, args, context)
 	}
 
 	fn resolve_macro_lower_head<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		text::lower_head(self, args, context)
 	}
@@ -497,7 +508,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_color_type<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -505,7 +516,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_edge_color_type<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		shared::noop(self, args, context)
 	}
@@ -513,7 +524,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_digit<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		number::digit(self, args, context)
 	}
@@ -521,7 +532,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_ordinal<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Ordinal")
 	}
@@ -529,7 +540,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_sound<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("Sound")
 	}
@@ -537,7 +548,7 @@ pub trait Resolve: Sized {
 	fn resolve_macro_level_pos<'a>(
 		&mut self,
 		args: impl Arguments<'a>,
-		context: &Context,
+		context: &mut Context,
 	) -> Result<String> {
 		todo!("LevelPos")
 	}

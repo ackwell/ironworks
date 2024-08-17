@@ -39,8 +39,8 @@ impl<'a> SeString<'a> {
 	// todo: should i have a special endpoint for this that takes extra args, or should this, and we just use display for no-args and trash the error. idk
 	pub fn resolve(&'a self) -> Result<String, Error> {
 		let mut resolver = DefaultString::new();
-		let context = Context::new();
-		resolver.resolve_sestring(self.as_ref(), &context)
+		let mut context = Context::new();
+		resolver.resolve_sestring(self.as_ref(), &mut context)
 	}
 }
 

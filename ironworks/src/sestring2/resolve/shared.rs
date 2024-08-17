@@ -22,12 +22,12 @@ pub mod test {
 
 	pub fn resolve<'a, F, I>(r#fn: F, input: I) -> String
 	where
-		F: FnOnce(&mut DefaultString, I::IntoIter, &Context) -> Result<String>,
+		F: FnOnce(&mut DefaultString, I::IntoIter, &mut Context) -> Result<String>,
 		I: IntoIterator,
 	{
 		let mut resolver = DefaultString::new();
-		let context = Context::new();
+		let mut context = Context::new();
 		let args = input.into_iter();
-		r#fn(&mut resolver, args, &context).expect("test fn should not error")
+		r#fn(&mut resolver, args, &mut context).expect("test fn should not error")
 	}
 }

@@ -5,7 +5,7 @@ use super::{argument::Arguments, context::Context, resolve::Resolve};
 pub fn head<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let input = args.evaluate::<String>(resolver, context)?;
 	Ok(head_str(&input))
@@ -14,7 +14,7 @@ pub fn head<'a>(
 pub fn head_all<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let input = args.evaluate::<String>(resolver, context)?;
 	let output = input.split_inclusive(' ').map(head_str).collect::<String>();
@@ -32,7 +32,7 @@ fn head_str<'a>(input: &str) -> String {
 pub fn lower_head<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let input = args.evaluate::<String>(resolver, context)?;
 	let mut chars = input.chars();
@@ -46,7 +46,7 @@ pub fn lower_head<'a>(
 pub fn lower<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let input = args.evaluate::<String>(resolver, context)?;
 	Ok(input.to_lowercase())
@@ -55,7 +55,7 @@ pub fn lower<'a>(
 pub fn split<'a>(
 	resolver: &mut impl Resolve,
 	args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	let (string, pattern, index) = args.evaluate::<(String, String, u32)>(resolver, context)?;
 	let output = string

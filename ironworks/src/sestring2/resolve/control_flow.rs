@@ -10,7 +10,7 @@ use super::{
 pub fn r#if<'a>(
 	resolver: &mut impl Resolve,
 	mut args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	// Ensure an explicit unknown is treated as truthy.
 	let condition = match args.next_as::<Value>(resolver, context)? {
@@ -31,7 +31,7 @@ pub fn r#if<'a>(
 pub fn switch<'a>(
 	resolver: &mut impl Resolve,
 	mut args: impl Arguments<'a>,
-	context: &Context,
+	context: &mut Context,
 ) -> Result<String> {
 	// Explicitly control Unknown's value to point to the first branch.
 	let scrutinee = match args.next_as::<Value>(resolver, context)? {
