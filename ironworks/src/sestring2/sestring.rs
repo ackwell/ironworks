@@ -2,12 +2,7 @@ use std::borrow::Cow;
 
 use binrw::{binread, helpers::until_exclusive};
 
-use super::{
-	cursor::SliceCursor,
-	error::Error,
-	payload::Payload,
-	resolve::{Context, DefaultString, Resolve},
-};
+use super::{cursor::SliceCursor, error::Error, payload::Payload};
 
 // TODO: debug on this should probably be overwritten
 #[binread]
@@ -33,14 +28,6 @@ impl<'a> SeString<'a> {
 
 	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
-	}
-
-	// todo: if feature gating resolve, this might warrant moving to a seperate impl
-	// todo: should i have a special endpoint for this that takes extra args, or should this, and we just use display for no-args and trash the error. idk
-	pub fn resolve(&'a self) -> Result<String, Error> {
-		let mut resolver = DefaultString::new();
-		let mut context = Context::new();
-		resolver.resolve_sestring(self.as_ref(), &mut context)
 	}
 }
 

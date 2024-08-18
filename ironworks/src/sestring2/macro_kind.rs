@@ -57,6 +57,7 @@ pub enum MacroKind {
 	LowerHead = 0x40,
 	ColorType = 0x48,
 	EdgeColorType = 0x49,
+	Ruby = 0x4A,
 	Digit = 0x50,
 	Ordinal = 0x51,
 	Sound = 0x60,

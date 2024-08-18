@@ -1,8 +1,35 @@
+use std::ops::Not;
+
 #[derive(Debug)]
 pub enum Value {
 	U32(u32),
 	String(String),
 	Unknown,
+}
+
+impl Value {
+	pub const TRUE: Value = Value::U32(1);
+	pub const FALSE: Value = Value::U32(0);
+}
+
+impl Not for Value {
+	type Output = Value;
+
+	fn not(self) -> Self::Output {
+		match u32::from(self) {
+			0 => Self::TRUE,
+			_ => Self::FALSE,
+		}
+	}
+}
+
+impl From<bool> for Value {
+	fn from(value: bool) -> Self {
+		match value {
+			true => Value::TRUE,
+			false => Value::FALSE,
+		}
+	}
 }
 
 impl From<Value> for u32 {
@@ -26,6 +53,15 @@ impl From<Value> for String {
 			Value::U32(number) => number.to_string(),
 			Value::String(string) => string,
 			Value::Unknown => "UNKNOWN".to_string(),
+		}
+	}
+}
+
+impl From<Value> for bool {
+	fn from(value: Value) -> Self {
+		match u32::from(value) {
+			0 => false,
+			_ => true,
 		}
 	}
 }

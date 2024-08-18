@@ -3,17 +3,15 @@ mod error;
 mod expression;
 mod macro_kind;
 mod payload;
-mod resolve;
 mod sestring;
+
+// TODO: is this how i wanna handle it?
+pub mod format;
 
 pub use {
 	error::Error,
 	expression::Expression,
 	macro_kind::MacroKind,
 	payload::{Expressions, MacroPayload, Payload, TextPayload},
-	// todo: do i want this to be a top level export?
-	resolve::{
-		Arguments, Context, DefaultString, Resolve, TryFromArgument, TryFromArguments, Value,
-	},
 	sestring::{Payloads, SeString},
 };
