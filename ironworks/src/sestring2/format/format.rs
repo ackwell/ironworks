@@ -48,20 +48,25 @@ fn format_macro(payload: MacroPayload, state: &mut State) -> Result<()> {
 		MacroKind::If => control_flow::r#if(arguments, state),
 		MacroKind::Switch => control_flow::switch(arguments, state),
 		MacroKind::PcName => runtime::pc_name(arguments, state),
-		MacroKind::IfPcGender => todo("IfPcGender"),
-		MacroKind::IfPcName => todo("IfPcName"),
-		MacroKind::Josa => todo("Josa"),
-		MacroKind::Josaro => todo("Josaro"),
+		MacroKind::IfPcGender => runtime::if_pc_gender(arguments, state),
+		MacroKind::IfPcName => runtime::if_pc_name(arguments, state),
+		// Untested, I don't have aceess to a Korean client (or knowledge of how to
+		// implement this). Please PR if you can implement these!
+		MacroKind::Josa => format_macro_noop(arguments, state),
+		MacroKind::Josaro => format_macro_noop(arguments, state),
 		MacroKind::IfSelf => runtime::if_self(arguments, state),
 		MacroKind::NewLine => character::new_line(arguments, state),
-		MacroKind::Wait => todo("Wait"),
+		// Nooping wait because I really don't think that spinning in a formatter is
+		// a good idea. If you desperately need this exposed, let me know.
+		MacroKind::Wait => format_macro_noop(arguments, state),
 		MacroKind::Icon => character::icon(arguments, state),
 		MacroKind::Color => style::color(arguments, state),
 		MacroKind::EdgeColor => style::edge_color(arguments, state),
-		MacroKind::ShadowColor => todo("ShadowColor"),
+		MacroKind::ShadowColor => style::shadow_color(arguments, state),
 		MacroKind::SoftHyphen => character::soft_hyphen(arguments, state),
 		MacroKind::Key => character::key(arguments, state),
-		MacroKind::Scale => todo("Scale"),
+		// Unknown.
+		MacroKind::Scale => format_macro_noop(arguments, state),
 		MacroKind::Bold => style::bold(arguments, state),
 		MacroKind::Italic => style::italic(arguments, state),
 		MacroKind::Edge => style::edge(arguments, state),
@@ -70,13 +75,15 @@ fn format_macro(payload: MacroPayload, state: &mut State) -> Result<()> {
 		MacroKind::Icon2 => character::icon(arguments, state),
 		MacroKind::Hyphen => character::hyphen(arguments, state),
 		MacroKind::Num => format_macro_identity(arguments, state),
-		MacroKind::Hex => todo("Hex"),
+		MacroKind::Hex => number::hex(arguments, state),
 		MacroKind::Kilo => number::kilo(arguments, state),
-		MacroKind::Byte => todo("Byte"),
+		MacroKind::Byte => number::byte(arguments, state),
 		MacroKind::Sec => number::sec(arguments, state),
-		MacroKind::Time => todo("Time"),
+		// Unknown.
+		MacroKind::Time => format_macro_noop(arguments, state),
 		MacroKind::Float => number::float(arguments, state),
-		MacroKind::Link => todo("Link"),
+		// I am _not_ in the mood to implement link right now. Unused in excel as of 2024-08-20.
+		MacroKind::Link => format_macro_noop(arguments, state),
 		MacroKind::Sheet => excel::sheet(arguments, state),
 		MacroKind::String => format_macro_identity(arguments, state),
 		MacroKind::Caps => text::caps(arguments, state),
@@ -125,11 +132,4 @@ pub fn format_expression(expression: Expression, state: &mut State) -> Result<()
 			Ok(())
 		}
 	}
-}
-
-// delete this
-fn todo(kind: &str) -> Result<()> {
-	println!("unknown kind {kind}");
-	// this is the complete wrong thing lmao
-	Err(crate::sestring2::Error::UnexpectedEof)
 }

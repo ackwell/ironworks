@@ -44,7 +44,7 @@ pub fn evaluate_expression(expression: Expression, state: &State) -> Result<Valu
 		Expression::Eq(left, right) => eq(eval(left)?, eval(right)?),
 		Expression::Ne(left, right) => !eq(eval(left)?, eval(right)?),
 
-		Expression::Unknown(unk) => todo(&format!("unknown {unk:?}"))?,
+		Expression::Unknown(_unk) => Value::Unknown,
 	};
 
 	Ok(value)
@@ -130,11 +130,4 @@ fn eq(left: Value, right: Value) -> Value {
 		// Otherwise, compare coerced u32.
 		(left, right) => (u32::from(left) == u32::from(right)).into(),
 	}
-}
-
-// delete this
-fn todo(message: &str) -> Result<Value> {
-	println!("unhandled expression: {message}");
-	// this is the complete wrong thing lmao
-	Err(crate::sestring2::Error::UnexpectedEof)
 }

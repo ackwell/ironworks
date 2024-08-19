@@ -13,7 +13,8 @@ pub enum Style {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorUsage {
 	Foreground,
-	Outline,
+	Edge,
+	Shadow,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -51,7 +52,7 @@ pub fn color_type<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Resul
 }
 
 pub fn edge_color_type<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
-	handle_type(ColorUsage::Outline, arguments, state)
+	handle_type(ColorUsage::Edge, arguments, state)
 }
 
 fn handle_type<'a>(
@@ -76,7 +77,11 @@ pub fn color<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()>
 }
 
 pub fn edge_color<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
-	handle_color(ColorUsage::Outline, arguments, state)
+	handle_color(ColorUsage::Edge, arguments, state)
+}
+
+pub fn shadow_color<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	handle_color(ColorUsage::Shadow, arguments, state)
 }
 
 fn handle_color<'a>(

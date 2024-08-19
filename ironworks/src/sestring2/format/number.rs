@@ -2,6 +2,13 @@ use crate::sestring2::error::Result;
 
 use super::{argument::Arguments, format::State};
 
+// Untested; No usages in excel as of 2024-08-20.
+pub fn hex<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let value = arguments.exhaustive::<u32>(state)?;
+	state.writer.write(&format!("{value:X}"));
+	Ok(())
+}
+
 pub fn kilo<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let (value, separator) = arguments.exhaustive::<(u32, String)>(state)?;
 
@@ -12,6 +19,23 @@ pub fn kilo<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 
 	state.writer.write(&formatted);
 
+	Ok(())
+}
+
+// Untested; No usages in excel as of 2024-08-20. The existence of this strongly
+// suggests that u32 is not sufficient to represent all possible values. I don't
+// want to think about what that means.
+pub fn byte<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let mut value = arguments.exhaustive::<u32>(state)?;
+	let mut suffix = "";
+	for next_suffix in ["K", "M", "G", "T"] {
+		if value < 1024 {
+			break;
+		}
+		value /= 1024;
+		suffix = next_suffix;
+	}
+	state.writer.write(&format!("{value}{suffix}"));
 	Ok(())
 }
 
@@ -66,6 +90,11 @@ mod test {
 	use super::*;
 
 	#[test]
+	fn hex() {
+		assert_eq!(resolve(super::hex, [Ok(Expression::U32(16911))]), "420F");
+	}
+
+	#[test]
 	fn kilo_unknown() {
 		assert_eq!(
 			resolve(kilo, [Ok(Expression::StackColor), Ok(str(b","))]),
@@ -86,6 +115,19 @@ mod test {
 		assert_eq!(
 			resolve(kilo, [Ok(Expression::U32(42069)), Ok(str(b","))]),
 			"42,069"
+		);
+	}
+
+	#[test]
+	fn byte_small() {
+		assert_eq!(resolve(byte, [Ok(Expression::U32(420))]), "420");
+	}
+
+	#[test]
+	fn byte_large() {
+		assert_eq!(
+			resolve(byte, [Ok(Expression::U32(420 * 1024 * 1024))]),
+			"420M"
 		);
 	}
 

@@ -28,6 +28,29 @@ pub fn pc_name<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<(
 	Ok(())
 }
 
+// Untested; No usages in excel as of 2024-08-20.
+pub fn if_pc_gender<'a>(mut arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let object_id = arguments.evaluate::<u32>(state)?;
+	let player = state.input.player(object_id);
+
+	let condition = match player.gender {
+		Gender::Male => true,
+		Gender::Female => false,
+	};
+
+	format_branch(condition, arguments, state)
+}
+
+// Untested; No usages in excel as of 2024-08-20.
+pub fn if_pc_name<'a>(mut arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let (object_id, name) = arguments.evaluate::<(u32, String)>(state)?;
+	let player = state.input.player(object_id);
+
+	let condition = player.name == name;
+
+	format_branch(condition, arguments, state)
+}
+
 pub fn if_self<'a>(mut arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let object_id = arguments.evaluate::<Value>(state)?;
 	let player_id = state.input.local_player_id();
