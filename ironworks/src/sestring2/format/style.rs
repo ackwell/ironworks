@@ -2,7 +2,7 @@ use crate::sestring2::{error::Result, expression::Expression};
 
 use super::{argument::Arguments, expression::evaluate_expression, format::State};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Style {
 	Bold,
 	Italic,
@@ -10,13 +10,13 @@ pub enum Style {
 	Shadow,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorUsage {
 	Foreground,
 	Outline,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Color {
 	pub r: u8,
 	pub g: u8,
@@ -94,7 +94,7 @@ fn handle_color<'a>(
 	};
 
 	let color: u32 = evaluate_expression(expression, state)?.into();
-	let [b, g, r, a] = color.to_le_bytes();
+	let [a, r, g, b] = color.to_be_bytes();
 	let color = Color { r, g, b, a };
 	state.writer.push_color(usage, color);
 

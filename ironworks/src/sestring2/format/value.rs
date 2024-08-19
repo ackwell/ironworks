@@ -1,6 +1,6 @@
 use std::ops::Not;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
 	U32(u32),
 	String(String),
@@ -23,12 +23,24 @@ impl Not for Value {
 	}
 }
 
+impl From<u32> for Value {
+	fn from(value: u32) -> Self {
+		Self::U32(value)
+	}
+}
+
 impl From<bool> for Value {
 	fn from(value: bool) -> Self {
 		match value {
 			true => Value::TRUE,
 			false => Value::FALSE,
 		}
+	}
+}
+
+impl From<String> for Value {
+	fn from(value: String) -> Self {
+		Self::String(value)
 	}
 }
 
@@ -47,21 +59,21 @@ impl From<Value> for u32 {
 	}
 }
 
+impl From<Value> for bool {
+	fn from(value: Value) -> Self {
+		match u32::from(value) {
+			0 => false,
+			_ => true,
+		}
+	}
+}
+
 impl From<Value> for String {
 	fn from(value: Value) -> Self {
 		match value {
 			Value::U32(number) => number.to_string(),
 			Value::String(string) => string,
 			Value::Unknown => "UNKNOWN".to_string(),
-		}
-	}
-}
-
-impl From<Value> for bool {
-	fn from(value: Value) -> Self {
-		match u32::from(value) {
-			0 => false,
-			_ => true,
 		}
 	}
 }

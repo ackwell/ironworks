@@ -19,6 +19,8 @@ mod test;
 pub use {
 	format::format,
 	input::Input,
+	runtime::{Gender, Player},
 	style::{Color, ColorUsage, Style},
+	value::Value,
 	write::{PlainString, Write},
 };

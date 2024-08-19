@@ -3,23 +3,43 @@ use crate::sestring2::error::{Error, Result};
 use super::{
 	argument::Arguments,
 	format::{format_expression, State},
+	value::Value,
 };
 
-// TODO: These checks test against runtime data. How do?
+#[derive(Debug, Clone)]
+pub struct Player {
+	pub name: String,
+	pub gender: Gender,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gender {
+	// This is exclusively representative of gender as it exists in sestring
+	// formatting logic. I wish they supported more options, too.
+	Male,
+	Female,
+}
 
 pub fn pc_name<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
-	let _object_id = arguments.exhaustive::<u32>(state)?;
-
-	// TODO: old impl fetched from a discrete player name list. how should new impl handle it?
-
+	// This is letting unknown fall back to 0 - is that okay?
+	let object_id = arguments.exhaustive::<u32>(state)?;
+	let player = state.input.player(object_id);
+	state.writer.write(&player.name);
 	Ok(())
 }
 
 pub fn if_self<'a>(mut arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
-	let _object_id = arguments.evaluate::<u32>(state)?;
+	let object_id = arguments.evaluate::<Value>(state)?;
+	let player_id = state.input.local_player_id();
 
-	// TODO: check
-	format_branch(true, arguments, state)
+	let condition = match (object_id, player_id) {
+		// If we don't know either side of the equation, assume that there's a match.
+		(Value::Unknown, _) | (_, None) => true,
+		// We know both sides, coerce to u32 and compare.
+		(left, Some(right)) => u32::from(left) == right,
+	};
+
+	format_branch(condition, arguments, state)
 }
 
 // From control_flow
