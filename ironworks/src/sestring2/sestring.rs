@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use binrw::{binread, helpers::until_exclusive};
 
-use super::{cursor::SliceCursor, error::Error, payload::Payload};
+use super::{cursor::SliceCursor, error::Result, payload::Payload};
 
 // TODO: debug on this should probably be overwritten
 #[binread]
@@ -45,7 +45,7 @@ impl<'a> Payloads<'a> {
 }
 
 impl<'a> Iterator for Payloads<'a> {
-	type Item = Result<Payload<'a>, Error>;
+	type Item = Result<Payload<'a>>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		// EOF, stop iteration.
@@ -93,7 +93,6 @@ mod test {
 		let sestring = SeString {
 			data: Cow::Owned(bytes.to_vec()),
 		};
-		println!("{:?}", sestring.payloads().collect::<Vec<_>>());
 		assert_eq!(sestring.payloads().count(), expected)
 	}
 }

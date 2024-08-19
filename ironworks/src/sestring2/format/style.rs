@@ -2,7 +2,7 @@ use crate::sestring2::{error::Result, expression::Expression};
 
 use super::{argument::Arguments, expression::evaluate_expression, format::State};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
 	Bold,
 	Italic,
@@ -10,7 +10,7 @@ pub enum Style {
 	Shadow,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorUsage {
 	Foreground,
 	Outline,

@@ -20,5 +20,5 @@ pub use {
 	format::format,
 	input::Input,
 	style::{Color, ColorUsage, Style},
-	write::Write,
+	write::{PlainString, Write},
 };
