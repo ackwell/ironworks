@@ -30,7 +30,7 @@ where
 }
 
 pub fn str(content: &[u8]) -> Expression {
-	Expression::SeString(SeString::from(content))
+	Expression::SeString(SeString::new(content))
 }
 
 struct TestWriter(String);

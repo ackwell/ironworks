@@ -1,13 +1,8 @@
 use std::{borrow::Cow, fmt};
 
-use binrw::{binread, helpers::until_exclusive};
-
 use super::{cursor::SliceCursor, error::Result, payload::Payload};
 
-#[binread]
 pub struct SeString<'a> {
-	// not convinced by having binread in this
-	#[br(parse_with = until_exclusive(|&byte| byte == 0))]
 	data: Cow<'a, [u8]>,
 }
 
@@ -19,17 +14,13 @@ impl fmt::Debug for SeString<'_> {
 	}
 }
 
-impl<'a> From<&'a [u8]> for SeString<'a> {
-	fn from(value: &'a [u8]) -> Self {
-		Self {
-			data: Cow::Borrowed(value),
-		}
-	}
-}
-
 impl<'a> SeString<'a> {
+	pub fn new(data: impl Into<Cow<'a, [u8]>>) -> Self {
+		Self { data: data.into() }
+	}
+
 	pub fn as_ref(&'a self) -> SeString<'a> {
-		Self::from(self.data.as_ref())
+		Self::new(self.data.as_ref())
 	}
 
 	pub fn payloads(&'a self) -> Payloads<'a> {

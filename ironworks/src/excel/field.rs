@@ -1,12 +1,12 @@
 use enum_as_inner::EnumAsInner;
 
-use crate::sestring::SeString;
+use crate::sestring2::SeString;
 
 /// A single field from an Excel database.
 #[allow(missing_docs)]
 #[derive(Debug, EnumAsInner)]
 pub enum Field {
-	String(SeString),
+	String(SeString<'static>),
 
 	Bool(bool),
 

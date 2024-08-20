@@ -96,7 +96,7 @@ fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>
 		return Err(Error::InvalidExpression);
 	};
 	let string_length = usize::try_from(length).unwrap();
-	let string = SeString::from(cursor.take(string_length)?);
+	let string = SeString::new(cursor.take(string_length)?);
 	Ok(string)
 }
 

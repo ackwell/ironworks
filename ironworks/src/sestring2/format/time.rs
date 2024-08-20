@@ -76,7 +76,7 @@ mod test {
 		]
 		.concat();
 
-		let sestring = SeString::from(content.as_slice());
+		let sestring = SeString::new(content.as_slice());
 
 		with_state(|state| {
 			format_sestring(sestring, state).expect("format should not fail");
