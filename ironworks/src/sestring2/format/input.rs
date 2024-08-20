@@ -116,3 +116,29 @@ impl Input {
 			)
 	}
 }
+
+// Notes on global parameters:
+// See also https://github.com/aers/FFXIVClientStructs/blob/36a3e4ce143aa839e9321527e5a825236b0df7fc/FFXIVClientStructs/FFXIV/Component/Text/MacroDecoder.cs#L15
+// 0: Very unsure on this one. Switches some copy about ending a duty recording?
+// 4: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+// 5: Might be gender related? used in french to switch between some attributive lookups
+// 6: Gender?
+// 7 | 8: seems to be something related to game community tools, is used for fc and pvp team related messages
+// 11 | 12: 11 is an hour-of-the-day value, 12 is minutes of the hour. no idea how these are linked to the player object. xivapi calls them in_game_hours and in_game_minutes
+// 13..=44 | 57..=65: according to xivapi, these are all configured colours? lines up with their use in logmessage i guess
+// 52 | 53 | 54: used in addon:102476. it's related to pvp or gc or something. i have no wish to look further.
+// 66 | 67: Something to do with the french.
+// 68: seems to be related to classjob in some way? xivapi has as classjob_id
+// 70: seemingly used to pick from the 3 starting town consortium NPCs. might be starting city?
+// 71: Race. 3 is lala, not sure about the others.
+// 74: quest/005/ManFst300_00511 (2466) Japanese 112/0 col 1, seems to be related to whether you've met ralph before? possibly NG+ related?
+// 75: Related to controller state. 0 for "gamepad", >0 for "gamepad". addon@1760 suggests 1 might have something to do with xhb?
+// 76: Legacy character status, presumably bool. 1 is legacy, 0 not.
+// 77: Seemingly related to region? used in a date formatting string, 3 formats as D/M/Y, non-3 is formatted as M/D/Y, so i assume 3 is europe.
+// 78: platform. 3 is OSX
+// 79: quest/005/FesVlt102_00515:2/0
+// 80: I _think_ this is boolean of keyboard vs controller state, true is controller?
+// 83: Time... zone? addon:9280/0, uses a if/switch combo to check 0..=5, each of which has identical content but for the set reset time payload.
+// 84..=90: CWLS2..=8 colour?
+// 92: similar to 70, but picks between GC quartermasters. Might be GC affiliation of the player?
+// 94: Something about keyboard?

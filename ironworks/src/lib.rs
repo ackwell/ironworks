@@ -14,8 +14,6 @@ mod utility;
 pub mod excel;
 pub mod file;
 #[cfg(feature = "sestring")]
-pub mod sestring;
-#[cfg(feature = "sestring")]
 pub mod sestring2;
 #[cfg(feature = "sqpack")]
 pub mod sqpack;
