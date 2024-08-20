@@ -1,6 +1,6 @@
 use time::{ext::NumericalDuration, OffsetDateTime};
 
-use crate::sestring2::error::{Error, Result};
+use crate::sestring::error::{Error, Result};
 
 use super::{argument::Arguments, format::State, value::Value};
 
@@ -55,7 +55,7 @@ pub fn set_reset_time<'a>(arguments: impl Arguments<'a>, state: &mut State) -> R
 
 #[cfg(test)]
 mod test {
-	use crate::sestring2::{
+	use crate::sestring::{
 		format::{format::format_sestring, test::with_state},
 		sestring::SeString,
 	};

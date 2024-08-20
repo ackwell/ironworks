@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::sestring2::error::Result;
+use crate::sestring::error::Result;
 
 use super::style::{Color, ColorUsage, Style};
 

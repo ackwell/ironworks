@@ -1,6 +1,6 @@
 use time::OffsetDateTime;
 
-use crate::sestring2::{
+use crate::sestring::{
 	error::{Error, Result},
 	expression::Expression,
 	sestring::SeString,

@@ -1,4 +1,4 @@
-use crate::sestring2::error::{Error, Result};
+use crate::sestring::error::{Error, Result};
 
 use super::{
 	argument::Arguments,
@@ -50,7 +50,7 @@ fn format_branch<'a>(
 
 #[cfg(test)]
 mod test {
-	use crate::sestring2::{
+	use crate::sestring::{
 		expression::Expression,
 		format::test::{resolve, str},
 	};

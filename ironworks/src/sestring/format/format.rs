@@ -1,4 +1,4 @@
-use crate::sestring2::{
+use crate::sestring::{
 	error::Result,
 	expression::Expression,
 	macro_kind::MacroKind,

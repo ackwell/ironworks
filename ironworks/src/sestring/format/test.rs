@@ -1,4 +1,4 @@
-use crate::sestring2::{error::Result, expression::Expression, format, sestring::SeString};
+use crate::sestring::{error::Result, expression::Expression, format, sestring::SeString};
 
 use super::{format::State, time};
 

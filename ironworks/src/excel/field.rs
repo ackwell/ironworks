@@ -1,6 +1,6 @@
 use enum_as_inner::EnumAsInner;
 
-use crate::sestring2::SeString;
+use crate::sestring::SeString;
 
 /// A single field from an Excel database.
 #[allow(missing_docs)]

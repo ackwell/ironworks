@@ -1,4 +1,4 @@
-use crate::sestring2::{
+use crate::sestring::{
 	error::{Error, Result},
 	expression::Expression,
 };

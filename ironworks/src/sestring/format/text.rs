@@ -1,4 +1,4 @@
-use crate::sestring2::error::Result;
+use crate::sestring::error::Result;
 
 use super::{argument::Arguments, format::State};
 
@@ -81,7 +81,7 @@ pub fn ruby<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 
 #[cfg(test)]
 mod test {
-	use crate::sestring2::{
+	use crate::sestring::{
 		expression::Expression,
 		format::test::{resolve, str},
 	};

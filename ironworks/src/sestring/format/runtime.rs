@@ -1,4 +1,4 @@
-use crate::sestring2::error::{Error, Result};
+use crate::sestring::error::{Error, Result};
 
 use super::{
 	argument::Arguments,

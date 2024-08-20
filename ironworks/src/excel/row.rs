@@ -5,7 +5,7 @@ use binrw::{binread, helpers::until_exclusive, BinReaderExt, BinResult};
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::exh,
-	sestring2::SeString,
+	sestring::SeString,
 };
 
 use super::field::Field;
