@@ -1,17 +1,9 @@
 use std::{borrow::Cow, fmt};
 
-use super::{cursor::SliceCursor, error::Result, payload::Payload};
+use super::{cursor::SliceCursor, error::Result, format, payload::Payload};
 
 pub struct SeString<'a> {
 	data: Cow<'a, [u8]>,
-}
-
-impl fmt::Debug for SeString<'_> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		f.debug_struct("SeString")
-			.field("data", &format!("&[u8; {}]", self.data.len()))
-			.finish()
-	}
 }
 
 impl<'a> SeString<'a> {
@@ -25,6 +17,31 @@ impl<'a> SeString<'a> {
 
 	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
+	}
+
+	pub fn format(&self) -> Result<String> {
+		let input = format::Input::new();
+		let mut writer = format::PlainString::new();
+		format::format(self.as_ref(), &input, &mut writer)?;
+		Ok(writer.into())
+	}
+}
+
+impl fmt::Display for SeString<'_> {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self.format() {
+			Ok(string) => string.fmt(formatter),
+			Err(_error) => "invalid SeString".fmt(formatter),
+		}
+	}
+}
+
+impl fmt::Debug for SeString<'_> {
+	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+		formatter
+			.debug_struct("SeString")
+			.field("data", &format!("&[u8; {}]", self.data.len()))
+			.finish()
 	}
 }
 
