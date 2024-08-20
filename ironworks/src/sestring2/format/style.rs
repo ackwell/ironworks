@@ -43,7 +43,7 @@ pub fn shadow<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()
 
 fn style_toggle<'a>(style: Style, arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let enabled = arguments.exhaustive::<bool>(state)?;
-	state.writer.set_style(style, enabled);
+	state.writer.set_style(style, enabled)?;
 	Ok(())
 }
 
@@ -62,10 +62,10 @@ fn handle_type<'a>(
 ) -> Result<()> {
 	let id = arguments.exhaustive::<u32>(state)?;
 	match id {
-		0 => state.writer.pop_color(usage),
+		0 => state.writer.pop_color(usage)?,
 		other => {
 			let color = state.input.color(usage, other);
-			state.writer.push_color(usage, color);
+			state.writer.push_color(usage, color)?;
 		}
 	}
 
@@ -92,7 +92,7 @@ fn handle_color<'a>(
 	let expression = match arguments.exhaustive::<Expression>(state)? {
 		// StackColor represents an immediate pop for this usage.
 		Expression::StackColor => {
-			state.writer.pop_color(usage);
+			state.writer.pop_color(usage)?;
 			return Ok(());
 		}
 		other => other,
@@ -101,7 +101,7 @@ fn handle_color<'a>(
 	let color: u32 = evaluate_expression(expression, state)?.into();
 	let [a, r, g, b] = color.to_be_bytes();
 	let color = Color { r, g, b, a };
-	state.writer.push_color(usage, color);
+	state.writer.push_color(usage, color)?;
 
 	Ok(())
 }

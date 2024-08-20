@@ -2,7 +2,6 @@ use crate::sestring2::{error::Result, expression::Expression, format, sestring::
 
 use super::{format::State, time};
 
-// todo: try (again) to make a mapped ok version of this
 pub fn resolve<'a, F, I>(r#fn: F, input: I) -> String
 where
 	F: FnOnce(I::IntoIter, &mut State) -> Result<()>,
@@ -36,19 +35,20 @@ pub fn str(content: &[u8]) -> Expression {
 
 struct TestWriter(String);
 impl format::Write for TestWriter {
-	fn write(&mut self, str: &str) {
-		self.0.push_str(str)
+	fn write_str(&mut self, str: &str) -> Result<()> {
+		self.0.push_str(str);
+		Ok(())
 	}
 
-	fn set_style(&mut self, style: format::Style, enabled: bool) {
-		self.write(&format!("[[set_style({style:?}, {enabled:?})]]"))
+	fn set_style(&mut self, style: format::Style, enabled: bool) -> Result<()> {
+		self.write_str(&format!("[[set_style({style:?}, {enabled:?})]]"))
 	}
 
-	fn push_color(&mut self, usage: format::ColorUsage, color: format::Color) {
-		self.write(&format!("[[push_color({usage:?}, {color:?})]]"))
+	fn push_color(&mut self, usage: format::ColorUsage, color: format::Color) -> Result<()> {
+		self.write_str(&format!("[[push_color({usage:?}, {color:?})]]"))
 	}
 
-	fn pop_color(&mut self, usage: format::ColorUsage) {
-		self.write(&format!("[[pop_color({usage:?})]]"))
+	fn pop_color(&mut self, usage: format::ColorUsage) -> Result<()> {
+		self.write_str(&format!("[[pop_color({usage:?})]]"))
 	}
 }

@@ -1,16 +1,22 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt};
 
 use binrw::{binread, helpers::until_exclusive};
 
 use super::{cursor::SliceCursor, error::Result, payload::Payload};
 
-// TODO: debug on this should probably be overwritten
 #[binread]
-#[derive(Debug)]
 pub struct SeString<'a> {
 	// not convinced by having binread in this
 	#[br(parse_with = until_exclusive(|&byte| byte == 0))]
 	data: Cow<'a, [u8]>,
+}
+
+impl fmt::Debug for SeString<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("SeString")
+			.field("data", &format!("&[u8; {}]", self.data.len()))
+			.finish()
+	}
 }
 
 impl<'a> From<&'a [u8]> for SeString<'a> {

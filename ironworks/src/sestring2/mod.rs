@@ -5,7 +5,6 @@ mod macro_kind;
 mod payload;
 mod sestring;
 
-// TODO: is this how i wanna handle it?
 pub mod format;
 
 pub use {

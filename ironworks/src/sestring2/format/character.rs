@@ -4,7 +4,7 @@ use super::{argument::Arguments, format::State, value::Value};
 
 pub fn new_line<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	arguments.exhaustive::<()>(state)?;
-	state.writer.write("\n");
+	state.writer.write_str("\n")?;
 	Ok(())
 }
 
@@ -12,25 +12,25 @@ pub fn new_line<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<
 pub fn key<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	// Absolutely no idea what this arg is used for. Seemingly receives a U32 in the 8.2m range _sometimes_.
 	let _unknown = arguments.exhaustive::<Option<Value>>(state)?;
-	state.writer.write("\n");
+	state.writer.write_str("\n")?;
 	Ok(())
 }
 
 pub fn soft_hyphen<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	arguments.exhaustive::<()>(state)?;
-	state.writer.write("\u{00AD}");
+	state.writer.write_str("\u{00AD}")?;
 	Ok(())
 }
 
 pub fn non_breaking_space<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	arguments.exhaustive::<()>(state)?;
-	state.writer.write("\u{0020}");
+	state.writer.write_str("\u{0020}")?;
 	Ok(())
 }
 
 pub fn hyphen<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	arguments.exhaustive::<()>(state)?;
-	state.writer.write("\u{2013}");
+	state.writer.write_str("\u{2013}")?;
 	Ok(())
 }
 

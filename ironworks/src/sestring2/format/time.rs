@@ -21,7 +21,6 @@ pub fn set_time<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<
 pub fn set_reset_time<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let (target_hour, target_weekday) = arguments.exhaustive::<(u32, Option<u32>)>(state)?;
 
-	// TODO: is this correct?
 	let time = state.time;
 	let mut datetime =
 		OffsetDateTime::from_unix_timestamp(time.into()).map_err(|_error| Error::InvalidMacro)?;

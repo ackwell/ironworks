@@ -1,10 +1,19 @@
+use std::fmt;
+
 use super::error::{Error, Result};
 
-// TODO: debug on this should probably be overwritten to (len,offset)
-#[derive(Debug)]
 pub struct SliceCursor<'a> {
 	data: &'a [u8],
 	offset: usize,
+}
+
+impl fmt::Debug for SliceCursor<'_> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("SliceCursor")
+			.field("data", &format!("&[u8; {}]", self.data.len()))
+			.field("offset", &self.offset)
+			.finish()
+	}
 }
 
 impl<'a> SliceCursor<'a> {

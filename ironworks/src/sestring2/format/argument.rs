@@ -59,7 +59,6 @@ impl<'a> TryFromArguments<'a> for u32 {
 	}
 }
 
-// todo: is this worth having?
 impl<'a> TryFromArguments<'a> for bool {
 	fn try_from_arguments(arguments: &mut impl Arguments<'a>, state: &State) -> Result<Self> {
 		Value::try_from_arguments(arguments, state).map(bool::from)

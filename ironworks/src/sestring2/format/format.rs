@@ -31,7 +31,7 @@ pub fn format(sestring: SeString, input: &Input, writer: &mut impl Write) -> Res
 pub fn format_sestring(sestring: SeString, state: &mut State) -> Result<()> {
 	for payload in sestring.payloads() {
 		match payload? {
-			Payload::Text(inner) => state.writer.write(inner.as_utf8()?),
+			Payload::Text(inner) => state.writer.write_str(inner.as_utf8()?)?,
 			Payload::Macro(inner) => format_macro(inner, state)?,
 		}
 	}
@@ -128,7 +128,7 @@ pub fn format_expression(expression: Expression, state: &mut State) -> Result<()
 		// Anything else, try to evaluate it and print as a string.
 		other => {
 			let string: String = evaluate_expression(other, state)?.into();
-			state.writer.write(&string);
+			state.writer.write_str(&string)?;
 			Ok(())
 		}
 	}

@@ -5,7 +5,7 @@ use super::{argument::Arguments, format::State};
 // Untested; No usages in excel as of 2024-08-20.
 pub fn hex<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let value = arguments.exhaustive::<u32>(state)?;
-	state.writer.write(&format!("{value:X}"));
+	state.writer.write_str(&format!("{value:X}"))?;
 	Ok(())
 }
 
@@ -17,7 +17,7 @@ pub fn kilo<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 		other => format_float(other, 1000, &separator),
 	};
 
-	state.writer.write(&formatted);
+	state.writer.write_str(&formatted)?;
 
 	Ok(())
 }
@@ -35,22 +35,22 @@ pub fn byte<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 		value /= 1024;
 		suffix = next_suffix;
 	}
-	state.writer.write(&format!("{value}{suffix}"));
+	state.writer.write_str(&format!("{value}{suffix}"))?;
 	Ok(())
 }
 
 pub fn sec<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let value = arguments.exhaustive::<u32>(state)?;
-	state.writer.write(&format!("{value:02}"));
+	state.writer.write_str(&format!("{value:02}"))?;
 	Ok(())
 }
 
 pub fn digit<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let (value, length) = arguments.exhaustive::<(u32, u32)>(state)?;
-	state.writer.write(&format!(
+	state.writer.write_str(&format!(
 		"{value:0length$}",
 		length = usize::try_from(length).unwrap()
-	));
+	))?;
 	Ok(())
 }
 
@@ -59,7 +59,9 @@ pub fn float<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()>
 	let (value, radix, separator, _unused) =
 		arguments.exhaustive::<(u32, u32, String, Option<u32>)>(state)?;
 
-	state.writer.write(&format_float(value, radix, &separator));
+	state
+		.writer
+		.write_str(&format_float(value, radix, &separator))?;
 
 	Ok(())
 }
@@ -76,7 +78,7 @@ pub fn ordinal<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<(
 	// TODO: This apparently only has effect beyond outputting the number in
 	// english? Not sure how I'd communicate the string's language to this area of
 	// the formattter, so omitting the suffix for now.
-	state.writer.write(&format!("{value}"));
+	state.writer.write_str(&format!("{value}"))?;
 	Ok(())
 }
 

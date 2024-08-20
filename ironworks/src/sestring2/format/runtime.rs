@@ -24,7 +24,7 @@ pub fn pc_name<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<(
 	// This is letting unknown fall back to 0 - is that okay?
 	let object_id = arguments.exhaustive::<u32>(state)?;
 	let player = state.input.player(object_id);
-	state.writer.write(&player.name);
+	state.writer.write_str(&player.name)?;
 	Ok(())
 }
 

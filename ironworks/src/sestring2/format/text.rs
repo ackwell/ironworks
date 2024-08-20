@@ -4,7 +4,7 @@ use super::{argument::Arguments, format::State};
 
 pub fn caps<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let input = arguments.exhaustive::<String>(state)?;
-	state.writer.write(&input.to_uppercase());
+	state.writer.write_str(&input.to_uppercase())?;
 	Ok(())
 }
 
@@ -15,14 +15,14 @@ pub fn head<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 	// state, and b) using a state method wrapper around the writer to apply
 	// current text formats before writing output strings.
 	let input = arguments.exhaustive::<String>(state)?;
-	state.writer.write(&head_str(&input));
+	state.writer.write_str(&head_str(&input))?;
 	Ok(())
 }
 
 pub fn head_all<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let input = arguments.exhaustive::<String>(state)?;
 	let output = input.split_inclusive(' ').map(head_str).collect::<String>();
-	state.writer.write(&output);
+	state.writer.write_str(&output)?;
 	Ok(())
 }
 
@@ -43,14 +43,14 @@ pub fn lower_head<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Resul
 		None => input,
 	};
 
-	state.writer.write(&output);
+	state.writer.write_str(&output)?;
 
 	Ok(())
 }
 
 pub fn lower<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let input = arguments.exhaustive::<String>(state)?;
-	state.writer.write(&input.to_lowercase());
+	state.writer.write_str(&input.to_lowercase())?;
 	Ok(())
 }
 
@@ -62,7 +62,7 @@ pub fn split<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()>
 		.nth(index.try_into().unwrap())
 		.unwrap_or("");
 
-	state.writer.write(&output);
+	state.writer.write_str(&output)?;
 
 	Ok(())
 }
@@ -72,7 +72,9 @@ pub fn ruby<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> 
 
 	// TODO: this should realistically be exposed as a discrete call to the writer
 	// so they can do the proper layout, but that can be a later problem.
-	state.writer.write(&format!("{string} ({pronounciation})"));
+	state
+		.writer
+		.write_str(&format!("{string} ({pronounciation})"))?;
 
 	Ok(())
 }

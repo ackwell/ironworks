@@ -12,7 +12,6 @@ use super::{
 	write::Write,
 };
 
-// todo: does this need state? or just input. maybe impl Into<input>?
 pub fn evaluate_expression(expression: Expression, state: &State) -> Result<Value> {
 	let input = state.input;
 	let eval = |expr: Box<Expression>| evaluate_expression(*expr, state);
@@ -63,19 +62,21 @@ fn evaluate_sestring(sestring: SeString, state: &State) -> Result<Value> {
 
 struct EvaluationWriter(String);
 impl Write for EvaluationWriter {
-	fn write(&mut self, str: &str) {
-		self.0.push_str(str)
+	fn write_str(&mut self, str: &str) -> Result<()> {
+		self.0.push_str(str);
+		Ok(())
 	}
 
-	fn set_style(&mut self, _style: super::Style, _enabled: bool) {
+	fn set_style(&mut self, _style: super::Style, _enabled: bool) -> Result<()> {
 		// noop, ref. LogMessage@German 4148:0
+		Ok(())
 	}
 
-	fn push_color(&mut self, _usage: super::ColorUsage, _color: super::Color) {
+	fn push_color(&mut self, _usage: super::ColorUsage, _color: super::Color) -> Result<()> {
 		unimplemented!()
 	}
 
-	fn pop_color(&mut self, _usage: super::ColorUsage) {
+	fn pop_color(&mut self, _usage: super::ColorUsage) -> Result<()> {
 		unimplemented!()
 	}
 }
