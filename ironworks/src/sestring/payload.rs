@@ -10,6 +10,8 @@ use super::{
 const MACRO_START: u8 = 0x02;
 const MACRO_END: u8 = 0x03;
 
+/// A single section of data within an [`SeString`][super::SeString].
+#[allow(missing_docs)]
 #[derive(Debug, PartialEq)]
 pub enum Payload<'a> {
 	Text(TextPayload<'a>),
@@ -47,28 +49,41 @@ impl<'a> Payload<'a> {
 	}
 }
 
+/// A payload within an [`SeString`][super::SeString] representing UTF8 text.
 #[derive(Debug, PartialEq)]
 pub struct TextPayload<'a>(&'a [u8]);
 
 impl<'a> TextPayload<'a> {
+	/// Tries to retrieve the underlying string representation of the payload.
+	/// Will fail if text is invalid UTF8.
 	pub fn as_utf8(&self) -> Result<&'a str> {
 		str::from_utf8(&self.0).map_err(|_error| Error::InvalidText)
 	}
 }
 
+/// A payload within an [`SeString`][super::SeString] representing dynamic logic
+/// that should be resolved at that point of the string.
+///
+/// Macros function similarly to function calls, having an identifier and 0-N
+/// [`Expression`]s as arguments. Each macro has its own signature, see
+/// [MacroKind] for more information.
 #[derive(Debug, PartialEq)]
 pub struct MacroPayload<'a>(MacroKind, &'a [u8]);
 
 impl<'a> MacroPayload<'a> {
+	/// Returns the macro this payload represents a call to.
 	pub fn kind(&self) -> MacroKind {
 		self.0
 	}
 
+	/// Returns an iterator over [`Expression`]s within this macro call.
 	pub fn expressions(&self) -> Expressions<'a> {
 		Expressions::new(self.1)
 	}
 }
 
+/// Iterator over [`Expression`]s within a [`MacroPayload`]. As expressions are
+/// read on demand, iteration may fail if an expression is invalid.
 #[derive(Debug)]
 pub struct Expressions<'a> {
 	cursor: SliceCursor<'a>,

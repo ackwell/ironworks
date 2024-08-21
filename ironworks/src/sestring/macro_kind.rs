@@ -3,6 +3,12 @@ use num_enum::FromPrimitive;
 // Based on Lumina implementation as of 2024-08-10
 // https://github.com/NotAdam/Lumina/blob/e99b736f18b0962a28d326cd290490b121ed679b/src/Lumina/Text/Payloads/MacroCode.cs
 
+/// Macro functions that may be used in a
+/// [payload](super::payload::MacroPayload).
+///
+/// Each macro has discrete behavior and expected arguments. Check
+/// [`format`](super::format) for examples of implemented behavior.
+#[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, FromPrimitive)]
 #[repr(u8)]

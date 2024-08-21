@@ -1,5 +1,13 @@
 use std::ops::Not;
 
+/// Data representation used when formatting strings.
+///
+/// All values must be either numeric or strings. Booleans may be represented
+/// with `0` for `false`, and any non-zero number for `true`.
+///
+/// A special-cased third value `Unknown` is provided for explicit fallback
+/// handling in cases where expected string parameters are not provided.
+#[allow(missing_docs)]
 #[derive(Debug, Clone)]
 pub enum Value {
 	U32(u32),
@@ -8,7 +16,9 @@ pub enum Value {
 }
 
 impl Value {
+	/// Shorthand for a truthy [`Value::U32`].
 	pub const TRUE: Value = Value::U32(1);
+	/// Shorthand for a falsey [`Value::U32`].
 	pub const FALSE: Value = Value::U32(0);
 }
 

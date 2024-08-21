@@ -2,6 +2,8 @@ use crate::sestring::{error::Result, expression::Expression};
 
 use super::{argument::Arguments, expression::evaluate_expression, format::State};
 
+/// Toggleable font styling options.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Style {
 	Bold,
@@ -10,13 +12,21 @@ pub enum Style {
 	Shadow,
 }
 
+/// Aspects of text rendering that may be impacted by color formatting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorUsage {
+	/// Primary foreground color.
 	Foreground,
+
+	/// Outline color.
 	Edge,
+
+	/// Drop shadow color.
 	Shadow,
 }
 
+/// RGBA color used in string formatting.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
 	pub r: u8,

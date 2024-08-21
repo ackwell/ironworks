@@ -6,6 +6,14 @@ use super::{
 	value::Value,
 };
 
+/// Input data for formatting an [`SeString`](crate::sestring::SeString).
+///
+/// In-game, strings are able to utilise data from a number of sources,
+/// including excel sheets, object tables, and parameters provided to the text
+/// subsystems. This struct provides a means to emulate this behavior by
+/// providing inputs manually.
+///
+/// By default, most requests for input will return a fallback value.
 #[derive(Debug)]
 pub struct Input {
 	players: HashMap<u32, Player>,
@@ -16,6 +24,7 @@ pub struct Input {
 }
 
 impl Input {
+	/// Constructs a new `Input` instance with no provided data.
 	pub fn new() -> Self {
 		Self {
 			players: HashMap::new(),
@@ -26,50 +35,71 @@ impl Input {
 		}
 	}
 
+	/// Adds player data at the specified ID within the emulated object table.
 	pub fn add_player(&mut self, id: u32, player: Player) {
 		self.players.insert(id, player);
 	}
 
+	/// Sets the object table ID for the local player. This ID will be used for any
+	/// calls to [`add_player`](Self::add_player) that reference the local player
+	/// directly.
 	pub fn set_local_player_id(&mut self, id: u32) {
 		self.local_player = Some(id);
 	}
 
+	/// Adds a value to the local parameters array at the specified index. Local
+	/// parameters are typically string-specific, representing contextual data
+	/// that is relevant to that particular text usage. Local and global
+	/// parameters do not share index space.
 	pub fn add_local_parameter(&mut self, id: u32, value: impl Into<Value>) {
 		self.local.insert(id, value.into());
 	}
 
+	/// Adds a value to the global parameters array at the specified index.
+	/// In-game, global parameters are used for all string formatting, and have
+	/// well-known semantics for each index. Local and global parameters do not
+	/// share index space.
 	pub fn add_global_parameter(&mut self, id: u32, value: impl Into<Value>) {
 		self.global.insert(id, value.into());
 	}
 
+	/// Adds a color of the specified usage and id. These colors will be provided
+	/// to [`Write`](super::write::Write) implementations when strings call for
+	/// their usage. In-game, these values are typically retrieved from the
+	/// `UIColor` excel sheet.
 	pub fn add_color(&mut self, usage: ColorUsage, id: u32, color: Color) {
 		self.colors.entry(id).or_default().insert(usage, color);
 	}
 
+	/// Builder-style variant of [`add_player`](Self::add_player).
 	#[must_use]
 	pub fn with_player(mut self, id: u32, player: Player) -> Self {
 		self.add_player(id, player);
 		self
 	}
 
+	/// Builder-style variant of [`set_local_player_id`](Self::set_local_player_id).
 	#[must_use]
 	pub fn with_local_player_id(mut self, id: u32) -> Self {
 		self.set_local_player_id(id);
 		self
 	}
 
+	/// Builder-style variant of [`add_local_parameter`](Self::add_local_parameter).
 	#[must_use]
 	pub fn with_local_parameter(mut self, id: u32, value: impl Into<Value>) -> Self {
 		self.add_local_parameter(id, value);
 		self
 	}
 
+	/// Builder-style variant of [`add_global_parameter`](Self::add_global_parameter).
 	#[must_use]
 	pub fn with_global_parameter(mut self, id: u32, value: impl Into<Value>) -> Self {
 		self.add_global_parameter(id, value);
 		self
 	}
 
+	/// Builder-style variant of [`add_color`](Self::add_color).
 	#[must_use]
 	pub fn with_color(mut self, usage: ColorUsage, id: u32, color: Color) -> Self {
 		self.add_color(usage, id, color);

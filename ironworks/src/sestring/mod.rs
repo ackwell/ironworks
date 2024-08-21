@@ -1,3 +1,5 @@
+//! Types and helpers for working with the SeString rich text format.
+
 mod cursor;
 mod error;
 mod expression;

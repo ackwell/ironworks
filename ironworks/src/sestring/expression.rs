@@ -4,6 +4,12 @@ use super::{
 	sestring::SeString,
 };
 
+/// An expression passed as an argument to a
+/// [macro](super::payload::MacroPayload).
+///
+/// May represent scalar numeric or string values, formatting primitives, data
+/// lookups, or boolean logic.
+#[allow(missing_docs)]
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum Expression<'a> {

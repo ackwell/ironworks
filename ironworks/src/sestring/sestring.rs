@@ -2,23 +2,45 @@ use std::{borrow::Cow, fmt};
 
 use super::{cursor::SliceCursor, error::Result, format, payload::Payload};
 
+/// Square Enix rich text format.
+///
+/// SeString data consistes of a combination of UTF8 text and "macros" that
+/// perform operations ranging from text style and colour, to control flow and
+/// data lookups. Individual sections of an SeString are represented by
+/// [`Payload`]s.
+///
+/// This implementation does not eagerly parse the inner structures of the
+/// string, as such it may represent an invalid state until queried further.
 pub struct SeString<'a> {
 	data: Cow<'a, [u8]>,
 }
 
 impl<'a> SeString<'a> {
+	/// Constructs a new `SeString` from a byte slice.
 	pub fn new(data: impl Into<Cow<'a, [u8]>>) -> Self {
 		Self { data: data.into() }
 	}
 
+	/// Converts from `&'a SeString` to `SeString<'a>`. Useful for passing to methods
+	/// that expect an owned value.
 	pub fn as_ref(&'a self) -> SeString<'a> {
 		Self::new(self.data.as_ref())
 	}
 
+	/// Returns an iterator over [`Payload`]s within this string.
 	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
 	}
 
+	/// Attempts to format this SeString into a plain, unstyled UTF8 string, with
+	/// no input data.
+	///
+	/// As SeStrings are lazily parsed, this process may fail on invalid input.
+	/// If this is irrelevant to your use case, a [`fmt::Display`] implementation
+	/// is provided that will fall back to a placeholder value in this case.
+	///
+	/// If more control over the inputs and styling is desired, the [`format`]
+	/// module can be used directly.
 	pub fn format(&self) -> Result<String> {
 		let input = format::Input::new();
 		let mut writer = format::PlainString::new();
@@ -28,6 +50,12 @@ impl<'a> SeString<'a> {
 }
 
 impl fmt::Display for SeString<'_> {
+	/// Formats this string for display.
+	///
+	/// As SeString formatting is fallible, this implementation will fall back to
+	/// a placeholder value when invalid input is provided. If error handling is
+	/// needed for your use case, [`Self::format`] or the [`format`] module can be
+	/// used instead.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self.format() {
 			Ok(string) => string.fmt(formatter),
@@ -45,6 +73,8 @@ impl fmt::Debug for SeString<'_> {
 	}
 }
 
+/// Iterator over [`Payload`]s within an [`SeString`]. As payloads are read on
+/// demand, iteration may fail if a payload is invalid.
 #[derive(Debug)]
 pub struct Payloads<'a> {
 	cursor: SliceCursor<'a>,

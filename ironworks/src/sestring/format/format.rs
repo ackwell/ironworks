@@ -19,6 +19,12 @@ pub struct State<'a> {
 	pub time: u32,
 }
 
+/// Attempts to format an [`SeString`] using data from an [`Input`] into an a
+/// [`Write`] implementation.
+///
+/// Formatting may fail on invalid string inputs. All strings shipped with FFXIV
+/// are considered well-formed, please raise a bug report if an error is
+/// returned on a string from that source.
 pub fn format(sestring: SeString, input: &Input, writer: &mut impl Write) -> Result<()> {
 	let mut state = State {
 		input,

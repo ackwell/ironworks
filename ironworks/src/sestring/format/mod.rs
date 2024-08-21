@@ -1,3 +1,5 @@
+//! Utilities for formatting and writing `SeString`s.
+
 mod argument;
 mod character;
 mod control_flow;

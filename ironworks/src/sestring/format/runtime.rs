@@ -6,12 +6,19 @@ use super::{
 	value::Value,
 };
 
+/// Representation of a player character object as utilised by string formatting.
 #[derive(Debug, Clone)]
 pub struct Player {
+	/// Name of the player character. Names in FFXIV are required to be two words
+	/// seperated by a single space. Failing to follow this convention may lead to
+	/// malformed output.
 	pub name: String,
+	/// Gender of the player character.
 	pub gender: Gender,
 }
 
+/// Gender options as utilised by string formatting.
+#[allow(missing_docs)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Gender {
 	// This is exclusively representative of gender as it exists in sestring
