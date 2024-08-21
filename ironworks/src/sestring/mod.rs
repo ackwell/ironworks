@@ -1,9 +1,18 @@
-//! Types and helpers for working with the SeString string format.
+//! Types and helpers for working with the SeString rich text format.
 
-mod context;
+mod cursor;
+mod error;
 mod expression;
+mod macro_kind;
 mod payload;
 mod sestring;
-mod value;
 
-pub use sestring::SeString;
+pub mod format;
+
+pub use {
+	error::Error,
+	expression::Expression,
+	macro_kind::MacroKind,
+	payload::{Expressions, MacroPayload, Payload, TextPayload},
+	sestring::{Payloads, SeString},
+};

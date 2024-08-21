@@ -1,6 +1,6 @@
 use std::{io::Cursor, sync::Arc};
 
-use binrw::{BinReaderExt, BinResult};
+use binrw::{binread, helpers::until_exclusive, BinReaderExt, BinResult};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -93,7 +93,8 @@ impl Row {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
 				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size()));
-				F::String(cursor.read_be::<SeString>()?)
+				let wrapper = cursor.read_be::<SeStringWrapper>()?;
+				F::String(SeString::new(wrapper.0))
 			}
 
 			K::Bool => F::Bool(cursor.read_be::<u8>()? != 0),
@@ -126,3 +127,7 @@ impl Row {
 		Ok(field)
 	}
 }
+
+// In excel, SeStrings are stored with null terminators.
+#[binread]
+struct SeStringWrapper(#[br(parse_with = until_exclusive(|&byte| byte==0))] Vec<u8>);

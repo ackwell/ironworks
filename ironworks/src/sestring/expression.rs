@@ -1,25 +1,23 @@
-use std::io::{self, Cursor, Read, Seek};
-
-use binrw::{BinRead, BinResult, Endian};
-use time::OffsetDateTime;
-
-use crate::{error::Result, Error, ErrorValue};
-
 use super::{
-	context::Context,
-	value::{TryFromValue, Value},
-	SeString,
+	cursor::SliceCursor,
+	error::{Error, Result},
+	sestring::SeString,
 };
 
+/// An expression passed as an argument to a
+/// [macro](super::payload::MacroPayload).
+///
+/// May represent scalar numeric or string values, formatting primitives, data
+/// lookups, or boolean logic.
+#[allow(missing_docs)]
+#[non_exhaustive]
 #[derive(Debug)]
-pub enum Expression {
-	// Inline values
+pub enum Expression<'a> {
 	U32(u32),
-	String(SeString),
+	SeString(SeString<'a>),
 
-	// PLaceholders
-	UnknownD8, // used in a m:s:(this) setup, so presumably a sub-second value. is put in a two-digit zero-pad, so perhaps centiseconds?
-	Second,    // maybe?
+	Millisecond,
+	Second,
 	Minute,
 	Hour,
 	Day,
@@ -27,164 +25,33 @@ pub enum Expression {
 	Month,
 	Year,
 
-	// Expected to be placeholders
-	// TODO: Look into this more
-	UnknownEC,
+	StackColor,
 
-	// Comparators
-	Ge(Box<Expression>, Box<Expression>),
-	Gt(Box<Expression>, Box<Expression>),
-	Le(Box<Expression>, Box<Expression>),
-	Lt(Box<Expression>, Box<Expression>),
-	Eq(Box<Expression>, Box<Expression>),
-	Ne(Box<Expression>, Box<Expression>),
+	LocalNumber(Box<Expression<'a>>),
+	GlobalNumber(Box<Expression<'a>>),
+	LocalString(Box<Expression<'a>>),
+	GlobalString(Box<Expression<'a>>),
 
-	// Parameters, 1-indexed.
-	IntegerParameter(Box<Expression>),
-	PlayerParameter(Box<Expression>),
-	StringParameter(Box<Expression>),
-	ObjectParameter(Box<Expression>),
+	Ge(Box<Expression<'a>>, Box<Expression<'a>>),
+	Gt(Box<Expression<'a>>, Box<Expression<'a>>),
+	Le(Box<Expression<'a>>, Box<Expression<'a>>),
+	Lt(Box<Expression<'a>>, Box<Expression<'a>>),
+	Eq(Box<Expression<'a>>, Box<Expression<'a>>),
+	Ne(Box<Expression<'a>>, Box<Expression<'a>>),
+
+	Unknown(u8),
 }
 
-impl Expression {
-	pub fn resolve<V>(&self, context: &mut Context) -> Result<V>
-	where
-		V: TryFromValue,
-	{
-		let value = match self {
-			Self::U32(value) => Value::U32(*value),
-			Self::String(string) => Value::String(string.resolve(context)?),
+impl<'a> Expression<'a> {
+	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self> {
+		let kind = cursor.next()?;
 
-			// Given I have only educated guesses at what this does, and it's usage is relatively minimal, leaving as zero for now.
-			Self::UnknownD8 => Value::U32(0),
-			Self::Second => time(OffsetDateTime::second, context)?,
-			Self::Minute => time(OffsetDateTime::minute, context)?,
-			Self::Hour => time(OffsetDateTime::hour, context)?,
-			Self::Day => time(OffsetDateTime::day, context)?,
-			Self::Weekday => time(|dt| dt.weekday().number_from_sunday(), context)?,
-			Self::Month => time(|dt| u8::from(dt.month()), context)?,
-			Self::Year => time(OffsetDateTime::year, context)?,
-
-			Self::UnknownEC => Value::U32(Value::UNKNOWN),
-
-			Self::Ge(left, right) => compare(u32::ge, left, right, context)?,
-			Self::Gt(left, right) => compare(u32::gt, left, right, context)?,
-			Self::Le(left, right) => compare(u32::le, left, right, context)?,
-			Self::Lt(left, right) => compare(u32::lt, left, right, context)?,
-
-			Self::Eq(left, right) => Value::U32(match equal(left, right, context)? {
-				true => 1,
-				false => 0,
-			}),
-			Self::Ne(left, right) => Value::U32(match equal(left, right, context)? {
-				true => 0,
-				false => 1,
-			}),
-
-			Self::IntegerParameter(expression) => {
-				let index = expression.resolve(context)?;
-				Value::U32(context.integer_parameter(index))
-			}
-			Self::PlayerParameter(expression) => {
-				let index = expression.resolve(context)?;
-				Value::U32(context.player_parameter(index))
-			}
-			Self::StringParameter(expression) => {
-				let index = expression.resolve(context)?;
-				Value::String(context.string_parameter(index))
-			}
-			Self::ObjectParameter(expression) => {
-				let index = expression.resolve(context)?;
-				Value::String(context.object_parameter(index))
-			}
-		};
-
-		V::try_from_value(Some(value))
-	}
-}
-
-fn time<T>(get: impl FnOnce(OffsetDateTime) -> T, context: &mut Context) -> Result<Value>
-where
-	T: TryInto<u32>,
-	T::Error: std::error::Error,
-{
-	// Per addon@fr:8834/0, time placeholders without a SetTime payload seemingly
-	// work fine? So i'm just UNKNOWN'ing this.
-	let Some(timestamp) = context.time() else {
-		return Ok(Value::U32(Value::UNKNOWN));
-	};
-
-	let datetime = OffsetDateTime::from_unix_timestamp(timestamp.into())
-		.map_err(|error| Error::Invalid(ErrorValue::SeString, error.to_string()))?;
-
-	Ok(Value::U32(get(datetime).try_into().unwrap()))
-}
-
-fn compare(
-	cmp: impl for<'a, 'b> FnOnce(&'a u32, &'b u32) -> bool,
-	left: &Expression,
-	right: &Expression,
-	context: &mut Context,
-) -> Result<Value> {
-	let left: u32 = left.resolve(context)?;
-	let right: u32 = right.resolve(context)?;
-
-	// Unknown is treated as always-successful.
-	let success = left == Value::UNKNOWN || right == Value::UNKNOWN || cmp(&left, &right);
-
-	Ok(Value::U32(match success {
-		true => 1,
-		false => 0,
-	}))
-}
-
-fn equal(left: &Expression, right: &Expression, context: &mut Context) -> Result<bool> {
-	let left = left.resolve::<Value>(context)?;
-	let right = right.resolve::<Value>(context)?;
-
-	let success = match (left, right) {
-		// Either side being unknown is truthy.
-		(Value::U32(Value::UNKNOWN), _) | (_, Value::U32(Value::UNKNOWN)) => true,
-		// If both sides are strings, perform a string comparison.
-		(Value::String(left), Value::String(right)) => left == right,
-		// Otherwise, coerce to u32 and compare.
-		(left, right) => u32::try_from_value(Some(left))? == u32::try_from_value(Some(right))?,
-	};
-
-	Ok(success)
-}
-
-impl Expression {
-	// Utility for the commonly used read-expression-and-expect-it-to-be-a-number case.
-	pub fn read_u32<R: Read + Seek>(reader: &mut R, options: Endian) -> BinResult<u32> {
-		let expression = Self::read_options(reader, options, ())?;
-		match expression {
-			Self::U32(value) => Ok(value),
-			other => Err(binrw::Error::AssertFail {
-				pos: reader.stream_position()?,
-				message: format!("unexpected expression kind {other:?}, expected U32"),
-			}),
-		}
-	}
-}
-
-impl BinRead for Expression {
-	type Args<'a> = ();
-
-	fn read_options<R: Read + Seek>(
-		reader: &mut R,
-		options: Endian,
-		_args: Self::Args<'_>,
-	) -> BinResult<Self> {
-		let kind = u8::read_options(reader, options, ())?;
-
-		let mut read_expr =
-			|| -> BinResult<_> { Ok(Box::new(Expression::read_options(reader, options, ())?)) };
+		let mut read_inner = || Ok(Box::new(Expression::read(cursor)?));
 
 		let expression = match kind {
-			0x01..=0xCF => Self::U32(u32::from(kind - 1)),
+			value @ 0x01..=0xCF => Self::U32(u32::from(value - 1)),
 
-			0xD8 => Self::UnknownD8,
+			0xD8 => Self::Millisecond,
 			0xD9 => Self::Second,
 			0xDA => Self::Minute,
 			0xDB => Self::Hour,
@@ -193,54 +60,113 @@ impl BinRead for Expression {
 			0xDE => Self::Month,
 			0xDF => Self::Year,
 
-			0xE0 => Self::Ge(read_expr()?, read_expr()?),
-			0xE1 => Self::Gt(read_expr()?, read_expr()?),
-			0xE2 => Self::Le(read_expr()?, read_expr()?),
-			0xE3 => Self::Lt(read_expr()?, read_expr()?),
-			0xE4 => Self::Eq(read_expr()?, read_expr()?),
-			0xE5 => Self::Ne(read_expr()?, read_expr()?),
+			0xE0 => Self::Ge(read_inner()?, read_inner()?),
+			0xE1 => Self::Gt(read_inner()?, read_inner()?),
+			0xE2 => Self::Le(read_inner()?, read_inner()?),
+			0xE3 => Self::Lt(read_inner()?, read_inner()?),
+			0xE4 => Self::Eq(read_inner()?, read_inner()?),
+			0xE5 => Self::Ne(read_inner()?, read_inner()?),
 
-			0xE8 => Self::IntegerParameter(read_expr()?),
-			0xE9 => Self::PlayerParameter(read_expr()?),
-			0xEA => Self::StringParameter(read_expr()?),
-			0xEB => Self::ObjectParameter(read_expr()?),
+			0xE8 => Self::LocalNumber(read_inner()?),
+			0xE9 => Self::GlobalNumber(read_inner()?),
+			0xEA => Self::LocalString(read_inner()?),
+			0xEB => Self::GlobalString(read_inner()?),
 
-			// ??? seems to be used as a "reset" marker for color/edgecolor?
-			0xEC => Self::UnknownEC,
+			0xEC => Self::StackColor,
 
-			0xF0..=0xFE => Self::U32(read_packed_u32(kind, reader, options)?),
+			kind @ 0xF0..=0xFE => Self::U32(read_packed_u32(cursor, kind)?),
 
-			0xFF => Self::String(read_inline_sestring(reader, options)?),
+			0xFF => Self::SeString(read_inline_sestring(cursor)?),
 
-			other => Err(binrw::Error::AssertFail {
-				pos: reader.stream_position()?,
-				message: format!("unknown expression kind {other:#X}"),
-			})?,
+			other => Self::Unknown(other),
 		};
 
 		Ok(expression)
 	}
 }
 
-fn read_packed_u32<R: Read + Seek>(kind: u8, reader: &mut R, options: Endian) -> BinResult<u32> {
+fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32> {
 	let flags = (kind + 1) & 0b1111;
 	let mut bytes = [0; 4];
 	for i in (0..=3).rev() {
 		if (flags & (1 << i)) == 0 {
 			continue;
 		}
-		bytes[i] = u8::read_options(reader, options, ())?;
+		bytes[i] = cursor.next()?;
 	}
 	Ok(u32::from_le_bytes(bytes))
 }
 
-fn read_inline_sestring<R: Read + Seek>(reader: &mut R, options: Endian) -> BinResult<SeString> {
-	let length = Expression::read_u32(reader, options)?;
+fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>> {
+	let Expression::U32(length) = Expression::read(cursor)? else {
+		return Err(Error::InvalidExpression);
+	};
+	let string_length = usize::try_from(length).unwrap();
+	let string = SeString::new(cursor.take(string_length)?);
+	Ok(string)
+}
 
-	// Using take_seekable here causes an infinte recursion on type resolution that I can't quite work out how to fix.
-	let mut buffer = Cursor::new(Vec::with_capacity(length.try_into().unwrap()));
-	io::copy(&mut reader.take(length.into()), &mut buffer)?;
-	buffer.set_position(0);
-	let sestring = SeString::read_options(&mut buffer, options, ())?;
-	Ok(sestring)
+#[cfg(test)]
+mod test {
+	use super::*;
+
+	macro_rules! assert_matches {
+		($got:expr, $($expected:tt)+) => {
+			match $got {
+				$($expected)+ => (),
+				ref got => panic!("assertion failed: got {:?}, expected {}", got, stringify!($($expected)+))
+			}
+		}
+	}
+
+	#[test]
+	fn u32_simple() {
+		assert_matches!(read(&[0x01]), Expression::U32(0));
+		assert_matches!(read(&[0xB5]), Expression::U32(180));
+	}
+
+	#[test]
+	fn u32_packed() {
+		assert_matches!(read(&[0xF0, 0x34]), Expression::U32(52));
+		assert_matches!(read(&[0xF5, 0x18, 0x59]), Expression::U32(1595648));
+	}
+
+	#[test]
+	fn string() {
+		let got = read(b"\xFF\x05test");
+		let Expression::SeString(sestring) = got else {
+			panic!("expected SeString(_), got {got:?}")
+		};
+		assert_eq!(sestring.payloads().count(), 1);
+	}
+
+	#[test]
+	fn nullary() {
+		assert_matches!(read(&[0xD8]), Expression::Millisecond);
+		assert_matches!(read(&[0xEC]), Expression::StackColor);
+	}
+
+	#[test]
+	fn unary() {
+		let got = read(&[0xE9, 0x49]);
+		let Expression::GlobalNumber(inner) = got else {
+			panic!("expected GlobalNumber(_), got {got:?}");
+		};
+		assert_matches!(inner.as_ref(), Expression::U32(72));
+	}
+
+	#[test]
+	fn binary() {
+		let got = read(&[0xE0, 0x49, 0x65]);
+		let Expression::Ge(one, two) = got else {
+			panic!("expected Ge(_, _), got {got:?}");
+		};
+		assert_matches!(one.as_ref(), Expression::U32(72));
+		assert_matches!(two.as_ref(), Expression::U32(100));
+	}
+
+	fn read<'a>(bytes: &'a [u8]) -> Expression<'a> {
+		let mut cursor = SliceCursor::new(bytes);
+		Expression::read(&mut cursor).expect("read should not fail")
+	}
 }
