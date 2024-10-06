@@ -31,15 +31,16 @@ impl PatchLookup {
 	pub fn from_cache(path: &Path, cache: &Path) -> Result<Self> {
 		// Try to read data from an existing cache.
 		let data = match fs::File::open(cache) {
-			// File exists, make try to read, but bail if it's an old version.
-			Ok(mut file) => match VersionedPatchLookupData::read(&mut file)? {
-				VersionedPatchLookupData::V2(data) => Some(data),
-				_old => None,
+			// File exists. Try to read, but bail if it's an old version or corrupt.
+			Ok(mut file) => match VersionedPatchLookupData::read(&mut file) {
+				Ok(VersionedPatchLookupData::V2(data)) => Some(data),
+				_other => None,
 			},
 
 			// No cache yet.
 			Err(error) if error.kind() == io::ErrorKind::NotFound => None,
 
+			// FS error, fail out.
 			Err(error) => Err(error)?,
 		};
 
