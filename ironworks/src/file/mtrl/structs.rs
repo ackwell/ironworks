@@ -33,10 +33,10 @@ pub struct Material {
 
 	// TODO: can this be eagerly resolved?
 	#[br(
-    count = string_table_size,
-	  // TODO: unknown, seems to be a struct of some kind
-    pad_after = additional_data_size,
-  )]
+		count = string_table_size,
+		// TODO: unknown, seems to be a struct of some kind
+		pad_after = additional_data_size,
+	)]
 	pub string_data: Vec<u8>,
 
 	// TODO: Check this info, stems from TT
@@ -113,7 +113,7 @@ pub struct Constant {
 pub struct Sampler {
 	pub id: u32,
 	// TODO: bitfield, unknown fields.
-	pub state: u32,
+	pub _state: u32,
 	#[br(pad_after = 3)]
 	pub texture_index: u8,
 	// padding: [u8; 3].
