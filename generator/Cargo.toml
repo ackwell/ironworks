@@ -6,17 +6,16 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.55"
-clap = {version = "4.5.1", features = ["derive"]}
+clap = { version = "4.5.1", features = ["derive"] }
 env_logger = "0.9.0"
 heck = "0.4.0"
-ironworks = {path = "../ironworks", features = ["excel", "sqpack"]}
-ironworks_schema = {path = "../schema", features = ["saint_coinach"]}
-lazy_static = "1.4.0"
+ironworks = { path = "../ironworks", features = ["excel", "sqpack"] }
+ironworks_schema = { path = "../schema", features = ["saint_coinach"] }
 log = "0.4.16"
 prettyplease = "0.2.16"
 proc-macro2 = "1.0.37"
 quote = "1.0.18"
 regex = "1.5.5"
-rust-embed = {version = "6.4.0", features = ["interpolate-folder-path"]}
+rust-embed = { version = "6.4.0", features = ["interpolate-folder-path"] }
 syn = "2.0.51"
 toml_edit = "0.14.2"
