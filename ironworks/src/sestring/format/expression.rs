@@ -83,8 +83,7 @@ impl Write for EvaluationWriter {
 
 fn time<T>(get: impl FnOnce(OffsetDateTime) -> T, state: &State) -> Result<Value>
 where
-	T: TryInto<u32>,
-	T::Error: std::error::Error,
+	T: TryInto<u32, Error: std::error::Error>,
 {
 	let datetime = OffsetDateTime::from_unix_timestamp(state.time.into())
 		.map_err(|_err| Error::InvalidExpression)?;

@@ -1,9 +1,8 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::LazyLock};
 
 use heck::ToSnakeCase;
 use ironworks::file::exh;
 use ironworks_schema::{Node, Order, Scalar, Sheet, StructField};
-use lazy_static::lazy_static;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use regex::Regex;
@@ -308,9 +307,7 @@ fn generate_struct_field<'a>(
 	}
 }
 
-lazy_static! {
-	static ref RE_INVALID_CHARS: Regex = Regex::new(r"[^a-zA-Z0-9]").unwrap();
-}
+static RE_INVALID_CHARS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^a-zA-Z0-9]").unwrap());
 
 const NUMBERS: &[&str] = &[
 	"Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
