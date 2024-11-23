@@ -98,33 +98,60 @@ impl TextureKind {
 #[br(repr = u32)]
 #[repr(u32)]
 pub enum Format {
+	// Names largely from, or derived from, Lumina. Comments reference the
+	// DXGI_FORMAT used by the game where known. Some mismatches, don't ask me.
+	// If it breaks, it's Winter's fault.
 	Unknown = 0x0,
 
-	L8 = 0x1130,
-	A8 = 0x1131,
+	// Integer
+	L8Unorm = 0x1130,      // DXGI_FORMAT_B8G8R8A8_UNORM
+	A8Unorm = 0x1131,      // DXGI_FORMAT_A8_UNORM
+	R8Unorm = 0x1132,      // DXGI_FORMAT_R8_UNORM
+	R8Uint = 0x1133,       // DXGI_FORMAT_R8_UINT
+	R16Uint = 0x1140,      // DXGI_FORMAT_R16_UINT
+	R32Uint = 0x1150,      // DXGI_FORMAT_R32_UINT
+	Rg8Unorm = 0x1240,     // DXGI_FORMAT_R8G8_UNORM
+	Bgra4Unorm = 0x1440,   // DXGI_FORMAT_B8G8R8A8_UNORM
+	Bgr5a1Unorm = 0x1441,  // DXGI_FORMAT_B8G8R8A8_UNORM
+	Bgra8Unorm = 0x1450,   // DXGI_FORMAT_B8G8R8A8_UNORM
+	Bgrx8Unorm = 0x1451,   // DXGI_FORMAT_B8G8R8X8_UNORM
+	Argb8Unknown = 0x1452, // Unknown
 
-	Rgba4 = 0x1440,
-	Rgb5a1 = 0x1441,
-	Argb8 = 0x1450,
-	Rgbx8 = 0x1451,
-	Argb82 = 0x1452,
+	// Float
+	R16Float = 0x2140,    // DXGI_FORMAT_R16_FLOAT
+	R32Float = 0x2150,    // DXGI_FORMAT_R32_FLOAT
+	Rg16Float = 0x2250,   // DXGI_FORMAT_R16G16_FLOAT
+	Rg32Float = 0x2260,   // DXGI_FORMAT_R32G32_FLOAT
+	Rgba16Float = 0x2460, // DXGI_FORMAT_R16G16B16A16_FLOAT
+	Rgba32Float = 0x2470, // DXGI_FORMAT_R32G32B32A32_FLOAT
 
-	R32F = 0x2150,
-	Rg16F = 0x2250,
-	Rgba16F = 0x2460,
-	Rgba32F = 0x2470,
+	// Bcn1
+	Bc1Unorm = 0x3420, // DXGI_FORMAT_BC1_UNORM
+	Bc2Unorm = 0x3430, // DXGI_FORMAT_BC2_UNORM
+	Bc3Unorm = 0x3431, // DXGI_FORMAT_BC3_UNORM
 
-	Dxt1 = 0x3420,
-	Dxt3 = 0x3430,
-	Dxt5 = 0x3431,
+	// DepthStencil
+	D16 = 0x4140,          // DXGI_FORMAT_R16_TYPELESS
+	D24S8 = 0x4250,        // DXGI_FORMAT_R24G8_TYPELESS
+	Rgba8Unknown = 0x4401, // Unknown. Zero BPP?
 
-	D16 = 0x4140,
-	D24S8 = 0x4250,
-	Rgba8 = 0x4401, // Zero BPP?
+	// Special
+	Null = 0x5100,     // Unknown
+	Shadow16 = 0x5140, // DXGI_FORMAT_R16_TYPELESS
+	Shadow24 = 0x5150, // DXGI_FORMAT_R24G8_TYPELESS
 
-	Null = 0x5100,
-	Shadow16 = 0x5140,
-	Shadow24 = 0x5150,
+	// Bcn2
+	Bc4Unorm = 0x6120,  // DXGI_FORMAT_BC4_UNORM
+	Bc5Unorm = 0x6230,  // DXGI_FORMAT_BC5_UNORM
+	Bc6hFloat = 0x6330, // DXGI_FORMAT_BC6H_SF16
+	Bc7Unorm = 0x6432,  // DXGI_FORMAT_BC7_UNORM
+
+	// Unknown7
+	R16Unorm = 0x7140,  // DXGI_FORMAT_R16_UNORM
+	Rg15Unorm = 0x7250, // DXGI_FORMAT_R16G16_UNORM
+
+	// Unknown8
+	R32G8 = 0x8250, // DXGI_FORMAT_R24G8_TYPELESS
 }
 
 impl Format {
@@ -151,7 +178,10 @@ impl Format {
 pub enum FormatKind {
 	Integer = 0x1000,
 	Float = 0x2000,
-	Dxt = 0x3000,
+	Bcn1 = 0x3000,
 	DepthStencil = 0x4000,
 	Special = 0x5000,
+	Bcn2 = 0x6000,
+	Unknown7 = 0x7000,
+	Unknown8 = 0x8000,
 }
