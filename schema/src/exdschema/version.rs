@@ -1,6 +1,5 @@
 use std::{
 	collections::hash_map::Entry,
-	path::PathBuf,
 	str,
 	sync::{Arc, Mutex},
 };
@@ -62,15 +61,8 @@ impl Version {
 
 	fn sheet(&self, sheet: &str) -> Result<Sheet> {
 		let repository = self.repository.lock().unwrap();
-		let commit = repository.find_commit(self.specifier.commit)?;
-
-		let path: PathBuf = [
-			"Schemas",
-			&self.specifier.game_version,
-			&format!("{sheet}.yml"),
-		]
-		.iter()
-		.collect();
+		let commit = repository.find_commit(self.specifier.commit())?;
+		let path = self.specifier.sheet_path(sheet);
 
 		let entry = commit
 			.tree()?

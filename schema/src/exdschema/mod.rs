@@ -7,7 +7,7 @@ mod version;
 
 pub use {
 	provider::{Provider, ProviderOptions},
-	specifier::Specifier,
+	specifier::{Specifier, SpecifierV1, SpecifierV2},
 	version::Version,
 };
 

@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
-exdschema = ["derivative", "git2", "serde", "serde_yaml"]
+exdschema = ["derivative", "git2", "serde", "serde_yaml", "regex"]
 saint_coinach = ["derivative", "git2", "serde_json"]
 
 [dependencies]
@@ -16,3 +16,4 @@ git2 = { version = "0.19.0", optional = true }
 serde = { version = "1.0.202", features = ["derive"], optional = true }
 serde_json = { version = "1.0.79", optional = true }
 serde_yaml = { version = "0.9.34", optional = true }
+regex = { version = "1.11.1", optional = true }

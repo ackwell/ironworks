@@ -670,6 +670,7 @@ version = "0.2.0"
 dependencies = [
  "derivative",
  "git2",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml",
