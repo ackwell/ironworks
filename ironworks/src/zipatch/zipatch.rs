@@ -49,7 +49,15 @@ impl Default for ZiPatch {
 		Self::new()
 	}
 }
-type CacheSync<T> = Arc<(Mutex<Option<T>>, Condvar)>;
+
+type CacheSync<T> = Arc<(Mutex<CacheState<T>>, Condvar)>;
+
+#[derive(Debug)]
+enum CacheState<T> {
+	Pending,
+	Ready(T),
+	Failed,
+}
 
 #[derive(Debug)]
 pub struct LookupCache {
@@ -79,7 +87,7 @@ impl LookupCache {
 			Entry::Vacant(entry) => (
 				false,
 				entry
-					.insert(Arc::new((Mutex::new(None), Condvar::new())))
+					.insert(Arc::new((Mutex::new(CacheState::Pending), Condvar::new())))
 					.clone(),
 			),
 		};
@@ -90,19 +98,35 @@ impl LookupCache {
 		// If the cache entry already existed, some other thread is building the
 		// lookup already - wait for it to complete via the condvar.
 		if occupied {
-			let mut value = mutex.lock().unwrap();
-			while value.is_none() {
-				value = condvar.wait(value).unwrap();
+			let state = condvar
+				.wait_while(mutex.lock().expect("poisoned"), |state| {
+					matches!(state, CacheState::Pending)
+				})
+				.expect("poisoned");
+
+			match &*state {
+				CacheState::Pending => unreachable!("lock condition broken"),
+				CacheState::Ready(value) => return Ok(value.clone()),
+				// The previous owner failed out - fall through to take ownership.
+				CacheState::Failed => {}
 			}
-			return Ok(value.as_ref().expect("lock condition broken").clone());
 		}
 
 		// Build a new lookup for this patch.
-		let lookup = Arc::new(self.read_lookup(patch)?);
+		let lookup = match self.read_lookup(patch) {
+			Ok(lookup) => Arc::new(lookup),
+			Err(error) => {
+				let mut value = mutex.lock().expect("poisoned");
+				*value = CacheState::Failed;
+				condvar.notify_one();
+
+				return Err(error);
+			}
+		};
 
 		// Write the new lookup to the cache.
 		let mut value = mutex.lock().unwrap();
-		*value = Some(lookup.clone());
+		*value = CacheState::Ready(lookup.clone());
 		condvar.notify_all();
 
 		Ok(lookup)
