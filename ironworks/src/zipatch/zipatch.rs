@@ -98,7 +98,7 @@ impl LookupCache {
 		// If the cache entry already existed, some other thread is building the
 		// lookup already - wait for it to complete via the condvar.
 		if occupied {
-			let state = condvar
+			let mut state = condvar
 				.wait_while(mutex.lock().expect("poisoned"), |state| {
 					matches!(state, CacheState::Pending)
 				})
@@ -107,8 +107,11 @@ impl LookupCache {
 			match &*state {
 				CacheState::Pending => unreachable!("lock condition broken"),
 				CacheState::Ready(value) => return Ok(value.clone()),
+
 				// The previous owner failed out - fall through to take ownership.
-				CacheState::Failed => {}
+				CacheState::Failed => {
+					*state = CacheState::Pending;
+				}
 			}
 		}
 
@@ -125,7 +128,7 @@ impl LookupCache {
 		};
 
 		// Write the new lookup to the cache.
-		let mut value = mutex.lock().unwrap();
+		let mut value = mutex.lock().expect("poisoned");
 		*value = CacheState::Ready(lookup.clone());
 		condvar.notify_all();
 
