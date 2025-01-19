@@ -22,13 +22,13 @@ pub enum Specifier {
 }
 
 impl Specifier {
-	pub(super) fn v1(provider: &Provider, reference: &str, game_version: &str) -> Result<Self> {
-		let v1 = SpecifierV1::new(provider, reference, game_version)?;
+	pub(super) fn v1(provider: &Provider, revision: &str, game_version: &str) -> Result<Self> {
+		let v1 = SpecifierV1::new(provider, revision, game_version)?;
 		Ok(Self::V1(v1))
 	}
 
-	pub(super) fn v2_ref(provider: &Provider, reference: &str) -> Result<Self> {
-		let v2 = SpecifierV2::from_ref(provider, reference)?;
+	pub(super) fn v2_rev(provider: &Provider, revision: &str) -> Result<Self> {
+		let v2 = SpecifierV2::from_rev(provider, revision)?;
 		Ok(Self::V2(v2))
 	}
 
@@ -61,11 +61,11 @@ pub struct SpecifierV1 {
 }
 
 impl SpecifierV1 {
-	fn new(provider: &Provider, reference: &str, game_version: &str) -> Result<Self> {
+	fn new(provider: &Provider, revision: &str, game_version: &str) -> Result<Self> {
 		let repository = provider.repository.lock().unwrap();
 
 		// Resolve the ref into a commit.
-		let commit = resolve_commit(&repository, reference)?;
+		let commit = resolve_commit(&repository, revision)?;
 
 		// Fetch the schema list for the given commit.
 		let mut schemas = commit
@@ -100,8 +100,8 @@ impl SpecifierV1 {
 			.collect()
 	}
 
-	/// Get a string representative of this specifier's repository reference.
-	pub fn reference(&self) -> String {
+	/// Get a string representative of this specifier's repository revision.
+	pub fn revision(&self) -> String {
 		self.commit.to_string()
 	}
 
@@ -118,14 +118,14 @@ pub struct SpecifierV2 {
 }
 
 impl SpecifierV2 {
-	fn from_ref(provider: &Provider, reference: &str) -> Result<Self> {
+	fn from_rev(provider: &Provider, revision: &str) -> Result<Self> {
 		let repository = provider.repository.lock().unwrap();
-		let commit = resolve_commit(&repository, reference)?;
+		let commit = resolve_commit(&repository, revision)?;
 
 		// Validate that this is actually a v2 commit.
 		match commit.tree()?.get_path(Path::new("schemas")) {
 			Err(error) if error.code() == ErrorCode::NotFound => {
-				return Err(Error::NotFound(ErrorValue::Version(reference.to_string())))
+				return Err(Error::NotFound(ErrorValue::Version(revision.to_string())))
 			}
 			other => other?,
 		};
@@ -179,8 +179,8 @@ impl SpecifierV2 {
 		["schemas", &format!("{sheet}.yml")].iter().collect()
 	}
 
-	/// Get a string representative of this specifier's repository reference.
-	pub fn reference(&self) -> String {
+	/// Get a string representative of this specifier's repository revision.
+	pub fn revision(&self) -> String {
 		self.commit.to_string()
 	}
 }

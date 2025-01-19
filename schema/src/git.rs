@@ -58,17 +58,17 @@ fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
 
 pub fn resolve_commit<'repo>(
 	repository: &'repo Repository,
-	reference: impl AsRef<str>,
+	revision: impl AsRef<str>,
 ) -> Result<Commit<'repo>> {
-	let reference = reference.as_ref();
+	let revision = revision.as_ref();
 	repository
-		.revparse_single(reference)
+		.revparse_single(revision)
 		.and_then(|object| object.peel_to_commit())
 		.map_err(|error| match error.code() {
-			// NotFound stems from invalid input to revparse, and InvalidSpec is
-			// from a valid object reference that did not point to a commit.
+			// NotFound stems from invalid input to revparse, and InvalidSpec is from
+			// a valid object revision that did not point to a commit.
 			ErrorCode::NotFound | ErrorCode::InvalidSpec => {
-				Error::NotFound(ErrorValue::Version(reference.into()))
+				Error::NotFound(ErrorValue::Version(revision.into()))
 			}
 			_ => Error::from(error),
 		})

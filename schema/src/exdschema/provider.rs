@@ -82,15 +82,15 @@ impl Provider {
 		Ok(new_head != old_head)
 	}
 
-	/// Fetch a version 1 `Specifier` that matches the given git reference and
-	/// game version as closely as possible.
-	pub fn specifier_v1(&self, reference: &str, game_version: &str) -> Result<Specifier> {
-		Specifier::v1(self, reference, game_version)
+	/// Fetch a version 1 `Specifier` that matches the given git revision and game
+	/// version as closely as possible.
+	pub fn specifier_v1(&self, revision: &str, game_version: &str) -> Result<Specifier> {
+		Specifier::v1(self, revision, game_version)
 	}
 
-	/// Fetch a version 2 `Specifier` for the given git reference.
-	pub fn specifier_v2_ref(&self, reference: &str) -> Result<Specifier> {
-		Specifier::v2_ref(self, reference)
+	/// Fetch a version 2 `Specifier` for the given git revision.
+	pub fn specifier_v2_rev(&self, revision: &str) -> Result<Specifier> {
+		Specifier::v2_rev(self, revision)
 	}
 
 	/// Fetch a version 2 `Specifier` that matches the the given game version as
