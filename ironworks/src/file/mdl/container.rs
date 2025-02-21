@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use binrw::BinRead;
 
-use crate::{error::Result, file::File, FileStream};
+use crate::{FileStream, error::Result, file::File};
 
 use super::{
 	model::{Lod, Model},

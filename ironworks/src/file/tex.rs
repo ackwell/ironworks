@@ -1,12 +1,12 @@
 //! Structs and utilities for parsing .tex files.
 
 use binrw::helpers::until_eof;
-use binrw::{binread, BinRead};
+use binrw::{BinRead, binread};
 use derivative::Derivative;
 use getset::{CopyGetters, Getters};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::{error::Result, FileStream};
+use crate::{FileStream, error::Result};
 
 use super::file::File;
 

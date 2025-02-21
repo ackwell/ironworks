@@ -1,6 +1,6 @@
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
-use binrw::{binread, BinRead, VecArgs};
+use binrw::{BinRead, VecArgs, binread};
 
 use crate::{error::Result, sqpack::block::read_block};
 

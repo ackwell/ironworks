@@ -1,6 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
 
-use binrw::{binread, BinRead, BinResult, Endian, NullString, PosValue};
+use binrw::{BinRead, BinResult, Endian, NullString, PosValue, binread};
 use getset::{CopyGetters, Getters};
 
 const UNCOMPRESSED_MARKER_SIZE: u32 = 32_000;

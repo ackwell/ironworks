@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use git2::{build::RepoBuilder, Commit, Direction, ErrorCode, Repository};
+use git2::{Commit, Direction, ErrorCode, Repository, build::RepoBuilder};
 
 use crate::error::{Error, ErrorValue, Result};
 

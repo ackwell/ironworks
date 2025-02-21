@@ -125,7 +125,7 @@ impl SpecifierV2 {
 		// Validate that this is actually a v2 commit.
 		match commit.tree()?.get_path(Path::new("schemas")) {
 			Err(error) if error.code() == ErrorCode::NotFound => {
-				return Err(Error::NotFound(ErrorValue::Version(revision.to_string())))
+				return Err(Error::NotFound(ErrorValue::Version(revision.to_string())));
 			}
 			other => other?,
 		};

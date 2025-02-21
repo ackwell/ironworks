@@ -9,9 +9,9 @@ use git2::{Object, Oid, Repository};
 use serde_json::Value;
 
 use crate::{
+	Schema,
 	error::{Error, ErrorValue, Result},
 	schema::{Order, Sheet},
-	Schema,
 };
 
 use super::{parse::parse_sheet_definition, provider::SheetCache};

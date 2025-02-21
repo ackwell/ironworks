@@ -4,7 +4,7 @@ use std::{
 	ops::{Deref, DerefMut},
 };
 
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::{BinRead, BinWrite, binrw};
 
 // Traits literally just to clean up the code a bit.
 pub trait BinReadWrite: for<'a> BinRead<Args<'a> = ()> + for<'a> BinWrite<Args<'a> = ()> {}

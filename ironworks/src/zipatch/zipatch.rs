@@ -1,9 +1,9 @@
 use std::{
-	collections::{hash_map::Entry, HashMap},
+	collections::{HashMap, hash_map::Entry},
 	path::PathBuf,
 	sync::{
-		atomic::{AtomicBool, Ordering},
 		Arc, Condvar, Mutex,
+		atomic::{AtomicBool, Ordering},
 	},
 };
 

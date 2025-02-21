@@ -7,7 +7,7 @@ use crate::sestring::{
 };
 
 use super::{
-	format::{format_sestring, State},
+	format::{State, format_sestring},
 	value::Value,
 	write::Write,
 };

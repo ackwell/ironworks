@@ -2,12 +2,12 @@
 
 use std::io::{Cursor, Read, Seek};
 
-use binrw::{binread, BinRead, BinResult, Endian};
+use binrw::{BinRead, BinResult, Endian, binread};
 use getset::{CopyGetters, Getters};
 
 use crate::{
-	error::{Error, ErrorValue, Result},
 	FileStream,
+	error::{Error, ErrorValue, Result},
 };
 
 use super::file::File;
@@ -87,7 +87,7 @@ impl ExcelData {
 					row: row_id,
 					subrow: subrow_id,
 					sheet: None,
-				}))
+				}));
 			}
 			// A match was found
 			Some(Ok(subrow_offset)) => subrow_offset,

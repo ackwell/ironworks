@@ -81,10 +81,12 @@ fn map_struct(fields: Vec<Field>) -> Result<schema::Node> {
 	let struct_fields = fields
 		.into_iter()
 		.scan(0u32, |offset, field| {
-			let name = scan_try!(field
-				.name
-				.clone()
-				.ok_or_else(|| Error::Schema(format!("struct fields must have names"))));
+			let name = scan_try!(
+				field
+					.name
+					.clone()
+					.ok_or_else(|| Error::Schema(format!("struct fields must have names")))
+			);
 			let node = scan_try!(map_field(field));
 
 			let this_offset = *offset;

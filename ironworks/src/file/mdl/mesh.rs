@@ -98,8 +98,8 @@ impl Mesh {
 					},
 				);
 
-				use structs::VertexFormat as K;
 				use VertexValues as V;
+				use structs::VertexFormat as K;
 				let values = match &element.format {
 					K::Single3 => V::Vector3(read_values(offsets, cursor, single3)?),
 					K::Single4 => V::Vector4(read_values(offsets, cursor, single4)?),

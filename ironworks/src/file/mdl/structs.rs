@@ -4,7 +4,7 @@
 use std::io::{Read, Seek};
 
 use binrw::helpers::until_eof;
-use binrw::{binread, BinRead, BinResult, Endian};
+use binrw::{BinRead, BinResult, Endian, binread};
 use derivative::Derivative;
 use modular_bitfield::bitfield;
 

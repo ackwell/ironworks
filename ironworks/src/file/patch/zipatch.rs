@@ -6,7 +6,7 @@ use std::{
 use binrw::BinRead;
 use derivative::Derivative;
 
-use crate::{error::Result, file::File, FileStream};
+use crate::{FileStream, error::Result, file::File};
 
 use super::chunk::Chunk;
 

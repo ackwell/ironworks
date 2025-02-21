@@ -5,13 +5,13 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use binrw::{binrw, BinRead, BinWrite};
+use binrw::{BinRead, BinWrite, binrw};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{
-		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
 		File,
+		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
 	},
 };
 
@@ -162,7 +162,9 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 						.insert((specifier, command.target_offset()), chunk);
 
 					if old_value.is_some() {
-						panic!("Assumption broken! Multiple chunks in one patch file writing to same offset.")
+						panic!(
+							"Assumption broken! Multiple chunks in one patch file writing to same offset."
+						)
 					}
 				}
 

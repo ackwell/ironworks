@@ -10,9 +10,9 @@ use derivative::Derivative;
 use git2::{Oid, Repository};
 
 use crate::{
+	Sheet,
 	error::{Error, ErrorValue, Result},
 	git::{open_repository, resolve_commit},
-	Sheet,
 };
 
 use super::version::Version;

@@ -1,4 +1,4 @@
-use time::{ext::NumericalDuration, OffsetDateTime};
+use time::{OffsetDateTime, ext::NumericalDuration};
 
 use crate::sestring::error::{Error, Result};
 

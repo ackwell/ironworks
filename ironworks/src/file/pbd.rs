@@ -6,9 +6,9 @@ use std::{
 	io::{Read, Seek, SeekFrom},
 };
 
-use binrw::{binread, BinRead, BinResult, Endian, NullString};
+use binrw::{BinRead, BinResult, Endian, NullString, binread};
 
-use crate::{error::Result, FileStream};
+use crate::{FileStream, error::Result};
 
 use super::file::File;
 

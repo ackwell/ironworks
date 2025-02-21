@@ -2,11 +2,11 @@
 
 use std::collections::HashSet;
 
-use binrw::{binread, BinRead};
+use binrw::{BinRead, binread};
 use getset::{CopyGetters, Getters};
 use num_enum::IntoPrimitive;
 
-use crate::{error::Result, FileStream};
+use crate::{FileStream, error::Result};
 
 use super::File;
 

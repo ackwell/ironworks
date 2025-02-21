@@ -1,6 +1,6 @@
 use std::io::{Read, Seek};
 
-use binrw::{binread, BinRead, BinResult, Endian};
+use binrw::{BinRead, BinResult, Endian, binread};
 use getset::{CopyGetters, Getters};
 
 use super::command::{

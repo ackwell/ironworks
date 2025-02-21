@@ -60,7 +60,7 @@ impl Index1 {
 				return Err(Error::Invalid(
 					ErrorValue::Path(path.into()),
 					"Paths must contain at least two segments.".into(),
-				))
+				));
 			}
 		};
 
