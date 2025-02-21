@@ -58,7 +58,7 @@ impl PatchRepository {
 	// TODO: fn before - so i.e. a simple use case can `.at().before()` to get a repo of a folder containing patches before a particular point.
 }
 
-fn sort_patches(Patch { name: ref a, .. }: &Patch, Patch { name: ref b, .. }: &Patch) -> Ordering {
+fn sort_patches(Patch { name: a, .. }: &Patch, Patch { name: b, .. }: &Patch) -> Ordering {
 	match a[1..].cmp(&b[1..]) {
 		// The prefix "type" character is only ever [D]IFF or [H]IST - HIST always sorts first.
 		Ordering::Equal => a[0..1].cmp(&b[0..1]).reverse(),
