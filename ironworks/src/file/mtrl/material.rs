@@ -3,7 +3,7 @@ use std::{fmt, io::Cursor};
 use binrw::{BinRead, NullString};
 use getset::{CopyGetters, Getters};
 
-use crate::{error::Result, file::File, FileStream};
+use crate::{FileStream, error::Result, file::File};
 
 use super::structs;
 

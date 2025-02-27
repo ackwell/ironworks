@@ -3,10 +3,10 @@
 use std::io::{Read, Seek, SeekFrom};
 
 use binrw::helpers::{count, until_eof};
-use binrw::{binread, BinRead, BinResult, Endian};
+use binrw::{BinRead, BinResult, Endian, binread};
 use getset::{CopyGetters, Getters};
 
-use crate::{error::Result, FileStream};
+use crate::{FileStream, error::Result};
 
 use super::file::File;
 

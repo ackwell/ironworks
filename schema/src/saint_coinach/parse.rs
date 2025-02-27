@@ -1,5 +1,5 @@
 use std::{
-	iter::{once, Flatten},
+	iter::{Flatten, once},
 	option::IntoIter,
 };
 

@@ -1,4 +1,4 @@
-use crate::{error::Result, FileStream};
+use crate::{FileStream, error::Result};
 
 /// A file that can be read from ironworks.
 pub trait File: Sized {

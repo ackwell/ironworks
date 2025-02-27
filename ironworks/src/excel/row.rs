@@ -1,6 +1,6 @@
 use std::{io::Cursor, sync::Arc};
 
-use binrw::{binread, helpers::until_exclusive, BinReaderExt, BinResult};
+use binrw::{BinReaderExt, BinResult, binread, helpers::until_exclusive};
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -82,8 +82,8 @@ impl Row {
 	}
 
 	fn read_field(&self, column: &exh::ColumnDefinition) -> BinResult<Field> {
-		use exh::ColumnKind as K;
 		use Field as F;
+		use exh::ColumnKind as K;
 
 		let mut cursor = Cursor::new(&self.data);
 

@@ -2,7 +2,7 @@ use crate::sestring::error::{Error, Result};
 
 use super::{
 	argument::Arguments,
-	format::{format_expression, State},
+	format::{State, format_expression},
 	value::Value,
 };
 

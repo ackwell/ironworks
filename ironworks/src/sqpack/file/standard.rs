@@ -1,6 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
 
-use binrw::{binread, BinRead, VecArgs};
+use binrw::{BinRead, VecArgs, binread};
 
 use crate::{
 	error::Result,

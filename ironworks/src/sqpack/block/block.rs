@@ -1,6 +1,6 @@
 use std::io::{self, Read, Seek, SeekFrom, Take};
 
-use binrw::{binread, BinRead};
+use binrw::{BinRead, binread};
 use either::Either;
 use flate2::read::DeflateDecoder;
 

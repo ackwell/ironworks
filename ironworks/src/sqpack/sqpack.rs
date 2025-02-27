@@ -1,11 +1,11 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
+	Resource,
 	error::{Error, ErrorValue, Result},
 	ironworks::FileStream,
 	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
-	Resource,
 };
 
 use super::{file::File, index::Index};

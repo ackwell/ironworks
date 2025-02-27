@@ -3,8 +3,8 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use crate::{
-	error::{Error, Result},
 	FileStream,
+	error::{Error, Result},
 };
 
 use super::File;
