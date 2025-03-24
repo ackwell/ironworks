@@ -1,9 +1,22 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
+use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 
 /// Language of strings in Excel files.
 #[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, IntoPrimitive, TryFromPrimitive)]
+#[derive(
+	Debug,
+	Clone,
+	Copy,
+	PartialEq,
+	Eq,
+	Hash,
+	EnumIter,
+	IntoPrimitive,
+	TryFromPrimitive,
+	Serialize,
+	Deserialize,
+)]
 #[repr(u8)]
 pub enum Language {
 	None = 0,

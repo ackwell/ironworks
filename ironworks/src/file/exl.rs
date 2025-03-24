@@ -11,20 +11,18 @@ use super::File;
 
 /// List of known Excel sheets.
 #[derive(Debug)]
-pub struct ExcelList {
-	sheets: HashSet<String>,
-}
+pub struct ExcelList(pub HashSet<String>);
 
 // TODO: should there be an impl intoiter for this?
 impl ExcelList {
 	/// Iterate over known sheets in arbitrary order.
 	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
-		self.sheets.iter().map(|name| name.into())
+		self.0.iter().map(|name| name.into())
 	}
 
 	/// Check if the specified sheet is contained in the list.
 	pub fn has(&self, sheet: &str) -> bool {
-		self.sheets.contains(sheet)
+		self.0.contains(sheet)
 	}
 }
 
@@ -53,7 +51,7 @@ impl File for ExcelList {
 			.filter_map(|line| line.split_once(',').map(|split| split.0.to_string()))
 			.collect::<HashSet<_>>();
 
-		Ok(Self { sheets })
+		Ok(Self(sheets))
 	}
 }
 

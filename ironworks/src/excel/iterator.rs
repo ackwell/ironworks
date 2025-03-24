@@ -73,7 +73,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		}
 
 		// If the page bounds have been exceeded, move on to the next page.
-		if self.row_index >= self.page()?.rows().len() {
+		if self.row_index >= self.page()?.rows.len() {
 			self.row_index = 0;
 			self.page = None;
 			self.page_index += 1;
@@ -110,10 +110,10 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	fn row_id(&mut self) -> Result<u32> {
 		let id = self
 			.page()?
-			.rows()
+			.rows
 			.get(self.row_index)
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("Row {}", self.row_index))))?
-			.id();
+			.id;
 
 		Ok(id)
 	}

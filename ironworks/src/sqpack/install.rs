@@ -49,11 +49,15 @@ impl Install {
 
 	/// Configure a resource instance with an installation of FFXIV at the specified path.
 	pub fn at(path: &Path) -> Self {
-		let sqpack_path = path
-			.iter()
-			.chain(SQPACK_PATH.iter().map(|s| OsStr::new(*s)))
-			.collect::<PathBuf>();
+		Self::at_sqpack(
+			path.iter()
+				.chain(SQPACK_PATH.iter().map(|s| OsStr::new(*s)))
+				.collect::<PathBuf>(),
+		)
+	}
 
+	pub fn at_sqpack(sqpack_path: impl Into<PathBuf>) -> Self {
+		let sqpack_path = sqpack_path.into();
 		let repositories = find_repositories(&sqpack_path);
 
 		Self {
@@ -61,6 +65,10 @@ impl Install {
 			repositories,
 			platform: Platform::Win32,
 		}
+	}
+
+	pub fn path(&self) -> &Path {
+		&self.path
 	}
 
 	fn build_file_path(

@@ -3,7 +3,6 @@
 use std::io::{Cursor, Read, Seek};
 
 use binrw::{BinRead, BinResult, Endian, binread};
-use getset::{CopyGetters, Getters};
 
 use crate::{
 	FileStream,
@@ -15,7 +14,7 @@ use super::file::File;
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
 #[binread]
-#[derive(Debug, Getters)]
+#[derive(Debug)]
 #[br(big, magic = b"EXDF")]
 pub struct ExcelData {
 	_version: u16,
@@ -29,14 +28,13 @@ pub struct ExcelData {
 		pad_before = 20,
 		count = index_size / RowDefinition::SIZE,
 	)]
-	#[get = "pub"]
-	rows: Vec<RowDefinition>,
+	pub rows: Vec<RowDefinition>,
 
 	#[br(parse_with = current_position)]
-	data_offset: u64,
+	pub data_offset: u64,
 
 	#[br(parse_with = until_eof)]
-	data: Vec<u8>,
+	pub data: Vec<u8>,
 }
 
 impl ExcelData {
@@ -158,17 +156,16 @@ impl File for ExcelData {
 
 /// Metadata of a row contained in a page.
 #[binread]
-#[derive(Debug, CopyGetters)]
+#[derive(Debug)]
 #[br(big)]
 pub struct RowDefinition {
 	/// Primary key ID of this row.
-	#[get_copy = "pub"]
-	id: u32,
-	offset: u32,
+	pub id: u32,
+	pub offset: u32,
 }
 
 impl RowDefinition {
-	const SIZE: u32 = 8;
+	pub const SIZE: u32 = 8;
 }
 
 fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
@@ -184,18 +181,22 @@ fn until_eof<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<Vec<
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct RowHeader {
-	data_size: u32,
-	row_count: u16,
+pub struct RowHeader {
+	pub data_size: u32,
+	pub row_count: u16,
+}
+
+impl RowHeader {
+	pub const SIZE: usize = 6;
 }
 
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct SubrowHeader {
-	id: u16,
+pub struct SubrowHeader {
+	pub id: u16,
 }
 
 impl SubrowHeader {
-	const SIZE: usize = 2;
+	pub const SIZE: usize = 2;
 }
