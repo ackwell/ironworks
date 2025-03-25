@@ -1,3 +1,5 @@
+use crate::error::{Error, ErrorValue, Result};
+
 use super::language::Language;
 
 pub fn exl() -> &'static str {
@@ -8,7 +10,7 @@ pub fn exh(sheet: &str) -> String {
 	format!("exd/{sheet}.exh")
 }
 
-pub fn exd(sheet: &str, start_id: u32, language: Language) -> String {
+pub fn exd(sheet: &str, start_id: u32, language: Language) -> Result<String> {
 	use Language as L;
 	let language_suffix = match language {
 		L::None => "",
@@ -19,7 +21,15 @@ pub fn exd(sheet: &str, start_id: u32, language: Language) -> String {
 		L::ChineseSimplified => "_chs",
 		L::ChineseTraditional => "_cht",
 		L::Korean => "_kr",
+
+		_ => {
+			// TODO: Man, I really need to rethink error handling.
+			return Err(Error::Invalid(
+				ErrorValue::Other("excel language".into()),
+				format!("unexpected language {language:?}"),
+			));
+		}
 	};
 
-	format!("exd/{sheet}_{start_id}{language_suffix}.exd")
+	Ok(format!("exd/{sheet}_{start_id}{language_suffix}.exd"))
 }

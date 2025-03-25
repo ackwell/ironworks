@@ -4,7 +4,7 @@ use std::{
 };
 
 use derivative::Derivative;
-use num_enum::TryFromPrimitive;
+use num_enum::FromPrimitive;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
@@ -66,18 +66,15 @@ impl<S: SheetMetadata> Sheet<S> {
 
 	/// List of languages supported by this sheet.
 	pub fn languages(&self) -> Result<Vec<Language>> {
-		self.header()?
+		let languages = self
+			.header()?
 			.languages()
 			.iter()
 			.copied()
-			.map(Language::try_from_primitive)
-			.collect::<Result<_, _>>()
-			.map_err(|error| {
-				Error::Invalid(
-					ErrorValue::Sheet(self.name()),
-					format!("unknown language ID {}", error.number),
-				)
-			})
+			.map(Language::from_primitive)
+			.collect();
+
+		Ok(languages)
 	}
 
 	/// Fetch metadata for all columns in this sheet.
@@ -180,7 +177,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		drop(pages);
 		let mut pages_mut = self.cache.pages.write().expect("poisoned");
 
-		let path = path::exd(&self.name(), start_id, language);
+		let path = path::exd(&self.name(), start_id, language)?;
 		let data = Arc::new(self.ironworks.file::<exd::ExcelData>(&path)?);
 
 		pages_mut.insert(key, data.clone());
