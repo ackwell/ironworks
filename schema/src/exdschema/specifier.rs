@@ -3,7 +3,7 @@ use std::{
 	sync::LazyLock,
 };
 
-use git2::{ErrorCode, Oid};
+use git2::Oid;
 use regex::Regex;
 
 use crate::{
@@ -122,14 +122,6 @@ impl SpecifierV2 {
 		let repository = provider.repository.lock().unwrap();
 		let commit = resolve_commit(&repository, revision)?;
 
-		// Validate that this is actually a v2 commit.
-		match commit.tree()?.get_path(Path::new("schemas")) {
-			Err(error) if error.code() == ErrorCode::NotFound => {
-				return Err(Error::NotFound(ErrorValue::Version(revision.to_string())));
-			}
-			other => other?,
-		};
-
 		Ok(Self {
 			commit: commit.id(),
 		})
@@ -153,9 +145,9 @@ impl SpecifierV2 {
 			.filter_map(|res| {
 				res.and_then(|(branch, _type)| {
 					let name = branch.name()?.unwrap_or("");
-					match VERSION_BRANCH.is_match(name) {
-						true => Ok(Some((name.to_string(), branch))),
-						false => Ok(None),
+					match VERSION_BRANCH.find(name) {
+						Some(mat) => Ok(Some((mat.as_str().to_string(), branch))),
+						None => Ok(None),
 					}
 				})
 				.transpose()
@@ -176,7 +168,7 @@ impl SpecifierV2 {
 	}
 
 	fn sheet_path(&self, sheet: &str) -> PathBuf {
-		["schemas", &format!("{sheet}.yml")].iter().collect()
+		[&format!("{sheet}.yml")].iter().collect()
 	}
 
 	/// Get a string representative of this specifier's repository revision.
