@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
@@ -27,11 +29,28 @@ pub enum Language {
 	ChineseSimplified = 5,
 	ChineseTraditional = 6,
 	Korean = 7,
+	TaiwanChinese = 8,
 }
 
 impl Language {
 	/// Iterate over known language values.
 	pub fn iter() -> <Self as IntoEnumIterator>::Iterator {
 		<Self as IntoEnumIterator>::iter()
+	}
+}
+
+impl Display for Language {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str(match self {
+			Language::None => "None",
+			Language::Japanese => "Japanese",
+			Language::English => "English",
+			Language::German => "German",
+			Language::French => "French",
+			Language::ChineseSimplified => "Chinese (Simplified)",
+			Language::ChineseTraditional => "Chinese (Traditional)",
+			Language::Korean => "Korean",
+			Language::TaiwanChinese => "Taiwan Chinese (?)",
+		})
 	}
 }

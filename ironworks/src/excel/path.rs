@@ -19,6 +19,7 @@ pub fn exd(sheet: &str, start_id: u32, language: Language) -> String {
 		L::ChineseSimplified => "_chs",
 		L::ChineseTraditional => "_cht",
 		L::Korean => "_kr",
+		L::TaiwanChinese => "_tc",
 	};
 
 	format!("exd/{sheet}_{start_id}{language_suffix}.exd")
