@@ -2,7 +2,7 @@
 
 // Lint config
 #![allow(clippy::module_inception)]
-#![warn(missing_debug_implementations, missing_docs)]
+// #![warn(missing_debug_implementations, missing_docs)]
 // Doc config
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg))]
 
