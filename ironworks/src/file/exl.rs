@@ -1,6 +1,6 @@
 //! Structs and utilities for parsing .exl files.
 
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashMap, num::ParseIntError};
 
 use crate::{
 	FileStream,
@@ -11,18 +11,18 @@ use super::File;
 
 /// List of known Excel sheets.
 #[derive(Debug)]
-pub struct ExcelList(pub HashSet<String>);
+pub struct ExcelList(pub HashMap<String, i32>);
 
 // TODO: should there be an impl intoiter for this?
 impl ExcelList {
 	/// Iterate over known sheets in arbitrary order.
-	pub fn iter(&self) -> impl Iterator<Item = Cow<str>> {
-		self.0.iter().map(|name| name.into())
+	pub fn iter(&self) -> impl Iterator<Item = (Cow<str>, i32)> {
+		self.0.iter().map(|(name, id)| (name.into(), *id))
 	}
 
 	/// Check if the specified sheet is contained in the list.
 	pub fn has(&self, sheet: &str) -> bool {
-		self.0.contains(sheet)
+		self.0.contains_key(sheet)
 	}
 }
 
@@ -45,13 +45,20 @@ impl File for ExcelList {
 			));
 		}
 
-		// Build the set of sheets. We're ignoring the sheet ID (second field), as
-		// it's irrelevant for our usage.
-		let sheets = lines
-			.filter_map(|line| line.split_once(',').map(|split| split.0.to_string()))
-			.collect::<HashSet<_>>();
+		// Build the set of sheets.
+		let sheets: Result<HashMap<String, i32>, ParseIntError> = lines
+			.filter_map(|line| {
+				line.split_once(',')
+					.map(|(name, id)| Ok((name.to_string(), id.parse()?)))
+			})
+			.collect();
 
-		Ok(Self(sheets))
+		match sheets {
+			Err(error) => Err(Error::Resource(
+				format!("Failed to parse excel list: {error}").into(),
+			)),
+			Ok(sheets) => Ok(Self(sheets)),
+		}
 	}
 }
 
