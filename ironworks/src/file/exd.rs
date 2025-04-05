@@ -1,9 +1,9 @@
 //! Structs and utilities for parsing .exd files.
 
-use std::io::{Cursor, Read, Seek};
+use std::io::Cursor;
 
-use binrw::{BinRead, BinResult, Endian, binread};
-use getset::{CopyGetters, Getters};
+use binrw::{BinRead, BinResult, binread, error::CustomError, parser};
+use derivative::Derivative;
 
 use crate::{
 	FileStream,
@@ -15,28 +15,43 @@ use super::file::File;
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
 #[binread]
-#[derive(Debug, Getters)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 #[br(big, magic = b"EXDF")]
 pub struct ExcelData {
-	_version: u16,
-	// unknown1: u16,
-	#[br(pad_before = 2, temp)]
+	/// EXD format version.
+	pub version: u16,
+
+	/// Unknown value. Only known to be 0, potentially padding.
+	pub unknown1: u16,
+
+	#[br(temp)]
 	index_size: u32,
 
-	// unknown2: [u16; 10],
-	/// Vector of rows contained within this page.
-	#[br(
-		pad_before = 20,
-		count = index_size / RowDefinition::SIZE,
-	)]
-	#[get = "pub"]
-	rows: Vec<RowDefinition>,
+	#[br(temp)]
+	data_size: u32,
 
-	#[br(parse_with = current_position)]
-	data_offset: u64,
+	/// Unknown values. Only known to be 0.
+	pub unknown2: [u16; 8],
 
-	#[br(parse_with = until_eof)]
-	data: Vec<u8>,
+	// Pre-emptively calculate where the data will start, so we can adjust row
+	// offsets to be relative to it, rather than the start of the file.
+	#[br(temp, parse_with = current_position)]
+	index_offset: u32,
+
+	#[br(temp, calc = index_offset + index_size)]
+	data_offset: u32,
+
+	/// Definitions for the rows contained in this page.
+	#[br(args {
+		count: usize::try_from(index_size).unwrap() / RowDefinition::SIZE,
+		inner: (data_offset,)
+	})]
+	pub rows: Vec<RowDefinition>,
+
+	#[br(count = data_size)]
+	#[derivative(Debug = "ignore")]
+	pub data: Vec<u8>,
 }
 
 impl ExcelData {
@@ -121,7 +136,7 @@ impl ExcelData {
 
 		// Get a cursor to the start of the row.
 		let mut cursor = Cursor::new(&self.data);
-		cursor.set_position(u64::from(row_definition.offset) - self.data_offset);
+		cursor.set_position(u64::from(row_definition.offset));
 
 		// Read in the header.
 		let row_header = RowHeader::read(&mut cursor)?;
@@ -158,27 +173,18 @@ impl File for ExcelData {
 
 /// Metadata of a row contained in a page.
 #[binread]
-#[derive(Debug, CopyGetters)]
-#[br(big)]
+#[derive(Debug)]
+#[br(big, import(data_offset: u32))]
 pub struct RowDefinition {
 	/// Primary key ID of this row.
-	#[get_copy = "pub"]
-	id: u32,
+	pub id: u32,
+
+	#[br(map = |raw: u32| raw - data_offset)]
 	offset: u32,
 }
 
 impl RowDefinition {
-	const SIZE: u32 = 8;
-}
-
-fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
-	Ok(reader.stream_position()?)
-}
-
-fn until_eof<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<Vec<u8>> {
-	let mut v = Vec::new();
-	reader.read_to_end(&mut v)?;
-	Ok(v)
+	const SIZE: usize = 8;
 }
 
 #[binread]
@@ -198,4 +204,20 @@ struct SubrowHeader {
 
 impl SubrowHeader {
 	const SIZE: usize = 2;
+}
+
+/// Get the current byte offset of the stream.
+///
+/// Will fail if the offset cannot be converted to `T`.
+#[parser(reader)]
+fn current_position<T>() -> BinResult<T>
+where
+	u64: TryInto<T>,
+	<u64 as TryInto<T>>::Error: CustomError + 'static,
+{
+	let position = reader.stream_position()?;
+	position.try_into().map_err(|error| binrw::Error::Custom {
+		pos: position,
+		err: Box::new(error),
+	})
 }

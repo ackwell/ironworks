@@ -40,7 +40,7 @@ impl<S: SheetMetadata> Iterator for SheetIterator<S> {
 
 	fn next(&mut self) -> Option<Self::Item> {
 		// If we've walked past the last page, stop the iterator.
-		let page_count = self.sheet.header().ok()?.pages().len();
+		let page_count = self.sheet.header().ok()?.pages.len();
 		if self.page_index >= page_count {
 			return None;
 		}
@@ -73,7 +73,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		}
 
 		// If the page bounds have been exceeded, move on to the next page.
-		if self.row_index >= self.page()?.rows().len() {
+		if self.row_index >= self.page()?.rows.len() {
 			self.row_index = 0;
 			self.page = None;
 			self.page_index += 1;
@@ -110,10 +110,10 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	fn row_id(&mut self) -> Result<u32> {
 		let id = self
 			.page()?
-			.rows()
+			.rows
 			.get(self.row_index)
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("Row {}", self.row_index))))?
-			.id();
+			.id;
 
 		Ok(id)
 	}
@@ -123,7 +123,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 			Some(value) => value,
 			None => {
 				let page = self.sheet.page(
-					self.page_definition()?.start_id(),
+					self.page_definition()?.start_id,
 					self.sheet.resolve_language(self.sheet.default_language)?,
 				)?;
 
@@ -137,7 +137,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	fn page_definition(&self) -> Result<exh::PageDefinition> {
 		// Get the metadata for this iteration.
 		let header = self.sheet.header()?;
-		let pages = header.pages();
+		let pages = &header.pages;
 
 		// If we're past the end of the available pages, stop the iterator.
 		pages

@@ -3,7 +3,6 @@
 use std::collections::HashSet;
 
 use binrw::{BinRead, binread};
-use getset::{CopyGetters, Getters};
 use num_enum::IntoPrimitive;
 
 use crate::{FileStream, error::Result};
@@ -12,14 +11,13 @@ use super::File;
 
 /// An Excel header file, containing metadata for all associated .exd Excel data files.
 #[binread]
-#[derive(Debug, Getters, CopyGetters)]
+#[derive(Debug)]
 #[br(big, magic = b"EXHF")]
 pub struct ExcelHeader {
-	_version: u16,
+	pub version: u16,
 
 	/// Size of structured data in each row, in bytes.
-	#[get_copy = "pub"]
-	row_size: u16,
+	pub row_size: u16,
 
 	#[br(temp)]
 	column_count: u16,
@@ -28,39 +26,33 @@ pub struct ExcelHeader {
 	#[br(temp)]
 	language_count: u16,
 
-	// unknown1: u16,
-	// unknown2: u8,
+	unknown1: u16,
+	unknown2: u8,
+
 	/// The kind of the relevant sheet. This value dictates the binary layout and
 	/// capabilities of rows.
-	#[br(pad_before = 3)]
-	#[get_copy = "pub"]
-	kind: SheetKind,
+	pub kind: SheetKind,
 
-	// unknown3: u16,
-	#[br(pad_before = 2)]
+	unknown3: u16,
+
 	_row_count: u32,
 
-	// unknown4: [u32; 2],
+	unknown4: [u32; 2],
+
 	/// Column definitions for rows in this sheet.
-	#[br(
-		pad_before = 8,
-		count = column_count,
-	)]
-	#[get = "pub"]
-	columns: Vec<ColumnDefinition>,
+	#[br(count = column_count)]
+	pub columns: Vec<ColumnDefinition>,
 
 	/// Definitions of the pages of data for this sheet.
 	#[br(count = page_count)]
-	#[get = "pub"]
-	pages: Vec<PageDefinition>,
+	pub pages: Vec<PageDefinition>,
 
 	/// Language IDs supported by this sheet.
 	#[br(
 		count = language_count,
 		map = LanguageDefinition::to_set,
 	)]
-	#[get = "pub"]
-	languages: HashSet<u8>,
+	pub languages: HashSet<u8>,
 }
 
 impl File for ExcelHeader {
@@ -88,16 +80,14 @@ pub enum SheetKind {
 
 /// Metadata for a single sheet column.
 #[binread]
-#[derive(Clone, Debug, Hash, CopyGetters)]
+#[derive(Clone, Debug, Hash)]
 #[br(big)]
 pub struct ColumnDefinition {
 	/// The kind of data stored in this column.
-	#[get_copy = "pub"]
-	kind: ColumnKind,
+	pub kind: ColumnKind,
 
 	/// The offset of this column in bytes within the row structured data.
-	#[get_copy = "pub"]
-	offset: u16,
+	pub offset: u16,
 }
 
 /// The kind of data structure stored in a column.
@@ -134,16 +124,14 @@ pub enum ColumnKind {
 
 /// Metadata for a single sheet data page.
 #[binread]
-#[derive(Debug, Clone, Copy, CopyGetters)]
+#[derive(Debug, Clone, Copy)]
 #[br(big)]
 pub struct PageDefinition {
 	/// The first ID contained within the page.
-	#[get_copy = "pub"]
-	start_id: u32,
+	pub start_id: u32,
 
 	/// The number of rows contained within the page.
-	#[get_copy = "pub"]
-	row_count: u32,
+	pub row_count: u32,
 }
 
 #[binread]

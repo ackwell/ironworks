@@ -71,7 +71,7 @@ impl Row {
 		let column = match specifier.into() {
 			ColumnSpecifier::Definition(definition) => definition,
 			ColumnSpecifier::Index(index) => {
-				self.header.columns().get(index).ok_or_else(|| {
+				self.header.columns.get(index).ok_or_else(|| {
 					// TODO: should this have its own value type?
 					Error::NotFound(ErrorValue::Other(format!("Column {index}")))
 				})?
@@ -87,12 +87,12 @@ impl Row {
 
 		let mut cursor = Cursor::new(&self.data);
 
-		cursor.set_position(column.offset().into());
+		cursor.set_position(column.offset.into());
 
-		let field = match column.kind() {
+		let field = match column.kind {
 			K::String => {
 				let string_offset = cursor.read_be::<u32>()?;
-				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size()));
+				cursor.set_position(u64::from(string_offset) + u64::from(self.header.row_size));
 				let wrapper = cursor.read_be::<SeStringWrapper>()?;
 				F::String(SeString::new(wrapper.0))
 			}
@@ -106,7 +106,7 @@ impl Row {
 			| K::PackedBool5
 			| K::PackedBool6
 			| K::PackedBool7 => {
-				let mask = 1 << (u16::from(column.kind()) - u16::from(K::PackedBool0));
+				let mask = 1 << (u16::from(column.kind) - u16::from(K::PackedBool0));
 				let value = cursor.read_be::<u8>()?;
 				F::Bool((value & mask) == mask)
 			}

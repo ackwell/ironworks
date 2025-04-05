@@ -61,14 +61,14 @@ impl<S: SheetMetadata> Sheet<S> {
 
 	/// Get the kind of this sheet.
 	pub fn kind(&self) -> Result<exh::SheetKind> {
-		Ok(self.header()?.kind())
+		Ok(self.header()?.kind)
 	}
 
 	/// List of languages supported by this sheet.
 	pub fn languages(&self) -> Result<Vec<Language>> {
 		let languages = self
 			.header()?
-			.languages()
+			.languages
 			.iter()
 			.copied()
 			.map(Language::from_primitive)
@@ -79,7 +79,7 @@ impl<S: SheetMetadata> Sheet<S> {
 
 	/// Fetch metadata for all columns in this sheet.
 	pub fn columns(&self) -> Result<Vec<exh::ColumnDefinition>> {
-		let columns = self.header()?.columns().clone();
+		let columns = self.header()?.columns.clone();
 		Ok(columns)
 	}
 
@@ -117,7 +117,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		};
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind() != exh::SheetKind::Subrows && subrow_id > 0 {
+		if header.kind != exh::SheetKind::Subrows && subrow_id > 0 {
 			return Err(Error::NotFound(row_error_value()));
 		}
 
@@ -128,7 +128,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		let language = self.resolve_language(options.language.unwrap_or(self.default_language))?;
 		let page = self.page(start_id, language)?;
 
-		let data = match header.kind() {
+		let data = match header.kind {
 			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
 			_ => page.row_data(row_id),
 		}?;
@@ -157,10 +157,10 @@ impl<S: SheetMetadata> Sheet<S> {
 		let header = self.header().ok()?;
 
 		header
-			.pages()
+			.pages
 			.iter()
-			.find(|page| page.start_id() <= row_id && page.start_id() + page.row_count() > row_id)
-			.map(|page| page.start_id())
+			.find(|page| page.start_id <= row_id && page.start_id + page.row_count > row_id)
+			.map(|page| page.start_id)
 	}
 
 	pub(super) fn page(&self, start_id: u32, language: Language) -> Result<Arc<exd::ExcelData>> {
@@ -192,7 +192,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		// TODO: Should an explicit language request fail hard on miss?
 		[language, Language::None]
 			.into_iter()
-			.find(|&language| header.languages().contains(&language.into()))
+			.find(|&language| header.languages.contains(&language.into()))
 			// TODO: Should this be Invalid or NotFound?
 			// TODO: Should we have an explicit ErrorValue for language?
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("language {language:?}"))))
