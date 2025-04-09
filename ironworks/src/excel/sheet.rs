@@ -1,8 +1,10 @@
 use std::{
 	collections::HashMap,
+	io::{Cursor, Seek},
 	sync::{Arc, OnceLock, RwLock},
 };
 
+use binrw::BinRead;
 use derivative::Derivative;
 use num_enum::FromPrimitive;
 
@@ -128,13 +130,27 @@ impl<S: SheetMetadata> Sheet<S> {
 		let language = self.resolve_language(options.language.unwrap_or(self.default_language))?;
 		let page = self.page(start_id, language)?;
 
-		let data = match header.kind {
-			exh::SheetKind::Subrows => page.subrow_data(row_id, subrow_id),
-			_ => page.row_data(row_id),
-		}?;
+		let row_definition = row_definition(&page, row_id)?;
+
+		let mut cursor = Cursor::new(&page.data);
+		cursor.set_position(u64::from(row_definition.offset));
+		let row_header = exd::RowHeader::read(&mut cursor)?;
+
+		let row_data_pos = usize::try_from(cursor.position()).unwrap();
+		let row_data_size = usize::try_from(row_header.size).unwrap();
+
+		let row_data = &page.data[row_data_pos..row_data_pos + row_data_size];
+		let (field_buffer, string_buffer) =
+			subrow_buffers(&sheet_header, &row_header, row_data, row_id, subrow_id)?;
 
 		// TODO: This means I'm cloning the entire row byte array each time, even if someone's asking for 2 fields. Perhaps consider using a "row reader" that operates on a temporary lifetime with the byte slice, and only to_vec the data in a concrete Row for raw reading?
-		let row = Row::new(row_id, subrow_id, header, data.to_vec());
+		let row = Row::new(
+			row_id,
+			subrow_id,
+			sheet_header,
+			field_buffer.to_vec(),
+			string_buffer.to_vec(),
+		);
 
 		self.metadata
 			.populate_row(row)
@@ -206,6 +222,72 @@ impl<S: SheetMetadata> IntoIterator for Sheet<S> {
 	fn into_iter(self) -> Self::IntoIter {
 		SheetIterator::new(self)
 	}
+}
+
+// TODO: this is only pub for use by the current (horrid) iterator.
+pub(super) fn row_definition(page: &exd::ExcelData, row_id: u32) -> Result<&exd::RowDefinition> {
+	// Most pages are contiguous IDs - check if this assumption holds in this
+	// case, and fast track if it does.
+	let first_row_id = page.rows.get(0).map_or(0, |row| row.id);
+	if let Some(index) = row_id.checked_sub(first_row_id) {
+		let index_usize = usize::try_from(index).unwrap();
+		if index_usize < page.rows.len() && page.rows[index_usize].id == row_id {
+			return Ok(&page.rows[index_usize]);
+		}
+	}
+
+	// Otherwise, fall back to a naive scan.
+	page.rows
+		.iter()
+		.find(|row| row.id == row_id)
+		.ok_or(Error::NotFound(ErrorValue::Row {
+			row: row_id,
+			subrow: 0,
+			sheet: None,
+		}))
+}
+
+fn subrow_buffers<'a>(
+	sheet_header: &exh::ExcelHeader,
+	row_header: &exd::RowHeader,
+	row_data: &'a [u8],
+	row_id: u32,
+	subrow_id: u16,
+) -> Result<(&'a [u8], &'a [u8])> {
+	// For non-subrow sheets, there should be a single set of fields at offset 0,
+	// followed by the string buffer.
+	if sheet_header.kind != exh::SheetKind::Subrows {
+		return Ok(row_data.split_at(sheet_header.row_size.into()));
+	}
+
+	let mut maybe_fields_pos = None;
+	let mut cursor = Cursor::new(row_data);
+	for _ in 0..row_header.count {
+		let subrow_header = exd::SubrowHeader::read(&mut cursor)?;
+		if subrow_header.id == subrow_id {
+			maybe_fields_pos = Some(usize::try_from(cursor.position()).unwrap());
+			break;
+		}
+		cursor.seek_relative(sheet_header.row_size.into())?;
+	}
+
+	let Some(fields_pos) = maybe_fields_pos else {
+		// TODO: this better
+		return Err(Error::NotFound(ErrorValue::Row {
+			row: row_id,
+			subrow: subrow_id,
+			sheet: None,
+		}));
+	};
+
+	// String buffer sits after all subrow field data.
+	let strings_pos = usize::from(row_header.count)
+		* (usize::from(sheet_header.row_size) + exd::SubrowHeader::SIZE);
+
+	Ok((
+		&row_data[fields_pos..fields_pos + usize::from(sheet_header.row_size)],
+		&row_data[strings_pos..],
+	))
 }
 
 /// Data cache for raw values, decoupled from mapping/metadata concerns.

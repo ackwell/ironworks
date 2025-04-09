@@ -1,11 +1,19 @@
-use std::sync::Arc;
+use std::{
+	io::{Cursor, Seek},
+	sync::Arc,
+};
+
+use binrw::BinRead;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
 	file::{exd, exh},
 };
 
-use super::{metadata::SheetMetadata, sheet::Sheet};
+use super::{
+	metadata::SheetMetadata,
+	sheet::{Sheet, row_definition},
+};
 
 /// Iterator over the rows in a sheet.
 #[derive(Debug)]
@@ -83,8 +91,9 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	}
 
 	fn subrow_max(&mut self) -> Result<u16> {
+		let sheet_header = self.sheet.header()?;
 		// Fetch the count of subrows for this row. It's cached to avoid subrow sheets requiring multiple lookups.
-		let count = match self.sheet.kind()? {
+		let count = match sheet_header.kind {
 			exh::SheetKind::Subrows => match self.subrow_max {
 				Some(value) => value,
 				None => {
@@ -92,12 +101,17 @@ impl<S: SheetMetadata> SheetIterator<S> {
 					let row_id = self.row_id()?;
 					let page = self.page()?;
 
-					// If we get a row not found, we can assume that there are "zero" subrows, in an effort to skip this row.
-					let subrow_max = match page.subrow_max(row_id) {
-						Err(Error::NotFound(ErrorValue::Row { .. })) => Ok(0),
-						other => other,
+					let row_definition = row_definition(&page, row_id)?;
+					let mut cursor = Cursor::new(&page.data);
+					cursor.set_position(row_definition.offset.into());
+					let row_header = exd::RowHeader::read(&mut cursor)?;
+
+					let mut subrow_max = 0;
+					for _index in 0..row_header.count {
+						let subrow_header = exd::SubrowHeader::read(&mut cursor)?;
+						subrow_max = std::cmp::max(subrow_max, subrow_header.id);
+						cursor.seek_relative(sheet_header.row_size.into())?;
 					}
-					.expect("failed to read subrow count while iterating");
 
 					*self.subrow_max.insert(subrow_max)
 				}
