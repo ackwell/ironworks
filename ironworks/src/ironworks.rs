@@ -13,7 +13,7 @@ impl<T> FileStream for T where T: Read + Seek + 'static {}
 
 // TODO: This shares name with sqpack::resource. conceptually it's similar but also kinda not. thoughts?
 /// Resource layer that can provide data to an ironworks instance.
-pub trait Resource: Send + Sync + 'static {
+pub trait Resource: 'static {
 	/// Get the version string for the file at `path`. A return value of
 	/// `Err(Error::NotFound(ErrorValue::Path(_)))` will result in lookups
 	/// continuing to the next resource.
