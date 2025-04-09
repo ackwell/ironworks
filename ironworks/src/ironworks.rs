@@ -25,14 +25,26 @@ pub trait Resource: 'static {
 	fn file(&self, path: &str) -> Result<Box<dyn FileStream>>;
 }
 
+impl<R: Resource + ?Sized> Resource for Box<R> {
+	fn version(&self, path: &str) -> Result<String> {
+		self.as_ref().version(path)
+	}
+
+	fn file(&self, path: &str) -> Result<Box<dyn FileStream>> {
+		self.as_ref().file(path)
+	}
+}
+
 /// Core ironworks struct. Add one or more resources to query files.
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct Ironworks {
+pub struct Ironworks<R: Resource = Box<dyn Resource>> {
 	#[derivative(Debug = "ignore")]
-	resources: Vec<Box<dyn Resource>>,
+	resources: Vec<R>,
 	// todo: does this own the file cache, then?
 }
+
+pub type SharedIronworks = Ironworks<Box<dyn Resource + Send + Sync>>;
 
 impl Default for Ironworks {
 	fn default() -> Self {
@@ -40,7 +52,7 @@ impl Default for Ironworks {
 	}
 }
 
-impl Ironworks {
+impl<R: Resource> Ironworks<R> {
 	/// Build a new instance of ironworks.
 	pub fn new() -> Self {
 		Self {
@@ -51,16 +63,16 @@ impl Ironworks {
 	/// Add a resource to search for files. Resources are searched last-first; the
 	/// last resource added to ironworks that provides a requested path will be
 	/// the resource that is utilised.
-	pub fn add_resource(&mut self, resource: impl Resource) {
-		self.resources.push(Box::new(resource));
+	pub fn add_resource(&mut self, resource: R) {
+		self.resources.push(resource);
 	}
 
 	/// Add a resource to search for files. Resources are searched last-first; the
 	/// last resource added to ironworks that provides a requested path will be
 	/// the resource that is utilised.
 	#[must_use]
-	pub fn with_resource(mut self, resource: impl Resource) -> Self {
-		self.resources.push(Box::new(resource));
+	pub fn with_resource(mut self, resource: R) -> Self {
+		self.resources.push(resource);
 		self
 	}
 
@@ -78,7 +90,7 @@ impl Ironworks {
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>
 	where
-		F: Fn(&Box<dyn Resource>) -> Result<O>,
+		F: Fn(&R) -> Result<O>,
 	{
 		self.resources
 			.iter()
