@@ -110,7 +110,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		options: impl Into<RowOptions>,
 	) -> Result<S::Row> {
 		let options: RowOptions = options.into();
-		let header = self.header()?;
+		let sheet_header = self.header()?;
 
 		let row_error_value = || ErrorValue::Row {
 			row: row_id,
@@ -119,7 +119,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		};
 
 		// Fail out early if a subrow >0 was requested on a non-subrow sheet.
-		if header.kind != exh::SheetKind::Subrows && subrow_id > 0 {
+		if sheet_header.kind != exh::SheetKind::Subrows && subrow_id > 0 {
 			return Err(Error::NotFound(row_error_value()));
 		}
 

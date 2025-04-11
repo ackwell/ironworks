@@ -1,8 +1,6 @@
 //! Structs and utilities for parsing .exh files.
 
-use std::collections::HashSet;
-
-use binrw::{BinRead, binread};
+use binrw::{BinRead, NullString, binread};
 use num_enum::IntoPrimitive;
 
 use crate::{FileStream, error::Result};
@@ -14,9 +12,11 @@ use super::File;
 #[derive(Debug)]
 #[br(big, magic = b"EXHF")]
 pub struct ExcelHeader {
+	/// File format version.
 	pub version: u16,
 
-	/// Size of structured data in each row, in bytes.
+	/// Size in bytes of fields for a single row in this sheet, or a single subrow
+	/// for `SheetKind::Subrows`.
 	pub row_size: u16,
 
 	#[br(temp)]
@@ -26,33 +26,39 @@ pub struct ExcelHeader {
 	#[br(temp)]
 	language_count: u16,
 
-	unknown1: u16,
-	unknown2: u8,
+	///
+	pub unknown1: u16,
 
-	/// The kind of the relevant sheet. This value dictates the binary layout and
+	///
+	pub unknown2: u8,
+
+	/// The kind of the this sheet. This value dictates the binary layout and
 	/// capabilities of rows.
 	pub kind: SheetKind,
 
-	unknown3: u16,
+	///
+	pub unknown3: u16,
 
-	_row_count: u32,
+	/// Total count of rows in this sheet across all pages, including subrows.
+	pub row_count: u32,
 
-	unknown4: [u32; 2],
+	///
+	pub unknown4: [u32; 2],
 
-	/// Column definitions for rows in this sheet.
+	/// Definition of the layout and type of columns.
 	#[br(count = column_count)]
 	pub columns: Vec<ColumnDefinition>,
 
-	/// Definitions of the pages of data for this sheet.
+	/// Definitions of the pages of data for this sheet
 	#[br(count = page_count)]
 	pub pages: Vec<PageDefinition>,
 
-	/// Language IDs supported by this sheet.
+	/// IDs of languages supported by this sheet.
 	#[br(
 		count = language_count,
-		map = LanguageDefinition::to_set,
+		map = |items: Vec<LanguageDefinition>| items.into_iter().map(|item| item.language).collect()
 	)]
-	pub languages: HashSet<u8>,
+	pub languages: Vec<u8>,
 }
 
 impl File for ExcelHeader {
@@ -69,12 +75,12 @@ pub enum SheetKind {
 	/// Unknown kind. Will be treated equivalently to Default.
 	Unknown = 0,
 
-	/// Default sheet kind. Supports string payloads. Strings are stored in data
-	/// immediately following the end of the structured row segment.
+	/// Default sheet kind. Each row will contain one set of fields.
 	Default = 1,
 
-	/// Subrow sheet. Each row may have one or more subrows, IDs acting as a
-	/// secondary key. Subrow sheets do not support string payloads.
+	/// Sheet with subrow support. Each row will contain one or more sets of
+	/// fields, each with a discrete secondary ID. The (row_id, subrow_id) pair
+	/// acts as a unique composite key.
 	Subrows = 2,
 }
 
@@ -86,7 +92,7 @@ pub struct ColumnDefinition {
 	/// The kind of data stored in this column.
 	pub kind: ColumnKind,
 
-	/// The offset of this column in bytes within the row structured data.
+	/// The byte offset of this column within the row field data.
 	pub offset: u16,
 }
 
@@ -138,15 +144,9 @@ pub struct PageDefinition {
 #[derive(Debug)]
 #[br(big)]
 struct LanguageDefinition {
-	#[br(pad_after = 1)]
 	language: u8,
-	// unknown1: u8, //probably padding
-}
 
-impl LanguageDefinition {
-	// TODO: Consider utilising some other data structure - realistically a bitfield
-	// would be significantly smaller and more performant than a hash for this.
-	fn to_set(languages: Vec<Self>) -> HashSet<u8> {
-		languages.iter().map(|language| language.language).collect()
-	}
+	// Note: Seemingly unused?
+	#[br(map = |raw: NullString| raw.to_string())]
+	_unknown1: String,
 }
