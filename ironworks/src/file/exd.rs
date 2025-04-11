@@ -1,153 +1,70 @@
 //! Structs and utilities for parsing .exd files.
 
-use std::io::{Cursor, Read, Seek};
+use std::io::Seek;
 
-use binrw::{BinRead, BinResult, Endian, binread};
-use getset::{CopyGetters, Getters};
+use binrw::{BinRead, BinResult, binread, error::CustomError};
+use derivative::Derivative;
 
-use crate::{
-	FileStream,
-	error::{Error, ErrorValue, Result},
-};
+use crate::{FileStream, error::Result};
 
 use super::file::File;
 
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
 #[binread]
-#[derive(Debug, Getters)]
-#[br(big, magic = b"EXDF")]
+#[derive(Derivative)]
+#[derivative(Debug)]
+#[br(big, magic = b"EXDF", stream = stream)]
 pub struct ExcelData {
-	_version: u16,
-	// unknown1: u16,
-	#[br(pad_before = 2, temp)]
+	/// EXD format version.
+	pub version: u16,
+
+	/// Unknown value. Only known to be 0, potentially padding.
+	pub unknown1: u16,
+
+	#[br(temp)]
 	index_size: u32,
 
-	// unknown2: [u16; 10],
-	/// Vector of rows contained within this page.
+	#[br(temp)]
+	data_size: u32,
+
+	/// Unknown values. Only known to be 0.
+	pub unknown2: [u16; 8],
+
+	// Pre-emptively calculate where the data will start, so we can adjust row
+	// offsets to be relative to it, rather than the start of the file.
+	#[br(temp, calc = position::<u32>(stream)? + index_size)]
+	data_offset: u32,
+
+	/// Definitions for the rows contained in this page.
 	#[br(
-		pad_before = 20,
-		count = index_size / RowDefinition::SIZE,
+		count = usize::try_from(index_size).unwrap() / RowDefinition::SIZE,
+		args { inner: (data_offset,) }
 	)]
-	#[get = "pub"]
-	rows: Vec<RowDefinition>,
+	pub rows: Vec<RowDefinition>,
 
-	#[br(parse_with = current_position)]
-	data_offset: u64,
-
-	#[br(parse_with = until_eof)]
-	data: Vec<u8>,
-}
-
-impl ExcelData {
-	/// Fetch the slice of data associated with the specified row. If this data
-	/// page is for a sheet with subrows, this will include all child rows of the
-	/// specified row. Otherwise, it will contain the row and any trailing string data.
-	pub fn row_data(&self, row_id: u32) -> Result<&[u8]> {
-		let (row_header, offset) = self.row_meta(row_id)?;
-
-		// Get a slice of the row's data
-		let length: usize = row_header.data_size.try_into().unwrap();
-		Ok(&self.data[offset..offset + length])
-	}
-
-	/// Fetch the slice of data associated with the specified subrow.
-	pub fn subrow_data(&self, row_id: u32, subrow_id: u16) -> Result<&[u8]> {
-		let (row_header, offset) = self.row_meta(row_id)?;
-
-		// Subrows invariably do not support unstructured data (i.e. strings), and
-		// are laid out in subrow order. As such, it's safe to assume that evenly
-		// splitting the row's data by it's subrow count will give us what we want.
-		let subrow_size =
-			usize::try_from(row_header.data_size / u32::from(row_header.row_count)).unwrap();
-
-		// Subrow IDs do not always match their index within the row - loop over
-		// subrows and find the subrow with a matching ID.
-		let mut cursor = Cursor::new(&self.data);
-		let maybe_subrow_offset = (0..row_header.row_count)
-			// TODO: map->try_find whenever _that_ stabilises
-			.find_map(|index| -> Option<Result<_>> {
-				let subrow_offset = offset + subrow_size * usize::try_from(index).unwrap();
-				cursor.set_position(subrow_offset.try_into().unwrap());
-				match SubrowHeader::read(&mut cursor) {
-					Err(e) => Some(Err(e.into())),
-					Ok(v) => match v.id == subrow_id {
-						true => Some(Ok(subrow_offset)),
-						false => None,
-					},
-				}
-			});
-
-		let subrow_offset = match maybe_subrow_offset {
-			// A subrow header read failed
-			Some(Err(error)) => return Err(error),
-			// No subrows matched at all
-			None => {
-				return Err(Error::NotFound(ErrorValue::Row {
-					row: row_id,
-					subrow: subrow_id,
-					sheet: None,
-				}));
-			}
-			// A match was found
-			Some(Ok(subrow_offset)) => subrow_offset,
-		};
-
-		// Get the slice of subrow data.
-		Ok(&self.data[subrow_offset + SubrowHeader::SIZE..subrow_offset + subrow_size])
-	}
-
-	// TODO: This is a hacky implementation for use in excel's sheet iterator. Remove once iterator is rewritten to be less insane.
-	pub(crate) fn subrow_max(&self, row_id: u32) -> Result<u16> {
-		let (row_header, offset) = self.row_meta(row_id)?;
-
-		let subrow_size =
-			usize::try_from(row_header.data_size / u32::from(row_header.row_count)).unwrap();
-
-		let mut cursor = Cursor::new(&self.data);
-		(0..row_header.row_count)
-			.map(move |index| -> Result<_> {
-				let subrow_offset = offset + subrow_size * usize::try_from(index).unwrap();
-				cursor.set_position(subrow_offset.try_into().unwrap());
-				Ok(SubrowHeader::read(&mut cursor)?)
-			})
-			.fold(Ok(0), |a, b| {
-				a.and_then(|a| b.map(|b| std::cmp::max(a, b.id)))
-			})
-	}
-
-	fn row_meta(&self, row_id: u32) -> Result<(RowHeader, usize)> {
-		let row_definition = self.row_definition(row_id)?;
-
-		// Get a cursor to the start of the row.
-		let mut cursor = Cursor::new(&self.data);
-		cursor.set_position(u64::from(row_definition.offset) - self.data_offset);
-
-		// Read in the header.
-		let row_header = RowHeader::read(&mut cursor)?;
-
-		Ok((row_header, cursor.position().try_into().unwrap()))
-	}
-
-	fn row_definition(&self, row_id: u32) -> Result<&RowDefinition> {
-		// In all likelihood the row can be found simply by indexing
-		// the vector based on the ID's offset from the first row.
-		let first_row_id = self.rows.get(0).map_or(0, |row| row.id);
-		if let Some(row_index) = row_id.checked_sub(first_row_id).map(|i| i as usize) {
-			if row_index < self.rows.len() && self.rows[row_index].id == row_id {
-				return Ok(&self.rows[row_index]);
-			}
-		}
-
-		// If not, scan to find the row.
-		self.rows.iter().find(|row| row.id == row_id).ok_or({
-			Error::NotFound(ErrorValue::Row {
-				row: row_id,
-				subrow: 0,
-				sheet: None,
-			})
-		})
-	}
+	/// Buffer containing rows in this page.
+	///
+	/// Precise layout of rows varies based on information contained in this
+	/// page's associated header file (`.exh`), including the sheet kind, and
+	/// column layout.
+	///
+	/// **`exh::SheetKind::Default`**
+	/// ```txt
+	/// ┌───────────┬────────────┬───────────────┐
+	/// │ RowHeader │ Field data │ String buffer │
+	/// └───────────┴────────────┴───────────────┘
+	/// ```
+	///
+	/// **`exh::SheetKind::Subrows`**
+	/// ```txt
+	/// ┌───────────┬──────────────┬────────────┬╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶┌───────────────┐
+	/// │ RowHeader │ SubrowHeader │ Field data │ Further subrows │ String buffer │
+	/// └───────────┴──────────────┴────────────┴╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶╶└───────────────┘
+	/// ```
+	#[br(count = data_size)]
+	#[derivative(Debug = "ignore")]
+	pub data: Vec<u8>,
 }
 
 impl File for ExcelData {
@@ -156,46 +73,61 @@ impl File for ExcelData {
 	}
 }
 
-/// Metadata of a row contained in a page.
+/// Definition of a row within a page.
 #[binread]
-#[derive(Debug, CopyGetters)]
-#[br(big)]
+#[derive(Debug)]
+#[br(big, import(data_offset: u32))]
 pub struct RowDefinition {
 	/// Primary key ID of this row.
-	#[get_copy = "pub"]
-	id: u32,
-	offset: u32,
+	pub id: u32,
+
+	/// Offset of this row within the data buffer.
+	#[br(map = |raw: u32| raw - data_offset)]
+	pub offset: u32,
 }
 
 impl RowDefinition {
-	const SIZE: u32 = 8;
+	const SIZE: usize = 8;
 }
 
-fn current_position<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<u64> {
-	Ok(reader.stream_position()?)
-}
-
-fn until_eof<R: Read + Seek>(reader: &mut R, _: Endian, _: ()) -> BinResult<Vec<u8>> {
-	let mut v = Vec::new();
-	reader.read_to_end(&mut v)?;
-	Ok(v)
-}
-
+/// Inlined metadata for a row within a page.
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct RowHeader {
-	data_size: u32,
-	row_count: u16,
+pub struct RowHeader {
+	/// Byte size of this row's data, including both fields and string buffer.
+	pub size: u32,
+
+	/// Number of subrows present within this row. Only meaningful for
+	/// `SheetKind::Subrows`, will be `1` for other kinds.
+	pub count: u16,
 }
 
+/// Inlined metadata for a subrow within a row.
 #[binread]
 #[derive(Debug)]
 #[br(big)]
-struct SubrowHeader {
-	id: u16,
+pub struct SubrowHeader {
+	/// ID of this subrow within the parent row.
+	pub id: u16,
 }
 
 impl SubrowHeader {
-	const SIZE: usize = 2;
+	/// Size of subrow header, in bytes.
+	pub const SIZE: usize = 2;
+}
+
+/// Get the current byte offset of the stream.
+///
+/// Will fail if the offset cannot be converted to `T`.
+fn position<T>(stream: &mut impl Seek) -> BinResult<T>
+where
+	u64: TryInto<T>,
+	<u64 as TryInto<T>>::Error: CustomError + 'static,
+{
+	let position = stream.stream_position()?;
+	position.try_into().map_err(|error| binrw::Error::Custom {
+		pos: position,
+		err: Box::new(error),
+	})
 }
