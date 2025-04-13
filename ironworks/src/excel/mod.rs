@@ -5,6 +5,7 @@ mod field;
 mod iterator;
 mod language;
 mod metadata;
+mod page;
 mod path;
 mod row;
 mod sheet;

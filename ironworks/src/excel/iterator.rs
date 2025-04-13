@@ -12,6 +12,7 @@ use crate::{
 
 use super::{
 	metadata::SheetMetadata,
+	page::Page,
 	sheet::{Sheet, row_definition},
 };
 
@@ -24,7 +25,7 @@ pub struct SheetIterator<S> {
 	row_index: usize,
 	subrow_id: u16,
 
-	page: Option<Arc<exd::ExcelData>>,
+	page: Option<Arc<Page>>,
 	subrow_max: Option<u16>,
 }
 
@@ -81,7 +82,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		}
 
 		// If the page bounds have been exceeded, move on to the next page.
-		if self.row_index >= self.page()?.rows.len() {
+		if self.row_index >= self.page()?.TEMP_DATA().rows.len() {
 			self.row_index = 0;
 			self.page = None;
 			self.page_index += 1;
@@ -100,6 +101,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 					// TODO: this is reading the page out twice, which is really dumb. Expose more data via exd and move logic to excel to avoid this shit.
 					let row_id = self.row_id()?;
 					let page = self.page()?;
+					let page = page.TEMP_DATA();
 
 					let row_definition = row_definition(&page, row_id)?;
 					let mut cursor = Cursor::new(&page.data);
@@ -124,6 +126,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 	fn row_id(&mut self) -> Result<u32> {
 		let id = self
 			.page()?
+			.TEMP_DATA()
 			.rows
 			.get(self.row_index)
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("Row {}", self.row_index))))?
@@ -132,7 +135,7 @@ impl<S: SheetMetadata> SheetIterator<S> {
 		Ok(id)
 	}
 
-	fn page(&mut self) -> Result<Arc<exd::ExcelData>> {
+	fn page(&mut self) -> Result<Arc<Page>> {
 		let page = match &self.page {
 			Some(value) => value,
 			None => {
