@@ -1,10 +1,8 @@
 use std::{
 	collections::HashMap,
-	io::{Cursor, Seek},
 	sync::{Arc, OnceLock, RwLock},
 };
 
-use binrw::BinRead;
 use derivative::Derivative;
 use num_enum::FromPrimitive;
 
@@ -14,7 +12,13 @@ use crate::{
 	ironworks::Ironworks,
 };
 
-use super::{iterator::SheetIterator, language::Language, metadata::SheetMetadata, path, row::Row};
+use super::{
+	language::Language,
+	metadata::SheetMetadata,
+	page::{Page, PageIterator, RowSpecifier, SubrowSpecifier},
+	path,
+	row::Row,
+};
 
 /// A sheet within an Excel database.
 #[derive(Derivative)]
@@ -130,31 +134,25 @@ impl<S: SheetMetadata> Sheet<S> {
 		let language = self.resolve_language(options.language.unwrap_or(self.default_language))?;
 		let page = self.page(start_id, language)?;
 
-		let row_definition = row_definition(&page, row_id)?;
+		let row = page.row(RowSpecifier::Id(row_id), SubrowSpecifier::Id(subrow_id))?;
 
-		let mut cursor = Cursor::new(&page.data);
-		cursor.set_position(u64::from(row_definition.offset));
-		let row_header = exd::RowHeader::read(&mut cursor)?;
+		self.populate_row(row)
+	}
 
-		let row_data_pos = usize::try_from(cursor.position()).unwrap();
-		let row_data_size = usize::try_from(row_header.size).unwrap();
+	fn populate_row(&self, row: Row) -> Result<S::Row> {
+		let row_id = row.row_id();
+		let subrow_id = row.subrow_id();
 
-		let row_data = &page.data[row_data_pos..row_data_pos + row_data_size];
-		let (field_buffer, string_buffer) =
-			subrow_buffers(&sheet_header, &row_header, row_data, row_id, subrow_id)?;
-
-		// TODO: This means I'm cloning the entire row byte array each time, even if someone's asking for 2 fields. Perhaps consider using a "row reader" that operates on a temporary lifetime with the byte slice, and only to_vec the data in a concrete Row for raw reading?
-		let row = Row::new(
-			row_id,
-			subrow_id,
-			sheet_header,
-			field_buffer.to_vec(),
-			string_buffer.to_vec(),
-		);
-
-		self.metadata
-			.populate_row(row)
-			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
+		self.metadata.populate_row(row).map_err(|error| {
+			Error::Invalid(
+				ErrorValue::Row {
+					row: row_id,
+					subrow: subrow_id,
+					sheet: Some(self.name()),
+				},
+				error.to_string(),
+			)
+		})
 	}
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
@@ -179,7 +177,7 @@ impl<S: SheetMetadata> Sheet<S> {
 			.map(|page| page.start_id)
 	}
 
-	pub(super) fn page(&self, start_id: u32, language: Language) -> Result<Arc<exd::ExcelData>> {
+	pub(super) fn page(&self, start_id: u32, language: Language) -> Result<Arc<Page>> {
 		let key = (start_id, language);
 
 		// Try to fetch from the hot path.
@@ -194,17 +192,20 @@ impl<S: SheetMetadata> Sheet<S> {
 		let mut pages_mut = self.cache.pages.write().expect("poisoned");
 
 		let path = path::exd(&self.name(), start_id, language)?;
-		let data = Arc::new(self.ironworks.file::<exd::ExcelData>(&path)?);
+		let page = Arc::new(Page::new(
+			self.header()?,
+			self.ironworks.file::<exd::ExcelData>(&path)?,
+		));
 
-		pages_mut.insert(key, data.clone());
+		pages_mut.insert(key, page.clone());
 
-		Ok(data)
+		Ok(page)
 	}
 
 	pub(super) fn resolve_language(&self, language: Language) -> Result<Language> {
 		let header = self.header()?;
 
-		// Get the language to load, or NONE if the language is not supported by this sheet.
+		// Get the language to load, or None if the language is not supported by this sheet.
 		// TODO: Should an explicit language request fail hard on miss?
 		[language, Language::None]
 			.into_iter()
@@ -216,7 +217,7 @@ impl<S: SheetMetadata> Sheet<S> {
 }
 
 impl<S: SheetMetadata> IntoIterator for Sheet<S> {
-	type Item = S::Row;
+	type Item = Result<S::Row>;
 	type IntoIter = SheetIterator<S>;
 
 	fn into_iter(self) -> Self::IntoIter {
@@ -224,77 +225,11 @@ impl<S: SheetMetadata> IntoIterator for Sheet<S> {
 	}
 }
 
-// TODO: this is only pub for use by the current (horrid) iterator.
-pub(super) fn row_definition(page: &exd::ExcelData, row_id: u32) -> Result<&exd::RowDefinition> {
-	// Most pages are contiguous IDs - check if this assumption holds in this
-	// case, and fast track if it does.
-	let first_row_id = page.rows.get(0).map_or(0, |row| row.id);
-	if let Some(index) = row_id.checked_sub(first_row_id) {
-		let index_usize = usize::try_from(index).unwrap();
-		if index_usize < page.rows.len() && page.rows[index_usize].id == row_id {
-			return Ok(&page.rows[index_usize]);
-		}
-	}
-
-	// Otherwise, fall back to a naive scan.
-	page.rows
-		.iter()
-		.find(|row| row.id == row_id)
-		.ok_or(Error::NotFound(ErrorValue::Row {
-			row: row_id,
-			subrow: 0,
-			sheet: None,
-		}))
-}
-
-fn subrow_buffers<'a>(
-	sheet_header: &exh::ExcelHeader,
-	row_header: &exd::RowHeader,
-	row_data: &'a [u8],
-	row_id: u32,
-	subrow_id: u16,
-) -> Result<(&'a [u8], &'a [u8])> {
-	// For non-subrow sheets, there should be a single set of fields at offset 0,
-	// followed by the string buffer.
-	if sheet_header.kind != exh::SheetKind::Subrows {
-		return Ok(row_data.split_at(sheet_header.row_size.into()));
-	}
-
-	let mut maybe_fields_pos = None;
-	let mut cursor = Cursor::new(row_data);
-	for _ in 0..row_header.count {
-		let subrow_header = exd::SubrowHeader::read(&mut cursor)?;
-		if subrow_header.id == subrow_id {
-			maybe_fields_pos = Some(usize::try_from(cursor.position()).unwrap());
-			break;
-		}
-		cursor.seek_relative(sheet_header.row_size.into())?;
-	}
-
-	let Some(fields_pos) = maybe_fields_pos else {
-		// TODO: this better
-		return Err(Error::NotFound(ErrorValue::Row {
-			row: row_id,
-			subrow: subrow_id,
-			sheet: None,
-		}));
-	};
-
-	// String buffer sits after all subrow field data.
-	let strings_pos = usize::from(row_header.count)
-		* (usize::from(sheet_header.row_size) + exd::SubrowHeader::SIZE);
-
-	Ok((
-		&row_data[fields_pos..fields_pos + usize::from(sheet_header.row_size)],
-		&row_data[strings_pos..],
-	))
-}
-
 /// Data cache for raw values, decoupled from mapping/metadata concerns.
 #[derive(Default)]
 pub struct SheetCache {
 	header: OnceLock<Arc<exh::ExcelHeader>>,
-	pages: RwLock<HashMap<(u32, Language), Arc<exd::ExcelData>>>,
+	pages: RwLock<HashMap<(u32, Language), Arc<Page>>>,
 }
 
 /// Options used when reading a row from a sheet.
@@ -314,6 +249,81 @@ impl From<Language> for RowOptions {
 	fn from(language: Language) -> Self {
 		Self {
 			language: Some(language),
+		}
+	}
+}
+
+/// Iterator over the rows in a sheet.
+#[derive(Debug)]
+pub struct SheetIterator<S> {
+	sheet: Sheet<S>,
+
+	stop_iteration: bool,
+
+	page_iter: Option<PageIterator>,
+	next_page_index: usize,
+}
+
+impl<S> SheetIterator<S> {
+	fn new(sheet: Sheet<S>) -> Self {
+		Self {
+			sheet,
+			stop_iteration: false,
+			page_iter: None,
+			next_page_index: 0,
+		}
+	}
+}
+
+impl<S: SheetMetadata> Iterator for SheetIterator<S> {
+	type Item = Result<S::Row>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		// If this iterator has failed in a way that iteration can't meaningfully
+		// continue, close out immediately.
+		if self.stop_iteration {
+			return None;
+		}
+
+		loop {
+			// Try to get the next item from the current page iterator, if any exists.
+			if let Some(next) = self.page_iter.as_mut().and_then(|iter| iter.next()) {
+				let mapped = next.and_then(|row| self.sheet.populate_row(row));
+				return Some(mapped);
+			}
+
+			// Nothing was obtained - try to move to the next page iterator.
+			// If the header cannot be retrieved, there's no way for us to continue iterating at all.
+			let header = match self.sheet.header() {
+				Ok(header) => header,
+				Err(error) => {
+					self.stop_iteration = true;
+					return Some(Err(error));
+				}
+			};
+
+			// Get the next page definition - if this is out of bounds, we're at end
+			// of iteration and can shortcut the None out.
+			let definition = header.pages.get(self.next_page_index)?;
+			self.next_page_index += 1;
+
+			// Similar to the header, we need the language.
+			let language = match self.sheet.resolve_language(self.sheet.default_language) {
+				Ok(language) => language,
+				Err(error) => {
+					self.stop_iteration = true;
+					return Some(Err(error));
+				}
+			};
+
+			// If the page can't be fetched, we may be able to move on to the next
+			// page - it could be an issue with a single page file.
+			let page = match self.sheet.page(definition.start_id, language) {
+				Ok(page) => page,
+				Err(error) => return Some(Err(error)),
+			};
+
+			self.page_iter = Some(PageIterator::new(page));
 		}
 	}
 }
