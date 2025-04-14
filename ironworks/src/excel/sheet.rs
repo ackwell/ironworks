@@ -16,7 +16,7 @@ use super::{
 	iterator::SheetIterator,
 	language::Language,
 	metadata::SheetMetadata,
-	page::{Page, RowSpecifier, SubrowSpecifier},
+	page::{Page, PageIterator, RowSpecifier, SubrowSpecifier},
 	path,
 };
 
@@ -200,6 +200,10 @@ impl<S: SheetMetadata> Sheet<S> {
 			// TODO: Should we have an explicit ErrorValue for language?
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("language {language:?}"))))
 	}
+
+	pub fn temp_intoiter2(self) -> SheetIterator2<S> {
+		SheetIterator2::new(self)
+	}
 }
 
 impl<S: SheetMetadata> IntoIterator for Sheet<S> {
@@ -258,6 +262,75 @@ impl From<Language> for RowOptions {
 	fn from(language: Language) -> Self {
 		Self {
 			language: Some(language),
+		}
+	}
+}
+
+pub struct SheetIterator2<S> {
+	sheet: Sheet<S>,
+
+	page_iter: Option<PageIterator>,
+	next_page_index: usize,
+}
+
+impl<S> SheetIterator2<S> {
+	fn new(sheet: Sheet<S>) -> Self {
+		Self {
+			sheet,
+			page_iter: None,
+			next_page_index: 0,
+		}
+	}
+}
+
+impl<S: SheetMetadata> Iterator for SheetIterator2<S> {
+	type Item = Result<S::Row>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			// try to get something out of whatever we have for page iter currently
+			if let Some(next) = self.page_iter.as_mut().and_then(|iter| iter.next()) {
+				let row = match next {
+					Ok(row) => row,
+					Err(error) => return Some(Err(error)),
+				};
+
+				let row_id = row.row_id();
+				let subrow_id = row.subrow_id();
+				let mapped = self.sheet.metadata.populate_row(row).map_err(|error| {
+					Error::Invalid(
+						ErrorValue::Row {
+							row: row_id,
+							subrow: subrow_id,
+							sheet: None,
+						},
+						error.to_string(),
+					)
+				});
+
+				return Some(mapped);
+			}
+
+			// todo: can this be moved down?
+			let page_index = self.next_page_index;
+			self.next_page_index += 1;
+
+			// if it fails (page iter is complete, or even just never initialised), fetch next iter
+			let header = match self.sheet.header() {
+				Ok(header) => header,
+				Err(error) => todo!("this needs to return some(err) once but fail after that"),
+			};
+
+			// If index is oob, we're at end of pages and can shortcut the none out
+			let definition = header.pages.get(page_index)?;
+
+			let language = self
+				.sheet
+				.resolve_language(self.sheet.default_language)
+				.expect("language failed - this likewise is a fail-once i think?");
+			let page = self.sheet.page(definition.start_id, language).expect("except i think this one should always fail? the index has already been bumped, so if it fails again it's failing on a different page");
+
+			self.page_iter = Some(PageIterator::new(page));
 		}
 	}
 }

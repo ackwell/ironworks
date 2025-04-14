@@ -1,4 +1,8 @@
-use std::{io::Cursor, sync::Arc};
+use std::{
+	io::{Cursor, Seek},
+	ops::Range,
+	sync::Arc,
+};
 
 use binrw::BinRead;
 
@@ -16,6 +20,13 @@ pub enum RowSpecifier<'a> {
 pub enum SubrowSpecifier {
 	Id(u16),
 	Index(usize),
+}
+
+#[derive(Clone)]
+struct RowMetadata {
+	id: u32,
+	count: u16,
+	range: Range<usize>,
 }
 
 #[derive(Debug)]
@@ -39,10 +50,15 @@ impl Page {
 		row_specifier: RowSpecifier<'a>,
 		subrow_specifier: SubrowSpecifier,
 	) -> Result<Row> {
+		let meta = self.row_metadata(row_specifier)?;
+		self.build_row(meta, subrow_specifier)
+	}
+
+	fn row_metadata<'a>(&self, row_specifier: RowSpecifier<'a>) -> Result<RowMetadata> {
 		// Resolve the specifier into a concrete definition.
-		let (row_id, row_definition) = match row_specifier {
-			RowSpecifier::Id(id) => (id, self.row_definition(id)?),
-			RowSpecifier::Definition(definition) => (definition.id, definition),
+		let row_definition = match row_specifier {
+			RowSpecifier::Id(id) => self.row_definition(id)?,
+			RowSpecifier::Definition(definition) => definition,
 		};
 
 		// Read in the row's header, and use to determine bounds of row data.
@@ -53,21 +69,12 @@ impl Page {
 
 		let row_pos = usize::try_from(cursor.position()).unwrap();
 		let row_len = usize::try_from(row_header.size).unwrap();
-		let row_data = &self.data.data[row_pos..row_pos + row_len];
 
-		let (subrow_id, field_buffer, string_buffer) =
-			self.row_buffers(row_data, row_header.count, subrow_specifier)?;
-
-		// TODO: This means I'm cloning the entire row byte array each time, even if someone's asking for 2 fields. Perhaps consider using a "row reader" that operates on a temporary lifetime with the byte slice, and only to_vec the data in a concrete Row for raw reading?
-		let row = Row::new(
-			row_id,
-			subrow_id,
-			self.header.clone(),
-			field_buffer.to_vec(),
-			string_buffer.to_vec(),
-		);
-
-		Ok(row)
+		Ok(RowMetadata {
+			id: row_definition.id,
+			count: row_header.count,
+			range: row_pos..row_pos + row_len,
+		})
 	}
 
 	fn row_definition(&self, row_id: u32) -> Result<&exd::RowDefinition> {
@@ -92,6 +99,24 @@ impl Page {
 				subrow: 0,
 				sheet: None,
 			}))
+	}
+
+	fn build_row(&self, meta: RowMetadata, subrow_specifier: SubrowSpecifier) -> Result<Row> {
+		let row_data = &self.data.data[meta.range];
+
+		let (subrow_id, field_buffer, string_buffer) =
+			self.row_buffers(row_data, meta.count, subrow_specifier)?;
+
+		// TODO: This means I'm cloning the entire row byte array each time, even if someone's asking for 2 fields. Perhaps consider using a "row reader" that operates on a temporary lifetime with the byte slice, and only to_vec the data in a concrete Row for raw reading?
+		let row = Row::new(
+			meta.id,
+			subrow_id,
+			self.header.clone(),
+			field_buffer.to_vec(),
+			string_buffer.to_vec(),
+		);
+
+		Ok(row)
 	}
 
 	fn row_buffers<'a>(
@@ -149,5 +174,63 @@ impl Page {
 		cursor.set_position(u64::try_from(subrow_pos).unwrap());
 		let subrow_header = exd::SubrowHeader::read(&mut cursor)?;
 		Ok(subrow_header.id)
+	}
+}
+
+macro_rules! try_some {
+	($expression:expr) => {
+		match $expression {
+			Ok(ok) => ok,
+			Err(error) => return Some(Err(error)),
+		}
+	};
+}
+
+pub struct PageIterator {
+	// I'm being lazy and just holding the arc here - keep an eye out for cases
+	// that may value a ref/owned.
+	page: Arc<Page>,
+
+	row_index: usize,
+	subrow_index: usize,
+}
+
+impl PageIterator {
+	pub fn new(page: Arc<Page>) -> Self {
+		Self {
+			page,
+			row_index: 0,
+			subrow_index: 0,
+		}
+	}
+}
+
+impl Iterator for PageIterator {
+	type Item = Result<Row>;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		let rows = &self.page.data.rows;
+
+		// Get definition for the current row. If we're out of rows, this will
+		// shortcut out with a None for the full iterator.
+		let definition = rows.get(self.row_index)?;
+
+		// Fetch the row data.
+		let meta = try_some!(self.page.row_metadata(RowSpecifier::Definition(definition)));
+		let subrow_count = meta.count;
+
+		let row = try_some!(
+			self.page
+				.build_row(meta, SubrowSpecifier::Index(self.subrow_index))
+		);
+
+		// Step indices to next position.
+		self.subrow_index += 1;
+		if self.subrow_index >= usize::from(subrow_count) {
+			self.subrow_index = 0;
+			self.row_index += 1;
+		}
+
+		Some(Ok(row))
 	}
 }
