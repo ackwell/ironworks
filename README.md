@@ -47,7 +47,7 @@ fn main() -> Result<(), Error> {
   let list = ironworks.file::<exl::ExcelList>("exd/root.exl")?;
 
   // Read fields out of excel.
-  let excel = Excel::with().language(Language::English).build(&ironworks);
+	let excel = Excel::new(ironworks).with_default_language(Language::English);
   let field = excel.sheet("Item")?.row(37362)?.field(0)?;
 
   Ok(())
