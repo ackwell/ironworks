@@ -36,11 +36,6 @@ pub struct Page {
 }
 
 impl Page {
-	// for iterator testing
-	pub fn TEMP_DATA(&self) -> &exd::ExcelData {
-		&self.data
-	}
-
 	pub fn new(header: Arc<exh::ExcelHeader>, data: exd::ExcelData) -> Self {
 		Self { header, data }
 	}

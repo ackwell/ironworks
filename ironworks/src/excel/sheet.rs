@@ -13,7 +13,6 @@ use crate::{
 };
 
 use super::{
-	iterator::SheetIterator,
 	language::Language,
 	metadata::SheetMetadata,
 	page::{Page, PageIterator, RowSpecifier, SubrowSpecifier},
@@ -215,42 +214,15 @@ impl<S: SheetMetadata> Sheet<S> {
 			// TODO: Should we have an explicit ErrorValue for language?
 			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("language {language:?}"))))
 	}
-
-	pub fn temp_intoiter2(self) -> SheetIterator2<S> {
-		SheetIterator2::new(self)
-	}
 }
 
 impl<S: SheetMetadata> IntoIterator for Sheet<S> {
-	type Item = S::Row;
+	type Item = Result<S::Row>;
 	type IntoIter = SheetIterator<S>;
 
 	fn into_iter(self) -> Self::IntoIter {
 		SheetIterator::new(self)
 	}
-}
-
-// TODO: this is only pub for use by the current (horrid) iterator.
-pub(super) fn row_definition(page: &exd::ExcelData, row_id: u32) -> Result<&exd::RowDefinition> {
-	// Most pages are contiguous IDs - check if this assumption holds in this
-	// case, and fast track if it does.
-	let first_row_id = page.rows.get(0).map_or(0, |row| row.id);
-	if let Some(index) = row_id.checked_sub(first_row_id) {
-		let index_usize = usize::try_from(index).unwrap();
-		if index_usize < page.rows.len() && page.rows[index_usize].id == row_id {
-			return Ok(&page.rows[index_usize]);
-		}
-	}
-
-	// Otherwise, fall back to a naive scan.
-	page.rows
-		.iter()
-		.find(|row| row.id == row_id)
-		.ok_or(Error::NotFound(ErrorValue::Row {
-			row: row_id,
-			subrow: 0,
-			sheet: None,
-		}))
 }
 
 /// Data cache for raw values, decoupled from mapping/metadata concerns.
@@ -281,8 +253,9 @@ impl From<Language> for RowOptions {
 	}
 }
 
+/// Iterator over the rows in a sheet.
 #[derive(Debug)]
-pub struct SheetIterator2<S> {
+pub struct SheetIterator<S> {
 	sheet: Sheet<S>,
 
 	stop_iteration: bool,
@@ -291,7 +264,7 @@ pub struct SheetIterator2<S> {
 	next_page_index: usize,
 }
 
-impl<S> SheetIterator2<S> {
+impl<S> SheetIterator<S> {
 	fn new(sheet: Sheet<S>) -> Self {
 		Self {
 			sheet,
@@ -302,7 +275,7 @@ impl<S> SheetIterator2<S> {
 	}
 }
 
-impl<S: SheetMetadata> Iterator for SheetIterator2<S> {
+impl<S: SheetMetadata> Iterator for SheetIterator<S> {
 	type Item = Result<S::Row>;
 
 	fn next(&mut self) -> Option<Self::Item> {

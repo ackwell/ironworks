@@ -2,7 +2,6 @@
 
 mod excel;
 mod field;
-mod iterator;
 mod language;
 mod metadata;
 mod page;
@@ -13,11 +12,10 @@ mod sheet;
 pub use {
 	excel::Excel,
 	field::Field,
-	iterator::SheetIterator,
 	language::Language,
 	metadata::SheetMetadata,
 	row::{ColumnSpecifier, Row},
-	sheet::{RowOptions, Sheet, SheetIterator2},
+	sheet::{RowOptions, Sheet, SheetIterator},
 };
 
 #[cfg(test)]
