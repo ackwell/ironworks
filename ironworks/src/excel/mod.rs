@@ -17,7 +17,7 @@ pub use {
 	language::Language,
 	metadata::SheetMetadata,
 	row::{ColumnSpecifier, Row},
-	sheet::{RowOptions, Sheet},
+	sheet::{RowOptions, Sheet, SheetIterator2},
 };
 
 #[cfg(test)]

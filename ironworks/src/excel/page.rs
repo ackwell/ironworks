@@ -186,6 +186,7 @@ macro_rules! try_some {
 	};
 }
 
+#[derive(Debug)]
 pub struct PageIterator {
 	// I'm being lazy and just holding the arc here - keep an eye out for cases
 	// that may value a ref/owned.

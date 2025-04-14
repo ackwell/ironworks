@@ -18,6 +18,7 @@ use super::{
 	metadata::SheetMetadata,
 	page::{Page, PageIterator, RowSpecifier, SubrowSpecifier},
 	path,
+	row::Row,
 };
 
 /// A sheet within an Excel database.
@@ -136,9 +137,23 @@ impl<S: SheetMetadata> Sheet<S> {
 
 		let row = page.row(RowSpecifier::Id(row_id), SubrowSpecifier::Id(subrow_id))?;
 
-		self.metadata
-			.populate_row(row)
-			.map_err(|error| Error::Invalid(row_error_value(), error.to_string()))
+		self.populate_row(row)
+	}
+
+	fn populate_row(&self, row: Row) -> Result<S::Row> {
+		let row_id = row.row_id();
+		let subrow_id = row.subrow_id();
+
+		self.metadata.populate_row(row).map_err(|error| {
+			Error::Invalid(
+				ErrorValue::Row {
+					row: row_id,
+					subrow: subrow_id,
+					sheet: Some(self.name()),
+				},
+				error.to_string(),
+			)
+		})
 	}
 
 	pub(super) fn header(&self) -> Result<Arc<exh::ExcelHeader>> {
@@ -266,8 +281,11 @@ impl From<Language> for RowOptions {
 	}
 }
 
+#[derive(Debug)]
 pub struct SheetIterator2<S> {
 	sheet: Sheet<S>,
+
+	stop_iteration: bool,
 
 	page_iter: Option<PageIterator>,
 	next_page_index: usize,
@@ -277,6 +295,7 @@ impl<S> SheetIterator2<S> {
 	fn new(sheet: Sheet<S>) -> Self {
 		Self {
 			sheet,
+			stop_iteration: false,
 			page_iter: None,
 			next_page_index: 0,
 		}
@@ -287,48 +306,49 @@ impl<S: SheetMetadata> Iterator for SheetIterator2<S> {
 	type Item = Result<S::Row>;
 
 	fn next(&mut self) -> Option<Self::Item> {
+		// If this iterator has failed in a way that iteration can't meaningfully
+		// continue, close out immediately.
+		if self.stop_iteration {
+			return None;
+		}
+
 		loop {
-			// try to get something out of whatever we have for page iter currently
+			// Try to get the next item from the current page iterator, if any exists.
 			if let Some(next) = self.page_iter.as_mut().and_then(|iter| iter.next()) {
-				let row = match next {
-					Ok(row) => row,
-					Err(error) => return Some(Err(error)),
-				};
-
-				let row_id = row.row_id();
-				let subrow_id = row.subrow_id();
-				let mapped = self.sheet.metadata.populate_row(row).map_err(|error| {
-					Error::Invalid(
-						ErrorValue::Row {
-							row: row_id,
-							subrow: subrow_id,
-							sheet: None,
-						},
-						error.to_string(),
-					)
-				});
-
+				let mapped = next.and_then(|row| self.sheet.populate_row(row));
 				return Some(mapped);
 			}
 
-			// todo: can this be moved down?
-			let page_index = self.next_page_index;
-			self.next_page_index += 1;
-
-			// if it fails (page iter is complete, or even just never initialised), fetch next iter
+			// Nothing was obtained - try to move to the next page iterator.
+			// If the header cannot be retrieved, there's no way for us to continue iterating at all.
 			let header = match self.sheet.header() {
 				Ok(header) => header,
-				Err(error) => todo!("this needs to return some(err) once but fail after that"),
+				Err(error) => {
+					self.stop_iteration = true;
+					return Some(Err(error));
+				}
 			};
 
-			// If index is oob, we're at end of pages and can shortcut the none out
-			let definition = header.pages.get(page_index)?;
+			// Get the next page definition - if this is out of bounds, we're at end
+			// of iteration and can shortcut the None out.
+			let definition = header.pages.get(self.next_page_index)?;
+			self.next_page_index += 1;
 
-			let language = self
-				.sheet
-				.resolve_language(self.sheet.default_language)
-				.expect("language failed - this likewise is a fail-once i think?");
-			let page = self.sheet.page(definition.start_id, language).expect("except i think this one should always fail? the index has already been bumped, so if it fails again it's failing on a different page");
+			// Similar to the header, we need the language.
+			let language = match self.sheet.resolve_language(self.sheet.default_language) {
+				Ok(language) => language,
+				Err(error) => {
+					self.stop_iteration = true;
+					return Some(Err(error));
+				}
+			};
+
+			// If the page can't be fetched, we may be able to move on to the next
+			// page - it could be an issue with a single page file.
+			let page = match self.sheet.page(definition.start_id, language) {
+				Ok(page) => page,
+				Err(error) => return Some(Err(error)),
+			};
 
 			self.page_iter = Some(PageIterator::new(page));
 		}
