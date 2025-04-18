@@ -5,12 +5,12 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use crate::{
-	error::{Error, ErrorValue, Result},
-	utility::{TakeSeekable, TakeSeekableExt},
-};
+use crate::utility::{TakeSeekable, TakeSeekableExt};
 
-use super::{Location, Resource};
+use super::{
+	Location, Resource,
+	error::{Error, Result},
+};
 
 const TRY_PATHS: &[&str] = &[
 	r"C:\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
@@ -91,7 +91,7 @@ impl Install {
 		self.repositories
 			.get(usize::from(repository))
 			.and_then(|option| option.as_ref())
-			.ok_or_else(|| Error::NotFound(ErrorValue::Other(format!("repository {repository}"))))
+			.ok_or(Error::FileNotFound)
 	}
 }
 
@@ -111,12 +111,12 @@ impl Resource for Install {
 	}
 
 	type Index = io::Cursor<Vec<u8>>;
-	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Option<Self::Index>> {
 		read_index(self.build_file_path(repository, category, chunk, "index")?)
 	}
 
 	type Index2 = io::Cursor<Vec<u8>>;
-	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
+	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Option<Self::Index2>> {
 		read_index(self.build_file_path(repository, category, chunk, "index2")?)
 	}
 
@@ -173,15 +173,15 @@ fn find_repositories(path: &Path) -> Vec<Option<String>> {
 		.collect()
 }
 
-fn read_index(path: PathBuf) -> Result<io::Cursor<Vec<u8>>> {
+fn read_index(path: PathBuf) -> Result<Option<io::Cursor<Vec<u8>>>> {
 	// Read the entire index into memory before returning - we typically need
 	// the full dataset anyway, and working directly on a File causes significant
 	// slowdowns due to IO syscalls.
-	let buffer = fs::read(&path).map_err(|error| match error.kind() {
-		io::ErrorKind::NotFound => {
-			Error::NotFound(ErrorValue::Other(format!("file path {path:?}")))
-		}
-		_ => Error::Resource(error.into()),
-	})?;
-	Ok(io::Cursor::new(buffer))
+	match fs::read(&path) {
+		Ok(buffer) => Ok(Some(io::Cursor::new(buffer))),
+		Err(error) => match error.kind() {
+			io::ErrorKind::NotFound => Ok(None),
+			_ => Err(Error::Io(error)),
+		},
+	}
 }

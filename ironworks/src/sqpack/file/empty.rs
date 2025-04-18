@@ -1,6 +1,6 @@
 use std::io::{Empty, Read, Seek};
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::sqpack::error::{Error, Result};
 
 use super::shared::Header;
 
@@ -15,8 +15,5 @@ pub fn read(reader: impl Read + Seek, header: Header) -> Result<Empty> {
 
 	// Empty files can't be read as-is - they're either entirely invalid, or need
 	// further processing that doesn't belong in sqpack specifically.
-	Err(Error::Invalid(
-		ErrorValue::File(buf),
-		String::from("Empty file"),
-	))
+	Err(Error::FileIncomplete(buf))
 }

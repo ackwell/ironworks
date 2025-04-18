@@ -1,6 +1,7 @@
 //! Tools for working with the SqPack package format.
 
 mod block;
+mod error;
 mod file;
 mod index;
 mod install;

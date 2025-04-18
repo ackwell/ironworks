@@ -1,14 +1,15 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-	Resource,
-	error::{Error, ErrorValue, Result},
-	ironworks::FileStream,
 	sqpack,
 	utility::{HashMapCache, HashMapCacheExt},
 };
 
-use super::{file::File, index::Index};
+use super::{
+	error::{Error, Result},
+	file::File,
+	index::Index,
+};
 
 const CATEGORIES: &[Option<&str>] = &[
 	/* 0x00 */ Some("common"),
@@ -90,12 +91,12 @@ impl<R: sqpack::Resource> SqPack<R> {
 		// game does, checking the first 3 characters for category and such - but I
 		// think this is cleaner; especially to read.
 
-		let path_not_found = || Error::NotFound(ErrorValue::Path(path.to_string()));
-
 		let mut split = path.split('/');
 		let (Some(category_segment), Some(repository_segment)) = (split.next(), split.next())
 		else {
-			return Err(path_not_found());
+			return Err(Error::PathInvalid(
+				"SqPack paths must contain at least two segments".into(),
+			));
 		};
 
 		let repository = REPOSITORIES
@@ -106,22 +107,10 @@ impl<R: sqpack::Resource> SqPack<R> {
 		let category = CATEGORIES
 			.iter()
 			.position(|&category| category == Some(category_segment))
-			.ok_or_else(path_not_found)?;
+			.ok_or_else(|| {
+				Error::PathInvalid(format!("unknown SqPack category \"{category_segment}\""))
+			})?;
 
 		Ok((repository.try_into().unwrap(), category.try_into().unwrap()))
-	}
-}
-
-// TODO: work out the resource story for this because it's gonna get cluttery if im not careful
-impl<R> Resource for SqPack<R>
-where
-	R: sqpack::Resource + Send + Sync + 'static,
-{
-	fn version(&self, path: &str) -> Result<String> {
-		self.version(path)
-	}
-
-	fn file(&self, path: &str) -> Result<Box<dyn FileStream>> {
-		Ok(Box::new(self.file(path)?))
 	}
 }
