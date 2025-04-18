@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, io::SeekFrom};
 
 use binrw::binread;
 
-use crate::error::{Error, ErrorValue, Result};
+use crate::sqpack::error::{Error, Result};
 
 use super::{
 	crc::crc32,
@@ -57,9 +57,8 @@ impl Index1 {
 		let hash = match hashed_segments[..] {
 			[file, directory] => (directory as u64) << 32 | file as u64,
 			_ => {
-				return Err(Error::Invalid(
-					ErrorValue::Path(path.into()),
-					"Paths must contain at least two segments.".into(),
+				return Err(Error::PathInvalid(
+					"SqPack paths must contain at least two segments".into(),
 				));
 			}
 		};
@@ -88,6 +87,6 @@ impl Index1 {
 
 				(metadata, size)
 			})
-			.ok_or_else(|| Error::NotFound(ErrorValue::Path(path.into())))
+			.ok_or(Error::FileNotFound)
 	}
 }

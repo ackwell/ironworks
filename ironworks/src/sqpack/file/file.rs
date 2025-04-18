@@ -2,7 +2,7 @@ use std::io::{Cursor, Empty, Read, Seek, SeekFrom};
 
 use binrw::BinRead;
 
-use crate::{error::Result, sqpack::block::BlockStream};
+use crate::sqpack::{block::BlockStream, error::Result};
 
 use super::{
 	empty, model,
