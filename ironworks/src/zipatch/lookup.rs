@@ -2,20 +2,21 @@ use std::{
 	fs,
 	hash::Hash,
 	io,
+	num::ParseIntError,
 	path::{Path, PathBuf},
 };
 
 use binrw::{BinRead, BinWrite, binrw};
 
 use crate::{
-	error::{Error, ErrorValue, Result},
-	file::{
-		File,
-		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
-	},
+	file::patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk},
+	sqpack,
 };
 
-use super::utility::{BrwMap, BrwVec};
+use super::{
+	chunks::ChunkIterator,
+	utility::{BrwMap, BrwVec},
+};
 
 #[derive(Debug)]
 pub struct PatchLookup {
@@ -24,11 +25,11 @@ pub struct PatchLookup {
 }
 
 impl PatchLookup {
-	pub fn build(path: &Path) -> Result<Self> {
+	pub fn build(path: &Path) -> sqpack::Result<Self> {
 		read_lookup(path)
 	}
 
-	pub fn from_cache(path: &Path, cache: &Path) -> Result<Self> {
+	pub fn from_cache(path: &Path, cache: &Path) -> sqpack::Result<Self> {
 		// Try to read data from an existing cache.
 		let data = match fs::File::open(cache) {
 			// File exists. Try to read, but bail if it's an old version or corrupt.
@@ -130,14 +131,14 @@ pub struct ResourceChunk {
 	pub size: u64,
 }
 
-fn read_lookup(path: &Path) -> Result<PatchLookup> {
+fn read_lookup(path: &Path) -> sqpack::Result<PatchLookup> {
 	let file = io::BufReader::new(fs::File::open(path)?);
-	let zipatch = ZiPatchFile::read(file)?;
+	let mut chunks = ChunkIterator::new(file);
 
 	// TODO: Retry on failure?
-	zipatch
-		.chunks()
-		.try_fold(PatchLookupData::default(), |mut data, chunk| -> Result<_> {
+	let data = chunks.try_fold(
+		PatchLookupData::default(),
+		|mut data, chunk| -> sqpack::Result<_> {
 			match chunk? {
 				Chunk::SqPack(SqPackChunk::FileOperation(command)) => {
 					process_file_operation(&mut data, command)?
@@ -172,14 +173,19 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 			};
 
 			Ok(data)
-		})
-		.map(|data| PatchLookup {
-			path: path.to_owned(),
-			data,
-		})
+		},
+	)?;
+
+	Ok(PatchLookup {
+		path: path.to_owned(),
+		data,
+	})
 }
 
-fn process_file_operation(data: &mut PatchLookupData, command: FileOperationCommand) -> Result<()> {
+fn process_file_operation(
+	data: &mut PatchLookupData,
+	command: FileOperationCommand,
+) -> sqpack::Result<()> {
 	let path = command.path().to_string();
 	if !path.starts_with("sqpack/") {
 		return Ok(());
@@ -210,27 +216,20 @@ fn process_file_operation(data: &mut PatchLookupData, command: FileOperationComm
 	Ok(())
 }
 
-fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {
+fn path_to_specifier(path: &str) -> sqpack::Result<SqPackSpecifier> {
 	let path = PathBuf::from(path);
-
-	fn path_error(path: &Path, reason: &str) -> Error {
-		Error::Invalid(
-			ErrorValue::Other(format!("patch path {path:?}")),
-			reason.into(),
-		)
-	}
 
 	let file_name = path
 		.file_stem()
 		.and_then(|osstr| osstr.to_str())
-		.ok_or_else(|| path_error(&path, "malformed file name"))?;
+		.ok_or_else(|| path_error(&path, "invalid unicode", None))?;
 
 	let category = u8::from_str_radix(&file_name[0..2], 16)
-		.map_err(|err| path_error(&path, &format!("{err}")))?;
+		.map_err(|err| path_error(&path, "invalid category", err))?;
 	let repository = u8::from_str_radix(&file_name[2..4], 16)
-		.map_err(|err| path_error(&path, &format!("{err}")))?;
+		.map_err(|err| path_error(&path, "invalid repository", err))?;
 	let chunk = u8::from_str_radix(&file_name[4..6], 16)
-		.map_err(|err| path_error(&path, &format!("{err}")))?;
+		.map_err(|err| path_error(&path, "invalid chunk", err))?;
 
 	let extension = match path.extension().and_then(|osstr| osstr.to_str()) {
 		Some("index") => SqPackFileExtension::Index(1),
@@ -238,10 +237,10 @@ fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {
 		Some(dat) if dat.starts_with("dat") => {
 			let dat_number = dat[3..]
 				.parse::<u8>()
-				.map_err(|_err| path_error(&path, "unhandled file extension"))?;
+				.map_err(|_err| path_error(&path, "unhandled file extension", None))?;
 			SqPackFileExtension::Dat(dat_number)
 		}
-		_ => return Err(path_error(&path, "unhandled file extension")),
+		_ => return Err(path_error(&path, "unhandled file extension", None)),
 	};
 
 	Ok(SqPackSpecifier {
@@ -250,4 +249,27 @@ fn path_to_specifier(path: &str) -> Result<SqPackSpecifier> {
 		chunk,
 		extension,
 	})
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("zipatch command path {path} is malformed: {reason}")]
+struct MalformedPathError {
+	path: PathBuf,
+	reason: &'static str,
+
+	#[source]
+	source: Option<ParseIntError>,
+}
+
+fn path_error(
+	path: &Path,
+	reason: &'static str,
+	source: impl Into<Option<ParseIntError>>,
+) -> sqpack::Error {
+	let error = MalformedPathError {
+		path: path.to_owned(),
+		reason,
+		source: source.into(),
+	};
+	sqpack::Error::Malformed(error.into())
 }
