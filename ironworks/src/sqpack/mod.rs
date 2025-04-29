@@ -1,6 +1,7 @@
 //! Tools for working with the SqPack package format.
 
 mod block;
+mod error;
 mod file;
 mod index;
 mod install;
@@ -9,6 +10,7 @@ mod sqpack;
 
 pub use {
 	block::{BlockMetadata, BlockPayload, BlockStream},
+	error::{Error, Result},
 	file::File,
 	index::Location,
 	install::Install,

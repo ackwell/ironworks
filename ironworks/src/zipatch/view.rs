@@ -1,14 +1,13 @@
 use std::{
 	collections::HashMap,
 	fs,
-	io::{self, BufReader, Cursor, Seek, SeekFrom},
+	io::{self, Seek},
 	sync::Arc,
 };
 
 use either::Either;
 
 use crate::{
-	error::{Error, ErrorValue, Result},
 	sqpack,
 	utility::{TakeSeekable, TakeSeekableExt},
 };
@@ -19,8 +18,8 @@ use super::{
 	zipatch::LookupCache,
 };
 
-type FileReader =
-	Either<TakeSeekable<BufReader<fs::File>>, sqpack::BlockStream<BufReader<fs::File>>>;
+type BufFile = io::BufReader<fs::File>;
+type FileReader = Either<TakeSeekable<BufFile>, sqpack::BlockStream<BufFile>>;
 
 #[derive(Debug)]
 pub struct ViewBuilder {
@@ -73,10 +72,11 @@ impl View {
 	fn lookups(
 		&self,
 		repository_id: u8,
-	) -> Result<impl Iterator<Item = Result<Arc<PatchLookup>>> + '_> {
-		let repository = self.repositories.get(&repository_id).ok_or_else(|| {
-			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
-		})?;
+	) -> sqpack::Result<impl Iterator<Item = sqpack::Result<Arc<PatchLookup>>> + '_> {
+		let repository = self
+			.repositories
+			.get(&repository_id)
+			.ok_or(sqpack::Error::FileNotFound)?;
 
 		// We're operating at a patch-by-patch granularity here, with the (very safe)
 		// assumption that a game version is at minimum one patch.
@@ -95,7 +95,7 @@ impl View {
 		category: u8,
 		chunk: u8,
 		index_version: u8,
-	) -> Result<Cursor<Vec<u8>>> {
+	) -> sqpack::Result<Option<io::Cursor<Vec<u8>>>> {
 		let target_specifier = SqPackSpecifier {
 			repository,
 			category,
@@ -104,7 +104,7 @@ impl View {
 		};
 
 		let mut empty = true;
-		let mut cursor = Cursor::new(Vec::<u8>::new());
+		let mut cursor = io::Cursor::new(Vec::<u8>::new());
 
 		for maybe_lookup in self.lookups(repository)? {
 			// Grab the commands for the requested target, if any exist in this patch.
@@ -115,13 +115,13 @@ impl View {
 			};
 
 			// Read the commands for this patch.
-			let mut file = BufReader::new(fs::File::open(&lookup.path)?);
+			let mut file = io::BufReader::new(fs::File::open(&lookup.path)?);
 			for chunk in chunks.iter() {
 				empty = false;
 				cursor.set_position(chunk.target_offset);
 
 				for block in chunk.blocks.iter() {
-					file.seek(SeekFrom::Start(block.source_offset))?;
+					file.seek(io::SeekFrom::Start(block.source_offset))?;
 					let mut reader = sqpack::BlockPayload::new(
 						&mut file,
 						block.compressed_size,
@@ -144,49 +144,57 @@ impl View {
 
 		// If nothing was read, we mark this index as not found.
 		if empty {
-			// TODO: Improve the error value.
-			return Err(Error::NotFound(ErrorValue::Other(format!(
-				"zipatch target {target_specifier:?}"
-			))));
+			return Ok(None);
 		}
 
 		// Done - reset the cursor's position and return it as a view of the index.
 		cursor.set_position(0);
-		Ok(cursor)
+		Ok(Some(cursor))
 	}
 }
 
 impl sqpack::Resource for View {
-	fn version(&self, repository_id: u8) -> Result<String> {
-		let repository = self.repositories.get(&repository_id).ok_or_else(|| {
-			Error::NotFound(ErrorValue::Other(format!("repository {repository_id}")))
-		})?;
+	fn version(&self, repository_id: u8) -> sqpack::Result<String> {
+		let repository = self
+			.repositories
+			.get(&repository_id)
+			.ok_or(sqpack::Error::FileNotFound)?;
 
 		repository
 			.patches
 			.last()
-			.map(|x| x.name.clone())
-			.ok_or_else(|| {
-				Error::Invalid(
-					ErrorValue::Other(format!("repository {repository_id}")),
-					"unspecified repository version".to_string(),
-				)
-			})
+			.map(|patch| patch.name.clone())
+			.ok_or(sqpack::Error::FileNotFound)
 	}
 
 	// ASSUMPTION: IndexUpdate chunks are unused, new indexes will always be distributed via FileOperation::AddFile.
-	type Index = Cursor<Vec<u8>>;
-	fn index(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index> {
+	type Index = io::Cursor<Vec<u8>>;
+	fn index(
+		&self,
+		repository: u8,
+		category: u8,
+		chunk: u8,
+	) -> sqpack::Result<Option<Self::Index>> {
 		self.read_index(repository, category, chunk, 1)
 	}
 
-	type Index2 = Cursor<Vec<u8>>;
-	fn index2(&self, repository: u8, category: u8, chunk: u8) -> Result<Self::Index2> {
+	type Index2 = io::Cursor<Vec<u8>>;
+	fn index2(
+		&self,
+		repository: u8,
+		category: u8,
+		chunk: u8,
+	) -> sqpack::Result<Option<Self::Index2>> {
 		self.read_index(repository, category, chunk, 2)
 	}
 
 	type File = FileReader;
-	fn file(&self, repository: u8, category: u8, location: sqpack::Location) -> Result<Self::File> {
+	fn file(
+		&self,
+		repository: u8,
+		category: u8,
+		location: sqpack::Location,
+	) -> sqpack::Result<Self::File> {
 		let target = (
 			SqPackSpecifier {
 				repository,
@@ -219,22 +227,22 @@ impl sqpack::Resource for View {
 				// patch files - if the target couldn't be found in this lookup, continue
 				// to the next.
 				match read_file_chunks(&lookup, &location, chunks) {
-					Err(Error::NotFound(_)) => {}
+					Err(sqpack::Error::FileNotFound) => {}
 					other => return other,
 				};
 			};
 		}
 
-		Err(Error::NotFound(ErrorValue::Other(format!(
-			"zipatch target {:?}",
-			target
-		))))
+		Err(sqpack::Error::FileNotFound)
 	}
 }
 
-fn read_resource_chunk(lookup: &PatchLookup, command: &ResourceChunk) -> Result<FileReader> {
-	let mut file = BufReader::new(fs::File::open(&lookup.path)?);
-	file.seek(SeekFrom::Start(command.offset))?;
+fn read_resource_chunk(
+	lookup: &PatchLookup,
+	command: &ResourceChunk,
+) -> sqpack::Result<FileReader> {
+	let mut file = io::BufReader::new(fs::File::open(&lookup.path)?);
+	file.seek(io::SeekFrom::Start(command.offset))?;
 	let out = file.take_seekable(command.size)?;
 	Ok(Either::Left(out))
 }
@@ -243,7 +251,7 @@ fn read_file_chunks(
 	lookup: &PatchLookup,
 	location: &sqpack::Location,
 	chunks: &[FileChunk],
-) -> Result<FileReader> {
+) -> sqpack::Result<FileReader> {
 	let offset = location.offset();
 
 	let outside_target = |offset: u64, size: u64| {
@@ -296,13 +304,11 @@ fn read_file_chunks(
 	// If there are 0 blocks that match the target, the provided lookup does not
 	// contain the requested target.
 	if metadata.is_empty() {
-		return Err(Error::NotFound(ErrorValue::Other(format!(
-			"sqpack location {location:?}"
-		))));
+		return Err(sqpack::Error::FileNotFound);
 	}
 
 	// Build the readers & complete
-	let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
+	let file_reader = io::BufReader::new(fs::File::open(&lookup.path)?);
 	let block_stream = sqpack::BlockStream::new(file_reader, offset.try_into().unwrap(), metadata);
 
 	Ok(Either::Right(block_stream))

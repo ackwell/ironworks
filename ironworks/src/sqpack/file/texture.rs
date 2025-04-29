@@ -2,7 +2,7 @@ use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 use binrw::{BinRead, VecArgs, binread};
 
-use crate::{error::Result, sqpack::block::read_block};
+use crate::sqpack::{block::read_block, error::Result};
 
 use super::shared::Header;
 

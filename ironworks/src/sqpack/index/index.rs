@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use binrw::BinRead;
 use getset::CopyGetters;
 
-use crate::{
-	error::{Error, ErrorValue, Result},
-	sqpack::Resource,
+use crate::sqpack::{
+	Resource,
+	error::{Error, Result},
 };
 
 use super::{index1::Index1, index2::Index2, shared::FileMetadata};
@@ -54,7 +54,7 @@ impl<R: Resource> Index<R> {
 			};
 
 			match chunk.find(path) {
-				Err(Error::NotFound(_)) => None,
+				Err(Error::FileNotFound) => None,
 				Err(error) => Some(Err(error)),
 				Ok((meta, size)) => Some(Ok(Location {
 					chunk: index,
@@ -65,10 +65,7 @@ impl<R: Resource> Index<R> {
 			}
 		});
 
-		match location {
-			None => Err(Error::NotFound(ErrorValue::Path(path.into()))),
-			Some(result) => result,
-		}
+		location.unwrap_or(Err(Error::FileNotFound))
 	}
 
 	fn chunks(&self) -> impl Iterator<Item = Result<(u8, Arc<IndexChunk>)>> + '_ {
@@ -98,19 +95,19 @@ impl<R: Resource> Index<R> {
 
 			match chunk {
 				// Found an index - save it out to the cache.
-				Ok(chunk) => {
+				Ok(Some(chunk)) => {
 					let mut guard = self.chunks.lock().unwrap();
 					guard.insert(index_usize, chunk.into());
 					Some(Ok((index_u8, guard[index_usize].clone())))
 				}
 
 				// No index was found for this chunk - mark index as the max chunk point so we don't do that again.
-				Err(Error::NotFound(_)) => {
+				Ok(None) => {
 					*self.max_chunk.lock().unwrap() = Some(index);
 					None
 				}
 
-				// Some other error occured, surface it.
+				// Surface errors
 				Err(error) => Some(Err(error)),
 			}
 		})
@@ -124,21 +121,23 @@ enum IndexChunk {
 }
 
 impl IndexChunk {
-	fn new<R: Resource>(repository: u8, category: u8, chunk: u8, resource: &R) -> Result<Self> {
-		resource
-			.index(repository, category, chunk)
-			.and_then(|mut reader| {
-				let file = Index1::read(&mut reader)?;
-				Ok(IndexChunk::Index1(file))
-			})
-			.or_else(|_| {
-				resource
-					.index2(repository, category, chunk)
-					.and_then(|mut reader| {
-						let file = Index2::read(&mut reader)?;
-						Ok(IndexChunk::Index2(file))
-					})
-			})
+	fn new<R: Resource>(
+		repository: u8,
+		category: u8,
+		chunk: u8,
+		resource: &R,
+	) -> Result<Option<Self>> {
+		if let Some(mut reader) = resource.index(repository, category, chunk)? {
+			let index = Self::Index1(Index1::read(&mut reader)?);
+			return Ok(Some(index));
+		}
+
+		if let Some(mut reader) = resource.index2(repository, category, chunk)? {
+			let index = Self::Index2(Index2::read(&mut reader)?);
+			return Ok(Some(index));
+		}
+
+		Ok(None)
 	}
 
 	fn find(&self, path: &str) -> Result<(FileMetadata, Option<u64>)> {

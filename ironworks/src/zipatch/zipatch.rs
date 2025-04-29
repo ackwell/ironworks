@@ -7,7 +7,7 @@ use std::{
 	},
 };
 
-use crate::error::Result;
+use crate::sqpack;
 
 use super::{lookup::PatchLookup, repository::Patch, view::ViewBuilder};
 
@@ -77,7 +77,7 @@ impl LookupCache {
 		self.persist_lookups.store(true, Ordering::SeqCst)
 	}
 
-	pub fn lookup(&self, patch: &Patch) -> Result<Arc<PatchLookup>> {
+	pub fn lookup(&self, patch: &Patch) -> sqpack::Result<Arc<PatchLookup>> {
 		// TODO: honestly this might make sense as an alternate impl of the hashmapcache
 		// Get a lock on the main cache and fetch the internal sync primative. We're
 		// also recording if it existed prior to this call.
@@ -135,7 +135,7 @@ impl LookupCache {
 		Ok(lookup)
 	}
 
-	fn read_lookup(&self, patch: &Patch) -> Result<PatchLookup> {
+	fn read_lookup(&self, patch: &Patch) -> sqpack::Result<PatchLookup> {
 		let persist_lookups = self.persist_lookups.load(Ordering::SeqCst);
 		if !persist_lookups {
 			return PatchLookup::build(&patch.path);

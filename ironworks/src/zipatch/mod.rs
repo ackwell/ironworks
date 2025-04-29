@@ -1,5 +1,6 @@
 //! Adapters to allow working with game data directly out of ZiPatch files.
 
+mod chunks;
 mod lookup;
 mod repository;
 mod utility;

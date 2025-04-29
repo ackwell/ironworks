@@ -1,10 +1,8 @@
 use std::{
 	cmp::Ordering,
-	fs,
+	fs, io,
 	path::{Path, PathBuf},
 };
-
-use crate::error::Result;
 
 /// Representation of a single patch file.
 #[derive(Debug)]
@@ -26,7 +24,7 @@ pub struct PatchRepository {
 impl PatchRepository {
 	/// Read a patch repository from the specified path. Patches will be sorted
 	/// following the FFXIV patch ordering.
-	pub fn at(repository_path: &Path) -> Result<Self> {
+	pub fn at(repository_path: &Path) -> io::Result<Self> {
 		let mut patches = fs::read_dir(repository_path)?
 			.filter_map(|entry| {
 				let patch_path = match entry {

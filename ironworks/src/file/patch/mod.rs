@@ -2,17 +2,17 @@
 
 mod chunk;
 mod command;
-mod zipatch;
+mod patch;
 
 pub use {
 	chunk::{
-		AddDirectoryChunk, ApplyChunk, Chunk, DeleteDirectoryChunk, FileHeaderChunk, FileHeaderV3,
-		OptionKind, SqPackChunk,
+		AddDirectoryChunk, ApplyChunk, Chunk, ChunkContainer, DeleteDirectoryChunk,
+		FileHeaderChunk, FileHeaderChunkV3, OptionKind, SqPackChunk,
 	},
 	command::{
 		AddCommand, BlockHeader, DeleteCommand, ExpandCommand, FileOperation, FileOperationCommand,
 		HeaderFileKind, HeaderKind, HeaderUpdateCommand, IndexUpdateCommand, IndexUpdateKind,
 		PatchInfoCommand, SqPackFile, TargetInfoCommand, TargetPlatform, TargetRegion,
 	},
-	zipatch::{ChunkIterator, ZiPatch},
+	patch::Header,
 };

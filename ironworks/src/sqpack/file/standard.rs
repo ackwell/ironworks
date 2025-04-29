@@ -2,9 +2,9 @@ use std::io::{Read, Seek, SeekFrom};
 
 use binrw::{BinRead, VecArgs, binread};
 
-use crate::{
+use crate::sqpack::{
+	block::{BlockHeader, BlockMetadata, BlockStream},
 	error::Result,
-	sqpack::block::{BlockHeader, BlockMetadata, BlockStream},
 };
 
 use super::shared::Header;

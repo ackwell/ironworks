@@ -8,6 +8,20 @@ use super::command::{
 	IndexUpdateCommand, PatchInfoCommand, TargetInfoCommand,
 };
 
+#[binread]
+#[br(big)]
+#[derive(Debug)]
+pub struct ChunkContainer {
+	size: u32,
+
+	// NOTE: We're not reading buffers in chunks, so we need to ensure the full
+	// chunk size is skipped or we drift alignment for the checksum.
+	#[br(pad_size_to = size, args(size))]
+	pub chunk: Chunk,
+
+	checksum: u32,
+}
+
 /// A chunk of a patch file, encapsulating metadata about the containing file,
 /// or a single task that should be performed.
 #[binread]
@@ -67,7 +81,7 @@ pub struct FileHeaderChunk {
 	/// Version 3 specific fields.
 	#[br(if(version == 3))]
 	#[get = "pub"]
-	v3: Option<FileHeaderV3>,
+	v3: Option<FileHeaderChunkV3>,
 }
 
 #[binread]
@@ -86,7 +100,7 @@ pub enum PatchKind {
 #[br(big)]
 #[derive(Debug, CopyGetters)]
 #[getset(get_copy = "pub")]
-pub struct FileHeaderV3 {
+pub struct FileHeaderChunkV3 {
 	///
 	add_directories: u32,
 	///
