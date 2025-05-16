@@ -214,13 +214,25 @@ impl sqpack::Resource for View {
 			// realistically possible, the chances of it occuring are vanishingly
 			// remote. If everything has blown up in your face because of this and you
 			// find this comment, bap me.
+			// NOTE: Broken in 7.0 HIST for ui/icon/195000/195006_hr1.tex
 			if let Some(chunks) = lookup.data.file_chunks.get(&target.0) {
 				// File chunks for one target dat file may be spread across multiple
 				// patch files - if the target couldn't be found in this lookup, continue
 				// to the next.
-				match read_file_chunks(&lookup, &location, chunks) {
+				match find_file_blocks(&location, chunks) {
 					Err(Error::NotFound(_)) => {}
-					other => return other,
+					Err(error) => return Err(error),
+					Ok(metadata) => {
+						// Build the readers & complete
+						let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
+						let block_stream = sqpack::BlockStream::new(
+							file_reader,
+							location.offset().try_into().unwrap(),
+							metadata,
+						);
+
+						return Ok(Either::Right(block_stream));
+					}
 				};
 			};
 		}
@@ -239,13 +251,10 @@ fn read_resource_chunk(lookup: &PatchLookup, command: &ResourceChunk) -> Result<
 	Ok(Either::Left(out))
 }
 
-fn read_file_chunks(
-	lookup: &PatchLookup,
+fn find_file_blocks(
 	location: &sqpack::Location,
 	chunks: &[FileChunk],
-) -> Result<FileReader> {
-	let offset = location.offset();
-
+) -> Result<Vec<sqpack::BlockMetadata>> {
 	let outside_target = |offset: u64, size: u64| {
 		// If the size is available, filter out commands that sit beyond that size -
 		// otherwise, assume the file could be infintely long.
@@ -301,9 +310,5 @@ fn read_file_chunks(
 		))));
 	}
 
-	// Build the readers & complete
-	let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
-	let block_stream = sqpack::BlockStream::new(file_reader, offset.try_into().unwrap(), metadata);
-
-	Ok(Either::Right(block_stream))
+	Ok(metadata)
 }
