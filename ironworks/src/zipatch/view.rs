@@ -16,11 +16,11 @@ use crate::{
 use super::{
 	lookup::{FileChunk, PatchLookup, ResourceChunk, SqPackFileExtension, SqPackSpecifier},
 	repository::PatchRepository,
+	section::{PatchSection, SectionStream},
 	zipatch::LookupCache,
 };
 
-type FileReader =
-	Either<TakeSeekable<BufReader<fs::File>>, sqpack::BlockStream<BufReader<fs::File>>>;
+type FileReader = Either<TakeSeekable<BufReader<fs::File>>, SectionStream>;
 
 #[derive(Debug)]
 pub struct ViewBuilder {
@@ -197,6 +197,22 @@ impl sqpack::Resource for View {
 			location.offset(),
 		);
 
+		// Pre-emptively set up some state for tracking cross-patch metadata, in
+		// case we end up working with FileCommand-sourced data.
+		let mut sections = Vec::<PatchSection>::new();
+
+		// NOTE: Falling back to usize::MAX as a loose signal that it should collect
+		// any remaining blocks in the file, as we don't know how large the target
+		// file actually is. This is uncommon, but no file will realistically extend
+		// beyond a usize in length.
+		let mut current_size: usize = 0;
+		let target_size = location
+			.size()
+			.map(|value| usize::try_from(value).unwrap())
+			.unwrap_or(usize::MAX);
+
+		let target_offset = usize::try_from(location.offset()).unwrap();
+
 		for maybe_lookup in self.lookups(repository)? {
 			let lookup = maybe_lookup?;
 
@@ -208,13 +224,8 @@ impl sqpack::Resource for View {
 				return read_resource_chunk(&lookup, command);
 			};
 
-			// Check if the file could be found in the file operations.
-			// ASSUMPTION: Target sqpack files read from a FileCommand-provided .dat
-			// file will not be split across a patch file boundary. While this is
-			// realistically possible, the chances of it occuring are vanishingly
-			// remote. If everything has blown up in your face because of this and you
-			// find this comment, bap me.
-			// NOTE: Broken in 7.0 HIST for ui/icon/195000/195006_hr1.tex
+			// Check if the file could be found in the file operations, and save out
+			// any matching block readers if so.
 			if let Some(chunks) = lookup.data.file_chunks.get(&target.0) {
 				// File chunks for one target dat file may be spread across multiple
 				// patch files - if the target couldn't be found in this lookup, continue
@@ -223,24 +234,54 @@ impl sqpack::Resource for View {
 					Err(Error::NotFound(_)) => {}
 					Err(error) => return Err(error),
 					Ok(metadata) => {
-						// Build the readers & complete
-						let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
-						let block_stream = sqpack::BlockStream::new(
-							file_reader,
-							location.offset().try_into().unwrap(),
-							metadata,
-						);
+						// Work out the start and size of the blocks relevant for our
+						// target. BlockStreams are zeroed on the target offset, so we need
+						// to omit any leading data from size to avoid throwing calculations
+						// out.
+						let start = metadata
+							.get(0)
+							.expect("metadata should never be empty")
+							.output_offset;
 
-						return Ok(Either::Right(block_stream));
+						let leading = target_offset.checked_sub(start).unwrap_or(0);
+						let size = metadata
+							.iter()
+							.map(|block| block.output_size)
+							.sum::<usize>() - leading;
+
+						// Build a reader for this set of blocks, and save it out as a
+						// section. The offset is adjusted to align it to target space.
+						let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
+						let block_stream =
+							sqpack::BlockStream::new(file_reader, target_offset, metadata);
+
+						sections.push(PatchSection {
+							offset: start + leading - target_offset,
+							size,
+							reader: block_stream,
+						});
+
+						// Track the size of the collected sections - if we've got enough
+						// for the target file, bail.
+						current_size += size;
+						if current_size >= target_size {
+							break;
+						}
 					}
 				};
 			};
 		}
 
-		Err(Error::NotFound(ErrorValue::Other(format!(
-			"zipatch target {:?}",
-			target
-		))))
+		// If we have >=1 sections, set up a stream - otherwise, we've got nothing
+		// for this file, and can NotFound it.
+		match sections.is_empty() {
+			true => Err(Error::NotFound(ErrorValue::Other(format!(
+				"zipatch target {:?}",
+				target
+			)))),
+
+			false => Ok(Either::Right(SectionStream::new(sections))),
+		}
 	}
 }
 
