@@ -24,7 +24,7 @@ pub fn soft_hyphen<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Resu
 
 pub fn non_breaking_space<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	arguments.exhaustive::<()>(state)?;
-	state.writer.write_str("\u{0020}")?;
+	state.writer.write_str("\u{00A0}")?;
 	Ok(())
 }
 
