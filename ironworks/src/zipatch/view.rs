@@ -230,45 +230,44 @@ impl sqpack::Resource for View {
 				// File chunks for one target dat file may be spread across multiple
 				// patch files - if the target couldn't be found in this lookup, continue
 				// to the next.
-				match find_file_blocks(&location, chunks) {
-					Err(Error::NotFound(_)) => {}
+				let metadata = match find_file_blocks(&location, chunks) {
+					Err(Error::NotFound(_)) => continue,
 					Err(error) => return Err(error),
-					Ok(metadata) => {
-						// Work out the start and size of the blocks relevant for our
-						// target. BlockStreams are zeroed on the target offset, so we need
-						// to omit any leading data from size to avoid throwing calculations
-						// out.
-						let start = metadata
-							.get(0)
-							.expect("metadata should never be empty")
-							.output_offset;
-
-						let leading = target_offset.checked_sub(start).unwrap_or(0);
-						let size = metadata
-							.iter()
-							.map(|block| block.output_size)
-							.sum::<usize>() - leading;
-
-						// Build a reader for this set of blocks, and save it out as a
-						// section. The offset is adjusted to align it to target space.
-						let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
-						let block_stream =
-							sqpack::BlockStream::new(file_reader, target_offset, metadata);
-
-						sections.push(PatchSection {
-							offset: start + leading - target_offset,
-							size,
-							reader: block_stream,
-						});
-
-						// Track the size of the collected sections - if we've got enough
-						// for the target file, bail.
-						current_size += size;
-						if current_size >= target_size {
-							break;
-						}
-					}
+					Ok(metadata) => metadata,
 				};
+
+				// Work out the start and size of the blocks relevant for our
+				// target. BlockStreams are zeroed on the target offset, so we need
+				// to omit any leading data from size to avoid throwing calculations
+				// out.
+				let start = metadata
+					.get(0)
+					.expect("metadata should never be empty")
+					.output_offset;
+
+				let leading = target_offset.checked_sub(start).unwrap_or(0);
+				let size = metadata
+					.iter()
+					.map(|block| block.output_size)
+					.sum::<usize>() - leading;
+
+				// Build a reader for this set of blocks, and save it out as a
+				// section. The offset is adjusted to align it to target space.
+				let file_reader = BufReader::new(fs::File::open(&lookup.path)?);
+				let block_stream = sqpack::BlockStream::new(file_reader, target_offset, metadata);
+
+				sections.push(PatchSection {
+					offset: start + leading - target_offset,
+					size,
+					reader: block_stream,
+				});
+
+				// Track the size of the collected sections - if we've got enough
+				// for the target file, bail.
+				current_size += size;
+				if current_size >= target_size {
+					break;
+				}
 			};
 		}
 
