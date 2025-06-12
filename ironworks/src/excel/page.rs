@@ -12,17 +12,19 @@ use crate::{
 	file::{exd, exh},
 };
 
+#[derive(Debug)]
 pub enum RowSpecifier<'a> {
 	Id(u32),
 	Definition(&'a exd::RowDefinition),
 }
 
+#[derive(Debug)]
 pub enum SubrowSpecifier {
 	Id(u16),
 	Index(usize),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct RowMetadata {
 	id: u32,
 	count: u16,
@@ -133,7 +135,8 @@ impl Page {
 		};
 
 		let fields_len = usize::from(self.header.row_size);
-		let fields_pos = subrow_index * (exd::SubrowHeader::SIZE + fields_len);
+		let fields_pos =
+			exd::SubrowHeader::SIZE + subrow_index * (exd::SubrowHeader::SIZE + fields_len);
 		let strings_pos = usize::from(subrow_count) * (exd::SubrowHeader::SIZE + fields_len);
 
 		Ok((
