@@ -1,8 +1,19 @@
-use std::io::{Cursor, Empty, Read, Seek, SeekFrom};
+use std::{
+	io::{Cursor, Empty, Read, Seek, SeekFrom},
+	sync::Arc,
+};
 
 use binrw::BinRead;
 
-use crate::sqpack::{block::BlockStream, error::Result};
+use crate::{
+	filesystem::Version,
+	sqpack::{
+		Resource,
+		block::BlockStream,
+		error::{Error, Result},
+		sqpack::Location,
+	},
+};
 
 use super::{
 	empty, model,
@@ -14,25 +25,8 @@ use super::{
 /// A stream of data for a file read from a sqpack dat archive.
 #[derive(Debug)]
 pub struct File<R> {
-	inner: FileStreamKind<R>,
-}
-
-impl<R: Read + Seek> File<R> {
-	/// Create a new File which which will translate SqPack stored data in the given stream.
-	pub fn new(mut reader: R) -> Result<Self> {
-		// Read in the header.
-		let header = Header::read(&mut reader)?;
-
-		use FileStreamKind as FSK;
-		let file_stream = match &header.kind {
-			FileKind::Empty => FSK::Empty(empty::read(reader, header)?),
-			FileKind::Standard => FSK::Standard(standard::read(reader, header.size, header)?),
-			FileKind::Model => FSK::Model(model::read(reader, header.size, header)?),
-			FileKind::Texture => FSK::Texture(texture::read(reader, header.size, header)?),
-		};
-
-		Ok(File { inner: file_stream })
-	}
+	resource: Arc<R>,
+	location: Location,
 }
 
 #[derive(Debug)]
@@ -43,26 +37,16 @@ enum FileStreamKind<R> {
 	Texture(Cursor<Vec<u8>>),
 }
 
-impl<R: Read + Seek> Read for File<R> {
-	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-		use FileStreamKind as FSK;
-		match &mut self.inner {
-			FSK::Empty(stream) => stream.read(buf),
-			FSK::Standard(stream) => stream.read(buf),
-			FSK::Model(stream) => stream.read(buf),
-			FSK::Texture(stream) => stream.read(buf),
-		}
+impl<R> File<R> {
+	pub(crate) fn new(resource: Arc<R>, location: Location) -> Self {
+		Self { resource, location }
 	}
 }
 
-impl<R: Read + Seek> Seek for File<R> {
-	fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-		use FileStreamKind as FSK;
-		match &mut self.inner {
-			FSK::Empty(stream) => stream.seek(pos),
-			FSK::Standard(stream) => stream.seek(pos),
-			FSK::Model(stream) => stream.seek(pos),
-			FSK::Texture(stream) => stream.seek(pos),
-		}
+impl<R: Resource> Version for File<R> {
+	type Error = Error;
+
+	fn version(&self) -> std::result::Result<String, Self::Error> {
+		self.resource.version(self.location.repository)
 	}
 }

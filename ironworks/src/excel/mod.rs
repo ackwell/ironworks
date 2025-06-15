@@ -1,22 +1,11 @@
 //! Tools for working with the Excel database format.
 
+mod error;
 mod excel;
-mod field;
 mod language;
-mod metadata;
-mod page;
 mod path;
-mod row;
-mod sheet;
 
-pub use {
-	excel::Excel,
-	field::Field,
-	language::Language,
-	metadata::SheetMetadata,
-	row::{ColumnSpecifier, Row},
-	sheet::{RowOptions, Sheet, SheetIterator},
-};
+pub use {excel::Excel, language::Language};
 
 #[cfg(test)]
 mod test {
@@ -25,26 +14,10 @@ mod test {
 	#[test]
 	fn test_send() {
 		fn assert_send<T: Send>() {}
-		assert_send::<ColumnSpecifier>();
-		assert_send::<Excel>();
-		assert_send::<Field>();
-		assert_send::<Language>();
-		assert_send::<Row>();
-		assert_send::<RowOptions>();
-		assert_send::<Sheet<()>>();
-		assert_send::<SheetIterator<()>>();
 	}
 
 	#[test]
 	fn test_sync() {
 		fn assert_sync<T: Sync>() {}
-		assert_sync::<ColumnSpecifier>();
-		assert_sync::<Excel>();
-		assert_sync::<Field>();
-		assert_sync::<Language>();
-		assert_sync::<Row>();
-		assert_sync::<RowOptions>();
-		assert_sync::<Sheet<()>>();
-		assert_sync::<SheetIterator<()>>();
 	}
 }

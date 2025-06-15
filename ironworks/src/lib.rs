@@ -6,8 +6,7 @@
 // Doc config
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg))]
 
-mod error;
-mod ironworks;
+mod filesystem;
 mod utility;
 
 #[cfg(feature = "excel")]
@@ -20,28 +19,15 @@ pub mod sqpack;
 #[cfg(feature = "zipatch")]
 pub mod zipatch;
 
-pub use {
-	crate::ironworks::{FileStream, Ironworks, Resource},
-	error::{Error, ErrorValue},
-};
-
 #[cfg(test)]
 mod test {
-	use super::*;
-
 	#[test]
 	fn test_send() {
 		fn assert_send<T: Send>() {}
-		assert_send::<Ironworks>();
-		assert_send::<Error>();
-		assert_send::<ErrorValue>();
 	}
 
 	#[test]
 	fn test_sync() {
 		fn assert_sync<T: Sync>() {}
-		assert_sync::<Ironworks>();
-		assert_sync::<Error>();
-		assert_sync::<ErrorValue>();
 	}
 }

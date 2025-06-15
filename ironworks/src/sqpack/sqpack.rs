@@ -1,14 +1,15 @@
 use std::{fmt::Debug, sync::Arc};
 
 use crate::{
-	sqpack,
+	filesystem::{Filesystem, Version},
 	utility::{HashMapCache, HashMapCacheExt},
 };
 
 use super::{
 	error::{Error, Result},
 	file::File,
-	index::Index,
+	index,
+	resource::Resource,
 };
 
 const CATEGORIES: &[Option<&str>] = &[
@@ -44,10 +45,17 @@ const REPOSITORIES: &[&str] = &[
 pub struct SqPack<R> {
 	resource: Arc<R>,
 
-	indexes: HashMapCache<(u8, u8), Index<R>>,
+	indexes: HashMapCache<(u8, u8), index::Index<R>>,
 }
 
-impl<R: sqpack::Resource> SqPack<R> {
+#[derive(Debug)]
+pub(super) struct Location {
+	pub repository: u8,
+	pub category: u8,
+	pub index: index::Location,
+}
+
+impl<R: Resource> SqPack<R> {
 	/// Build a representation of SqPack packages. The provided resource will be
 	/// queried for lookups as required to fulfil SqPack requests.
 	pub fn new(resource: R) -> Self {
@@ -58,35 +66,15 @@ impl<R: sqpack::Resource> SqPack<R> {
 		}
 	}
 
-	/// Get the version string for the file at `path`.
-	pub fn version(&self, path: &str) -> Result<String> {
-		let (repository, _) = self.path_metadata(&path.to_lowercase())?;
-		self.resource.version(repository)
+	pub fn file(&self, path: &str) -> Result<File<R>> {
+		let location = self.location(path)?;
+		Ok(File::new(self.resource.clone(), location))
 	}
 
-	/// Read the file at `path` from SqPack.
-	pub fn file(&self, path: &str) -> Result<File<R::File>> {
+	fn location(&self, path: &str) -> Result<Location> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
-		// Look up the location of the requested path.
-		let (repository, category) = self.path_metadata(&path)?;
-
-		let location = self
-			.indexes
-			.try_get_or_insert((repository, category), || {
-				Index::new(repository, category, self.resource.clone())
-			})?
-			.find(&path)?;
-
-		// Build a File representation.
-		let dat = self.resource.file(repository, category, location)?;
-
-		// TODO: Cache files? Tempted to say it's the IW struct's responsibility. Is it even possible here with streams?
-		File::new(dat)
-	}
-
-	fn path_metadata(&self, path: &str) -> Result<(u8, u8)> {
 		// NOTE: This could be technically-faster by doing that cursed logic the
 		// game does, checking the first 3 characters for category and such - but I
 		// think this is cleaner; especially to read.
@@ -99,18 +87,42 @@ impl<R: sqpack::Resource> SqPack<R> {
 			));
 		};
 
-		let repository = REPOSITORIES
+		let repository: u8 = REPOSITORIES
 			.iter()
 			.position(|&repository| repository == repository_segment)
-			.unwrap_or(0);
+			.unwrap_or(0)
+			.try_into()
+			.expect("repository index should never exceed u8::MAX");
 
-		let category = CATEGORIES
+		let category: u8 = CATEGORIES
 			.iter()
 			.position(|&category| category == Some(category_segment))
 			.ok_or_else(|| {
 				Error::PathInvalid(format!("unknown SqPack category \"{category_segment}\""))
-			})?;
+			})?
+			.try_into()
+			.expect("category index should never exceed u8::MAX");
 
-		Ok((repository.try_into().unwrap(), category.try_into().unwrap()))
+		let index = self
+			.indexes
+			.try_get_or_insert((repository, category), || {
+				index::Index::new(repository, category, self.resource.clone())
+			})?
+			.find(&path)?;
+
+		Ok(Location {
+			repository,
+			category,
+			index,
+		})
+	}
+}
+
+impl<R: Resource> Filesystem for SqPack<R> {
+	type File = File<R>;
+	type Error = Error;
+
+	fn file(&self, path: &str) -> Result<Self::File, Self::Error> {
+		self.file(path)
 	}
 }

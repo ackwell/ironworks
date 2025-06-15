@@ -1,49 +1,38 @@
 use std::{
 	convert::Infallible,
+	fmt::Debug,
 	sync::{Arc, OnceLock},
 };
 
 use derivative::Derivative;
 
 use crate::{
-	error::{Error, ErrorValue, Result},
 	file::exl,
-	ironworks::Ironworks,
+	filesystem::{Filesystem, Version},
 	utility::{HashMapCache, HashMapCacheExt},
 };
 
 use super::{
+	error::{Error, Result},
 	language::Language,
-	metadata::SheetMetadata,
 	path,
-	sheet::{Sheet, SheetCache},
 };
 
 /// An Excel database.
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct Excel {
-	#[derivative(Debug = "ignore")]
-	ironworks: Arc<Ironworks>,
+#[derive(Debug)]
+pub struct Excel<F> {
+	filesystem: F,
 
 	default_language: Language,
-
-	#[derivative(Debug = "ignore")]
-	list: OnceLock<exl::ExcelList>,
-	#[derivative(Debug = "ignore")]
-	sheets: HashMapCache<String, SheetCache>,
 }
 
-impl Excel {
-	/// Build an view into the Excel database for a given ironworks instance.
-	pub fn new(ironworks: impl Into<Arc<Ironworks>>) -> Self {
+impl<F> Excel<F> {
+	/// Build an view into the Excel database for a given filesystem.
+	pub fn new(filesystem: F) -> Self {
 		Self {
-			ironworks: ironworks.into(),
+			filesystem,
 
 			default_language: Language::None,
-
-			list: Default::default(),
-			sheets: Default::default(),
 		}
 	}
 
@@ -57,45 +46,21 @@ impl Excel {
 	pub fn set_default_language(&mut self, language: Language) {
 		self.default_language = language;
 	}
+}
 
-	/// Get the version string of the database.
+impl<F> Excel<F>
+where
+	F: Filesystem,
+	F::File: Version,
+{
 	pub fn version(&self) -> Result<String> {
-		self.ironworks.version(path::exl())
+		let file = self.filesystem.file(path::exl()).map_err(fs_err)?;
+		let version = file.version().map_err(fs_err)?;
+
+		Ok(version)
 	}
+}
 
-	/// Fetch the authoritative list of sheets in the database.
-	pub fn list(&self) -> Result<&exl::ExcelList> {
-		// Handle hot path before trying anything fancy.
-		// We're doing this rather than executing .file inside .get_or_init to avoid caching error states.
-		// TODO: get_or_try_init once (if?) that gets stabilised.
-		if let Some(list) = self.list.get() {
-			return Ok(list);
-		}
-
-		let list = self.ironworks.file::<exl::ExcelList>(path::exl())?;
-
-		Ok(self.list.get_or_init(|| list))
-	}
-
-	/// Fetch a sheet from the database.
-	pub fn sheet<S: SheetMetadata>(&self, metadata: S) -> Result<Sheet<S>> {
-		let name = metadata.name();
-
-		let list = self.list()?;
-		if !list.has(&name) {
-			return Err(Error::NotFound(ErrorValue::Sheet(name)));
-		}
-
-		let cache = self
-			.sheets
-			.try_get_or_insert(name, || -> Result<_, Infallible> { Ok(Default::default()) })
-			.unwrap();
-
-		Ok(Sheet::new(
-			self.ironworks.clone(),
-			metadata,
-			self.default_language,
-			cache,
-		))
-	}
+fn fs_err(error: impl std::error::Error + 'static) -> Error {
+	Error::Filesystem(error.into())
 }
