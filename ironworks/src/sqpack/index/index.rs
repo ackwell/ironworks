@@ -11,7 +11,7 @@ use crate::sqpack::{
 use super::{index1::Index1, index2::Index2, shared::FileMetadata};
 
 /// Specifier of a file location within a SqPack category.
-#[derive(Debug, CopyGetters)]
+#[derive(Debug, Clone, CopyGetters)]
 #[get_copy = "pub"]
 pub struct Location {
 	/// SqPack chunk the file is in, i.e. `0000XX.win32.dat1`.
@@ -36,14 +36,14 @@ pub struct Index<R> {
 }
 
 impl<R: Resource> Index<R> {
-	pub fn new(repository: u8, category: u8, resource: Arc<R>) -> Result<Self> {
-		Ok(Self {
+	pub fn new(repository: u8, category: u8, resource: Arc<R>) -> Self {
+		Self {
 			repository,
 			category,
 			resource,
 			max_chunk: None.into(),
 			chunks: Vec::new().into(),
-		})
+		}
 	}
 
 	pub fn find(&self, path: &str) -> Result<Location> {

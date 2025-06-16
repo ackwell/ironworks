@@ -105,9 +105,9 @@ impl<R: Resource> SqPack<R> {
 
 		let index = self
 			.indexes
-			.try_get_or_insert((repository, category), || {
+			.get_or_insert((repository, category), || {
 				index::Index::new(repository, category, self.resource.clone())
-			})?
+			})
 			.find(&path)?;
 
 		Ok(Location {

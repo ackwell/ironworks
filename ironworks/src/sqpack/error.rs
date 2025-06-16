@@ -13,7 +13,7 @@ pub enum Error {
 	FileIncomplete(Vec<u8>),
 
 	#[error("malformed data encountered")]
-	Malformed(#[source] Box<dyn std::error::Error>),
+	Malformed(#[source] Box<dyn std::error::Error + Send + Sync + 'static>),
 
 	#[error("I/O error encountered")]
 	Io(#[from] io::Error),

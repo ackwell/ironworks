@@ -1,13 +1,15 @@
 //! Structs and utilities for parsing .exl files.
 
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashSet, io};
 
-use crate::{
-	FileStream,
-	error::{Error, Result},
-};
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+	#[error("bad magic: {0:?}")]
+	BadMagic(String),
 
-use super::File;
+	#[error("I/O")]
+	Io(#[source] io::Error),
+}
 
 /// List of known Excel sheets.
 #[derive(Debug)]
@@ -28,23 +30,18 @@ impl ExcelList {
 	}
 }
 
-impl File for ExcelList {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
+impl ExcelList {
+	pub fn read(mut stream: impl io::Read) -> Result<Self, Error> {
 		// The excel list is actually just plaintext, read it in as a string.
 		let mut list = String::new();
-		stream
-			.read_to_string(&mut list)
-			.map_err(|error| Error::Resource(error.into()))?;
+		stream.read_to_string(&mut list).map_err(Error::Io)?;
 
 		let mut lines = list.split("\r\n");
 
 		// Ensure the first line contains the expected magic
 		let magic = lines.next().and_then(|line| line.get(0..4));
 		if !matches!(magic, Some("EXLT")) {
-			return Err(Error::Resource(
-				format!("Incorrect magic in excel list file: expected \"EXLT\", got {magic:?}")
-					.into(),
-			));
+			return Err(Error::BadMagic(magic.unwrap_or("").to_string()));
 		}
 
 		// Build the set of sheets. We're ignoring the sheet ID (second field), as
