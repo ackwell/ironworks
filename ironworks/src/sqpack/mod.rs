@@ -3,6 +3,7 @@
 mod block;
 mod error;
 mod file;
+mod format;
 mod index;
 mod install;
 mod resource;

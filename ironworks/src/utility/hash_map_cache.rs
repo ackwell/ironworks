@@ -7,6 +7,8 @@ use std::{
 pub type HashMapCache<K, V> = Mutex<HashMap<K, Arc<V>>>;
 
 pub trait HashMapCacheExt<K, V> {
+	fn get_or_insert(&self, key: K, build: impl FnOnce() -> V) -> Arc<V>;
+
 	fn try_get_or_insert<E>(
 		&self,
 		key: K,
@@ -18,6 +20,13 @@ impl<K, V> HashMapCacheExt<K, V> for HashMapCache<K, V>
 where
 	K: Eq + Hash,
 {
+	fn get_or_insert(&self, key: K, build: impl FnOnce() -> V) -> Arc<V> {
+		match self.lock().unwrap().entry(key) {
+			Entry::Occupied(entry) => entry.get().clone(),
+			Entry::Vacant(entry) => entry.insert(build().into()).clone(),
+		}
+	}
+
 	fn try_get_or_insert<E>(
 		&self,
 		key: K,

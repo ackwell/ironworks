@@ -48,13 +48,6 @@ pub struct SqPack<R> {
 	indexes: HashMapCache<(u8, u8), index::Index<R>>,
 }
 
-#[derive(Debug)]
-pub(super) struct Location {
-	pub repository: u8,
-	pub category: u8,
-	pub index: index::Location,
-}
-
 impl<R: Resource> SqPack<R> {
 	/// Build a representation of SqPack packages. The provided resource will be
 	/// queried for lookups as required to fulfil SqPack requests.
@@ -67,11 +60,16 @@ impl<R: Resource> SqPack<R> {
 	}
 
 	pub fn file(&self, path: &str) -> Result<File<R>> {
-		let location = self.location(path)?;
-		Ok(File::new(self.resource.clone(), location))
+		let (repository, category, index) = self.location(path)?;
+		Ok(File::new(
+			self.resource.clone(),
+			repository,
+			category,
+			index,
+		))
 	}
 
-	fn location(&self, path: &str) -> Result<Location> {
+	fn location(&self, path: &str) -> Result<(u8, u8, index::Location)> {
 		// SqPack paths are always lower case.
 		let path = path.to_lowercase();
 
@@ -110,11 +108,7 @@ impl<R: Resource> SqPack<R> {
 			})
 			.find(&path)?;
 
-		Ok(Location {
-			repository,
-			category,
-			index,
-		})
+		Ok((repository, category, index))
 	}
 }
 
