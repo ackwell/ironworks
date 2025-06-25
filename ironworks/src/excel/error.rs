@@ -1,6 +1,6 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-	#[error("filesystem error encountered")]
+	#[error("filesystem")]
 	Filesystem(#[source] Box<dyn std::error::Error>),
 }
 

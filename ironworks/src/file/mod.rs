@@ -2,7 +2,7 @@
 //!
 //! Each file type may contain a number of related supporting items, and as such are namespaced seperately.
 
-mod file;
+mod traits;
 
 #[cfg(feature = "eqdp")]
 pub mod eqdp;
@@ -25,4 +25,4 @@ pub mod sklb;
 #[cfg(feature = "tex")]
 pub mod tex;
 
-pub use file::File;
+pub use traits::{FromReader, ReadError};

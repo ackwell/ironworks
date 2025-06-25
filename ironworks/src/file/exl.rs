@@ -2,6 +2,8 @@
 
 use std::{borrow::Cow, collections::HashSet, io};
 
+use crate::file::{FromReader, ReadError};
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
 	#[error("bad magic: {0:?}")]
@@ -54,37 +56,44 @@ impl ExcelList {
 	}
 }
 
+impl FromReader for ExcelList {
+	fn read(reader: impl io::Read + io::Seek) -> Result<Self, ReadError> {
+		Self::read(reader).map_err(|error| match error {
+			Error::Io(error) => ReadError::Io(error),
+			error => ReadError::Malformed(error.into()),
+		})
+	}
+}
+
 #[cfg(test)]
 mod test {
-	use std::io::{self, Cursor};
+	use std::io;
 
-	use crate::{error::Error, file::File};
-
-	use super::ExcelList;
+	use super::*;
 
 	const TEST_LIST: &[u8] = b"EXLT\r\nsheet1,0\r\nsheet2,0\r\nsheet3,0\r\n";
 
 	#[test]
 	fn empty() {
 		let list = ExcelList::read(io::empty());
-		assert!(matches!(list, Err(Error::Resource(_))));
+		assert!(matches!(list, Err(Error::BadMagic(_))));
 	}
 
 	#[test]
 	fn missing_magic() {
-		let list = ExcelList::read(Cursor::new(b"hello\r\nworld".to_vec()));
-		assert!(matches!(list, Err(Error::Resource(_))));
+		let list = ExcelList::read(io::Cursor::new(b"hello\r\nworld".to_vec()));
+		assert!(matches!(list, Err(Error::BadMagic(_))));
 	}
 
 	#[test]
 	fn has_sheet() {
-		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
+		let list = ExcelList::read(io::Cursor::new(TEST_LIST)).unwrap();
 		assert!(list.has("sheet2"));
 	}
 
 	#[test]
 	fn missing_sheet() {
-		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
+		let list = ExcelList::read(io::Cursor::new(TEST_LIST)).unwrap();
 		assert!(!list.has("sheet4"));
 	}
 }

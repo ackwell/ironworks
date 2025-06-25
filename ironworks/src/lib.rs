@@ -19,6 +19,8 @@ pub mod sqpack;
 #[cfg(feature = "zipatch")]
 pub mod zipatch;
 
+pub use filesystem::{Filesystem, FilesystemRead};
+
 #[cfg(test)]
 mod test {
 	#[test]
