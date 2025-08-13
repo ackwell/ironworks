@@ -23,11 +23,19 @@ pub trait Vfs {
 
 	fn exists(&self, path: impl AsRef<Path>) -> bool;
 
-	fn read_to_string(&self, path: impl AsRef<Path>) -> io::Result<String>;
-
-	fn read(&self, path: impl AsRef<Path>) -> io::Result<Vec<u8>>;
-
 	fn open(&self, path: impl AsRef<Path>) -> io::Result<Self::File>;
+
+	fn read(&self, path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+		let mut buf = Vec::new();
+		self.open(path)?.read_to_end(&mut buf)?;
+		Ok(buf)
+	}
+
+	fn read_to_string(&self, path: impl AsRef<Path>) -> io::Result<String> {
+		let mut buf = String::new();
+		self.open(path)?.read_to_string(&mut buf)?;
+		Ok(buf)
+	}
 }
 
 /// SqPack resource for reading game data from an abstracted disk FFXIV installation.
