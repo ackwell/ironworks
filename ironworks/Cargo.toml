@@ -40,7 +40,7 @@ sklb = []
 tex = ["dep:num_enum"]
 
 [dependencies]
-binrw = "0.14.1"
+binrw = "0.15.0"
 derivative = "2.2.0"
 either = "1.8.0"
 getset = "0.1.2"
