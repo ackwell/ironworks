@@ -108,7 +108,7 @@ impl Input {
 
 	// NOTE: marking these as pub(super) for now because I get the sense they'll be moved into a trait.
 
-	pub(super) fn player(&self, id: u32) -> Cow<Player> {
+	pub(super) fn player(&'_ self, id: u32) -> Cow<'_, Player> {
 		// TODO: oncecell the default player?
 		self.players.get(&id).map(Cow::Borrowed).unwrap_or_else(|| {
 			Cow::Owned(Player {

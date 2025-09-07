@@ -16,7 +16,7 @@ pub struct ExcelList(pub HashMap<String, i32>);
 // TODO: should there be an impl intoiter for this?
 impl ExcelList {
 	/// Iterate over known sheets in arbitrary order.
-	pub fn iter(&self) -> impl Iterator<Item = (Cow<str>, i32)> {
+	pub fn iter(&'_ self) -> impl Iterator<Item = (Cow<'_, str>, i32)> {
 		self.0.iter().map(|(name, id)| (name.into(), *id))
 	}
 

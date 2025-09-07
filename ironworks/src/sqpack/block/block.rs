@@ -17,7 +17,10 @@ pub struct BlockHeader {
 	pub decompressed_size: u32,
 }
 
-pub fn read_block<R: Read + Seek>(reader: &mut R, offset: u32) -> io::Result<BlockPayload<R>> {
+pub fn read_block<R: Read + Seek>(
+	reader: &'_ mut R,
+	offset: u32,
+) -> io::Result<BlockPayload<'_, R>> {
 	// Seek to the block and read its header so we know how much to expect in the rest of the block.
 	reader.seek(SeekFrom::Start(offset.into()))?;
 	let block_header =
