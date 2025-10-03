@@ -22,8 +22,12 @@ pub enum Error {
 	InsufficientArguments,
 
 	/// Too many expressions were provided as argument to a macro call.
-	#[error("too many arguments for macro")]
-	TooManyArguments,
+	#[error("too many arguments for macro: {0} too many")]
+	TooManyArguments(usize),
+
+	/// Invalid argument data was provided to a macro call.
+	#[error("invalid argument data for macro")]
+	InvalidArgumentData,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

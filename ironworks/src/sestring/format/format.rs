@@ -105,6 +105,8 @@ fn format_macro(payload: MacroPayload, state: &mut State) -> Result<()> {
 		MacroKind::FrNoun => excel::fr_noun(arguments, state),
 		MacroKind::ChNoun => excel::ch_noun(arguments, state),
 		MacroKind::LowerHead => text::lower_head(arguments, state),
+		MacroKind::SheetSub => excel::sheet_sub(arguments, state),
+		MacroKind::SwitchPlatform => excel::switch_platform(arguments, state),
 		MacroKind::ColorType => style::color_type(arguments, state),
 		MacroKind::EdgeColorType => style::edge_color_type(arguments, state),
 		MacroKind::Ruby => text::ruby(arguments, state),

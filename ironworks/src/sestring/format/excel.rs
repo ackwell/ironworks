@@ -4,9 +4,17 @@ use super::{argument::Arguments, format::State, value::Value};
 
 // TODO: Implement these.
 
-pub fn sheet<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
-	let (_sheet, _row, _column, _parameter) =
-		arguments.exhaustive::<(String, u32, Option<u32>, Option<u32>)>(state)?;
+pub fn sheet<'a>(mut arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let (_sheet, _row, _column) = arguments.evaluate::<(String, u32, Option<u32>)>(state)?;
+
+	let _parameters = arguments.collect::<Result<Vec<_>>>()?;
+
+	Ok(())
+}
+
+pub fn sheet_sub<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let (_sheet, _row, _subrow, _column, _secondary_sheet, _secondary_col) =
+		arguments.exhaustive::<(String, u32, u32, u32, String, u32)>(state)?;
 	Ok(())
 }
 
@@ -17,6 +25,11 @@ pub fn sound<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()>
 
 pub fn level_pos<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
 	let _id = arguments.exhaustive::<u32>(state)?;
+	Ok(())
+}
+
+pub fn switch_platform<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()> {
+	let _is_wireless = arguments.exhaustive::<u32>(state)?;
 	Ok(())
 }
 

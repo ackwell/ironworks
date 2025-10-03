@@ -83,6 +83,38 @@ impl<'a> Expression<'a> {
 
 		Ok(expression)
 	}
+
+	pub fn name(&self) -> &'static str {
+		match self {
+			Self::Millisecond => "t_msec",
+			Self::Second => "t_sec",
+			Self::Minute => "t_min",
+			Self::Hour => "t_hour",
+			Self::Day => "t_day",
+			Self::Weekday => "t_wday",
+			Self::Month => "t_mon",
+			Self::Year => "t_year",
+
+			Self::Ge(_, _) => ">=",
+			Self::Gt(_, _) => ">",
+			Self::Le(_, _) => "<=",
+			Self::Lt(_, _) => "<",
+			Self::Eq(_, _) => "=",
+			Self::Ne(_, _) => "!=",
+
+			Self::LocalNumber(_) => "lnum",
+			Self::GlobalNumber(_) => "gnum",
+			Self::LocalString(_) => "lstr",
+			Self::GlobalString(_) => "gstr",
+
+			Self::StackColor => "stackcolor",
+
+			Self::U32(_) => "u32",
+			Self::SeString(_) => "sestring",
+
+			Self::Unknown(_) => "unk",
+		}
+	}
 }
 
 fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32> {

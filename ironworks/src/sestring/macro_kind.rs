@@ -61,6 +61,8 @@ pub enum MacroKind {
 	FrNoun = 0x33,
 	ChNoun = 0x34,
 	LowerHead = 0x40,
+	SheetSub = 0x41,
+	SwitchPlatform = 0x42,
 	ColorType = 0x48,
 	EdgeColorType = 0x49,
 	Ruby = 0x4A,
@@ -71,4 +73,17 @@ pub enum MacroKind {
 
 	#[num_enum(catch_all)]
 	Unknown(u8),
+}
+
+impl MacroKind {
+	pub fn name(self) -> String {
+		match self {
+			MacroKind::Unknown(val) => format!("payload:{:02X}", val),
+			MacroKind::NewLine => "br".to_string(),
+			MacroKind::SoftHyphen => "-".to_string(),
+			MacroKind::NonBreakingSpace => "nbsp".to_string(),
+			MacroKind::Hyphen => "-".to_string(),
+			_ => format!("{:?}", self).to_ascii_lowercase(),
+		}
+	}
 }

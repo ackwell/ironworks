@@ -18,9 +18,9 @@ pub trait Arguments<'a>: Sized + Iterator<Item = Result<Expression<'a>>> {
 		T: TryFromArguments<'a>,
 	{
 		let out = self.evaluate::<T>(state)?;
-		match self.next() {
-			None => Ok(out),
-			Some(_) => Err(Error::TooManyArguments),
+		match self.count() {
+			0 => Ok(out),
+			n => Err(Error::TooManyArguments(n)),
 		}
 	}
 }

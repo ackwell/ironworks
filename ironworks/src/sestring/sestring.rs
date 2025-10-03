@@ -1,5 +1,7 @@
 use std::{borrow::Cow, fmt};
 
+use crate::sestring::Expression;
+
 use super::{cursor::SliceCursor, error::Result, format, payload::Payload};
 
 /// Square Enix rich text format.
@@ -27,6 +29,10 @@ impl<'a> SeString<'a> {
 		Self::new(self.data.as_ref())
 	}
 
+	pub fn as_bytes(&self) -> &[u8] {
+		&self.data
+	}
+
 	/// Returns an iterator over [`Payload`]s within this string.
 	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
@@ -47,6 +53,97 @@ impl<'a> SeString<'a> {
 		format::format(self.as_ref(), &input, &mut writer)?;
 		Ok(writer.into())
 	}
+
+	pub fn macro_string(&self) -> Result<String> {
+		self.macro_string_inner(false)
+	}
+
+	fn macro_string_inner(&self, inside_macro: bool) -> Result<String> {
+		let mut result = String::new();
+		for payload in self.payloads() {
+			match payload? {
+				Payload::Text(text) => {
+					let escaped: &[char] = if inside_macro {
+						&['<', '>', '[', ']', '(', ')', ',', '\\']
+					} else {
+						&['<', '>', '\\']
+					};
+					for c in text.as_utf8()?.chars() {
+						if escaped.contains(&c) {
+							result.push('\\');
+						}
+						result.push(c);
+					}
+				}
+				Payload::Macro(macro_payload) => {
+					result.push_str("<");
+					result.push_str(&macro_payload.kind().name());
+					let v = macro_payload
+						.expressions()
+						.map(|expr| {
+							expr.and_then(|expr| {
+								let mut r = String::new();
+								Self::expr_macro_string(&expr, &mut r)?;
+								Ok(r)
+							})
+						})
+						.collect::<Result<Vec<_>, _>>()?;
+					if !v.is_empty() {
+						result.push_str("(");
+						result.push_str(&v.join(", "));
+						result.push_str(")");
+					}
+					result.push_str(">");
+				}
+			}
+		}
+		Ok(result)
+	}
+
+	fn expr_macro_string(expr: &Expression<'_>, result: &mut String) -> Result<()> {
+		match expr {
+			Expression::U32(value) => {
+				result.push_str(&value.to_string());
+			}
+			Expression::SeString(sestring) => {
+				result.push_str(&sestring.macro_string_inner(true)?);
+			}
+			Expression::Millisecond
+			| Expression::Second
+			| Expression::Minute
+			| Expression::Hour
+			| Expression::Day
+			| Expression::Weekday
+			| Expression::Month
+			| Expression::Year
+			| Expression::StackColor => {
+				result.push_str(expr.name());
+			}
+			Expression::LocalNumber(e)
+			| Expression::GlobalNumber(e)
+			| Expression::LocalString(e)
+			| Expression::GlobalString(e) => {
+				result.push_str(expr.name());
+				Self::expr_macro_string(e, result)?;
+			}
+			Expression::Ge(lhs, rhs)
+			| Expression::Gt(lhs, rhs)
+			| Expression::Le(lhs, rhs)
+			| Expression::Lt(lhs, rhs)
+			| Expression::Eq(lhs, rhs)
+			| Expression::Ne(lhs, rhs) => {
+				result.push_str("[");
+				Self::expr_macro_string(lhs, result)?;
+				result.push_str(expr.name());
+				Self::expr_macro_string(rhs, result)?;
+				result.push_str("]");
+			}
+			Expression::Unknown(value) => {
+				result.push_str(&format!("unknown({value})"));
+			}
+		}
+		Ok(())
+	}
 }
 
 impl fmt::Display for SeString<'_> {
@@ -57,7 +154,12 @@ impl fmt::Display for SeString<'_> {
 	/// needed for your use case, [`Self::format`] or the [`format`] module can be
 	/// used instead.
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match self.format() {
+		let ret = if formatter.alternate() {
+			self.macro_string()
+		} else {
+			self.format()
+		};
+		match ret {
 			Ok(string) => string.fmt(formatter),
 			Err(_error) => "invalid SeString".fmt(formatter),
 		}
