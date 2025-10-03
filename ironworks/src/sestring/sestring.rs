@@ -33,6 +33,12 @@ impl<'a> SeString<'a> {
 		&self.data
 	}
 
+	pub fn as_owned(&self) -> SeString<'static> {
+		SeString {
+			data: (*self.data).to_owned().into(),
+		}
+	}
+
 	/// Returns an iterator over [`Payload`]s within this string.
 	pub fn payloads(&'a self) -> Payloads<'a> {
 		Payloads::new(&self.data)
