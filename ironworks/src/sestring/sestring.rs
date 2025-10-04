@@ -96,7 +96,7 @@ impl<'a> SeString<'a> {
 						.collect::<Result<Vec<_>, _>>()?;
 					if !v.is_empty() {
 						result.push_str("(");
-						result.push_str(&v.join(", "));
+						result.push_str(&v.join(","));
 						result.push_str(")");
 					}
 					result.push_str(">");
