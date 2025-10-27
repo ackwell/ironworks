@@ -1,4 +1,4 @@
-use crate::sestring::{error::Result, expression::Expression, format, sestring::SeString};
+use crate::sestring::{error::Result, expression::Expression, format};
 
 use super::{format::State, time};
 
@@ -30,7 +30,7 @@ where
 }
 
 pub fn str(content: &[u8]) -> Expression {
-	Expression::SeString(SeString::new(content))
+	Expression::SeString(content.into())
 }
 
 struct TestWriter(String);

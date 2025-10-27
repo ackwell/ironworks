@@ -3,7 +3,7 @@ use crate::sestring::{
 	expression::Expression,
 	macro_kind::MacroKind,
 	payload::{MacroPayload, Payload},
-	sestring::SeString,
+	sestr::SeStr,
 };
 
 use super::{
@@ -25,7 +25,7 @@ pub struct State<'a> {
 /// Formatting may fail on invalid string inputs. All strings shipped with FFXIV
 /// are considered well-formed, please raise a bug report if an error is
 /// returned on a string from that source.
-pub fn format(sestring: SeString, input: &Input, writer: &mut impl Write) -> Result<()> {
+pub fn format(sestring: &SeStr, input: &Input, writer: &mut impl Write) -> Result<()> {
 	let mut state = State {
 		input,
 		writer,
@@ -34,7 +34,7 @@ pub fn format(sestring: SeString, input: &Input, writer: &mut impl Write) -> Res
 	format_sestring(sestring, &mut state)
 }
 
-pub fn format_sestring(sestring: SeString, state: &mut State) -> Result<()> {
+pub fn format_sestring(sestring: &SeStr, state: &mut State) -> Result<()> {
 	for payload in sestring.payloads() {
 		match payload? {
 			Payload::Text(inner) => state.writer.write_str(inner.as_utf8()?)?,

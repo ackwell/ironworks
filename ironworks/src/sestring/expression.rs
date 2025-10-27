@@ -1,7 +1,7 @@
 use super::{
 	cursor::SliceCursor,
 	error::{Error, Result},
-	sestring::SeString,
+	sestr::SeStr,
 };
 
 /// An expression passed as an argument to a
@@ -14,7 +14,7 @@ use super::{
 #[derive(Debug)]
 pub enum Expression<'a> {
 	U32(u32),
-	SeString(SeString<'a>),
+	SeString(&'a SeStr),
 
 	Millisecond,
 	Second,
@@ -46,7 +46,7 @@ impl<'a> Expression<'a> {
 	pub(super) fn read(cursor: &mut SliceCursor<'a>) -> Result<Self> {
 		let kind = cursor.next()?;
 
-		let mut read_inner = || Ok(Box::new(Expression::read(cursor)?));
+		let mut read_inner = || Expression::read(cursor).map(Box::new);
 
 		let expression = match kind {
 			value @ 0x01..=0xCF => Self::U32(u32::from(value - 1)),
@@ -129,12 +129,12 @@ fn read_packed_u32(cursor: &mut SliceCursor, kind: u8) -> Result<u32> {
 	Ok(u32::from_le_bytes(bytes))
 }
 
-fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<SeString<'a>> {
+fn read_inline_sestring<'a>(cursor: &mut SliceCursor<'a>) -> Result<&'a SeStr> {
 	let Expression::U32(length) = Expression::read(cursor)? else {
 		return Err(Error::InvalidExpression);
 	};
 	let string_length = usize::try_from(length).unwrap();
-	let string = SeString::new(cursor.take(string_length)?);
+	let string = cursor.take(string_length)?.into();
 	Ok(string)
 }
 

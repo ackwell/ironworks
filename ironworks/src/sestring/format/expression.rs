@@ -1,9 +1,9 @@
 use time::OffsetDateTime;
 
 use crate::sestring::{
+	SeStr,
 	error::{Error, Result},
 	expression::Expression,
-	sestring::SeString,
 };
 
 use super::{
@@ -49,7 +49,7 @@ pub fn evaluate_expression(expression: Expression, state: &State) -> Result<Valu
 	Ok(value)
 }
 
-fn evaluate_sestring(sestring: SeString, state: &State) -> Result<Value> {
+fn evaluate_sestring(sestring: &SeStr, state: &State) -> Result<Value> {
 	let mut writer = EvaluationWriter(String::new());
 	let mut state = State {
 		input: state.input,

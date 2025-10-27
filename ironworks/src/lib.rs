@@ -32,7 +32,7 @@ mod test {
 	#[test]
 	fn test_send() {
 		fn assert_send<T: Send>() {}
-		assert_send::<Ironworks>();
+		assert_send::<SharedIronworks>();
 		assert_send::<Error>();
 		assert_send::<ErrorValue>();
 	}
@@ -40,7 +40,7 @@ mod test {
 	#[test]
 	fn test_sync() {
 		fn assert_sync<T: Sync>() {}
-		assert_sync::<Ironworks>();
+		assert_sync::<SharedIronworks>();
 		assert_sync::<Error>();
 		assert_sync::<ErrorValue>();
 	}

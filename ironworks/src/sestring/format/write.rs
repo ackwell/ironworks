@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::Deref};
 
 use crate::sestring::error::Result;
 
@@ -39,35 +39,51 @@ pub trait Write {
 	}
 }
 
+pub type PlainString = PlainWriter<String>;
+
 /// Simple [`Write`] implementation.
 ///
-/// This writer will collect all text into an internal string buffer. No
+/// This writer will collect all text into an internal writer. No
 /// formatting of any kind is preserved. If formatting or alternate outputs are
 /// required, a custom `Write` implementation can be used.
-#[derive(Debug)]
-pub struct PlainString(String);
+#[derive(Debug, Default)]
+pub struct PlainWriter<T: fmt::Write>(T);
 
-impl PlainString {
-	/// Construsts a new plain string writer.
-	pub fn new() -> Self {
-		Self(String::new())
+impl<T: fmt::Write> PlainWriter<T> {
+	/// Creates a new `PlainString` writer with the given inner writer.
+	pub fn new(inner: T) -> Self {
+		Self(inner)
+	}
+
+	/// Consumes this writer, returning the inner writer.
+	pub fn into_inner(self) -> T {
+		self.0
 	}
 }
 
-impl Write for PlainString {
+impl<T: fmt::Write> From<T> for PlainWriter<T> {
+	fn from(value: T) -> Self {
+		Self::new(value)
+	}
+}
+
+impl<T: fmt::Write> Deref for PlainWriter<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl<T: fmt::Write> Write for PlainWriter<T> {
 	fn write_str(&mut self, str: &str) -> Result<()> {
-		self.0.push_str(str);
-		Ok(())
+		self.0
+			.write_str(str)
+			.map_err(|_| crate::sestring::error::Error::InvalidText)
 	}
 }
 
-impl From<PlainString> for String {
-	fn from(value: PlainString) -> Self {
-		value.0
-	}
-}
-
-impl fmt::Display for PlainString {
+impl<T: fmt::Display + fmt::Write> fmt::Display for PlainWriter<T> {
 	fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
 		self.0.fmt(formatter)
 	}

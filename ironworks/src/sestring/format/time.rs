@@ -56,8 +56,8 @@ pub fn set_reset_time<'a>(arguments: impl Arguments<'a>, state: &mut State) -> R
 #[cfg(test)]
 mod test {
 	use crate::sestring::{
+		SeStr,
 		format::{format::format_sestring, test::with_state},
-		sestring::SeString,
 	};
 
 	fn render_date_time(prelude: &[u8]) -> String {
@@ -76,7 +76,7 @@ mod test {
 		]
 		.concat();
 
-		let sestring = SeString::new(content.as_slice());
+		let sestring: &SeStr = content.as_slice().into();
 
 		with_state(|state| {
 			format_sestring(sestring, state).expect("format should not fail");

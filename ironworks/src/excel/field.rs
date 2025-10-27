@@ -6,7 +6,7 @@ use crate::sestring::SeString;
 #[allow(missing_docs)]
 #[derive(Debug, EnumAsInner)]
 pub enum Field {
-	String(SeString<'static>),
+	String(SeString),
 
 	Bool(bool),
 

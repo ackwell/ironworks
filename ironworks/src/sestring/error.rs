@@ -28,6 +28,10 @@ pub enum Error {
 	/// Invalid argument data was provided to a macro call.
 	#[error("invalid argument data for macro")]
 	InvalidArgumentData,
+
+	/// An error occurred during formatting.
+	#[error("formatting error")]
+	FormatError(#[from] std::fmt::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

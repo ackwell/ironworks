@@ -24,5 +24,5 @@ pub use {
 	runtime::{Gender, Player},
 	style::{Color, ColorUsage, Style},
 	value::Value,
-	write::{PlainString, Write},
+	write::{PlainString, PlainWriter, Write},
 };

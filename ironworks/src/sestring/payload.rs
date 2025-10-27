@@ -59,6 +59,11 @@ impl<'a> TextPayload<'a> {
 	pub fn as_utf8(&self) -> Result<&'a str> {
 		str::from_utf8(&self.0).map_err(|_error| Error::InvalidText)
 	}
+
+	/// Returns the raw bytes of the text payload.
+	pub fn as_bytes(&self) -> &'a [u8] {
+		self.0
+	}
 }
 
 /// A payload within an [`SeString`][super::SeString] representing dynamic logic
