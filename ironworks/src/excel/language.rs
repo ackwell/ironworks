@@ -15,6 +15,7 @@ pub enum Language {
 	ChineseSimplified = 5,
 	ChineseTraditional = 6,
 	Korean = 7,
+	ChineseTraditional2 = 8,
 
 	/// An unknown language ID.
 	///
