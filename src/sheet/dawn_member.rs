@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
-use crate::error::PopulateError;
 impl MetadataAdapter for DawnMember {
     fn name() -> String {
         "DawnMember".to_string()
@@ -12,9 +12,15 @@ impl MetadataAdapter for DawnMember {
     }
 }
 #[derive(Debug)]
-pub struct DawnMember {}
+pub struct DawnMember {
+    pub r#unknown0: u8,
+    pub r#unknown1: u8,
+}
 impl DawnMember {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_u8()?,
+            r#unknown1: row.field(1usize + offset)?.into_u8()?,
+        })
     }
 }

@@ -1,6 +1,6 @@
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for GrandCompanyRank {
     fn name() -> String {
@@ -23,6 +23,7 @@ pub struct GrandCompanyRank {
     pub r#quest_maelstrom: i32,
     pub r#quest_serpents: i32,
     pub r#quest_flames: i32,
+    pub r#unknown10: u8,
 }
 impl GrandCompanyRank {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -37,6 +38,7 @@ impl GrandCompanyRank {
             r#quest_maelstrom: row.field(7usize + offset)?.into_i32()?,
             r#quest_serpents: row.field(8usize + offset)?.into_i32()?,
             r#quest_flames: row.field(9usize + offset)?.into_i32()?,
+            r#unknown10: row.field(10usize + offset)?.into_u8()?,
         })
     }
 }

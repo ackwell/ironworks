@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for AetheryteTransient {
     fn name() -> String {
         "AetheryteTransient".to_string()
@@ -12,9 +12,13 @@ impl MetadataAdapter for AetheryteTransient {
     }
 }
 #[derive(Debug)]
-pub struct AetheryteTransient {}
+pub struct AetheryteTransient {
+    pub r#unknown0: bool,
+}
 impl AetheryteTransient {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_bool()?,
+        })
     }
 }

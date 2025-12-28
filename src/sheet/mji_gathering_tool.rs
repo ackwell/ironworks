@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for MJIGatheringTool {
     fn name() -> String {
         "MJIGatheringTool".to_string()
@@ -12,9 +12,13 @@ impl MetadataAdapter for MJIGatheringTool {
     }
 }
 #[derive(Debug)]
-pub struct MJIGatheringTool {}
+pub struct MJIGatheringTool {
+    pub r#item: u8,
+}
 impl MJIGatheringTool {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#item: row.field(0usize + offset)?.into_u8()?,
+        })
     }
 }

@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
-use std::result::Result;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for SubmarineExploration {
     fn name() -> String {
         "SubmarineExploration".to_string()
@@ -20,7 +20,7 @@ pub struct SubmarineExploration {
     pub r#y: i16,
     pub r#z: i16,
     pub r#map: u8,
-    pub r#passengers: bool,
+    pub r#starting_point: bool,
     pub r#stars: u8,
     pub r#rank_req: u8,
     pub r#ceruleum_tank_req: u8,
@@ -37,7 +37,7 @@ impl SubmarineExploration {
             r#y: row.field(3usize + offset)?.into_i16()?,
             r#z: row.field(4usize + offset)?.into_i16()?,
             r#map: row.field(5usize + offset)?.into_u8()?,
-            r#passengers: row.field(6usize + offset)?.into_bool()?,
+            r#starting_point: row.field(6usize + offset)?.into_bool()?,
             r#stars: row.field(7usize + offset)?.into_u8()?,
             r#rank_req: row.field(8usize + offset)?.into_u8()?,
             r#ceruleum_tank_req: row.field(9usize + offset)?.into_u8()?,

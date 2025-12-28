@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for DawnMemberUIParam {
     fn name() -> String {
         "DawnMemberUIParam".to_string()

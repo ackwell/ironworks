@@ -1,9 +1,9 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
-use crate::utility::read_array;
 use crate::error::PopulateError;
-use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for Materia {
     fn name() -> String {
         "Materia".to_string()
@@ -24,16 +24,16 @@ impl Materia {
         Result::Ok(Self {
             r#item: read_array(
                 offset,
-                10usize,
+                16usize,
                 1usize,
                 |offset| { Result::Ok(row.field(0usize + offset)?.into_i32()?) },
             )?,
-            r#base_param: row.field(10usize + offset)?.into_u8()?,
+            r#base_param: row.field(16usize + offset)?.into_u8()?,
             r#value: read_array(
                 offset,
-                10usize,
+                16usize,
                 1usize,
-                |offset| { Result::Ok(row.field(11usize + offset)?.into_i16()?) },
+                |offset| { Result::Ok(row.field(17usize + offset)?.into_i16()?) },
             )?,
         })
     }

@@ -1,7 +1,8 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for OmikujiGuidance {
     fn name() -> String {
         "OmikujiGuidance".to_string()
@@ -12,9 +13,17 @@ impl MetadataAdapter for OmikujiGuidance {
     }
 }
 #[derive(Debug)]
-pub struct OmikujiGuidance {}
+pub struct OmikujiGuidance {
+    pub r#unknown0: bool,
+    pub r#unknown1: SeString,
+    pub r#unknown2: SeString,
+}
 impl OmikujiGuidance {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_bool()?,
+            r#unknown1: row.field(1usize + offset)?.into_string()?,
+            r#unknown2: row.field(2usize + offset)?.into_string()?,
+        })
     }
 }

@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for RelicItem {
     fn name() -> String {
         "RelicItem".to_string()
@@ -25,6 +25,11 @@ pub struct RelicItem {
     pub r#arcanist_sch_item: u32,
     pub r#shield_item: u32,
     pub r#rogue_item: u32,
+    pub r#unknown12: u32,
+    pub r#unknown13: u32,
+    pub r#unknown14: u32,
+    pub r#unknown15: u32,
+    pub r#unknown16: u32,
 }
 impl RelicItem {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -41,6 +46,11 @@ impl RelicItem {
             r#arcanist_sch_item: row.field(9usize + offset)?.into_u32()?,
             r#shield_item: row.field(10usize + offset)?.into_u32()?,
             r#rogue_item: row.field(11usize + offset)?.into_u32()?,
+            r#unknown12: row.field(12usize + offset)?.into_u32()?,
+            r#unknown13: row.field(13usize + offset)?.into_u32()?,
+            r#unknown14: row.field(14usize + offset)?.into_u32()?,
+            r#unknown15: row.field(15usize + offset)?.into_u32()?,
+            r#unknown16: row.field(16usize + offset)?.into_u32()?,
         })
     }
 }

@@ -1,8 +1,8 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for TerritoryType {
     fn name() -> String {
         "TerritoryType".to_string()
@@ -48,6 +48,16 @@ pub struct TerritoryType {
     pub r#unknown31: u8,
     pub r#unknown32: u8,
     pub r#mount_speed: u8,
+    pub r#unknown34: bool,
+    pub r#unknown35: bool,
+    pub r#unknown36: u8,
+    pub r#unknown37: bool,
+    pub r#unknown38: bool,
+    pub r#unknown39: bool,
+    pub r#unknown40: bool,
+    pub r#unknown41: bool,
+    pub r#unknown42: bool,
+    pub r#unknown43: u16,
 }
 impl TerritoryType {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -86,6 +96,16 @@ impl TerritoryType {
             r#unknown31: row.field(31usize + offset)?.into_u8()?,
             r#unknown32: row.field(32usize + offset)?.into_u8()?,
             r#mount_speed: row.field(33usize + offset)?.into_u8()?,
+            r#unknown34: row.field(34usize + offset)?.into_bool()?,
+            r#unknown35: row.field(35usize + offset)?.into_bool()?,
+            r#unknown36: row.field(36usize + offset)?.into_u8()?,
+            r#unknown37: row.field(37usize + offset)?.into_bool()?,
+            r#unknown38: row.field(38usize + offset)?.into_bool()?,
+            r#unknown39: row.field(39usize + offset)?.into_bool()?,
+            r#unknown40: row.field(40usize + offset)?.into_bool()?,
+            r#unknown41: row.field(41usize + offset)?.into_bool()?,
+            r#unknown42: row.field(42usize + offset)?.into_bool()?,
+            r#unknown43: row.field(43usize + offset)?.into_u16()?,
         })
     }
 }

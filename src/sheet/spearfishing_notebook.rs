@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for SpearfishingNotebook {
     fn name() -> String {
         "SpearfishingNotebook".to_string()
@@ -23,6 +23,8 @@ pub struct SpearfishingNotebook {
     pub r#place_name: u16,
     pub r#unknown8: u8,
     pub r#gathering_point_base: u16,
+    pub r#unknown10: u16,
+    pub r#unknown11: u16,
 }
 impl SpearfishingNotebook {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -37,6 +39,8 @@ impl SpearfishingNotebook {
             r#place_name: row.field(7usize + offset)?.into_u16()?,
             r#unknown8: row.field(8usize + offset)?.into_u8()?,
             r#gathering_point_base: row.field(9usize + offset)?.into_u16()?,
+            r#unknown10: row.field(10usize + offset)?.into_u16()?,
+            r#unknown11: row.field(11usize + offset)?.into_u16()?,
         })
     }
 }

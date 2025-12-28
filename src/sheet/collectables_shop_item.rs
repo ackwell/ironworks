@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for CollectablesShopItem {
     fn name() -> String {
         "CollectablesShopItem".to_string()
@@ -16,6 +16,7 @@ pub struct CollectablesShopItem {
     pub r#item: u32,
     pub r#collectables_shop_item_group: u8,
     pub r#level_min: u16,
+    pub r#unknown3: u32,
     pub r#level_max: u16,
     pub r#stars: u8,
     pub r#key: u8,
@@ -28,11 +29,12 @@ impl CollectablesShopItem {
             r#item: row.field(0usize + offset)?.into_u32()?,
             r#collectables_shop_item_group: row.field(1usize + offset)?.into_u8()?,
             r#level_min: row.field(2usize + offset)?.into_u16()?,
-            r#level_max: row.field(3usize + offset)?.into_u16()?,
-            r#stars: row.field(4usize + offset)?.into_u8()?,
-            r#key: row.field(5usize + offset)?.into_u8()?,
-            r#collectables_shop_refine: row.field(6usize + offset)?.into_u16()?,
-            r#collectables_shop_reward_scrip: row.field(7usize + offset)?.into_u16()?,
+            r#unknown3: row.field(3usize + offset)?.into_u32()?,
+            r#level_max: row.field(4usize + offset)?.into_u16()?,
+            r#stars: row.field(5usize + offset)?.into_u8()?,
+            r#key: row.field(6usize + offset)?.into_u8()?,
+            r#collectables_shop_refine: row.field(7usize + offset)?.into_u16()?,
+            r#collectables_shop_reward_scrip: row.field(8usize + offset)?.into_u16()?,
         })
     }
 }

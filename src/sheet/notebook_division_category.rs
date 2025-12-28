@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for NotebookDivisionCategory {
     fn name() -> String {
         "NotebookDivisionCategory".to_string()

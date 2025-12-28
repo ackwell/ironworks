@@ -1,9 +1,9 @@
-use std::result::Result;
-use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for JobHudManualPriority {
     fn name() -> String {
         "JobHudManualPriority".to_string()
@@ -22,7 +22,7 @@ impl JobHudManualPriority {
         Result::Ok(Self {
             r#job_hud_manual: read_array(
                 offset,
-                3usize,
+                8usize,
                 1usize,
                 |offset| { Result::Ok(row.field(0usize + offset)?.into_u8()?) },
             )?,

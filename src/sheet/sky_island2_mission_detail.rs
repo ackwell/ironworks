@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for SkyIsland2MissionDetail {
     fn name() -> String {
         "SkyIsland2MissionDetail".to_string()
@@ -22,6 +22,9 @@ pub struct SkyIsland2MissionDetail {
     pub r#unknown5: u32,
     pub r#unknown6: u32,
     pub r#objective: SeString,
+    pub r#unknown8: SeString,
+    pub r#unknown9: SeString,
+    pub r#unknown10: SeString,
 }
 impl SkyIsland2MissionDetail {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -34,6 +37,9 @@ impl SkyIsland2MissionDetail {
             r#unknown5: row.field(5usize + offset)?.into_u32()?,
             r#unknown6: row.field(6usize + offset)?.into_u32()?,
             r#objective: row.field(7usize + offset)?.into_string()?,
+            r#unknown8: row.field(8usize + offset)?.into_string()?,
+            r#unknown9: row.field(9usize + offset)?.into_string()?,
+            r#unknown10: row.field(10usize + offset)?.into_string()?,
         })
     }
 }

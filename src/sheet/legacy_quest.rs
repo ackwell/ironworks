@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for LegacyQuest {
     fn name() -> String {
         "LegacyQuest".to_string()
@@ -18,7 +18,7 @@ pub struct LegacyQuest {
     pub r#text: SeString,
     pub r#string: SeString,
     pub r#sort_key: u16,
-    pub r#genre: u8,
+    pub r#genre: u32,
 }
 impl LegacyQuest {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -27,7 +27,7 @@ impl LegacyQuest {
             r#text: row.field(1usize + offset)?.into_string()?,
             r#string: row.field(2usize + offset)?.into_string()?,
             r#sort_key: row.field(3usize + offset)?.into_u16()?,
-            r#genre: row.field(4usize + offset)?.into_u8()?,
+            r#genre: row.field(4usize + offset)?.into_u32()?,
         })
     }
 }

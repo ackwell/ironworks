@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for CutSceneIncompQuest {
     fn name() -> String {
         "CutSceneIncompQuest".to_string()

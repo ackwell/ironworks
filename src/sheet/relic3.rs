@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for Relic3 {
     fn name() -> String {
         "Relic3".to_string()
@@ -18,6 +18,7 @@ pub struct Relic3 {
     pub r#materia_limit: u8,
     pub r#item_novus: u32,
     pub r#icon: i32,
+    pub r#unknown5: i8,
 }
 impl Relic3 {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -27,6 +28,7 @@ impl Relic3 {
             r#materia_limit: row.field(2usize + offset)?.into_u8()?,
             r#item_novus: row.field(3usize + offset)?.into_u32()?,
             r#icon: row.field(4usize + offset)?.into_i32()?,
+            r#unknown5: row.field(5usize + offset)?.into_i8()?,
         })
     }
 }

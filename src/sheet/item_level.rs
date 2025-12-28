@@ -1,7 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for ItemLevel {
     fn name() -> String {
         "ItemLevel".to_string()
@@ -86,6 +86,7 @@ pub struct ItemLevel {
     pub r#control: u16,
     pub r#gathering: u16,
     pub r#perception: u16,
+    pub r#unknown73: u16,
 }
 impl ItemLevel {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -163,6 +164,7 @@ impl ItemLevel {
             r#control: row.field(70usize + offset)?.into_u16()?,
             r#gathering: row.field(71usize + offset)?.into_u16()?,
             r#perception: row.field(72usize + offset)?.into_u16()?,
+            r#unknown73: row.field(73usize + offset)?.into_u16()?,
         })
     }
 }

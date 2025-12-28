@@ -1,9 +1,9 @@
-use std::vec::Vec;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use crate::utility::read_array;
+use ironworks::excel::Row;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for PvPAction {
     fn name() -> String {
         "PvPAction".to_string()
@@ -21,6 +21,7 @@ pub struct PvPAction {
     pub r#unknown3: u16,
     pub r#unknown4: u16,
     pub r#grand_company: Vec<bool>,
+    pub r#unknown8: u8,
 }
 impl PvPAction {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -36,6 +37,7 @@ impl PvPAction {
                 1usize,
                 |offset| { Result::Ok(row.field(5usize + offset)?.into_bool()?) },
             )?,
+            r#unknown8: row.field(8usize + offset)?.into_u8()?,
         })
     }
 }

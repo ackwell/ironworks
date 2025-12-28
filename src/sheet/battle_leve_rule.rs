@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for BattleLeveRule {
     fn name() -> String {
         "BattleLeveRule".to_string()

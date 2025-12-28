@@ -1,7 +1,7 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for EmoteMode {
     fn name() -> String {
         "EmoteMode".to_string()
@@ -20,6 +20,7 @@ pub struct EmoteMode {
     pub r#end_on_rotate: bool,
     pub r#end_on_emote: bool,
     pub r#condition_mode: u8,
+    pub r#unknown7: bool,
 }
 impl EmoteMode {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -31,6 +32,7 @@ impl EmoteMode {
             r#end_on_rotate: row.field(4usize + offset)?.into_bool()?,
             r#end_on_emote: row.field(5usize + offset)?.into_bool()?,
             r#condition_mode: row.field(6usize + offset)?.into_u8()?,
+            r#unknown7: row.field(7usize + offset)?.into_bool()?,
         })
     }
 }

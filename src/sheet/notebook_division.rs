@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for NotebookDivision {
     fn name() -> String {
         "NotebookDivision".to_string()
@@ -21,14 +21,16 @@ pub struct NotebookDivision {
     pub r#quest_unlock: u32,
     pub r#unknown5: u8,
     pub r#unknown6: bool,
-    pub r#crp_craft: bool,
-    pub r#bsm_craft: bool,
+    pub r#crp_craft: u8,
+    pub r#bsm_craft: u8,
     pub r#arm_craft: bool,
     pub r#gsm_craft: bool,
     pub r#ltw_craft: bool,
     pub r#wvr_craft: bool,
     pub r#alc_craft: bool,
     pub r#cul_craft: bool,
+    pub r#unknown15: bool,
+    pub r#unknown16: bool,
 }
 impl NotebookDivision {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -40,14 +42,16 @@ impl NotebookDivision {
             r#quest_unlock: row.field(4usize + offset)?.into_u32()?,
             r#unknown5: row.field(5usize + offset)?.into_u8()?,
             r#unknown6: row.field(6usize + offset)?.into_bool()?,
-            r#crp_craft: row.field(7usize + offset)?.into_bool()?,
-            r#bsm_craft: row.field(8usize + offset)?.into_bool()?,
+            r#crp_craft: row.field(7usize + offset)?.into_u8()?,
+            r#bsm_craft: row.field(8usize + offset)?.into_u8()?,
             r#arm_craft: row.field(9usize + offset)?.into_bool()?,
             r#gsm_craft: row.field(10usize + offset)?.into_bool()?,
             r#ltw_craft: row.field(11usize + offset)?.into_bool()?,
             r#wvr_craft: row.field(12usize + offset)?.into_bool()?,
             r#alc_craft: row.field(13usize + offset)?.into_bool()?,
             r#cul_craft: row.field(14usize + offset)?.into_bool()?,
+            r#unknown15: row.field(15usize + offset)?.into_bool()?,
+            r#unknown16: row.field(16usize + offset)?.into_bool()?,
         })
     }
 }

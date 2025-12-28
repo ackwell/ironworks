@@ -1,9 +1,9 @@
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use std::vec::Vec;
-use std::result::Result;
-use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for PartyContent {
     fn name() -> String {
         "PartyContent".to_string()
@@ -26,6 +26,7 @@ pub struct PartyContent {
     pub r#unknown32: u16,
     pub r#content_finder_condition: u16,
     pub r#image: u32,
+    pub r#unknown35: u8,
 }
 impl PartyContent {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -56,6 +57,7 @@ impl PartyContent {
             r#unknown32: row.field(32usize + offset)?.into_u16()?,
             r#content_finder_condition: row.field(33usize + offset)?.into_u16()?,
             r#image: row.field(34usize + offset)?.into_u32()?,
+            r#unknown35: row.field(35usize + offset)?.into_u8()?,
         })
     }
 }

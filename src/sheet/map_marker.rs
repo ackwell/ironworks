@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for MapMarker {
     fn name() -> String {
         "MapMarker".to_string()
@@ -22,6 +22,8 @@ pub struct MapMarker {
     pub r#type: u8,
     pub r#data_type: u8,
     pub r#data_key: u16,
+    pub r#unknown9: u8,
+    pub r#unknown10: u16,
 }
 impl MapMarker {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -35,6 +37,8 @@ impl MapMarker {
             r#type: row.field(6usize + offset)?.into_u8()?,
             r#data_type: row.field(7usize + offset)?.into_u8()?,
             r#data_key: row.field(8usize + offset)?.into_u16()?,
+            r#unknown9: row.field(9usize + offset)?.into_u8()?,
+            r#unknown10: row.field(10usize + offset)?.into_u16()?,
         })
     }
 }

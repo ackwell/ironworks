@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Adventure {
     fn name() -> String {
         "Adventure".to_string()
@@ -23,11 +23,11 @@ pub struct Adventure {
     pub r#place_name: i32,
     pub r#icon_list: i32,
     pub r#icon_discovered: i32,
+    pub r#icon_undiscovered: i32,
+    pub r#is_initial: bool,
     pub r#name: SeString,
     pub r#impression: SeString,
     pub r#description: SeString,
-    pub r#icon_undiscovered: i32,
-    pub r#is_initial: bool,
 }
 impl Adventure {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -41,11 +41,11 @@ impl Adventure {
             r#place_name: row.field(6usize + offset)?.into_i32()?,
             r#icon_list: row.field(7usize + offset)?.into_i32()?,
             r#icon_discovered: row.field(8usize + offset)?.into_i32()?,
-            r#name: row.field(9usize + offset)?.into_string()?,
-            r#impression: row.field(10usize + offset)?.into_string()?,
-            r#description: row.field(11usize + offset)?.into_string()?,
-            r#icon_undiscovered: row.field(12usize + offset)?.into_i32()?,
-            r#is_initial: row.field(13usize + offset)?.into_bool()?,
+            r#icon_undiscovered: row.field(9usize + offset)?.into_i32()?,
+            r#is_initial: row.field(10usize + offset)?.into_bool()?,
+            r#name: row.field(11usize + offset)?.into_string()?,
+            r#impression: row.field(12usize + offset)?.into_string()?,
+            r#description: row.field(13usize + offset)?.into_string()?,
         })
     }
 }

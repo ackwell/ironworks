@@ -1,10 +1,10 @@
-use std::vec::Vec;
-use std::result::Result;
-use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for Item {
     fn name() -> String {
         "Item".to_string()
@@ -70,7 +70,7 @@ pub struct Item {
     pub r#price_mid: u32,
     pub r#price_low: u32,
     pub r#can_be_hq: bool,
-    pub r#is_dyeable: bool,
+    pub r#dye_count: u8,
     pub r#is_crest_worthy: bool,
     pub r#item_action: u16,
     pub r#cast_times: u8,
@@ -83,7 +83,7 @@ pub struct Item {
     pub r#always_collectable: bool,
     pub r#aetherial_reduce: u16,
     pub r#level_equip: u8,
-    pub r#unknown41: u8,
+    pub r#required_pvp_rank: u8,
     pub r#equip_restriction: u8,
     pub r#class_job_category: u8,
     pub r#grand_company: u8,
@@ -143,7 +143,7 @@ impl Item {
             r#price_mid: row.field(25usize + offset)?.into_u32()?,
             r#price_low: row.field(26usize + offset)?.into_u32()?,
             r#can_be_hq: row.field(27usize + offset)?.into_bool()?,
-            r#is_dyeable: row.field(28usize + offset)?.into_bool()?,
+            r#dye_count: row.field(28usize + offset)?.into_u8()?,
             r#is_crest_worthy: row.field(29usize + offset)?.into_bool()?,
             r#item_action: row.field(30usize + offset)?.into_u16()?,
             r#cast_times: row.field(31usize + offset)?.into_u8()?,
@@ -156,7 +156,7 @@ impl Item {
             r#always_collectable: row.field(38usize + offset)?.into_bool()?,
             r#aetherial_reduce: row.field(39usize + offset)?.into_u16()?,
             r#level_equip: row.field(40usize + offset)?.into_u8()?,
-            r#unknown41: row.field(41usize + offset)?.into_u8()?,
+            r#required_pvp_rank: row.field(41usize + offset)?.into_u8()?,
             r#equip_restriction: row.field(42usize + offset)?.into_u8()?,
             r#class_job_category: row.field(43usize + offset)?.into_u8()?,
             r#grand_company: row.field(44usize + offset)?.into_u8()?,

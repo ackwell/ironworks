@@ -1,9 +1,9 @@
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use crate::utility::read_array;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for MJIAnimals {
     fn name() -> String {
         "MJIAnimals".to_string()
@@ -17,8 +17,8 @@ impl MetadataAdapter for MJIAnimals {
 pub struct MJIAnimals {
     pub r#b_npc_base: u32,
     pub r#size: u8,
-    pub r#unknown2: u8,
-    pub r#unknown3: u8,
+    pub r#rarity: u8,
+    pub r#sort: u8,
     pub r#reward: Vec<u32>,
     pub r#icon: i32,
 }
@@ -27,8 +27,8 @@ impl MJIAnimals {
         Result::Ok(Self {
             r#b_npc_base: row.field(0usize + offset)?.into_u32()?,
             r#size: row.field(1usize + offset)?.into_u8()?,
-            r#unknown2: row.field(2usize + offset)?.into_u8()?,
-            r#unknown3: row.field(3usize + offset)?.into_u8()?,
+            r#rarity: row.field(2usize + offset)?.into_u8()?,
+            r#sort: row.field(3usize + offset)?.into_u8()?,
             r#reward: read_array(
                 offset,
                 2usize,

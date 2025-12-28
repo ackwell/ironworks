@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use ironworks::excel::Row;
 impl MetadataAdapter for CharaMakeName {
     fn name() -> String {
         "CharaMakeName".to_string()
@@ -58,6 +58,9 @@ pub struct CharaMakeName {
     pub r#unknown41: SeString,
     pub r#unknown42: SeString,
     pub r#unknown43: SeString,
+    pub r#unknown44: SeString,
+    pub r#unknown45: SeString,
+    pub r#unknown46: SeString,
     pub r#viera_first_name: SeString,
     pub r#viera_rava_last_name: SeString,
     pub r#viera_veena_last_name: SeString,
@@ -129,9 +132,12 @@ impl CharaMakeName {
             r#unknown41: row.field(41usize + offset)?.into_string()?,
             r#unknown42: row.field(42usize + offset)?.into_string()?,
             r#unknown43: row.field(43usize + offset)?.into_string()?,
-            r#viera_first_name: row.field(44usize + offset)?.into_string()?,
-            r#viera_rava_last_name: row.field(45usize + offset)?.into_string()?,
-            r#viera_veena_last_name: row.field(46usize + offset)?.into_string()?,
+            r#unknown44: row.field(44usize + offset)?.into_string()?,
+            r#unknown45: row.field(45usize + offset)?.into_string()?,
+            r#unknown46: row.field(46usize + offset)?.into_string()?,
+            r#viera_first_name: row.field(47usize + offset)?.into_string()?,
+            r#viera_rava_last_name: row.field(48usize + offset)?.into_string()?,
+            r#viera_veena_last_name: row.field(49usize + offset)?.into_string()?,
         })
     }
 }

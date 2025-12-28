@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for AquariumFish {
     fn name() -> String {
         "AquariumFish".to_string()
@@ -16,6 +16,7 @@ pub struct AquariumFish {
     pub r#aquarium_water: u8,
     pub r#size: u8,
     pub r#item: u32,
+    pub r#unknown3: u16,
 }
 impl AquariumFish {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -23,6 +24,7 @@ impl AquariumFish {
             r#aquarium_water: row.field(0usize + offset)?.into_u8()?,
             r#size: row.field(1usize + offset)?.into_u8()?,
             r#item: row.field(2usize + offset)?.into_u32()?,
+            r#unknown3: row.field(3usize + offset)?.into_u16()?,
         })
     }
 }

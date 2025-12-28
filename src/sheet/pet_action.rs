@@ -1,8 +1,8 @@
-use std::result::Result;
-use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for PetAction {
     fn name() -> String {
         "PetAction".to_string()
@@ -21,6 +21,7 @@ pub struct PetAction {
     pub r#pet: u8,
     pub r#master_order: bool,
     pub r#disable_order: bool,
+    pub r#unknown7: bool,
 }
 impl PetAction {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -32,6 +33,7 @@ impl PetAction {
             r#pet: row.field(4usize + offset)?.into_u8()?,
             r#master_order: row.field(5usize + offset)?.into_bool()?,
             r#disable_order: row.field(6usize + offset)?.into_bool()?,
+            r#unknown7: row.field(7usize + offset)?.into_bool()?,
         })
     }
 }

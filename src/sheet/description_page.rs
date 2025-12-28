@@ -1,9 +1,9 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for DescriptionPage {
     fn name() -> String {
         "DescriptionPage".to_string()
@@ -30,21 +30,23 @@ impl DescriptionPage_e {
 pub struct DescriptionPage {
     pub r#unknown0: u8,
     pub r#quest: u32,
-    pub r#unknown2: u8,
+    pub r#unknown2: u32,
     pub r#e: Vec<DescriptionPage_e>,
+    pub r#unknown25: u16,
 }
 impl DescriptionPage {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
             r#unknown0: row.field(0usize + offset)?.into_u8()?,
             r#quest: row.field(1usize + offset)?.into_u32()?,
-            r#unknown2: row.field(2usize + offset)?.into_u8()?,
+            r#unknown2: row.field(2usize + offset)?.into_u32()?,
             r#e: read_array(
                 offset,
                 11usize,
                 2usize,
                 |offset| { Result::Ok(DescriptionPage_e::populate(row, offset)?) },
             )?,
+            r#unknown25: row.field(25usize + offset)?.into_u16()?,
         })
     }
 }

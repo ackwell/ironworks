@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for MJIVillageDevelopment {
     fn name() -> String {
         "MJIVillageDevelopment".to_string()
@@ -25,6 +25,9 @@ pub struct MJIVillageDevelopment {
     pub r#behavior0: u16,
     pub r#unknown10: u32,
     pub r#behavior1: u16,
+    pub r#unknown12: u32,
+    pub r#unknown13: u8,
+    pub r#unknown14: u8,
 }
 impl MJIVillageDevelopment {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -41,6 +44,9 @@ impl MJIVillageDevelopment {
             r#behavior0: row.field(9usize + offset)?.into_u16()?,
             r#unknown10: row.field(10usize + offset)?.into_u32()?,
             r#behavior1: row.field(11usize + offset)?.into_u16()?,
+            r#unknown12: row.field(12usize + offset)?.into_u32()?,
+            r#unknown13: row.field(13usize + offset)?.into_u8()?,
+            r#unknown14: row.field(14usize + offset)?.into_u8()?,
         })
     }
 }

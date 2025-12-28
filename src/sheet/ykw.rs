@@ -1,9 +1,10 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
 use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
+use ironworks::sestring::SeString;
 use std::result::Result;
-use crate::error::PopulateError;
+use std::vec::Vec;
 impl MetadataAdapter for YKW {
     fn name() -> String {
         "YKW".to_string()
@@ -18,6 +19,7 @@ pub struct YKW {
     pub r#unknown0: u16,
     pub r#item: u32,
     pub r#location: Vec<u16>,
+    pub r#unknown8: SeString,
 }
 impl YKW {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -30,6 +32,7 @@ impl YKW {
                 1usize,
                 |offset| { Result::Ok(row.field(2usize + offset)?.into_u16()?) },
             )?,
+            r#unknown8: row.field(8usize + offset)?.into_string()?,
         })
     }
 }

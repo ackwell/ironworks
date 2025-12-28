@@ -1,8 +1,9 @@
-use crate::utility::read_array;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 use std::vec::Vec;
 impl MetadataAdapter for HugeCraftworksNpc {
     fn name() -> String {
@@ -84,6 +85,12 @@ pub struct HugeCraftworksNpc {
     pub r#unknown81: bool,
     pub r#qty_item_unkown: Vec<bool>,
     pub r#transient: u8,
+    pub r#unknown87: u8,
+    pub r#unknown88: u8,
+    pub r#unknown89: u8,
+    pub r#unknown90: u8,
+    pub r#unknown91: u8,
+    pub r#unknown92: SeString,
 }
 impl HugeCraftworksNpc {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -187,6 +194,12 @@ impl HugeCraftworksNpc {
                 |offset| { Result::Ok(row.field(82usize + offset)?.into_bool()?) },
             )?,
             r#transient: row.field(86usize + offset)?.into_u8()?,
+            r#unknown87: row.field(87usize + offset)?.into_u8()?,
+            r#unknown88: row.field(88usize + offset)?.into_u8()?,
+            r#unknown89: row.field(89usize + offset)?.into_u8()?,
+            r#unknown90: row.field(90usize + offset)?.into_u8()?,
+            r#unknown91: row.field(91usize + offset)?.into_u8()?,
+            r#unknown92: row.field(92usize + offset)?.into_string()?,
         })
     }
 }

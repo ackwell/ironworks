@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use crate::utility::read_array;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for MJIRecipe {
     fn name() -> String {
         "MJIRecipe".to_string()

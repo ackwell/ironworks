@@ -1,10 +1,10 @@
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use std::vec::Vec;
-use ironworks::sestring::SeString;
 use crate::utility::read_array;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for Aetheryte {
     fn name() -> String {
         "Aetheryte".to_string()
@@ -29,13 +29,15 @@ pub struct Aetheryte {
     pub r#territory: u16,
     pub r#level: Vec<u32>,
     pub r#is_aetheryte: bool,
-    pub r#unknown16: SeString,
+    pub r#unknown16: u8,
+    pub r#unknown17: SeString,
     pub r#aethernet_group: u8,
     pub r#invisible: bool,
     pub r#required_quest: u32,
     pub r#map: u16,
     pub r#aetherstream_x: i16,
     pub r#aetherstream_y: i16,
+    pub r#order: u8,
 }
 impl Aetheryte {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -58,13 +60,15 @@ impl Aetheryte {
                 |offset| { Result::Ok(row.field(11usize + offset)?.into_u32()?) },
             )?,
             r#is_aetheryte: row.field(15usize + offset)?.into_bool()?,
-            r#unknown16: row.field(16usize + offset)?.into_string()?,
-            r#aethernet_group: row.field(17usize + offset)?.into_u8()?,
-            r#invisible: row.field(18usize + offset)?.into_bool()?,
-            r#required_quest: row.field(19usize + offset)?.into_u32()?,
-            r#map: row.field(20usize + offset)?.into_u16()?,
-            r#aetherstream_x: row.field(21usize + offset)?.into_i16()?,
-            r#aetherstream_y: row.field(22usize + offset)?.into_i16()?,
+            r#unknown16: row.field(16usize + offset)?.into_u8()?,
+            r#unknown17: row.field(17usize + offset)?.into_string()?,
+            r#aethernet_group: row.field(18usize + offset)?.into_u8()?,
+            r#invisible: row.field(19usize + offset)?.into_bool()?,
+            r#required_quest: row.field(20usize + offset)?.into_u32()?,
+            r#map: row.field(21usize + offset)?.into_u16()?,
+            r#aetherstream_x: row.field(22usize + offset)?.into_i16()?,
+            r#aetherstream_y: row.field(23usize + offset)?.into_i16()?,
+            r#order: row.field(24usize + offset)?.into_u8()?,
         })
     }
 }

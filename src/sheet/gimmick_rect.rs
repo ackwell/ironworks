@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for GimmickRect {
     fn name() -> String {
         "GimmickRect".to_string()
@@ -21,6 +21,9 @@ pub struct GimmickRect {
     pub r#unknown5: u32,
     pub r#trigger_out: u8,
     pub r#param1: u32,
+    pub r#unknown8: u32,
+    pub r#unknown9: u32,
+    pub r#unknown10: u32,
 }
 impl GimmickRect {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -33,6 +36,9 @@ impl GimmickRect {
             r#unknown5: row.field(5usize + offset)?.into_u32()?,
             r#trigger_out: row.field(6usize + offset)?.into_u8()?,
             r#param1: row.field(7usize + offset)?.into_u32()?,
+            r#unknown8: row.field(8usize + offset)?.into_u32()?,
+            r#unknown9: row.field(9usize + offset)?.into_u32()?,
+            r#unknown10: row.field(10usize + offset)?.into_u32()?,
         })
     }
 }

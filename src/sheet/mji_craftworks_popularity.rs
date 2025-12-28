@@ -1,9 +1,9 @@
 use crate::error::PopulateError;
-use std::vec::Vec;
-use crate::utility::read_array;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for MJICraftworksPopularity {
     fn name() -> String {
         "MJICraftworksPopularity".to_string()
@@ -22,7 +22,7 @@ impl MJICraftworksPopularity {
         Result::Ok(Self {
             r#popularity: read_array(
                 offset,
-                62usize,
+                91usize,
                 1usize,
                 |offset| { Result::Ok(row.field(0usize + offset)?.into_u8()?) },
             )?,

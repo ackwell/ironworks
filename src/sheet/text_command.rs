@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use crate::error::PopulateError;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for TextCommand {
     fn name() -> String {
         "TextCommand".to_string()
@@ -25,6 +25,7 @@ pub struct TextCommand {
     pub r#alias: SeString,
     pub r#short_alias: SeString,
     pub r#param: u16,
+    pub r#unknown11: u32,
 }
 impl TextCommand {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -40,6 +41,7 @@ impl TextCommand {
             r#alias: row.field(8usize + offset)?.into_string()?,
             r#short_alias: row.field(9usize + offset)?.into_string()?,
             r#param: row.field(10usize + offset)?.into_u16()?,
+            r#unknown11: row.field(11usize + offset)?.into_u32()?,
         })
     }
 }

@@ -1,7 +1,7 @@
-use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for PresetCamera {
     fn name() -> String {
         "PresetCamera".to_string()
@@ -30,6 +30,7 @@ pub struct PresetCamera {
     pub r#miqote_f: f32,
     pub r#roe_f: f32,
     pub r#hrothgar_f: f32,
+    pub r#unknown17: f32,
     pub r#viera_f: f32,
 }
 impl PresetCamera {
@@ -52,7 +53,8 @@ impl PresetCamera {
             r#miqote_f: row.field(14usize + offset)?.into_f32()?,
             r#roe_f: row.field(15usize + offset)?.into_f32()?,
             r#hrothgar_f: row.field(16usize + offset)?.into_f32()?,
-            r#viera_f: row.field(17usize + offset)?.into_f32()?,
+            r#unknown17: row.field(17usize + offset)?.into_f32()?,
+            r#viera_f: row.field(18usize + offset)?.into_f32()?,
         })
     }
 }

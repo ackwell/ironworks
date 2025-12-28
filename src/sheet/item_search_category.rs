@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use std::result::Result;
 use ironworks::sestring::SeString;
-use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for ItemSearchCategory {
     fn name() -> String {
         "ItemSearchCategory".to_string()
@@ -19,6 +19,7 @@ pub struct ItemSearchCategory {
     pub r#category: u8,
     pub r#order: u8,
     pub r#class_job: i8,
+    pub r#unknown5: bool,
 }
 impl ItemSearchCategory {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -28,6 +29,7 @@ impl ItemSearchCategory {
             r#category: row.field(2usize + offset)?.into_u8()?,
             r#order: row.field(3usize + offset)?.into_u8()?,
             r#class_job: row.field(4usize + offset)?.into_i8()?,
+            r#unknown5: row.field(5usize + offset)?.into_bool()?,
         })
     }
 }

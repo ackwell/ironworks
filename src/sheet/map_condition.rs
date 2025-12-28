@@ -15,12 +15,14 @@ impl MetadataAdapter for MapCondition {
 pub struct MapCondition {
     pub r#unknown0: u16,
     pub r#quest: i32,
+    pub r#unknown2: u8,
 }
 impl MapCondition {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
             r#unknown0: row.field(0usize + offset)?.into_u16()?,
             r#quest: row.field(1usize + offset)?.into_i32()?,
+            r#unknown2: row.field(2usize + offset)?.into_u8()?,
         })
     }
 }

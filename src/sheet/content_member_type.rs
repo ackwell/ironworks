@@ -1,7 +1,7 @@
-use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for ContentMemberType {
     fn name() -> String {
         "ContentMemberType".to_string()
@@ -27,6 +27,13 @@ pub struct ContentMemberType {
     pub r#healers_per_party: u8,
     pub r#melees_per_party: u8,
     pub r#ranged_per_party: u8,
+    pub r#unknown14: u8,
+    pub r#unknown15: bool,
+    pub r#unknown16: bool,
+    pub r#unknown17: u8,
+    pub r#unknown18: bool,
+    pub r#unknown19: bool,
+    pub r#unknown20: bool,
 }
 impl ContentMemberType {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -45,6 +52,13 @@ impl ContentMemberType {
             r#healers_per_party: row.field(11usize + offset)?.into_u8()?,
             r#melees_per_party: row.field(12usize + offset)?.into_u8()?,
             r#ranged_per_party: row.field(13usize + offset)?.into_u8()?,
+            r#unknown14: row.field(14usize + offset)?.into_u8()?,
+            r#unknown15: row.field(15usize + offset)?.into_bool()?,
+            r#unknown16: row.field(16usize + offset)?.into_bool()?,
+            r#unknown17: row.field(17usize + offset)?.into_u8()?,
+            r#unknown18: row.field(18usize + offset)?.into_bool()?,
+            r#unknown19: row.field(19usize + offset)?.into_bool()?,
+            r#unknown20: row.field(20usize + offset)?.into_bool()?,
         })
     }
 }

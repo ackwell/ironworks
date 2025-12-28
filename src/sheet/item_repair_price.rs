@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for ItemRepairPrice {
     fn name() -> String {
         "ItemRepairPrice".to_string()
@@ -12,9 +12,13 @@ impl MetadataAdapter for ItemRepairPrice {
     }
 }
 #[derive(Debug)]
-pub struct ItemRepairPrice {}
+pub struct ItemRepairPrice {
+    pub r#unknown0: u16,
+}
 impl ItemRepairPrice {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_u16()?,
+        })
     }
 }

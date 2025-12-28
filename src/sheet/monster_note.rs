@@ -1,10 +1,10 @@
 use crate::error::PopulateError;
-use std::vec::Vec;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for MonsterNote {
     fn name() -> String {
         "MonsterNote".to_string()

@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for AdventureExPhase {
     fn name() -> String {
         "AdventureExPhase".to_string()
@@ -17,6 +17,7 @@ pub struct AdventureExPhase {
     pub r#adventure_begin: u32,
     pub r#adventure_end: u32,
     pub r#expansion: u8,
+    pub r#unknown4: u32,
 }
 impl AdventureExPhase {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -25,6 +26,7 @@ impl AdventureExPhase {
             r#adventure_begin: row.field(1usize + offset)?.into_u32()?,
             r#adventure_end: row.field(2usize + offset)?.into_u32()?,
             r#expansion: row.field(3usize + offset)?.into_u8()?,
+            r#unknown4: row.field(4usize + offset)?.into_u32()?,
         })
     }
 }

@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for AOZReport {
     fn name() -> String {
         "AOZReport".to_string()

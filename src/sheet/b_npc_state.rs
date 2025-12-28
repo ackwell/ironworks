@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for BNpcState {
     fn name() -> String {
         "BNpcState".to_string()
@@ -27,6 +27,7 @@ pub struct BNpcState {
     pub r#scale: f32,
     pub r#unknown12: u8,
     pub r#loop_timeline: i32,
+    pub r#unknown14: bool,
 }
 impl BNpcState {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -45,6 +46,7 @@ impl BNpcState {
             r#scale: row.field(11usize + offset)?.into_f32()?,
             r#unknown12: row.field(12usize + offset)?.into_u8()?,
             r#loop_timeline: row.field(13usize + offset)?.into_i32()?,
+            r#unknown14: row.field(14usize + offset)?.into_bool()?,
         })
     }
 }

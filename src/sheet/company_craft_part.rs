@@ -1,9 +1,9 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
-use crate::utility::read_array;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for CompanyCraftPart {
     fn name() -> String {
         "CompanyCraftPart".to_string()
@@ -18,6 +18,7 @@ pub struct CompanyCraftPart {
     pub r#unknown0: u8,
     pub r#company_craft_type: u8,
     pub r#company_craft_process: Vec<u16>,
+    pub r#unknown5: u16,
 }
 impl CompanyCraftPart {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -30,6 +31,7 @@ impl CompanyCraftPart {
                 1usize,
                 |offset| { Result::Ok(row.field(2usize + offset)?.into_u16()?) },
             )?,
+            r#unknown5: row.field(5usize + offset)?.into_u16()?,
         })
     }
 }

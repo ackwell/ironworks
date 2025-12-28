@@ -1,7 +1,7 @@
-use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for UIConst {
     fn name() -> String {
         "UIConst".to_string()
@@ -12,9 +12,13 @@ impl MetadataAdapter for UIConst {
     }
 }
 #[derive(Debug)]
-pub struct UIConst {}
+pub struct UIConst {
+    pub r#unknown0: i32,
+}
 impl UIConst {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_i32()?,
+        })
     }
 }

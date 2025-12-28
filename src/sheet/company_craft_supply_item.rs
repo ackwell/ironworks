@@ -1,6 +1,6 @@
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for CompanyCraftSupplyItem {
     fn name() -> String {

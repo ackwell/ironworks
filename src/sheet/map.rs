@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Map {
     fn name() -> String {
         "Map".to_string()
@@ -27,11 +27,14 @@ pub struct Map {
     pub r#place_name_region: u16,
     pub r#place_name: u16,
     pub r#place_name_sub: u16,
-    pub r#discovery_index: i16,
-    pub r#discovery_flag: u32,
-    pub r#territory_type: u16,
-    pub r#discovery_array_byte: bool,
+    pub r#discovery_index: u8,
+    pub r#discovery_flag: i16,
+    pub r#territory_type: u32,
+    pub r#discovery_array_byte: u16,
     pub r#is_event: bool,
+    pub r#unknown18: bool,
+    pub r#unknown19: bool,
+    pub r#unknown20: u8,
 }
 impl Map {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -49,11 +52,14 @@ impl Map {
             r#place_name_region: row.field(10usize + offset)?.into_u16()?,
             r#place_name: row.field(11usize + offset)?.into_u16()?,
             r#place_name_sub: row.field(12usize + offset)?.into_u16()?,
-            r#discovery_index: row.field(13usize + offset)?.into_i16()?,
-            r#discovery_flag: row.field(14usize + offset)?.into_u32()?,
-            r#territory_type: row.field(15usize + offset)?.into_u16()?,
-            r#discovery_array_byte: row.field(16usize + offset)?.into_bool()?,
+            r#discovery_index: row.field(13usize + offset)?.into_u8()?,
+            r#discovery_flag: row.field(14usize + offset)?.into_i16()?,
+            r#territory_type: row.field(15usize + offset)?.into_u32()?,
+            r#discovery_array_byte: row.field(16usize + offset)?.into_u16()?,
             r#is_event: row.field(17usize + offset)?.into_bool()?,
+            r#unknown18: row.field(18usize + offset)?.into_bool()?,
+            r#unknown19: row.field(19usize + offset)?.into_bool()?,
+            r#unknown20: row.field(20usize + offset)?.into_u8()?,
         })
     }
 }

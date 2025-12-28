@@ -1,9 +1,9 @@
-use std::result::Result;
-use crate::utility::read_array;
-use std::vec::Vec;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for HousingLandSet {
     fn name() -> String {
         "HousingLandSet".to_string()
@@ -138,6 +138,8 @@ pub struct HousingLandSet {
     pub r#unknown238: u32,
     pub r#unknown239: u32,
     pub r#initial_price: Vec<u32>,
+    pub r#unknown300: u32,
+    pub r#unknown301: u32,
 }
 impl HousingLandSet {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -280,6 +282,8 @@ impl HousingLandSet {
                 1usize,
                 |offset| { Result::Ok(row.field(240usize + offset)?.into_u32()?) },
             )?,
+            r#unknown300: row.field(300usize + offset)?.into_u32()?,
+            r#unknown301: row.field(301usize + offset)?.into_u32()?,
         })
     }
 }

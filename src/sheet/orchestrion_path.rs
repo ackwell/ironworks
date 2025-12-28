@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use std::result::Result;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for OrchestrionPath {
     fn name() -> String {
         "OrchestrionPath".to_string()

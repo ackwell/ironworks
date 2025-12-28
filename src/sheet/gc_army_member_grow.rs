@@ -1,9 +1,9 @@
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
-use std::result::Result;
-use crate::utility::read_array;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for GcArmyMemberGrow {
     fn name() -> String {
         "GcArmyMemberGrow".to_string()
@@ -24,6 +24,7 @@ pub struct GcArmyMemberGrow {
     pub r#mental: Vec<u8>,
     pub r#unknown184: u8,
     pub r#tactical: Vec<u8>,
+    pub r#unknown245: u8,
 }
 impl GcArmyMemberGrow {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -57,6 +58,7 @@ impl GcArmyMemberGrow {
                 1usize,
                 |offset| { Result::Ok(row.field(185usize + offset)?.into_u8()?) },
             )?,
+            r#unknown245: row.field(245usize + offset)?.into_u8()?,
         })
     }
 }

@@ -1,10 +1,10 @@
-use crate::utility::read_array;
-use std::vec::Vec;
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for CustomTalk {
     fn name() -> String {
         "CustomTalk".to_string()
@@ -34,6 +34,9 @@ pub struct CustomTalk {
     pub r#unknown73: bool,
     pub r#unknown74: bool,
     pub r#special_links: u32,
+    pub r#unknown76: u8,
+    pub r#unknown77: u8,
+    pub r#unknown78: bool,
 }
 impl CustomTalk {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -66,6 +69,9 @@ impl CustomTalk {
             r#unknown73: row.field(73usize + offset)?.into_bool()?,
             r#unknown74: row.field(74usize + offset)?.into_bool()?,
             r#special_links: row.field(75usize + offset)?.into_u32()?,
+            r#unknown76: row.field(76usize + offset)?.into_u8()?,
+            r#unknown77: row.field(77usize + offset)?.into_u8()?,
+            r#unknown78: row.field(78usize + offset)?.into_bool()?,
         })
     }
 }

@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for BNpcBase {
     fn name() -> String {
         "BNpcBase".to_string()
@@ -25,11 +25,20 @@ pub struct BNpcBase {
     pub r#se_pack: u8,
     pub r#unknown10: bool,
     pub r#array_event_handler: i32,
+    pub r#unknown12: u8,
     pub r#b_npc_parts: u8,
-    pub r#unknown13: u8,
     pub r#unknown14: u8,
+    pub r#unknown15: bool,
     pub r#is_target_line: bool,
     pub r#is_display_level: bool,
+    pub r#unknown18: bool,
+    pub r#unknown19: u8,
+    pub r#unknown20: u8,
+    pub r#unknown21: u8,
+    pub r#unknown22: u16,
+    pub r#unknown23: u8,
+    pub r#unknown24: bool,
+    pub r#unknown25: bool,
 }
 impl BNpcBase {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -46,11 +55,20 @@ impl BNpcBase {
             r#se_pack: row.field(9usize + offset)?.into_u8()?,
             r#unknown10: row.field(10usize + offset)?.into_bool()?,
             r#array_event_handler: row.field(11usize + offset)?.into_i32()?,
-            r#b_npc_parts: row.field(12usize + offset)?.into_u8()?,
-            r#unknown13: row.field(13usize + offset)?.into_u8()?,
+            r#unknown12: row.field(12usize + offset)?.into_u8()?,
+            r#b_npc_parts: row.field(13usize + offset)?.into_u8()?,
             r#unknown14: row.field(14usize + offset)?.into_u8()?,
-            r#is_target_line: row.field(15usize + offset)?.into_bool()?,
-            r#is_display_level: row.field(16usize + offset)?.into_bool()?,
+            r#unknown15: row.field(15usize + offset)?.into_bool()?,
+            r#is_target_line: row.field(16usize + offset)?.into_bool()?,
+            r#is_display_level: row.field(17usize + offset)?.into_bool()?,
+            r#unknown18: row.field(18usize + offset)?.into_bool()?,
+            r#unknown19: row.field(19usize + offset)?.into_u8()?,
+            r#unknown20: row.field(20usize + offset)?.into_u8()?,
+            r#unknown21: row.field(21usize + offset)?.into_u8()?,
+            r#unknown22: row.field(22usize + offset)?.into_u16()?,
+            r#unknown23: row.field(23usize + offset)?.into_u8()?,
+            r#unknown24: row.field(24usize + offset)?.into_bool()?,
+            r#unknown25: row.field(25usize + offset)?.into_bool()?,
         })
     }
 }

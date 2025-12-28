@@ -1,10 +1,10 @@
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
-use crate::utility::read_array;
-use ironworks::sestring::SeString;
-use std::vec::Vec;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for FateEvent {
     fn name() -> String {
         "FateEvent".to_string()

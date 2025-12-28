@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for TraitTransient {
     fn name() -> String {
         "TraitTransient".to_string()

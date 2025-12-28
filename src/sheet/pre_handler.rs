@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for PreHandler {
     fn name() -> String {
         "PreHandler".to_string()
@@ -20,6 +20,8 @@ pub struct PreHandler {
     pub r#unlock_quest: u32,
     pub r#accept_message: u32,
     pub r#deny_message: u32,
+    pub r#unknown6: u8,
+    pub r#unknown7: u8,
 }
 impl PreHandler {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -30,6 +32,8 @@ impl PreHandler {
             r#unlock_quest: row.field(3usize + offset)?.into_u32()?,
             r#accept_message: row.field(4usize + offset)?.into_u32()?,
             r#deny_message: row.field(5usize + offset)?.into_u32()?,
+            r#unknown6: row.field(6usize + offset)?.into_u8()?,
+            r#unknown7: row.field(7usize + offset)?.into_u8()?,
         })
     }
 }

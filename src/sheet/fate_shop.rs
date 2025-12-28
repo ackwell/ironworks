@@ -1,9 +1,10 @@
-use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::convert::Infallible;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for FateShop {
     fn name() -> String {
         "FateShop".to_string()
@@ -16,22 +17,22 @@ impl MetadataAdapter for FateShop {
 #[derive(Debug)]
 pub struct FateShop {
     pub r#special_shop: Vec<u32>,
-    pub r#default_talk: Vec<u32>,
+    pub r#default_talk: Vec<Option<Infallible>>,
 }
 impl FateShop {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
             r#special_shop: read_array(
                 offset,
-                2usize,
+                3usize,
                 1usize,
                 |offset| { Result::Ok(row.field(0usize + offset)?.into_u32()?) },
             )?,
             r#default_talk: read_array(
                 offset,
-                8usize,
+                10usize,
                 1usize,
-                |offset| { Result::Ok(row.field(2usize + offset)?.into_u32()?) },
+                |offset| { Result::Ok(None) },
             )?,
         })
     }

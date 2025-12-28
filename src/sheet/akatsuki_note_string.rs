@@ -1,6 +1,7 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 impl MetadataAdapter for AkatsukiNoteString {
     fn name() -> String {
@@ -12,9 +13,13 @@ impl MetadataAdapter for AkatsukiNoteString {
     }
 }
 #[derive(Debug)]
-pub struct AkatsukiNoteString {}
+pub struct AkatsukiNoteString {
+    pub r#unknown0: SeString,
+}
 impl AkatsukiNoteString {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_string()?,
+        })
     }
 }

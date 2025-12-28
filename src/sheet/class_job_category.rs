@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for ClassJobCategory {
     fn name() -> String {
         "ClassJobCategory".to_string()
@@ -56,6 +56,11 @@ pub struct ClassJobCategory {
     pub r#dnc: bool,
     pub r#rpr: bool,
     pub r#sge: bool,
+    pub r#vpr: bool,
+    pub r#pct: bool,
+    pub r#unknown44: bool,
+    pub r#unknown45: bool,
+    pub r#unknown46: bool,
 }
 impl ClassJobCategory {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -102,6 +107,11 @@ impl ClassJobCategory {
             r#dnc: row.field(39usize + offset)?.into_bool()?,
             r#rpr: row.field(40usize + offset)?.into_bool()?,
             r#sge: row.field(41usize + offset)?.into_bool()?,
+            r#vpr: row.field(42usize + offset)?.into_bool()?,
+            r#pct: row.field(43usize + offset)?.into_bool()?,
+            r#unknown44: row.field(44usize + offset)?.into_bool()?,
+            r#unknown45: row.field(45usize + offset)?.into_bool()?,
+            r#unknown46: row.field(46usize + offset)?.into_bool()?,
         })
     }
 }

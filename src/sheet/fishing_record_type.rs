@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for FishingRecordType {
     fn name() -> String {
         "FishingRecordType".to_string()
