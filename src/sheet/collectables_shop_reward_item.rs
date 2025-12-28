@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for CollectablesShopRewardItem {
     fn name() -> String {
         "CollectablesShopRewardItem".to_string()
@@ -18,6 +18,11 @@ pub struct CollectablesShopRewardItem {
     pub r#reward_low: u8,
     pub r#reward_mid: u8,
     pub r#reward_high: u8,
+    pub r#unknown5: u32,
+    pub r#unknown6: bool,
+    pub r#unknown7: u8,
+    pub r#unknown8: u8,
+    pub r#unknown9: u8,
 }
 impl CollectablesShopRewardItem {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -27,6 +32,11 @@ impl CollectablesShopRewardItem {
             r#reward_low: row.field(2usize + offset)?.into_u8()?,
             r#reward_mid: row.field(3usize + offset)?.into_u8()?,
             r#reward_high: row.field(4usize + offset)?.into_u8()?,
+            r#unknown5: row.field(5usize + offset)?.into_u32()?,
+            r#unknown6: row.field(6usize + offset)?.into_bool()?,
+            r#unknown7: row.field(7usize + offset)?.into_u8()?,
+            r#unknown8: row.field(8usize + offset)?.into_u8()?,
+            r#unknown9: row.field(9usize + offset)?.into_u8()?,
         })
     }
 }

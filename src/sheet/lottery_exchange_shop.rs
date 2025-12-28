@@ -1,10 +1,10 @@
 use crate::error::PopulateError;
-use std::vec::Vec;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
 use ironworks::excel::Row;
-use std::result::Result;
 use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for LotteryExchangeShop {
     fn name() -> String {
         "LotteryExchangeShop".to_string()
@@ -85,6 +85,7 @@ pub struct LotteryExchangeShop {
     pub r#unknown128: u8,
     pub r#lua: SeString,
     pub r#log_message: Vec<u32>,
+    pub r#unknown133: bool,
 }
 impl LotteryExchangeShop {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -173,6 +174,7 @@ impl LotteryExchangeShop {
                 1usize,
                 |offset| { Result::Ok(row.field(130usize + offset)?.into_u32()?) },
             )?,
+            r#unknown133: row.field(133usize + offset)?.into_bool()?,
         })
     }
 }

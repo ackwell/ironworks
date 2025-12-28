@@ -1,9 +1,9 @@
-use crate::utility::read_array;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
 use std::result::Result;
 use std::vec::Vec;
-use ironworks::excel::Row;
-use crate::error::PopulateError;
 impl MetadataAdapter for MountAction {
     fn name() -> String {
         "MountAction".to_string()

@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for GatheringSubCategory {
     fn name() -> String {
         "GatheringSubCategory".to_string()
@@ -20,6 +20,7 @@ pub struct GatheringSubCategory {
     pub r#division: u16,
     pub r#item: i32,
     pub r#folklore_book: SeString,
+    pub r#unknown6: u8,
 }
 impl GatheringSubCategory {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -30,6 +31,7 @@ impl GatheringSubCategory {
             r#division: row.field(3usize + offset)?.into_u16()?,
             r#item: row.field(4usize + offset)?.into_i32()?,
             r#folklore_book: row.field(5usize + offset)?.into_string()?,
+            r#unknown6: row.field(6usize + offset)?.into_u8()?,
         })
     }
 }

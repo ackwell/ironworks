@@ -1,8 +1,8 @@
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for AnimaWeapon5PatternGroup {
     fn name() -> String {
         "AnimaWeapon5PatternGroup".to_string()

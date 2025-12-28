@@ -1,9 +1,9 @@
-use ironworks::excel::Row;
-use std::vec::Vec;
 use crate::error::PopulateError;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for RetainerTaskParameter {
     fn name() -> String {
         "RetainerTaskParameter".to_string()

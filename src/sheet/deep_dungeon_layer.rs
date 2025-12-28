@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for DeepDungeonLayer {
     fn name() -> String {
         "DeepDungeonLayer".to_string()
@@ -20,6 +20,7 @@ pub struct DeepDungeonLayer {
     pub r#room_c: u16,
     pub r#wep_min_lv: u8,
     pub r#armour_min_lv: u8,
+    pub r#unknown7: bool,
 }
 impl DeepDungeonLayer {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -31,6 +32,7 @@ impl DeepDungeonLayer {
             r#room_c: row.field(4usize + offset)?.into_u16()?,
             r#wep_min_lv: row.field(5usize + offset)?.into_u8()?,
             r#armour_min_lv: row.field(6usize + offset)?.into_u8()?,
+            r#unknown7: row.field(7usize + offset)?.into_bool()?,
         })
     }
 }

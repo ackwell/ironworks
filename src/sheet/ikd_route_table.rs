@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for IKDRouteTable {
     fn name() -> String {
         "IKDRouteTable".to_string()
@@ -14,11 +14,13 @@ impl MetadataAdapter for IKDRouteTable {
 #[derive(Debug)]
 pub struct IKDRouteTable {
     pub r#route: u32,
+    pub r#unknown1: u32,
 }
 impl IKDRouteTable {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
             r#route: row.field(0usize + offset)?.into_u32()?,
+            r#unknown1: row.field(1usize + offset)?.into_u32()?,
         })
     }
 }

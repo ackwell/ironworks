@@ -1,10 +1,10 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
-use std::vec::Vec;
 use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for IKDRoute {
     fn name() -> String {
         "IKDRoute".to_string()
@@ -31,7 +31,10 @@ impl IKDRoute_Unnamed0 {
 pub struct IKDRoute {
     pub r#unnamed0: Vec<IKDRoute_Unnamed0>,
     pub r#image: u32,
-    pub r#territory_type: u32,
+    pub r#unknown7: u32,
+    pub r#unknown8: u32,
+    pub r#content_finder_condition: u32,
+    pub r#unknown10: u32,
     pub r#name: SeString,
 }
 impl IKDRoute {
@@ -44,8 +47,11 @@ impl IKDRoute {
                 |offset| { Result::Ok(IKDRoute_Unnamed0::populate(row, offset)?) },
             )?,
             r#image: row.field(6usize + offset)?.into_u32()?,
-            r#territory_type: row.field(7usize + offset)?.into_u32()?,
-            r#name: row.field(8usize + offset)?.into_string()?,
+            r#unknown7: row.field(7usize + offset)?.into_u32()?,
+            r#unknown8: row.field(8usize + offset)?.into_u32()?,
+            r#content_finder_condition: row.field(9usize + offset)?.into_u32()?,
+            r#unknown10: row.field(10usize + offset)?.into_u32()?,
+            r#name: row.field(11usize + offset)?.into_string()?,
         })
     }
 }

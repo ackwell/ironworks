@@ -1,10 +1,10 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 use std::vec::Vec;
-use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
-use ironworks::sestring::SeString;
-use ironworks::excel::Row;
-use crate::error::PopulateError;
 impl MetadataAdapter for BaseParam {
     fn name() -> String {
         "BaseParam".to_string()
@@ -41,7 +41,10 @@ pub struct BaseParam {
     pub r#head_chest_hands_legs_feet_percent: u16,
     pub r#chest_legs_gloves_percent: u16,
     pub r#chest_legs_feet_percent: u16,
+    pub r#unknown25: u16,
     pub r#meld_param: Vec<u16>,
+    pub r#unknown39: u8,
+    pub r#unknown40: bool,
 }
 impl BaseParam {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -73,12 +76,15 @@ impl BaseParam {
                 .into_u16()?,
             r#chest_legs_gloves_percent: row.field(23usize + offset)?.into_u16()?,
             r#chest_legs_feet_percent: row.field(24usize + offset)?.into_u16()?,
+            r#unknown25: row.field(25usize + offset)?.into_u16()?,
             r#meld_param: read_array(
                 offset,
                 13usize,
                 1usize,
-                |offset| { Result::Ok(row.field(25usize + offset)?.into_u16()?) },
+                |offset| { Result::Ok(row.field(26usize + offset)?.into_u16()?) },
             )?,
+            r#unknown39: row.field(39usize + offset)?.into_u8()?,
+            r#unknown40: row.field(40usize + offset)?.into_bool()?,
         })
     }
 }

@@ -1,6 +1,6 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
 use std::result::Result;
 impl MetadataAdapter for ReactionEventObjectInfo {
     fn name() -> String {
@@ -12,9 +12,13 @@ impl MetadataAdapter for ReactionEventObjectInfo {
     }
 }
 #[derive(Debug)]
-pub struct ReactionEventObjectInfo {}
+pub struct ReactionEventObjectInfo {
+    pub r#unknown0: u32,
+}
 impl ReactionEventObjectInfo {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_u32()?,
+        })
     }
 }

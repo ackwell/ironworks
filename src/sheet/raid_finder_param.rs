@@ -1,6 +1,6 @@
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for RaidFinderParam {
     fn name() -> String {
@@ -12,9 +12,13 @@ impl MetadataAdapter for RaidFinderParam {
     }
 }
 #[derive(Debug)]
-pub struct RaidFinderParam {}
+pub struct RaidFinderParam {
+    pub r#unknown0: bool,
+}
 impl RaidFinderParam {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_bool()?,
+        })
     }
 }

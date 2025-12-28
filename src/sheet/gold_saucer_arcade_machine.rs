@@ -1,7 +1,8 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for GoldSaucerArcadeMachine {
     fn name() -> String {
         "GoldSaucerArcadeMachine".to_string()
@@ -52,6 +53,10 @@ pub struct GoldSaucerArcadeMachine {
     pub r#good: u32,
     pub r#great: u32,
     pub r#excellent: u32,
+    pub r#unknown39: SeString,
+    pub r#unknown40: SeString,
+    pub r#unknown41: SeString,
+    pub r#unknown42: SeString,
 }
 impl GoldSaucerArcadeMachine {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -95,6 +100,10 @@ impl GoldSaucerArcadeMachine {
             r#good: row.field(36usize + offset)?.into_u32()?,
             r#great: row.field(37usize + offset)?.into_u32()?,
             r#excellent: row.field(38usize + offset)?.into_u32()?,
+            r#unknown39: row.field(39usize + offset)?.into_string()?,
+            r#unknown40: row.field(40usize + offset)?.into_string()?,
+            r#unknown41: row.field(41usize + offset)?.into_string()?,
+            r#unknown42: row.field(42usize + offset)?.into_string()?,
         })
     }
 }

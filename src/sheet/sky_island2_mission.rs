@@ -1,7 +1,8 @@
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use std::result::Result;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for SkyIsland2Mission {
     fn name() -> String {
         "SkyIsland2Mission".to_string()
@@ -34,6 +35,11 @@ pub struct SkyIsland2Mission {
     pub r#unknown18: u8,
     pub r#unknown19: u32,
     pub r#image: u32,
+    pub r#unknown21: SeString,
+    pub r#unknown22: SeString,
+    pub r#unknown23: SeString,
+    pub r#unknown24: SeString,
+    pub r#unknown25: SeString,
 }
 impl SkyIsland2Mission {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -59,6 +65,11 @@ impl SkyIsland2Mission {
             r#unknown18: row.field(18usize + offset)?.into_u8()?,
             r#unknown19: row.field(19usize + offset)?.into_u32()?,
             r#image: row.field(20usize + offset)?.into_u32()?,
+            r#unknown21: row.field(21usize + offset)?.into_string()?,
+            r#unknown22: row.field(22usize + offset)?.into_string()?,
+            r#unknown23: row.field(23usize + offset)?.into_string()?,
+            r#unknown24: row.field(24usize + offset)?.into_string()?,
+            r#unknown25: row.field(25usize + offset)?.into_string()?,
         })
     }
 }

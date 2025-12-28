@@ -1,6 +1,6 @@
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for PresetCameraAdjust {
     fn name() -> String {
@@ -27,6 +27,8 @@ pub struct PresetCameraAdjust {
     pub r#hrothgar_f: f32,
     pub r#viera_m: f32,
     pub r#viera_f: f32,
+    pub r#unknown14: f32,
+    pub r#unknown15: f32,
 }
 impl PresetCameraAdjust {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -45,6 +47,8 @@ impl PresetCameraAdjust {
             r#hrothgar_f: row.field(11usize + offset)?.into_f32()?,
             r#viera_m: row.field(12usize + offset)?.into_f32()?,
             r#viera_f: row.field(13usize + offset)?.into_f32()?,
+            r#unknown14: row.field(14usize + offset)?.into_f32()?,
+            r#unknown15: row.field(15usize + offset)?.into_f32()?,
         })
     }
 }

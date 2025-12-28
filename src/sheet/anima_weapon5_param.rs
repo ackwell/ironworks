@@ -1,7 +1,7 @@
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 impl MetadataAdapter for AnimaWeapon5Param {
     fn name() -> String {

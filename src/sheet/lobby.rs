@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use std::result::Result;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Lobby {
     fn name() -> String {
         "Lobby".to_string()
@@ -18,6 +18,8 @@ pub struct Lobby {
     pub r#param: u32,
     pub r#link: u32,
     pub r#text: SeString,
+    pub r#unknown4: SeString,
+    pub r#unknown5: SeString,
 }
 impl Lobby {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -26,6 +28,8 @@ impl Lobby {
             r#param: row.field(1usize + offset)?.into_u32()?,
             r#link: row.field(2usize + offset)?.into_u32()?,
             r#text: row.field(3usize + offset)?.into_string()?,
+            r#unknown4: row.field(4usize + offset)?.into_string()?,
+            r#unknown5: row.field(5usize + offset)?.into_string()?,
         })
     }
 }

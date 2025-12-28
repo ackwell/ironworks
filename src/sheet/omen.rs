@@ -1,8 +1,8 @@
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Omen {
     fn name() -> String {
         "Omen".to_string()
@@ -19,6 +19,7 @@ pub struct Omen {
     pub r#type: u8,
     pub r#restrict_y_scale: bool,
     pub r#large_scale: bool,
+    pub r#unknown5: i8,
 }
 impl Omen {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -28,6 +29,7 @@ impl Omen {
             r#type: row.field(2usize + offset)?.into_u8()?,
             r#restrict_y_scale: row.field(3usize + offset)?.into_bool()?,
             r#large_scale: row.field(4usize + offset)?.into_bool()?,
+            r#unknown5: row.field(5usize + offset)?.into_i8()?,
         })
     }
 }

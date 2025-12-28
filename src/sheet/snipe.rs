@@ -1,10 +1,10 @@
-use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for Snipe {
     fn name() -> String {
         "Snipe".to_string()
@@ -107,6 +107,8 @@ pub struct Snipe {
     pub r#unknown102: SeString,
     pub r#unknown103: SeString,
     pub r#action_text: SeString,
+    pub r#unknown105: u8,
+    pub r#unknown106: u8,
 }
 impl Snipe {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -212,6 +214,8 @@ impl Snipe {
             r#unknown102: row.field(102usize + offset)?.into_string()?,
             r#unknown103: row.field(103usize + offset)?.into_string()?,
             r#action_text: row.field(104usize + offset)?.into_string()?,
+            r#unknown105: row.field(105usize + offset)?.into_u8()?,
+            r#unknown106: row.field(106usize + offset)?.into_u8()?,
         })
     }
 }

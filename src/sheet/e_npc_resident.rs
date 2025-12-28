@@ -24,6 +24,7 @@ pub struct ENpcResident {
     pub r#article: i8,
     pub r#title: SeString,
     pub r#map: u8,
+    pub r#unknown10: bool,
 }
 impl ENpcResident {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -38,6 +39,7 @@ impl ENpcResident {
             r#article: row.field(7usize + offset)?.into_i8()?,
             r#title: row.field(8usize + offset)?.into_string()?,
             r#map: row.field(9usize + offset)?.into_u8()?,
+            r#unknown10: row.field(10usize + offset)?.into_bool()?,
         })
     }
 }

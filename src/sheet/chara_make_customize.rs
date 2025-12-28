@@ -1,6 +1,6 @@
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use std::result::Result;
 impl MetadataAdapter for CharaMakeCustomize {
     fn name() -> String {
@@ -19,6 +19,7 @@ pub struct CharaMakeCustomize {
     pub r#is_purchasable: bool,
     pub r#hint: u32,
     pub r#hint_item: u32,
+    pub r#unknown6: u8,
 }
 impl CharaMakeCustomize {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -29,6 +30,7 @@ impl CharaMakeCustomize {
             r#is_purchasable: row.field(3usize + offset)?.into_bool()?,
             r#hint: row.field(4usize + offset)?.into_u32()?,
             r#hint_item: row.field(5usize + offset)?.into_u32()?,
+            r#unknown6: row.field(6usize + offset)?.into_u8()?,
         })
     }
 }

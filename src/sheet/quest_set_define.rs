@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for QuestSetDefine {
     fn name() -> String {
         "QuestSetDefine".to_string()
@@ -12,9 +12,13 @@ impl MetadataAdapter for QuestSetDefine {
     }
 }
 #[derive(Debug)]
-pub struct QuestSetDefine {}
+pub struct QuestSetDefine {
+    pub r#unknown0: u32,
+}
 impl QuestSetDefine {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_u32()?,
+        })
     }
 }

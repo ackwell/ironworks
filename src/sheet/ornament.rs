@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use ironworks::sestring::SeString;
-use crate::metadata::MetadataAdapter;
 use std::result::Result;
 impl MetadataAdapter for Ornament {
     fn name() -> String {
@@ -27,6 +27,7 @@ pub struct Ornament {
     pub r#plural: SeString,
     pub r#possessive_pronoun: i8,
     pub r#starts_with_vowel: i8,
+    pub r#unknown13: i8,
     pub r#pronoun: i8,
     pub r#article: i8,
 }
@@ -46,8 +47,9 @@ impl Ornament {
             r#plural: row.field(10usize + offset)?.into_string()?,
             r#possessive_pronoun: row.field(11usize + offset)?.into_i8()?,
             r#starts_with_vowel: row.field(12usize + offset)?.into_i8()?,
-            r#pronoun: row.field(13usize + offset)?.into_i8()?,
-            r#article: row.field(14usize + offset)?.into_i8()?,
+            r#unknown13: row.field(13usize + offset)?.into_i8()?,
+            r#pronoun: row.field(14usize + offset)?.into_i8()?,
+            r#article: row.field(15usize + offset)?.into_i8()?,
         })
     }
 }

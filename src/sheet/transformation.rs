@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for Transformation {
     fn name() -> String {
         "Transformation".to_string()
@@ -50,6 +50,9 @@ pub struct Transformation {
     pub r#unknown34: i8,
     pub r#unknown35: i8,
     pub r#action7: u16,
+    pub r#unknown37: u8,
+    pub r#unknown38: bool,
+    pub r#unknown39: bool,
 }
 impl Transformation {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -91,6 +94,9 @@ impl Transformation {
             r#unknown34: row.field(34usize + offset)?.into_i8()?,
             r#unknown35: row.field(35usize + offset)?.into_i8()?,
             r#action7: row.field(36usize + offset)?.into_u16()?,
+            r#unknown37: row.field(37usize + offset)?.into_u8()?,
+            r#unknown38: row.field(38usize + offset)?.into_bool()?,
+            r#unknown39: row.field(39usize + offset)?.into_bool()?,
         })
     }
 }

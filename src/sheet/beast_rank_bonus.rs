@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use std::result::Result;
 use crate::error::PopulateError;
-use ironworks::excel::Row;
-use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for BeastRankBonus {
     fn name() -> String {
         "BeastRankBonus".to_string()

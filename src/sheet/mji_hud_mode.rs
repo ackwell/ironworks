@@ -1,8 +1,8 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for MJIHudMode {
     fn name() -> String {
         "MJIHudMode".to_string()
@@ -17,6 +17,7 @@ pub struct MJIHudMode {
     pub r#name: SeString,
     pub r#title: SeString,
     pub r#icon: u32,
+    pub r#unknown3: u32,
 }
 impl MJIHudMode {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -24,6 +25,7 @@ impl MJIHudMode {
             r#name: row.field(0usize + offset)?.into_string()?,
             r#title: row.field(1usize + offset)?.into_string()?,
             r#icon: row.field(2usize + offset)?.into_u32()?,
+            r#unknown3: row.field(3usize + offset)?.into_u32()?,
         })
     }
 }

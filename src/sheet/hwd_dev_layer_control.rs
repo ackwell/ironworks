@@ -1,7 +1,7 @@
-use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use std::result::Result;
 impl MetadataAdapter for HWDDevLayerControl {
     fn name() -> String {
         "HWDDevLayerControl".to_string()
@@ -12,9 +12,15 @@ impl MetadataAdapter for HWDDevLayerControl {
     }
 }
 #[derive(Debug)]
-pub struct HWDDevLayerControl {}
+pub struct HWDDevLayerControl {
+    pub r#unknown0: u8,
+    pub r#unknown1: u8,
+}
 impl HWDDevLayerControl {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_u8()?,
+            r#unknown1: row.field(1usize + offset)?.into_u8()?,
+        })
     }
 }

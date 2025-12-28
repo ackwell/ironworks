@@ -1,7 +1,6 @@
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use std::convert::Infallible;
 use std::result::Result;
 impl MetadataAdapter for ModelSkeleton {
     fn name() -> String {
@@ -31,7 +30,6 @@ pub struct ModelSkeleton {
     pub r#unknown14: u8,
     pub r#motion_blend_type: bool,
     pub r#loop_fly_se: u8,
-    pub r#auto_attack_type: Option<Infallible>,
 }
 impl ModelSkeleton {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -53,7 +51,6 @@ impl ModelSkeleton {
             r#unknown14: row.field(14usize + offset)?.into_u8()?,
             r#motion_blend_type: row.field(15usize + offset)?.into_bool()?,
             r#loop_fly_se: row.field(16usize + offset)?.into_u8()?,
-            r#auto_attack_type: None,
         })
     }
 }

@@ -1,8 +1,8 @@
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for Perform {
     fn name() -> String {
         "Perform".to_string()
@@ -26,6 +26,7 @@ pub struct Perform {
     pub r#instrument: SeString,
     pub r#order: i32,
     pub r#transient: u8,
+    pub r#unknown12: u8,
 }
 impl Perform {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -42,6 +43,7 @@ impl Perform {
             r#instrument: row.field(9usize + offset)?.into_string()?,
             r#order: row.field(10usize + offset)?.into_i32()?,
             r#transient: row.field(11usize + offset)?.into_u8()?,
+            r#unknown12: row.field(12usize + offset)?.into_u8()?,
         })
     }
 }

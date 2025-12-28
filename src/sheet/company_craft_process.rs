@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
-use std::result::Result;
-use crate::utility::read_array;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for CompanyCraftProcess {
     fn name() -> String {
         "CompanyCraftProcess".to_string()

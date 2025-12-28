@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for DisposalShopItem {
     fn name() -> String {
         "DisposalShopItem".to_string()
@@ -18,6 +18,7 @@ pub struct DisposalShopItem {
     pub r#item_received: i32,
     pub r#unknown3: bool,
     pub r#quantity_received: u32,
+    pub r#unknown5: u16,
 }
 impl DisposalShopItem {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -27,6 +28,7 @@ impl DisposalShopItem {
             r#item_received: row.field(2usize + offset)?.into_i32()?,
             r#unknown3: row.field(3usize + offset)?.into_bool()?,
             r#quantity_received: row.field(4usize + offset)?.into_u32()?,
+            r#unknown5: row.field(5usize + offset)?.into_u16()?,
         })
     }
 }

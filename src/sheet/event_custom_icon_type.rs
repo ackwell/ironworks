@@ -1,9 +1,9 @@
-use std::vec::Vec;
-use crate::utility::read_array;
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
 use ironworks::excel::Row;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for EventCustomIconType {
     fn name() -> String {
         "EventCustomIconType".to_string()
@@ -20,6 +20,7 @@ pub struct EventCustomIconType {
     pub r#map_announce_quest0: Vec<u32>,
     pub r#map_announce_quest_locked: Vec<u32>,
     pub r#map_announce_quest1: Vec<u32>,
+    pub r#unknown50: u8,
 }
 impl EventCustomIconType {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -54,6 +55,7 @@ impl EventCustomIconType {
                 1usize,
                 |offset| { Result::Ok(row.field(40usize + offset)?.into_u32()?) },
             )?,
+            r#unknown50: row.field(50usize + offset)?.into_u8()?,
         })
     }
 }

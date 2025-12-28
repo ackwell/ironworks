@@ -1,10 +1,10 @@
-use ironworks::sestring::SeString;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 use std::vec::Vec;
-use crate::metadata::MetadataAdapter;
-use ironworks::excel::Row;
-use crate::utility::read_array;
 impl MetadataAdapter for QuestBattle {
     fn name() -> String {
         "QuestBattle".to_string()
@@ -32,15 +32,15 @@ impl QuestBattle {
             r#level_sync: row.field(3usize + offset)?.into_u16()?,
             r#script_instruction: read_array(
                 offset,
-                200usize,
+                220usize,
                 1usize,
                 |offset| { Result::Ok(row.field(4usize + offset)?.into_string()?) },
             )?,
             r#script_value: read_array(
                 offset,
-                200usize,
+                220usize,
                 1usize,
-                |offset| { Result::Ok(row.field(204usize + offset)?.into_u32()?) },
+                |offset| { Result::Ok(row.field(224usize + offset)?.into_u32()?) },
             )?,
         })
     }

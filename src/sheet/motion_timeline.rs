@@ -1,8 +1,8 @@
+use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
 use std::result::Result;
-use crate::error::PopulateError;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 impl MetadataAdapter for MotionTimeline {
     fn name() -> String {
         "MotionTimeline".to_string()
@@ -19,6 +19,9 @@ pub struct MotionTimeline {
     pub r#is_loop: bool,
     pub r#is_blink_enable: bool,
     pub r#is_lip_enable: bool,
+    pub r#unknown5: u8,
+    pub r#unknown6: u8,
+    pub r#unknown7: bool,
 }
 impl MotionTimeline {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -28,6 +31,9 @@ impl MotionTimeline {
             r#is_loop: row.field(2usize + offset)?.into_bool()?,
             r#is_blink_enable: row.field(3usize + offset)?.into_bool()?,
             r#is_lip_enable: row.field(4usize + offset)?.into_bool()?,
+            r#unknown5: row.field(5usize + offset)?.into_u8()?,
+            r#unknown6: row.field(6usize + offset)?.into_u8()?,
+            r#unknown7: row.field(7usize + offset)?.into_bool()?,
         })
     }
 }

@@ -1,8 +1,8 @@
 use crate::error::PopulateError;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
-use std::result::Result;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for DynamicEventEnemyType {
     fn name() -> String {
         "DynamicEventEnemyType".to_string()

@@ -1,7 +1,7 @@
-use std::result::Result;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for CreditBackImage {
     fn name() -> String {
         "CreditBackImage".to_string()
@@ -19,6 +19,7 @@ pub struct CreditBackImage {
     pub r#unknown3: bool,
     pub r#unknown4: bool,
     pub r#back_image: u32,
+    pub r#unknown6: u8,
 }
 impl CreditBackImage {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -29,6 +30,7 @@ impl CreditBackImage {
             r#unknown3: row.field(3usize + offset)?.into_bool()?,
             r#unknown4: row.field(4usize + offset)?.into_bool()?,
             r#back_image: row.field(5usize + offset)?.into_u32()?,
+            r#unknown6: row.field(6usize + offset)?.into_u8()?,
         })
     }
 }

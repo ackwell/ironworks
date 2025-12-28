@@ -1,10 +1,10 @@
 use crate::error::PopulateError;
-use ironworks::sestring::SeString;
-use std::vec::Vec;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for Emote {
     fn name() -> String {
         "Emote".to_string()
@@ -30,10 +30,11 @@ pub struct Emote {
     pub r#unknown17: bool,
     pub r#order: u16,
     pub r#text_command: i32,
-    pub r#icon: u16,
+    pub r#icon: u32,
     pub r#log_message_targeted: u16,
     pub r#log_message_untargeted: u16,
     pub r#unlock_link: u32,
+    pub r#unknown24: u16,
 }
 impl Emote {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -57,10 +58,11 @@ impl Emote {
             r#unknown17: row.field(17usize + offset)?.into_bool()?,
             r#order: row.field(18usize + offset)?.into_u16()?,
             r#text_command: row.field(19usize + offset)?.into_i32()?,
-            r#icon: row.field(20usize + offset)?.into_u16()?,
+            r#icon: row.field(20usize + offset)?.into_u32()?,
             r#log_message_targeted: row.field(21usize + offset)?.into_u16()?,
             r#log_message_untargeted: row.field(22usize + offset)?.into_u16()?,
             r#unlock_link: row.field(23usize + offset)?.into_u32()?,
+            r#unknown24: row.field(24usize + offset)?.into_u16()?,
         })
     }
 }

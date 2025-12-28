@@ -1,7 +1,8 @@
-use std::result::Result;
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for InclusionShopWelcomText {
     fn name() -> String {
         "InclusionShopWelcomText".to_string()
@@ -12,9 +13,13 @@ impl MetadataAdapter for InclusionShopWelcomText {
     }
 }
 #[derive(Debug)]
-pub struct InclusionShopWelcomText {}
+pub struct InclusionShopWelcomText {
+    pub r#unknown0: SeString,
+}
 impl InclusionShopWelcomText {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#unknown0: row.field(0usize + offset)?.into_string()?,
+        })
     }
 }

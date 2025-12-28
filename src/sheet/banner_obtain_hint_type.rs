@@ -1,6 +1,7 @@
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
 impl MetadataAdapter for BannerObtainHintType {
     fn name() -> String {
@@ -12,9 +13,13 @@ impl MetadataAdapter for BannerObtainHintType {
     }
 }
 #[derive(Debug)]
-pub struct BannerObtainHintType {}
+pub struct BannerObtainHintType {
+    pub r#text: SeString,
+}
 impl BannerObtainHintType {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
-        Result::Ok(Self {})
+        Result::Ok(Self {
+            r#text: row.field(0usize + offset)?.into_string()?,
+        })
     }
 }

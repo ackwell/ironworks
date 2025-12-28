@@ -1,7 +1,7 @@
-use std::result::Result;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for EObj {
     fn name() -> String {
         "EObj".to_string()
@@ -28,10 +28,11 @@ pub struct EObj {
     pub r#eye_collision: bool,
     pub r#director_control: bool,
     pub r#target: bool,
-    pub r#event_high_addition: u8,
+    pub r#event_high_addition: f32,
     pub r#unknown16: bool,
     pub r#unknown17: u8,
     pub r#added_in53: bool,
+    pub r#unknown19: bool,
 }
 impl EObj {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -51,10 +52,11 @@ impl EObj {
             r#eye_collision: row.field(12usize + offset)?.into_bool()?,
             r#director_control: row.field(13usize + offset)?.into_bool()?,
             r#target: row.field(14usize + offset)?.into_bool()?,
-            r#event_high_addition: row.field(15usize + offset)?.into_u8()?,
+            r#event_high_addition: row.field(15usize + offset)?.into_f32()?,
             r#unknown16: row.field(16usize + offset)?.into_bool()?,
             r#unknown17: row.field(17usize + offset)?.into_u8()?,
             r#added_in53: row.field(18usize + offset)?.into_bool()?,
+            r#unknown19: row.field(19usize + offset)?.into_bool()?,
         })
     }
 }

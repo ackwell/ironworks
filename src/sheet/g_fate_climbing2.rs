@@ -1,7 +1,7 @@
 use crate::error::PopulateError;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for GFateClimbing2 {
     fn name() -> String {
         "GFateClimbing2".to_string()

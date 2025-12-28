@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for SatisfactionSupply {
     fn name() -> String {
         "SatisfactionSupply".to_string()
@@ -20,6 +20,9 @@ pub struct SatisfactionSupply {
     pub r#collectability_mid: u16,
     pub r#collectability_high: u16,
     pub r#reward: u16,
+    pub r#unknown7: bool,
+    pub r#unknown8: u16,
+    pub r#unknown9: u16,
 }
 impl SatisfactionSupply {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -31,6 +34,9 @@ impl SatisfactionSupply {
             r#collectability_mid: row.field(4usize + offset)?.into_u16()?,
             r#collectability_high: row.field(5usize + offset)?.into_u16()?,
             r#reward: row.field(6usize + offset)?.into_u16()?,
+            r#unknown7: row.field(7usize + offset)?.into_bool()?,
+            r#unknown8: row.field(8usize + offset)?.into_u16()?,
+            r#unknown9: row.field(9usize + offset)?.into_u16()?,
         })
     }
 }

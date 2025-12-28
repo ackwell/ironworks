@@ -1,7 +1,7 @@
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use std::result::Result;
 impl MetadataAdapter for TreasureHuntRank {
     fn name() -> String {
         "TreasureHuntRank".to_string()
@@ -20,6 +20,8 @@ pub struct TreasureHuntRank {
     pub r#instance_map: i32,
     pub r#max_party_size: u8,
     pub r#treasure_hunt_texture: u8,
+    pub r#unknown7: u16,
+    pub r#unknown8: bool,
 }
 impl TreasureHuntRank {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -31,6 +33,8 @@ impl TreasureHuntRank {
             r#instance_map: row.field(4usize + offset)?.into_i32()?,
             r#max_party_size: row.field(5usize + offset)?.into_u8()?,
             r#treasure_hunt_texture: row.field(6usize + offset)?.into_u8()?,
+            r#unknown7: row.field(7usize + offset)?.into_u16()?,
+            r#unknown8: row.field(8usize + offset)?.into_bool()?,
         })
     }
 }

@@ -1,7 +1,7 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
 use std::result::Result;
-use crate::error::PopulateError;
 impl MetadataAdapter for ChocoboRaceAbilityType {
     fn name() -> String {
         "ChocoboRaceAbilityType".to_string()

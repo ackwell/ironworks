@@ -1,8 +1,8 @@
-use ironworks::sestring::SeString;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
+use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for GuideTitle {
     fn name() -> String {
         "GuideTitle".to_string()
@@ -15,11 +15,13 @@ impl MetadataAdapter for GuideTitle {
 #[derive(Debug)]
 pub struct GuideTitle {
     pub r#title: SeString,
+    pub r#unknown1: SeString,
 }
 impl GuideTitle {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
         Result::Ok(Self {
             r#title: row.field(0usize + offset)?.into_string()?,
+            r#unknown1: row.field(1usize + offset)?.into_string()?,
         })
     }
 }

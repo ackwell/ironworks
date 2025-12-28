@@ -1,8 +1,8 @@
-use std::result::Result;
-use ironworks::excel::Row;
-use crate::metadata::MetadataAdapter;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use ironworks::excel::Row;
 use ironworks::sestring::SeString;
+use std::result::Result;
 impl MetadataAdapter for GCRankGridaniaFemaleText {
     fn name() -> String {
         "GCRankGridaniaFemaleText".to_string()
@@ -23,6 +23,7 @@ pub struct GCRankGridaniaFemaleText {
     pub r#pronoun: i8,
     pub r#article: i8,
     pub r#name_rank: SeString,
+    pub r#unknown9: SeString,
 }
 impl GCRankGridaniaFemaleText {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -36,6 +37,7 @@ impl GCRankGridaniaFemaleText {
             r#pronoun: row.field(6usize + offset)?.into_i8()?,
             r#article: row.field(7usize + offset)?.into_i8()?,
             r#name_rank: row.field(8usize + offset)?.into_string()?,
+            r#unknown9: row.field(9usize + offset)?.into_string()?,
         })
     }
 }

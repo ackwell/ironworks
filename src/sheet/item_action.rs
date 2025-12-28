@@ -1,8 +1,8 @@
-use crate::utility::read_array;
-use crate::metadata::MetadataAdapter;
-use std::result::Result;
-use ironworks::excel::Row;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
+use crate::utility::read_array;
+use ironworks::excel::Row;
+use std::result::Result;
 use std::vec::Vec;
 impl MetadataAdapter for ItemAction {
     fn name() -> String {

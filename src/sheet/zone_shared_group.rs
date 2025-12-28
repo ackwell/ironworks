@@ -1,6 +1,6 @@
+use crate::error::PopulateError;
 use crate::metadata::MetadataAdapter;
 use ironworks::excel::Row;
-use crate::error::PopulateError;
 use std::result::Result;
 impl MetadataAdapter for ZoneSharedGroup {
     fn name() -> String {
@@ -37,6 +37,11 @@ pub struct ZoneSharedGroup {
     pub r#unknown21: u8,
     pub r#quest5: u32,
     pub r#seq5: u32,
+    pub r#unknown24: bool,
+    pub r#unknown25: u8,
+    pub r#unknown26: u32,
+    pub r#unknown27: u32,
+    pub r#unknown28: bool,
 }
 impl ZoneSharedGroup {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -65,6 +70,11 @@ impl ZoneSharedGroup {
             r#unknown21: row.field(21usize + offset)?.into_u8()?,
             r#quest5: row.field(22usize + offset)?.into_u32()?,
             r#seq5: row.field(23usize + offset)?.into_u32()?,
+            r#unknown24: row.field(24usize + offset)?.into_bool()?,
+            r#unknown25: row.field(25usize + offset)?.into_u8()?,
+            r#unknown26: row.field(26usize + offset)?.into_u32()?,
+            r#unknown27: row.field(27usize + offset)?.into_u32()?,
+            r#unknown28: row.field(28usize + offset)?.into_bool()?,
         })
     }
 }

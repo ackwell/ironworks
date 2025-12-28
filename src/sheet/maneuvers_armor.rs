@@ -1,9 +1,10 @@
-use crate::metadata::MetadataAdapter;
-use std::vec::Vec;
 use crate::error::PopulateError;
+use crate::metadata::MetadataAdapter;
 use crate::utility::read_array;
 use ironworks::excel::Row;
+use ironworks::sestring::SeString;
 use std::result::Result;
+use std::vec::Vec;
 impl MetadataAdapter for ManeuversArmor {
     fn name() -> String {
         "ManeuversArmor".to_string()
@@ -20,6 +21,8 @@ pub struct ManeuversArmor {
     pub r#unknown3: u8,
     pub r#unknown4: bool,
     pub r#icon: Vec<u32>,
+    pub r#unknown10: SeString,
+    pub r#unknown11: SeString,
 }
 impl ManeuversArmor {
     pub fn populate(row: &Row, offset: usize) -> Result<Self, PopulateError> {
@@ -39,6 +42,8 @@ impl ManeuversArmor {
                 1usize,
                 |offset| { Result::Ok(row.field(5usize + offset)?.into_u32()?) },
             )?,
+            r#unknown10: row.field(10usize + offset)?.into_string()?,
+            r#unknown11: row.field(11usize + offset)?.into_string()?,
         })
     }
 }
