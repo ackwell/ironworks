@@ -19,8 +19,9 @@ pub fn exd(sheet: &str, start_id: u32, language: Language) -> Result<String> {
 		L::German => "_de",
 		L::French => "_fr",
 		L::ChineseSimplified => "_chs",
-		L::ChineseTraditional => "_cht",
+		// L::ChineseTraditional => "_cht",
 		L::Korean => "_ko",
+		L::ChineseTraditional => "_tc",
 
 		_ => {
 			// TODO: Man, I really need to rethink error handling.

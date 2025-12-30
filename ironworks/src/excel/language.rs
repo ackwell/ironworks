@@ -13,14 +13,15 @@ pub enum Language {
 	German = 3,
 	French = 4,
 	ChineseSimplified = 5,
-	ChineseTraditional = 6,
+	// ChineseTraditional = 6, // Unused in ARR game editions, superseded by 8.
 	Korean = 7,
+	ChineseTraditional = 8,
 
 	/// An unknown language ID.
 	///
 	/// `Language::Unknown` should only be `match`ed with a wildcard (`_`)
-	/// pattern. Values represented by `Unkown` may be promoted to new variants in
-	/// future non-major versions.
+	/// pattern. Values represented by `Unknown` may be promoted to new variants
+	/// in future non-major versions.
 	#[num_enum(catch_all)]
 	Unknown(u8),
 }
