@@ -57,7 +57,7 @@ impl<'a> TextPayload<'a> {
 	/// Tries to retrieve the underlying string representation of the payload.
 	/// Will fail if text is invalid UTF8.
 	pub fn as_utf8(&self) -> Result<&'a str> {
-		str::from_utf8(&self.0).map_err(|_error| Error::InvalidText)
+		str::from_utf8(self.0).map_err(|_error| Error::InvalidText)
 	}
 }
 

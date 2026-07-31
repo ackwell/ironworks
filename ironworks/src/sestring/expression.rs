@@ -165,7 +165,7 @@ mod test {
 		assert_matches!(two.as_ref(), Expression::U32(100));
 	}
 
-	fn read<'a>(bytes: &'a [u8]) -> Expression<'a> {
+	fn read(bytes: &[u8]) -> Expression<'_> {
 		let mut cursor = SliceCursor::new(bytes);
 		Expression::read(&mut cursor).expect("read should not fail")
 	}

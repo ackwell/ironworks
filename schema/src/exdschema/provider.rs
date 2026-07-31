@@ -57,7 +57,7 @@ impl Provider {
 
 		Ok(Self {
 			repository: Arc::new(Mutex::new(repository)),
-			cache: options.cache.then(|| Default::default()),
+			cache: options.cache.then(Default::default),
 		})
 	}
 

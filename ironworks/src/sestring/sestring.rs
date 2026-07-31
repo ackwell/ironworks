@@ -133,7 +133,7 @@ mod test {
 		assert_count(bytes, 1);
 	}
 
-	fn assert_count<'a>(bytes: &'a [u8], expected: usize) {
+	fn assert_count(bytes: &[u8], expected: usize) {
 		let sestring = SeString {
 			data: Cow::Owned(bytes.to_vec()),
 		};

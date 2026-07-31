@@ -241,11 +241,11 @@ impl sqpack::Resource for View {
 				// to omit any leading data from size to avoid throwing calculations
 				// out.
 				let start = metadata
-					.get(0)
+					.first()
 					.expect("metadata should never be empty")
 					.output_offset;
 
-				let leading = target_offset.checked_sub(start).unwrap_or(0);
+				let leading = target_offset.saturating_sub(start);
 				let size = metadata
 					.iter()
 					.map(|block| block.output_size)
@@ -300,10 +300,10 @@ fn find_file_blocks(
 		// otherwise, assume the file could be infintely long.
 		let before_end = location
 			.size()
-			.map(|size| offset < (location.offset() + size).into())
+			.map(|size| offset < (location.offset() + size))
 			.unwrap_or(true);
 
-		let after_start = (offset + size) > location.offset().into();
+		let after_start = (offset + size) > location.offset();
 
 		after_start && before_end
 	};

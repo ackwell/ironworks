@@ -85,7 +85,7 @@ fn map_struct(fields: Vec<Field>) -> Result<schema::Node> {
 				field
 					.name
 					.clone()
-					.ok_or_else(|| Error::Schema(format!("struct fields must have names")))
+					.ok_or_else(|| Error::Schema("struct fields must have names".into()))
 			);
 			let node = scan_try!(map_field(field));
 
@@ -139,9 +139,9 @@ fn map_field(field: Field) -> Result<schema::Node> {
 			let node = match fields {
 				None => schema::Node::Scalar(schema::Scalar::Default),
 				Some(mut fields) => match fields.len() {
-					0 => Err(Error::Schema(format!(
-						"arrays must contain at least one field"
-					)))?,
+					0 => Err(Error::Schema(
+						"arrays must contain at least one field".into(),
+					))?,
 					1 => map_field(fields.remove(0))?,
 					_ => map_struct(fields)?,
 				},

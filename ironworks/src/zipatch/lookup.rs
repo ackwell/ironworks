@@ -154,7 +154,7 @@ fn read_lookup(path: &Path) -> Result<PatchLookup> {
 
 					let chunk = ResourceChunk {
 						offset: command.source_offset(),
-						size: command.data_size().into(),
+						size: command.data_size(),
 					};
 
 					let old_value = data
@@ -204,7 +204,7 @@ fn process_file_operation(data: &mut PatchLookupData, command: FileOperationComm
 
 	data.file_chunks
 		.entry(path_to_specifier(&command.path().to_string())?)
-		.or_insert_with(Default::default)
+		.or_default()
 		.push(chunk);
 
 	Ok(())

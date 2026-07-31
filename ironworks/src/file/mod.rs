@@ -2,6 +2,8 @@
 //!
 //! Each file type may contain a number of related supporting items, and as such are namespaced seperately.
 
+#![allow(clippy::empty_docs)]
+
 mod file;
 
 #[cfg(feature = "eqdp")]

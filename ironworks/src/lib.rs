@@ -1,8 +1,11 @@
 //! Modular toolkit for working with FFXIV data.
 
 // Lint config
+#![allow(clippy::new_without_default)]
+#![allow(clippy::match_like_matches_macro)]
 #![allow(clippy::module_inception)]
-#![warn(missing_debug_implementations, missing_docs)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
 // Doc config
 #![cfg_attr(docsrs, feature(doc_auto_cfg, doc_cfg))]
 

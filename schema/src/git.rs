@@ -56,10 +56,7 @@ fn clone_repository(remote: &str, directory: &Path) -> Result<Repository> {
 	Ok(repository)
 }
 
-pub fn resolve_commit<'repo>(
-	repository: &'repo Repository,
-	revision: impl AsRef<str>,
-) -> Result<Commit<'repo>> {
+pub fn resolve_commit(repository: &Repository, revision: impl AsRef<str>) -> Result<Commit<'_>> {
 	let revision = revision.as_ref();
 	repository
 		.revparse_single(revision)

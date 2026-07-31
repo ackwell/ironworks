@@ -90,7 +90,7 @@ impl SpecifierV1 {
 
 		Ok(Self {
 			commit: commit.id(),
-			game_version: found_version.into(),
+			game_version: found_version,
 		})
 	}
 

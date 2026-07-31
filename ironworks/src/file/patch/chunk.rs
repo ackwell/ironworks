@@ -98,7 +98,7 @@ pub struct FileHeaderV3 {
 	#[br(temp)]
 	delete_data_2: u32,
 	///
-	#[br(calc = u64::from(delete_data_1) | u64::from(delete_data_2) << 32)]
+	#[br(calc = u64::from(delete_data_1) | (u64::from(delete_data_2) << 32))]
 	delete_data: u64,
 
 	///

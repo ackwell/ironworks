@@ -55,7 +55,7 @@ impl Index1 {
 			.collect::<Vec<_>>();
 
 		let hash = match hashed_segments[..] {
-			[file, directory] => (directory as u64) << 32 | file as u64,
+			[file, directory] => ((directory as u64) << 32) | file as u64,
 			_ => {
 				return Err(Error::Invalid(
 					ErrorValue::Path(path.into()),

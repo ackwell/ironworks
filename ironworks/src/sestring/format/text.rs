@@ -26,7 +26,7 @@ pub fn head_all<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<
 	Ok(())
 }
 
-fn head_str<'a>(input: &str) -> String {
+fn head_str(input: &str) -> String {
 	let mut chars = input.chars();
 	match chars.next() {
 		Some(char) => char.to_uppercase().collect::<String>() + chars.as_str(),
@@ -62,7 +62,7 @@ pub fn split<'a>(arguments: impl Arguments<'a>, state: &mut State) -> Result<()>
 		.nth(index.try_into().unwrap())
 		.unwrap_or("");
 
-	state.writer.write_str(&output)?;
+	state.writer.write_str(output)?;
 
 	Ok(())
 }

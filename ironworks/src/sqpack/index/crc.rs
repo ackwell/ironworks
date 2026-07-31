@@ -71,7 +71,7 @@ pub fn crc32(bytes: &[u8]) -> u32 {
 	}
 
 	for _ in 0..end {
-		working = TABLE[(working as u8 ^ bytes[start]) as usize] ^ working >> 8;
+		working = TABLE[(working as u8 ^ bytes[start]) as usize] ^ (working >> 8);
 		start += 1;
 	}
 

@@ -2,7 +2,7 @@ use crate::sestring::{error::Result, expression::Expression, format, sestring::S
 
 use super::{format::State, time};
 
-pub fn resolve<'a, F, I>(r#fn: F, input: I) -> String
+pub fn resolve<F, I>(r#fn: F, input: I) -> String
 where
 	F: FnOnce(I::IntoIter, &mut State) -> Result<()>,
 	I: IntoIterator,
@@ -15,7 +15,7 @@ where
 
 pub fn with_state<F>(r#fn: F) -> String
 where
-	F: FnOnce(&mut State) -> (),
+	F: FnOnce(&mut State),
 {
 	let mut writer = TestWriter("".into());
 	let mut state = State {

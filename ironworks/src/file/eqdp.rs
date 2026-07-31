@@ -38,7 +38,7 @@ impl EquipmentDeformerParameter {
 	/// Get metadata for for specified set ID.
 	pub fn set(&self, id: u16) -> Set {
 		// Sets are laid out sequentially - grab the index of the block it should reside in.
-		let block_index = usize::try_from(id / self.block_size).unwrap();
+		let block_index = usize::from(id / self.block_size);
 		if block_index >= self.block_offsets.len() {
 			return Default::default();
 		}

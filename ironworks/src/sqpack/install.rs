@@ -130,11 +130,11 @@ impl Resource for Install {
 		)?;
 		let mut file = io::BufReader::new(fs::File::open(path)?);
 
-		let offset = u64::from(location.offset());
+		let offset = location.offset();
 		// Resolve the size early in case we need to seek to find the end. Using
 		// longhand here so I can shortcut seek failures.
 		let size = match location.size() {
-			Some(size) => u64::from(size),
+			Some(size) => size,
 			None => file.seek(io::SeekFrom::End(0))? - offset,
 		};
 

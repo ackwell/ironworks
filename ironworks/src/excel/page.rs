@@ -42,16 +42,16 @@ impl Page {
 		Self { header, data }
 	}
 
-	pub fn row<'a>(
+	pub fn row(
 		&self,
-		row_specifier: RowSpecifier<'a>,
+		row_specifier: RowSpecifier<'_>,
 		subrow_specifier: SubrowSpecifier,
 	) -> Result<Row> {
 		let meta = self.row_metadata(row_specifier)?;
 		self.build_row(meta, subrow_specifier)
 	}
 
-	fn row_metadata<'a>(&self, row_specifier: RowSpecifier<'a>) -> Result<RowMetadata> {
+	fn row_metadata(&self, row_specifier: RowSpecifier<'_>) -> Result<RowMetadata> {
 		// Resolve the specifier into a concrete definition.
 		let row_definition = match row_specifier {
 			RowSpecifier::Id(id) => self.row_definition(id)?,
@@ -79,7 +79,7 @@ impl Page {
 
 		// Most pages are contiguous IDs - check if this assumption holds in this
 		// case, and fast track if it does.
-		let first_row_id = data.rows.get(0).map_or(0, |row| row.id);
+		let first_row_id = data.rows.first().map_or(0, |row| row.id);
 		if let Some(index) = row_id.checked_sub(first_row_id) {
 			let index_usize = usize::try_from(index).unwrap();
 			if index_usize < data.rows.len() && data.rows[index_usize].id == row_id {

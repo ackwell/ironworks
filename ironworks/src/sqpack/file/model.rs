@@ -51,7 +51,7 @@ pub fn read(mut reader: impl Read + Seek, offset: u32, header: Header) -> Result
 	let block_sizes = <Vec<u16>>::read_le_args(
 		&mut reader,
 		VecArgs {
-			count: total_blocks.try_into().unwrap(),
+			count: total_blocks.into(),
 			inner: (),
 		},
 	)?;
