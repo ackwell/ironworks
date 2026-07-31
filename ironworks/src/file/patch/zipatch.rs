@@ -1,7 +1,4 @@
-use std::{
-	io::SeekFrom,
-	sync::{Arc, Mutex},
-};
+use std::{io::SeekFrom, rc::Rc, sync::Mutex};
 
 use binrw::BinRead;
 use derivative::Derivative;
@@ -21,7 +18,7 @@ const ZIPATCH_MAGIC: &[u8; 12] = b"\x91ZIPATCH\x0D\x0A\x1A\x0A";
 #[derivative(Debug)]
 pub struct ZiPatch {
 	#[derivative(Debug = "ignore")]
-	stream: Arc<Mutex<Box<dyn FileStream>>>,
+	stream: Rc<Mutex<Box<dyn FileStream>>>,
 }
 
 impl ZiPatch {
@@ -44,7 +41,7 @@ impl File for ZiPatch {
 		// Rest of the file is chunks that we'll read lazily.
 		Ok(Self {
 			// TODO: I'm really not happy with this incantation
-			stream: Arc::new(Mutex::new(Box::new(stream))),
+			stream: Rc::new(Mutex::new(Box::new(stream))),
 		})
 	}
 }
@@ -56,13 +53,13 @@ impl File for ZiPatch {
 #[derivative(Debug)]
 pub struct ChunkIterator {
 	#[derivative(Debug = "ignore")]
-	stream: Arc<Mutex<Box<dyn FileStream>>>,
+	stream: Rc<Mutex<Box<dyn FileStream>>>,
 	offset: u64,
 	complete: bool,
 }
 
 impl ChunkIterator {
-	fn new(stream: Arc<Mutex<Box<dyn FileStream>>>) -> Self {
+	fn new(stream: Rc<Mutex<Box<dyn FileStream>>>) -> Self {
 		ChunkIterator {
 			stream,
 			offset: ZIPATCH_MAGIC.len().try_into().unwrap(),
