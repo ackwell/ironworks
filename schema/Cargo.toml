@@ -1,19 +1,23 @@
 [package]
 name = "ironworks_schema"
 version = "0.2.0"
-edition = "2024"
 publish = false
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [features]
 exdschema = ["derivative", "git2", "serde", "serde_yaml", "regex"]
 saint_coinach = ["derivative", "git2", "serde_json"]
 
 [dependencies]
-thiserror = "2.0.3"
+thiserror.workspace = true
 
-derivative = { version = "2.2.0", optional = true }
-git2 = { version = "0.19.0", optional = true }
-serde = { version = "1.0.202", features = ["derive"], optional = true }
-serde_json = { version = "1.0.79", optional = true }
-serde_yaml = { version = "0.9.34", optional = true }
-regex = { version = "1.11.1", optional = true }
+derivative = { workspace = true, optional = true }
+git2 = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+serde_yaml = { workspace = true, optional = true }

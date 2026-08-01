@@ -1,3 +1,29 @@
 [workspace]
 resolver = "3"
 members = ["ironworks", "schema"]
+
+[workspace.package]
+edition = "2024"
+# NOTE: See /rust-toolchain.toml when updating.
+rust-version = "1.85"
+authors = ["ackwell <saxon@ackwell.com.au>"]
+license = "MIT"
+
+[workspace.dependencies]
+binrw = "0.14.1"
+derivative = "2.2.0"
+either = "1.8.0"
+enum-as-inner = "0.6.0"
+flate2 = "1.0.22"
+getset = "0.1.2"
+git2 = "0.19.0"
+half = "2.1.0"
+modular-bitfield = "0.11.2"
+num_enum = "0.7.2"
+regex = "1.11.1"
+serde = "1.0.202"
+serde_json = "1.0.79"
+serde_yaml = "0.9.34"
+strum = "0.26.2"
+thiserror = "2.0.3"
+time = "0.3.20"

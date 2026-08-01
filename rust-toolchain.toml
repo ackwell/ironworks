@@ -1,3 +1,5 @@
 [toolchain]
+# NOTE: This must be maintained in sync with other locations:
+# - /Cargo.toml
 channel = "1.85.0"
 components = ["rust-analyzer"]

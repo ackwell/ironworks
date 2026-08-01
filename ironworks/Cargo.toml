@@ -1,12 +1,14 @@
 [package]
 name = "ironworks"
 version = "0.4.1"
-authors = ["ackwell <saxon@ackwell.com.au>"]
-edition = "2024"
 description = "Modular FFXIV data toolkit written in rust."
 readme = "../README.md"
 repository = "https://github.com/ackwell/ironworks"
-license = "MIT"
+
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
@@ -40,16 +42,16 @@ sklb = []
 tex = ["dep:num_enum"]
 
 [dependencies]
-binrw = "0.14.1"
-derivative = "2.2.0"
-either = "1.8.0"
-getset = "0.1.2"
-thiserror = "2.0.3"
+binrw.workspace = true
+derivative.workspace = true
+either.workspace = true
+getset.workspace = true
+thiserror.workspace = true
 
-enum-as-inner = { version = "0.6.0", optional = true }
-flate2 = { version = "1.0.22", optional = true }
-half = { version = "2.1.0", optional = true }
-modular-bitfield = { version = "0.11.2", optional = true }
-num_enum = { version = "0.7.2", optional = true }
-strum = { version = "0.26.2", features = ["derive"], optional = true }
-time = { version = "0.3.20", optional = true }
+enum-as-inner = { workspace = true, optional = true }
+flate2 = { workspace = true, optional = true }
+half = { workspace = true, optional = true }
+modular-bitfield = { workspace = true, optional = true }
+num_enum = { workspace = true, optional = true }
+strum = { workspace = true, features = ["derive"], optional = true }
+time = { workspace = true, optional = true }
