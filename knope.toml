@@ -1,0 +1,23 @@
+[changes]
+ignore_conventional_commits = true
+
+[packages.ironworks]
+versioned_files = ["ironworks/Cargo.toml", "Cargo.lock"]
+scopes = ["ironworks"]
+changelog = "CHANGELOG.md"
+
+[packages.ironworks_schema]
+versioned_files = ["schema/Cargo.toml", "Cargo.lock"]
+scopes = ["ironworks_schema"]
+changelog = "schema/CHANGELOG.md"
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+[[workflows]]
+name = "change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"
