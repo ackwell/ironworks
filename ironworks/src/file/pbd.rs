@@ -8,9 +8,7 @@ use std::{
 
 use binrw::{BinRead, BinResult, Endian, NullString, binread};
 
-use crate::{FileStream, error::Result};
-
-use super::file::File;
+use crate::{error::Result, file::FormatRead};
 
 /// Collection of bone deformations for transforming between character skeletons.
 #[binread]
@@ -45,9 +43,9 @@ impl PreBoneDeformer {
 	}
 }
 
-impl File for PreBoneDeformer {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for PreBoneDeformer {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

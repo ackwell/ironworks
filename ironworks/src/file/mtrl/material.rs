@@ -1,9 +1,12 @@
-use std::{fmt, io::Cursor};
+use std::{
+	fmt,
+	io::{Cursor, Read, Seek},
+};
 
 use binrw::{BinRead, NullString};
 use getset::{CopyGetters, Getters};
 
-use crate::{FileStream, error::Result, file::File};
+use crate::{error::Result, file::FormatRead};
 
 use super::structs;
 
@@ -66,9 +69,9 @@ impl Material {
 	}
 }
 
-impl File for Material {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		let file = structs::Material::read(&mut stream)?;
+impl FormatRead for Material {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		let file = structs::Material::read(&mut reader)?;
 		Ok(Material {
 			shader: Material::read_shader(&file)?,
 			samplers: Material::read_samplers(&file)?,

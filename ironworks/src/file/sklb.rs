@@ -6,9 +6,8 @@ use binrw::helpers::{count, until_eof};
 use binrw::{BinRead, BinResult, Endian, binread};
 use getset::{CopyGetters, Getters};
 
-use crate::{FileStream, error::Result};
-
-use super::file::File;
+use crate::error::Result;
+use crate::file::FormatRead;
 
 /// Skeleton data and related mappings.
 #[binread]
@@ -86,9 +85,9 @@ impl SkeletonBinary {
 	}
 }
 
-impl File for SkeletonBinary {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for SkeletonBinary {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

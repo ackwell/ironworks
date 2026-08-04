@@ -1,13 +1,11 @@
 //! Structs and utilities for parsing .exd files.
 
-use std::io::Seek;
+use std::io::{Read, Seek};
 
 use binrw::{BinRead, BinResult, binread, error::CustomError};
 use derivative::Derivative;
 
-use crate::{FileStream, error::Result};
-
-use super::file::File;
+use crate::{error::Result, file::FormatRead};
 
 /// An Excel data page. One or more pages form the full dataset for an Excel
 /// sheet. Metadata for sheets is contained in an associated .exh Excel header file.
@@ -67,9 +65,9 @@ pub struct ExcelData {
 	pub data: Vec<u8>,
 }
 
-impl File for ExcelData {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for ExcelData {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

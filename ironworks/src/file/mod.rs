@@ -4,7 +4,7 @@
 
 #![allow(clippy::empty_docs)]
 
-mod file;
+mod format;
 
 #[cfg(feature = "eqdp")]
 pub mod eqdp;
@@ -25,4 +25,4 @@ pub mod sklb;
 #[cfg(feature = "tex")]
 pub mod tex;
 
-pub use file::File;
+pub use format::{FileReaderExt, FormatRead};

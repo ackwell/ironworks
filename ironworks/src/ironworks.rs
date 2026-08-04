@@ -4,7 +4,7 @@ use derivative::Derivative;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	file::File,
+	file::FormatRead,
 };
 
 /// Representation of a file stream read from a resource.
@@ -71,9 +71,9 @@ impl Ironworks {
 
 	/// Read the file at `path`, using file type F to parse. To retrieve the file
 	/// as raw bytes, pass `Vec<u8>` to F.
-	pub fn file<F: File>(&self, path: &str) -> Result<F> {
+	pub fn file<F: FormatRead>(&self, path: &str) -> Result<F> {
 		let stream = self.find_first(path, |resource| resource.file(path))?;
-		F::read(stream)
+		F::from_reader(stream)
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

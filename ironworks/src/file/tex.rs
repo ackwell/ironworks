@@ -1,14 +1,15 @@
 //! Structs and utilities for parsing .tex files.
 
+use std::io::{Read, Seek};
+
 use binrw::helpers::until_eof;
 use binrw::{BinRead, binread};
 use derivative::Derivative;
 use getset::{CopyGetters, Getters};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::{FileStream, error::Result};
-
-use super::file::File;
+use crate::error::Result;
+use crate::file::FormatRead;
 
 /// A texture and associated metadata.
 #[binread]
@@ -67,9 +68,9 @@ impl Texture {
 	}
 }
 
-impl File for Texture {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for Texture {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

@@ -1,8 +1,11 @@
-use std::sync::Arc;
+use std::{
+	io::{Read, Seek},
+	sync::Arc,
+};
 
 use binrw::BinRead;
 
-use crate::{FileStream, error::Result, file::File};
+use crate::{error::Result, file::FormatRead};
 
 use super::{
 	model::{Lod, Model},
@@ -15,9 +18,9 @@ pub struct ModelContainer {
 	file: Arc<structs::File>,
 }
 
-impl File for ModelContainer {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		let file = structs::File::read(&mut stream)?;
+impl FormatRead for ModelContainer {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		let file = structs::File::read(&mut reader)?;
 		Ok(ModelContainer { file: file.into() })
 	}
 }

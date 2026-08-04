@@ -1,13 +1,13 @@
 //! Structs and utilities for parsing .eqdp files.
 
-use std::{fmt::Debug, io::Cursor};
+use std::fmt::Debug;
+use std::io::{Cursor, Read, Seek};
 
 use binrw::helpers::until_eof;
 use binrw::{BinRead, binread};
 
-use crate::{FileStream, error::Result};
-
-use super::file::File;
+use crate::error::Result;
+use crate::file::FormatRead;
 
 /// Metadata for equipment and accessory sets on a per-race basis.
 #[binread]
@@ -28,9 +28,9 @@ pub struct EquipmentDeformerParameter {
 	data: Vec<u8>,
 }
 
-impl File for EquipmentDeformerParameter {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for EquipmentDeformerParameter {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

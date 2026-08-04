@@ -1,11 +1,13 @@
 //! Structs and utilities for parsing .exh files.
 
+use std::io::{Read, Seek};
+
 use binrw::{BinRead, NullString, binread};
 use num_enum::IntoPrimitive;
 
-use crate::{FileStream, error::Result};
+use crate::error::Result;
 
-use super::File;
+use super::format::FormatRead;
 
 /// An Excel header file, containing metadata for all associated .exd Excel data files.
 #[binread]
@@ -61,9 +63,9 @@ pub struct ExcelHeader {
 	pub languages: Vec<u8>,
 }
 
-impl File for ExcelHeader {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
-		Ok(<Self as BinRead>::read(&mut stream)?)
+impl FormatRead for ExcelHeader {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
+		Ok(<Self as BinRead>::read(&mut reader)?)
 	}
 }
 

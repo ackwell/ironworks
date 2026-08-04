@@ -1,13 +1,15 @@
 //! Structs and utilities for parsing .exl files.
 
-use std::{borrow::Cow, collections::HashSet};
-
-use crate::{
-	FileStream,
-	error::{Error, Result},
+use std::{
+	borrow::Cow,
+	collections::HashSet,
+	io::{Read, Seek},
 };
 
-use super::File;
+use crate::{
+	error::{Error, Result},
+	file::FormatRead,
+};
 
 /// List of known Excel sheets.
 #[derive(Debug)]
@@ -28,11 +30,11 @@ impl ExcelList {
 	}
 }
 
-impl File for ExcelList {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
+impl FormatRead for ExcelList {
+	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
 		// The excel list is actually just plaintext, read it in as a string.
 		let mut list = String::new();
-		stream
+		reader
 			.read_to_string(&mut list)
 			.map_err(|error| Error::Resource(error.into()))?;
 
@@ -59,9 +61,9 @@ impl File for ExcelList {
 
 #[cfg(test)]
 mod test {
-	use std::io::{self, Cursor};
+	use std::io::Cursor;
 
-	use crate::{error::Error, file::File};
+	use crate::{error::Error, file::FormatRead};
 
 	use super::ExcelList;
 
@@ -69,25 +71,25 @@ mod test {
 
 	#[test]
 	fn empty() {
-		let list = ExcelList::read(io::empty());
+		let list = ExcelList::from_reader(std::io::empty());
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn missing_magic() {
-		let list = ExcelList::read(Cursor::new(b"hello\r\nworld".to_vec()));
+		let list = ExcelList::from_reader(Cursor::new(b"hello\r\nworld".to_vec()));
 		assert!(matches!(list, Err(Error::Resource(_))));
 	}
 
 	#[test]
 	fn has_sheet() {
-		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
+		let list = ExcelList::from_reader(Cursor::new(TEST_LIST)).unwrap();
 		assert!(list.has("sheet2"));
 	}
 
 	#[test]
 	fn missing_sheet() {
-		let list = ExcelList::read(Cursor::new(TEST_LIST)).unwrap();
+		let list = ExcelList::from_reader(Cursor::new(TEST_LIST)).unwrap();
 		assert!(!list.has("sheet4"));
 	}
 }
