@@ -1,5 +1,5 @@
 use std::{
-	io::{Seek, SeekFrom},
+	io::{Read, Seek, SeekFrom},
 	rc::Rc,
 	sync::Mutex,
 };
@@ -7,7 +7,7 @@ use std::{
 use binrw::BinRead;
 use derivative::Derivative;
 
-use crate::{FileStream, error::Result};
+use crate::error::Result;
 
 use super::chunk::Chunk;
 
@@ -20,14 +20,17 @@ const ZIPATCH_MAGIC: &[u8; 12] = b"\x91ZIPATCH\x0D\x0A\x1A\x0A";
 /// memory-mapped files.
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct ZiPatch {
+pub struct ZiPatch<R> {
 	#[derivative(Debug = "ignore")]
-	stream: Rc<Mutex<Box<dyn FileStream>>>,
+	stream: Rc<Mutex<R>>,
 }
 
-impl ZiPatch {
+impl<R> ZiPatch<R>
+where
+	R: Read + Seek,
+{
 	/// Construct a ZiPatch reader from the provided stream.
-	pub fn from_reader(mut stream: impl FileStream) -> Result<Self> {
+	pub fn from_reader(mut stream: R) -> Result<Self> {
 		// Check the magic in the header
 		let mut magic = [0u8; ZIPATCH_MAGIC.len()];
 		stream.read_exact(&mut magic)?;
@@ -39,12 +42,12 @@ impl ZiPatch {
 		// Rest of the file is chunks that we'll read lazily.
 		Ok(Self {
 			// TODO: I'm really not happy with this incantation
-			stream: Rc::new(Mutex::new(Box::new(stream))),
+			stream: Rc::new(Mutex::new(stream)),
 		})
 	}
 
 	/// Get an iterator over the chunks within this patch file.
-	pub fn chunks(&self) -> ChunkIterator {
+	pub fn chunks(&self) -> ChunkIterator<R> {
 		ChunkIterator::new(self.stream.clone())
 	}
 }
@@ -54,15 +57,18 @@ impl ZiPatch {
 /// Chunks are read lazily from the source stream over the course of iteration.
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct ChunkIterator {
+pub struct ChunkIterator<R> {
 	#[derivative(Debug = "ignore")]
-	stream: Rc<Mutex<Box<dyn FileStream>>>,
+	stream: Rc<Mutex<R>>,
 	offset: u64,
 	complete: bool,
 }
 
-impl ChunkIterator {
-	fn new(stream: Rc<Mutex<Box<dyn FileStream>>>) -> Self {
+impl<R> ChunkIterator<R>
+where
+	R: Read + Seek,
+{
+	fn new(stream: Rc<Mutex<R>>) -> Self {
 		ChunkIterator {
 			stream,
 			offset: ZIPATCH_MAGIC.len().try_into().unwrap(),
@@ -93,7 +99,10 @@ impl ChunkIterator {
 	}
 }
 
-impl Iterator for ChunkIterator {
+impl<R> Iterator for ChunkIterator<R>
+where
+	R: Read + Seek,
+{
 	type Item = Result<Chunk>;
 
 	fn next(&mut self) -> Option<Self::Item> {
