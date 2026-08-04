@@ -1,5 +1,7 @@
 //! Structs and utilities for parsing ZiPatch .patch files.
 
+#![allow(clippy::empty_docs)]
+
 mod chunk;
 mod command;
 mod zipatch;

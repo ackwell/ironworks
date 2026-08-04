@@ -7,6 +7,8 @@ mod utility;
 mod view;
 mod zipatch;
 
+pub mod file;
+
 pub use {
 	repository::{Patch, PatchRepository},
 	view::View,

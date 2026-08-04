@@ -1,9 +1,13 @@
-use std::{io::SeekFrom, rc::Rc, sync::Mutex};
+use std::{
+	io::{Seek, SeekFrom},
+	rc::Rc,
+	sync::Mutex,
+};
 
 use binrw::BinRead;
 use derivative::Derivative;
 
-use crate::{FileStream, error::Result, file::File};
+use crate::{FileStream, error::Result};
 
 use super::chunk::Chunk;
 
@@ -22,14 +26,8 @@ pub struct ZiPatch {
 }
 
 impl ZiPatch {
-	/// Get an iterator over the chunks within this patch file.
-	pub fn chunks(&self) -> ChunkIterator {
-		ChunkIterator::new(self.stream.clone())
-	}
-}
-
-impl File for ZiPatch {
-	fn read(mut stream: impl FileStream) -> Result<Self> {
+	/// Construct a ZiPatch reader from the provided stream.
+	pub fn from_reader(mut stream: impl FileStream) -> Result<Self> {
 		// Check the magic in the header
 		let mut magic = [0u8; ZIPATCH_MAGIC.len()];
 		stream.read_exact(&mut magic)?;
@@ -43,6 +41,11 @@ impl File for ZiPatch {
 			// TODO: I'm really not happy with this incantation
 			stream: Rc::new(Mutex::new(Box::new(stream))),
 		})
+	}
+
+	/// Get an iterator over the chunks within this patch file.
+	pub fn chunks(&self) -> ChunkIterator {
+		ChunkIterator::new(self.stream.clone())
 	}
 }
 

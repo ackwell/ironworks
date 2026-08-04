@@ -27,7 +27,7 @@ excel = [
 ]
 sestring = ["dep:num_enum", "dep:time"]
 sqpack = ["dep:flate2"]
-zipatch = ["patch", "sqpack"]
+zipatch = ["sqpack"]
 
 # File types
 eqdp = ["dep:modular-bitfield"]
@@ -36,7 +36,6 @@ exh = ["dep:num_enum"]
 exl = []
 mdl = ["dep:half", "dep:modular-bitfield", "dep:num_enum"]
 mtrl = []
-patch = []
 pbd = []
 sklb = []
 tex = ["dep:num_enum"]

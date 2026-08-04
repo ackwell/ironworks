@@ -7,15 +7,12 @@ use std::{
 
 use binrw::{BinRead, BinWrite, binrw};
 
-use crate::{
-	error::{Error, ErrorValue, Result},
-	file::{
-		File,
-		patch::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
-	},
-};
+use crate::error::{Error, ErrorValue, Result};
 
-use super::utility::{BrwMap, BrwVec};
+use super::{
+	file::{Chunk, FileOperation, FileOperationCommand, SqPackChunk, ZiPatch as ZiPatchFile},
+	utility::{BrwMap, BrwVec},
+};
 
 #[derive(Debug)]
 pub struct PatchLookup {
@@ -132,7 +129,7 @@ pub struct ResourceChunk {
 
 fn read_lookup(path: &Path) -> Result<PatchLookup> {
 	let file = io::BufReader::new(fs::File::open(path)?);
-	let zipatch = ZiPatchFile::read(file)?;
+	let zipatch = ZiPatchFile::from_reader(file)?;
 
 	// TODO: Retry on failure?
 	zipatch
