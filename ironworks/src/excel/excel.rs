@@ -72,7 +72,7 @@ impl Excel {
 			return Ok(list);
 		}
 
-		let list = self.ironworks.file::<exl::ExcelList>(path::exl())?;
+		let list = self.ironworks.read_format(path::exl())?;
 
 		Ok(self.list.get_or_init(|| list))
 	}

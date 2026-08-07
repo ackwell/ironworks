@@ -24,8 +24,8 @@ pub mod sqpack;
 pub mod zipatch;
 
 pub use {
-	crate::ironworks::{FileStream, Ironworks, Resource},
 	error::{Error, ErrorValue},
+	ironworks::{FileStream, Ironworks, Resource},
 };
 
 #[cfg(test)]

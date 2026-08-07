@@ -8,7 +8,7 @@ use num_enum::FromPrimitive;
 
 use crate::{
 	error::{Error, ErrorValue, Result},
-	file::{exd, exh},
+	file::exh,
 	ironworks::Ironworks,
 };
 
@@ -162,7 +162,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		}
 
 		let path = path::exh(&self.name());
-		let header = self.ironworks.file(&path)?;
+		let header = self.ironworks.read_format(&path)?;
 
 		Ok(self.cache.header.get_or_init(|| Arc::new(header)).clone())
 	}
@@ -194,7 +194,7 @@ impl<S: SheetMetadata> Sheet<S> {
 		let path = path::exd(&self.name(), start_id, language)?;
 		let page = Arc::new(Page::new(
 			self.header()?,
-			self.ironworks.file::<exd::ExcelData>(&path)?,
+			self.ironworks.read_format(&path)?,
 		));
 
 		pages_mut.insert(key, page.clone());

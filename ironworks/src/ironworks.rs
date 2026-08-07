@@ -69,11 +69,14 @@ impl Ironworks {
 		self.find_first(path, |resource| resource.version(path))
 	}
 
-	/// Read the file at `path`, using file type F to parse. To retrieve the file
-	/// as raw bytes, pass `Vec<u8>` to F.
-	pub fn file<F: FormatRead>(&self, path: &str) -> Result<F> {
-		let stream = self.find_first(path, |resource| resource.file(path))?;
-		F::from_reader(stream)
+	/// Get a reader for the file at `path`.
+	pub fn file(&self, path: &str) -> Result<Box<dyn FileStream>> {
+		self.find_first(path, |resource| resource.file(path))
+	}
+
+	/// Read the file at `path`, using file type F to parse.
+	pub fn read_format<F: FormatRead>(&self, path: &str) -> Result<F> {
+		F::from_reader(self.file(path)?)
 	}
 
 	fn find_first<F, O>(&self, path: &str, f: F) -> Result<O>

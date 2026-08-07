@@ -8,10 +8,13 @@ pub trait FormatRead: Sized {
 	fn from_reader<R: Read + Seek>(reader: R) -> Result<Self>;
 }
 
-impl FormatRead for Vec<u8> {
-	fn from_reader<R: Read + Seek>(mut reader: R) -> Result<Self> {
-		let mut buffer = Vec::new();
-		reader.read_to_end(&mut buffer)?;
-		Ok(buffer)
+/// Extension methods for reading `FormatRead` values directly from a reader.
+pub trait FileReaderExt: Read + Seek {
+	/// Read a `T` value from the reader.
+	#[inline]
+	fn read_format<T: FormatRead>(&mut self) -> Result<T> {
+		T::from_reader(self)
 	}
 }
+
+impl<R> FileReaderExt for R where R: Read + Seek {}
