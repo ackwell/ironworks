@@ -11,6 +11,8 @@ use super::entry::SoundEntry;
 #[derive(Debug)]
 pub struct SoundContainer {
 	entries: Vec<SoundEntry>,
+	sound_count: u16,
+	track_count: u16,
 }
 
 impl SoundContainer {
@@ -22,6 +24,17 @@ impl SoundContainer {
 	/// The audio stream at `index`, if present.
 	pub fn sound(&self, index: usize) -> Option<&SoundEntry> {
 		self.entries.get(index)
+	}
+
+	/// Sounds declared in the header. A sound groups one or more tracks; ironworks does not
+	/// resolve that grouping, only the flat list of audio streams it plays.
+	pub fn sound_count(&self) -> u16 {
+		self.sound_count
+	}
+
+	/// Tracks declared in the header.
+	pub fn track_count(&self) -> u16 {
+		self.track_count
 	}
 }
 
@@ -46,7 +59,11 @@ impl File for SoundContainer {
 			.map(|offset| SoundEntry::parse(&bytes, offset as usize))
 			.collect::<Result<Vec<_>>>()?;
 
-		Ok(Self { entries })
+		Ok(Self {
+			entries,
+			sound_count: header.sound_count,
+			track_count: header.track_count,
+		})
 	}
 }
 
