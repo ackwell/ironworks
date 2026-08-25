@@ -26,13 +26,13 @@ impl SoundContainer {
 		self.entries.get(index)
 	}
 
-	/// Sounds declared in the header. A sound groups one or more tracks; ironworks does not
-	/// resolve that grouping, only the flat list of audio streams it plays.
+	/// Sounds declared in the header. Ironworks does not resolve how a sound's tracks map onto
+	/// the audio streams in [`entries`](Self::entries); this is only the header's own count.
 	pub fn sound_count(&self) -> u16 {
 		self.sound_count
 	}
 
-	/// Tracks declared in the header.
+	/// Tracks declared in the header, likewise unresolved against `entries`.
 	pub fn track_count(&self) -> u16 {
 		self.track_count
 	}
