@@ -34,7 +34,18 @@ pub struct SoundEntry {
 	#[get = "pub"]
 	markers: Vec<u32>,
 
-	/// Decode-ready audio; a standalone `.ogg` for [`Codec::OggVorbis`], else the raw payload.
+	/// Bytes per encoded block, for [`Codec::MsAdpcm`] only: needed to translate `loop_start`/
+	/// `loop_end` (byte offsets) into sample frames.
+	#[get_copy = "pub"]
+	adpcm_block_align: Option<u16>,
+
+	/// Samples per encoded block, for [`Codec::MsAdpcm`] only; see [`Self::adpcm_block_align`].
+	#[get_copy = "pub"]
+	adpcm_samples_per_block: Option<u16>,
+
+	/// Decode-ready audio: a standalone `.ogg` for [`Codec::OggVorbis`], a standalone `.hca` for
+	/// [`Codec::Hca`], a standalone WAVE_FORMAT_ADPCM `.wav` for [`Codec::MsAdpcm`], else the raw
+	/// payload.
 	#[derivative(Debug = "ignore")]
 	#[get = "pub"]
 	data: Vec<u8>,
@@ -52,10 +63,18 @@ impl SoundEntry {
 		let markers = parse_markers(bytes, sub, &desc);
 
 		let format = Codec::from(desc.format);
+		let mut adpcm_block_align = None;
+		let mut adpcm_samples_per_block = None;
 		let data = match format {
 			Codec::Empty => Vec::new(),
 			Codec::OggVorbis => descramble_ogg(bytes, sub, &desc)?,
 			Codec::Hca => extract_hca(bytes, sub, &desc)?,
+			Codec::MsAdpcm => {
+				let adpcm = build_adpcm_wav(bytes, sub, &desc)?;
+				adpcm_block_align = Some(adpcm.block_align);
+				adpcm_samples_per_block = Some(adpcm.samples_per_block);
+				adpcm.wav
+			}
 			_ => {
 				let start = sub
 					.checked_add(desc.sub_info_size as usize)
@@ -71,6 +90,8 @@ impl SoundEntry {
 			loop_start: desc.loop_start,
 			loop_end: desc.loop_end,
 			markers,
+			adpcm_block_align,
+			adpcm_samples_per_block,
 			data,
 		})
 	}
@@ -206,9 +227,112 @@ fn extract_hca(bytes: &[u8], sub: usize, desc: &AudioBasicDesc) -> Result<Vec<u8
 	Ok(hca)
 }
 
-/// A `MARK` chunk in an audio stream's sub-info, present whenever the low aux flag bit is set: a
-/// list of sample positions of unstated purpose. The chunk's own `size` word, not `count`, is
-/// what bounds the record list; a few files carry a `count` past what `size` actually reserves.
+struct AdpcmWav {
+	wav: Vec<u8>,
+	block_align: u16,
+	samples_per_block: u16,
+}
+
+/// Reconstruct a standalone WAVE_FORMAT_ADPCM `.wav` from an MS ADPCM stream: the sub-info is
+/// already a WAVEFORMATEX (base fields plus the ADPCM coefficient table) once any marker chunk in
+/// front of it is skipped, so it drops straight into a `fmt ` chunk unparsed.
+fn build_adpcm_wav(bytes: &[u8], sub: usize, desc: &AudioBasicDesc) -> Result<AdpcmWav> {
+	let mut cursor = Cursor::new(bytes);
+	let marker_len = if desc.aux_flags & 1 != 0 {
+		cursor.seek(SeekFrom::Start(
+			sub.checked_add(4)
+				.ok_or_else(|| invalid("marker offset overflows"))? as u64,
+		))?;
+		u32::read_le(&mut cursor)? as usize
+	} else {
+		0
+	};
+
+	let fmt_start = sub
+		.checked_add(marker_len)
+		.ok_or_else(|| invalid("marker length overflows"))?;
+	// cbSize sits right after the 16-byte WAVEFORMATEX prefix (tag, channels, rate, byte rate,
+	// block align, bits per sample); the ADPCM coefficient table follows it in turn.
+	let cb_size_at = fmt_start
+		.checked_add(16)
+		.ok_or_else(|| invalid("adpcm header offset overflows"))?;
+	let cb_size = u16::from_le_bytes(slice(bytes, cb_size_at, 2)?.try_into().unwrap());
+	let fmt_len = 18usize
+		.checked_add(cb_size as usize)
+		.ok_or_else(|| invalid("adpcm format size overflows"))?;
+	let fmt_chunk = slice(bytes, fmt_start, fmt_len)?;
+	if fmt_chunk.len() < 20 {
+		return Err(invalid("adpcm format chunk too short"));
+	}
+
+	let format_tag = u16::from_le_bytes(fmt_chunk[0..2].try_into().unwrap());
+	if format_tag != 2 {
+		return Err(invalid("adpcm sub-info is not WAVE_FORMAT_ADPCM"));
+	}
+	let block_align = u16::from_le_bytes(fmt_chunk[12..14].try_into().unwrap());
+	let samples_per_block = u16::from_le_bytes(fmt_chunk[18..20].try_into().unwrap());
+
+	let data_start = sub
+		.checked_add(desc.sub_info_size as usize)
+		.ok_or_else(|| invalid("audio entry sub-info size overflows"))?;
+	let data = slice(bytes, data_start, desc.data_size as usize)?;
+
+	Ok(AdpcmWav {
+		wav: wrap_wav(fmt_chunk, data)?,
+		block_align,
+		samples_per_block,
+	})
+}
+
+/// A minimal RIFF/WAVE container: `fmt ` then `data`, each padded to an even length as RIFF
+/// requires.
+fn wrap_wav(fmt_chunk: &[u8], data: &[u8]) -> Result<Vec<u8>> {
+	let chunk_len = |len: usize| -> Result<u32> {
+		u32::try_from(len).map_err(|_| invalid("wav chunk size overflows"))
+	};
+	let padded = |len: usize| -> Result<usize> {
+		len.checked_add(len % 2)
+			.ok_or_else(|| invalid("wav chunk padding overflows"))
+	};
+
+	let padded_fmt = padded(fmt_chunk.len())?;
+	let padded_data = padded(data.len())?;
+	let riff_size = 4usize
+		.checked_add(8)
+		.and_then(|n| n.checked_add(padded_fmt))
+		.and_then(|n| n.checked_add(8))
+		.and_then(|n| n.checked_add(padded_data))
+		.ok_or_else(|| invalid("wav container size overflows"))?;
+
+	let mut wav = Vec::with_capacity(8 + riff_size);
+	wav.extend_from_slice(b"RIFF");
+	wav.extend_from_slice(&chunk_len(riff_size)?.to_le_bytes());
+	wav.extend_from_slice(b"WAVE");
+
+	wav.extend_from_slice(b"fmt ");
+	wav.extend_from_slice(&chunk_len(fmt_chunk.len())?.to_le_bytes());
+	wav.extend_from_slice(fmt_chunk);
+	if fmt_chunk.len() % 2 == 1 {
+		wav.push(0);
+	}
+
+	wav.extend_from_slice(b"data");
+	wav.extend_from_slice(&chunk_len(data.len())?.to_le_bytes());
+	wav.extend_from_slice(data);
+	if data.len() % 2 == 1 {
+		wav.push(0);
+	}
+
+	Ok(wav)
+}
+
+/// A `MARK` chunk in an audio stream's sub-info, present whenever the low aux flag bit is set: tag
+/// (4 bytes), size (4), two int32 fields of unproven meaning (8), a record count (4), then the
+/// records themselves starting at chunk offset 20. Real records are monotonically ascending sample
+/// positions read from 20; reading from 24 instead (an earlier version of this function did)
+/// drops the first record and reads one field past the last one present. The chunk's own `size`,
+/// not `count`, is what bounds the record list; a few files carry a `count` past what `size`
+/// actually reserves.
 fn parse_markers(bytes: &[u8], sub: usize, desc: &AudioBasicDesc) -> Vec<u32> {
 	if desc.aux_flags & 1 == 0 {
 		return Vec::new();
@@ -232,9 +356,9 @@ fn parse_markers(bytes: &[u8], sub: usize, desc: &AudioBasicDesc) -> Vec<u32> {
 	let Some(count) = chunk.get(16..20).map(le_u32) else {
 		return Vec::new();
 	};
-	let available = chunk.len().saturating_sub(24) / 4;
+	let available = chunk.len().saturating_sub(20) / 4;
 	(0..(count as usize).min(available))
-		.map(|index| le_u32(&chunk[24 + index * 4..28 + index * 4]))
+		.map(|index| le_u32(&chunk[20 + index * 4..24 + index * 4]))
 		.collect()
 }
 
@@ -303,11 +427,10 @@ mod test {
 	fn mark_size_bounds_a_count_that_overstates_it() {
 		let mut chunk = Vec::new();
 		chunk.extend(b"MARK");
-		chunk.extend(32u32.to_le_bytes()); // header (24) + 2 records
+		chunk.extend(28u32.to_le_bytes()); // header (20) + 2 records
 		chunk.extend(0u32.to_le_bytes());
 		chunk.extend(0u32.to_le_bytes());
 		chunk.extend(3u32.to_le_bytes()); // overstates the 2 records the chunk reserves
-		chunk.extend(0u32.to_le_bytes());
 		chunk.extend(111u32.to_le_bytes());
 		chunk.extend(222u32.to_le_bytes());
 		chunk.extend(999u32.to_le_bytes()); // past the chunk, must not be read as a record
