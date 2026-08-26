@@ -140,6 +140,18 @@ pub struct Colour {
 	intensity: f32,
 }
 
+/// A plain colour with no intensity multiplier, unlike [`Colour`].
+#[binread]
+#[br(little)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
+#[get_copy = "pub"]
+pub struct Rgba {
+	red: u8,
+	green: u8,
+	blue: u8,
+	alpha: u8,
+}
+
 /// One thing placed on a [`Layer`](super::Layer).
 #[derive(Debug, Getters, CopyGetters)]
 pub struct Instance {
@@ -500,7 +512,7 @@ pub struct Vfx {
 	#[get_copy = "pub"]
 	soft_particle_fade_range: f32,
 	#[get_copy = "pub"]
-	colour: Colour,
+	colour: Rgba,
 	#[get_copy = "pub"]
 	auto_play: bool,
 	#[get_copy = "pub"]
@@ -510,6 +522,9 @@ pub struct Vfx {
 	fade_near: [f32; 2],
 	#[get_copy = "pub"]
 	fade_far: [f32; 2],
+	/// A z-fighting bias along the camera ray, applied on top of the placement's own transform.
+	#[get_copy = "pub"]
+	z_correct: f32,
 }
 
 #[binread]
@@ -517,13 +532,15 @@ pub struct Vfx {
 struct VfxFields {
 	asset_path: i32,
 	soft_particle_fade_range: f32,
-	colour: Colour,
+	#[br(pad_before = 4)]
+	colour: Rgba,
 	#[br(map = |raw: u8| raw != 0)]
 	auto_play: bool,
-	#[br(map = |raw: u8| raw != 0, pad_after = 6)]
+	#[br(map = |raw: u8| raw != 0, pad_after = 2)]
 	no_far_clip: bool,
 	fade_near: [f32; 2],
 	fade_far: [f32; 2],
+	z_correct: f32,
 }
 
 impl Vfx {
@@ -537,6 +554,7 @@ impl Vfx {
 			no_far_clip: fields.no_far_clip,
 			fade_near: fields.fade_near,
 			fade_far: fields.fade_far,
+			z_correct: fields.z_correct,
 		})
 	}
 }
@@ -1380,7 +1398,9 @@ pub struct CullingBox {
 
 #[cfg(test)]
 mod test {
-	use super::{Attenuation, SoundEffectKind};
+	use std::io::Cursor;
+
+	use super::{Attenuation, SoundEffectKind, Vfx};
 
 	/// A `Point` sound's geometry, offsets measured against real files: the core block starts at
 	/// `0x30`, right after the one position it carries.
@@ -1416,5 +1436,48 @@ mod test {
 	fn truncated_geometry_has_no_attenuation() {
 		let geometry = vec![0u8; 0x10];
 		assert!(Attenuation::parse(&geometry, SoundEffectKind::Point).is_none());
+	}
+
+	/// A `Vfx`'s fields, laid out the way Lumina's `VFXInstanceObject.Read` states them: a 4-byte
+	/// pad ahead of a plain (non-HDRI) colour, a 2-byte pad after the two flag bytes, and a
+	/// trailing `z_correct` this crate did not model until this fix.
+	fn vfx_fields(asset_path: &str) -> Vec<u8> {
+		let mut bytes = vec![0u8; 40];
+		bytes[0..4].copy_from_slice(&40i32.to_le_bytes());
+		bytes[4..8].copy_from_slice(&0.25f32.to_le_bytes());
+		bytes[12..16].copy_from_slice(&[10, 20, 30, 40]);
+		bytes[16] = 1;
+		bytes[17] = 0;
+		bytes[20..24].copy_from_slice(&1.0f32.to_le_bytes());
+		bytes[24..28].copy_from_slice(&2.0f32.to_le_bytes());
+		bytes[28..32].copy_from_slice(&3.0f32.to_le_bytes());
+		bytes[32..36].copy_from_slice(&4.0f32.to_le_bytes());
+		bytes[36..40].copy_from_slice(&5.0f32.to_le_bytes());
+		bytes.extend(asset_path.as_bytes());
+		bytes.push(0);
+		bytes
+	}
+
+	#[test]
+	fn reads_a_vfx_past_its_padding() {
+		let bytes = vfx_fields("b2923_aet1_o.avfx");
+		let mut cursor = Cursor::new(&bytes[..40]);
+		let vfx = Vfx::parse(&bytes, 0, &mut cursor).unwrap();
+		assert_eq!(vfx.asset_path(), "b2923_aet1_o.avfx");
+		assert_eq!(vfx.soft_particle_fade_range(), 0.25);
+		assert_eq!(
+			(
+				vfx.colour().red(),
+				vfx.colour().green(),
+				vfx.colour().blue(),
+				vfx.colour().alpha()
+			),
+			(10, 20, 30, 40)
+		);
+		assert!(vfx.auto_play());
+		assert!(!vfx.no_far_clip());
+		assert_eq!(vfx.fade_near(), [1.0, 2.0]);
+		assert_eq!(vfx.fade_far(), [3.0, 4.0]);
+		assert_eq!(vfx.z_correct(), 5.0);
 	}
 }

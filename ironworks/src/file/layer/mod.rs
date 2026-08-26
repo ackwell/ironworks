@@ -17,9 +17,9 @@ pub use instance::{
 	EventObject, ExitKind, ExitRange, FateRange, GameObject, Instance, InstanceData, InstanceKind,
 	LightKind, LightSource, LineStyle, LineVfx, MapRange, MovePath, MovePathMode, PathPoint,
 	PointLightKind, PopKind, PopRange, PositionMarker, PositionMarkerKind, PrefetchRange,
-	QuestMarker, RotationKind, RotationState, ShadowMode, SharedGroup, Sound, SoundEffectKind,
-	TargetMarker, TargetMarkerKind, Transform, Treasure, TriggerBox, TriggerShape, Vfx, Weapon,
-	WeaponModel,
+	QuestMarker, Rgba, RotationKind, RotationState, ShadowMode, SharedGroup, Sound,
+	SoundEffectKind, TargetMarker, TargetMarkerKind, Transform, Treasure, TriggerBox, TriggerShape,
+	Vfx, Weapon, WeaponModel,
 };
 
 use binrw::BinRead;
