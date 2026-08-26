@@ -734,6 +734,49 @@ pub enum SoundEffectKind {
 	Polygon = 14,
 }
 
+/// The distance range and volume a placed [`Sound`] plays over, read out of the fixed block that
+/// follows its geometry's own position list. Two more floats sit at the same fixed offsets in
+/// every kind that carries one; a corpus sweep found every placement leaving them at `5.0`, so
+/// they are not modelled here.
+#[binread]
+#[br(little)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
+#[get_copy = "pub"]
+pub struct Attenuation {
+	/// Full volume at or inside this distance from the listener.
+	inner_radius: f32,
+	/// Silent at or beyond this distance.
+	outer_radius: f32,
+	#[br(pad_before = 12)]
+	/// Two independently authored `[0, 1]` volume multipliers. Nothing in the file states which
+	/// of the two is a placement's "volume" and which is something else, so both are exposed
+	/// rather than one being picked; applying their product is a reasonable default.
+	volume_a: f32,
+	volume_b: f32,
+}
+
+impl Attenuation {
+	/// Where the block sits past the end of a kind's own position list, for the kinds a corpus
+	/// sweep found one in. The obstruction kinds shape another sound's propagation rather than
+	/// naming one of their own and carry no volume or range to read.
+	fn offset(kind: SoundEffectKind) -> Option<usize> {
+		use SoundEffectKind::{Line, Point, PolyLine, Polygon, Surface};
+		match kind {
+			Point => Some(0x30),
+			Line => Some(0x40),
+			Surface => Some(0x60),
+			PolyLine => Some(0x120),
+			Polygon => Some(0x20),
+			_ => None,
+		}
+	}
+
+	fn parse(binary: &[u8], kind: SoundEffectKind) -> Option<Self> {
+		let at = Self::offset(kind)?;
+		Self::read(&mut seek_to(binary, at).ok()?).ok()
+	}
+}
+
 /// A placed sound, as an `.scd` and the volume it plays over.
 #[derive(Debug, Getters, CopyGetters)]
 pub struct Sound {
@@ -747,6 +790,9 @@ pub struct Sound {
 	no_far_clip: bool,
 	#[get_copy = "pub"]
 	point_selection: u32,
+	/// The range and volume this placement plays over, where its kind states one.
+	#[get_copy = "pub"]
+	attenuation: Option<Attenuation>,
 	/// The geometry the [`kind`](Self::kind) is emitted over, undecoded.
 	#[get = "pub"]
 	binary: Vec<u8>,
@@ -773,16 +819,18 @@ impl Sound {
 		let parameters_at = seek(at, parameters)?;
 		let parameters = SoundParameters::read(&mut seek_to(bytes, parameters_at)?)?;
 		let binary = seek(parameters_at, parameters.binary)?;
+		let binary = bytes
+			.get(binary..binary + count(parameters.binary_size, 1, bytes.len())?)
+			.unwrap_or_default()
+			.to_vec();
 		Ok(Self {
 			asset_path: string(bytes, seek(at, asset_path)?),
 			kind: parameters.kind,
 			auto_play: parameters.auto_play,
 			no_far_clip: parameters.no_far_clip,
 			point_selection: parameters.point_selection,
-			binary: bytes
-				.get(binary..binary + count(parameters.binary_size, 1, bytes.len())?)
-				.unwrap_or_default()
-				.to_vec(),
+			attenuation: Attenuation::parse(&binary, parameters.kind),
+			binary,
 		})
 	}
 }
@@ -1328,4 +1376,45 @@ impl Decal {
 #[get_copy = "pub"]
 pub struct CullingBox {
 	unknown: u32,
+}
+
+#[cfg(test)]
+mod test {
+	use super::{Attenuation, SoundEffectKind};
+
+	/// A `Point` sound's geometry, offsets measured against real files: the core block starts at
+	/// `0x30`, right after the one position it carries.
+	fn point_geometry(inner: f32, outer: f32, volume_a: f32, volume_b: f32) -> Vec<u8> {
+		let mut bytes = vec![0u8; 0x30];
+		bytes.extend(inner.to_le_bytes());
+		bytes.extend(outer.to_le_bytes());
+		bytes.extend([0u8; 12]);
+		bytes.extend(volume_a.to_le_bytes());
+		bytes.extend(volume_b.to_le_bytes());
+		bytes
+	}
+
+	#[test]
+	fn reads_a_point_attenuation_block() {
+		let geometry = point_geometry(5.0, 70.0, 0.8, 0.65);
+		let attenuation = Attenuation::parse(&geometry, SoundEffectKind::Point).unwrap();
+		assert_eq!(attenuation.inner_radius(), 5.0);
+		assert_eq!(attenuation.outer_radius(), 70.0);
+		assert_eq!(attenuation.volume_a(), 0.8);
+		assert_eq!(attenuation.volume_b(), 0.65);
+	}
+
+	/// An obstruction shapes another sound's propagation rather than naming one of its own, so it
+	/// has no attenuation block to read at all.
+	#[test]
+	fn an_obstruction_has_no_attenuation() {
+		let geometry = point_geometry(5.0, 70.0, 0.8, 0.65);
+		assert!(Attenuation::parse(&geometry, SoundEffectKind::BoardObstruction).is_none());
+	}
+
+	#[test]
+	fn truncated_geometry_has_no_attenuation() {
+		let geometry = vec![0u8; 0x10];
+		assert!(Attenuation::parse(&geometry, SoundEffectKind::Point).is_none());
+	}
 }
