@@ -254,11 +254,19 @@ pub struct Sampler {
 	/// Sampler state: two bits of address mode per axis at 0/2/4, an anisotropy nibble at 6, and a
 	/// signed 10-bit LOD bias fixed at 1/32 of a mip level at 10. Bits above 19 are unused.
 	///
-	/// Measured against a RenderDoc capture of the game's own `VkSamplerCreateInfo`: `hair.shpk`'s
-	/// alpha-tested normal map states mirrored addressing, -1.0 bias and 16x anisotropy, and this
-	/// decode reproduces all three exactly. Swept over 111,517 live materials, only 11 distinct
-	/// values occur, address axes always agree with each other, and the bias field only ever holds
-	/// 0, -1.0 or -2.0.
+	/// Measured against RenderDoc captures of the game's own `VkSamplerCreateInfo`, across 14 zones:
+	/// `hair.shpk`'s alpha-tested normal map states mirrored addressing, -1.0 bias and 16x
+	/// anisotropy, and this decode reproduces all three exactly. Address mode and bias are confirmed
+	/// this way for every value the corpus contains, not just that one. Swept over 111,517 live
+	/// materials, only 11 distinct flags values occur, address axes always agree with each other, and
+	/// the bias field only ever holds 0, -1.0 or -2.0.
+	///
+	/// Anisotropy off is also capture-confirmed, independently of the on case: `characterlegacy.shpk`'s
+	/// `g_SamplerIndex` binds with repeat addressing, -1.0 bias and anisotropy off, matching flags
+	/// `0x000f8000` exactly. What no capture in this set shows is the specific combination of mirrored
+	/// addressing with anisotropy off (`0x000f8015`/`0x000f802a`, mostly on `g_SamplerNormal` for
+	/// weapon-class materials) even though each half of that combination is independently confirmed
+	/// elsewhere.
 	#[get_copy = "pub"]
 	flags: u32,
 	texture_index: u8,
