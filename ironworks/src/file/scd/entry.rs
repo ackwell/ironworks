@@ -10,6 +10,12 @@ use crate::error::{Error, ErrorValue, Result};
 #[derive(Derivative, Getters, CopyGetters, Clone)]
 #[derivative(Debug)]
 pub struct SoundEntry {
+	/// This entry's index in the container's own audio offset table, not its position in
+	/// [`entries()`](super::SoundContainer::entries): a zero offset drops the slot from that list
+	/// without closing the gap.
+	#[get_copy = "pub"]
+	slot: u16,
+
 	/// Codec the audio stream is encoded with.
 	#[get_copy = "pub"]
 	format: Codec,
@@ -52,7 +58,7 @@ pub struct SoundEntry {
 }
 
 impl SoundEntry {
-	pub(super) fn parse(bytes: &[u8], offset: usize) -> Result<Self> {
+	pub(super) fn parse(bytes: &[u8], offset: usize, slot: u16) -> Result<Self> {
 		let mut cursor = Cursor::new(bytes);
 		cursor.seek(SeekFrom::Start(offset as u64))?;
 		let desc = AudioBasicDesc::read(&mut cursor)?;
@@ -84,6 +90,7 @@ impl SoundEntry {
 		};
 
 		Ok(Self {
+			slot,
 			format,
 			channel_count: desc.channel_count,
 			sample_rate: desc.sample_rate,
