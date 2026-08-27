@@ -173,9 +173,11 @@ commands! {
 
 	/// The camera a shot runs through, usable only from a `.cutb`.
 	///
-	/// Where the camera stands, what it looks at and how it is set up all come from the curve set
-	/// below rather than from this body. Targets 2 and 4 are the eye and the point it looks at, and
-	/// the set's own channels - the ones at `0x30` and up - are the camera itself:
+	/// Where the camera stands and how it is set up come from the curve set below rather than from
+	/// this body. Target 1 is the eye: its own translate and rotate curves are where the shot's
+	/// camera actually moves. Target 2 carries curves of the same shape but sits at the identity in
+	/// the files the game ships. The set's own channels - the ones at `0x30` and up, on target
+	/// `0xff` - are the camera itself:
 	///
 	/// - `0x34` is a focal length in millimetres, which the game turns into a vertical field of
 	///   view as `2 * atan(7.0015101 / focal)` against a frame it fixes at sixteen by nine.
