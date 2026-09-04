@@ -113,10 +113,10 @@ pub struct Filter {
 /// How long a [`C048`] subtitle stands in one language.
 ///
 /// The index is the language itself: `sub_14185B870` reads this list at `12 *
-/// EnvironmentManager.GetCutsceneLanguage()` and shows nothing where the entry it lands on is
-/// disabled. The order is `ja`, `en`, `de`, `fr`, `chs`, a slot the client rejects, `ko`, `tc`,
-/// after the suffix table `sub_14185AE20` builds a voice path out of. Nothing the game ships fills
-/// the rejected slot or `tc`.
+/// EnvironmentManager.GetCutsceneLanguage()`, and plays the line's voice only where the entry it
+/// lands on is enabled. The order is `ja`, `en`, `de`, `fr`, `chs`, a slot the client rejects,
+/// `ko`, `tc`, after the suffix table `sub_14185AE20` builds a voice path out of. Nothing the game
+/// ships fills the rejected slot or `tc`.
 #[binread]
 #[br(little)]
 #[derive(Debug, Clone, Copy, CopyGetters)]
