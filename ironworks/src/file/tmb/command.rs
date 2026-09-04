@@ -112,9 +112,11 @@ pub struct Filter {
 
 /// How long a [`C048`] subtitle stands in one language.
 ///
-/// The client indexes these by the language it runs in: `ja`, `en`, `de`, `fr`, `chs`, a slot it
-/// rejects, `ko`, `tc`, the order `sub_14185AE20` walks its own suffix table in. The two the game
-/// ships nothing for are the rejected slot and `tc`.
+/// The index is the language itself: `sub_14185B870` reads this list at `12 *
+/// EnvironmentManager.GetCutsceneLanguage()` and shows nothing where the entry it lands on is
+/// disabled. The order is `ja`, `en`, `de`, `fr`, `chs`, a slot the client rejects, `ko`, `tc`,
+/// after the suffix table `sub_14185AE20` builds a voice path out of. Nothing the game ships fills
+/// the rejected slot or `tc`.
 #[binread]
 #[br(little)]
 #[derive(Debug, Clone, Copy, CopyGetters)]
@@ -369,7 +371,7 @@ commands! {
 	///
 	/// The client shows it through `Client::UI::UIModule.ShowTalkSubtitle`, which lays
 	/// `ui/uld/TalkSubtitle.uld` out against a 1280 by 720 frame and clamps its width to sixteen
-	/// by nine.
+	/// by nine. `sub_14185B870`, registered under command type 38, is what runs it.
 	C048 {
 		enabled: i32,
 		unknown_1: i32,
