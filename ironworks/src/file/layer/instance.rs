@@ -127,6 +127,18 @@ pub struct Transform {
 	scale: [f32; 3],
 }
 
+impl Transform {
+	/// A transform stated somewhere other than an instance's own header, as a timeline command
+	/// states one.
+	pub fn new(translation: [f32; 3], rotation: [f32; 3], scale: [f32; 3]) -> Self {
+		Self {
+			translation,
+			rotation,
+			scale,
+		}
+	}
+}
+
 /// A colour with an intensity multiplier, so it can exceed what the four bytes alone express.
 #[binread]
 #[br(little)]
