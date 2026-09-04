@@ -18,6 +18,8 @@ const TRY_PATHS: &[&str] = &[
 	r"C:\Program Files (x86)\Steam\steamapps\common\FINAL FANTASY XIV - A Realm Reborn",
 	r"C:\Program Files (x86)\FINAL FANTASY XIV - A Realm Reborn",
 	r"C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn",
+	r"C:\Program Files (x86)\上海数龙科技有限公司\最终幻想XIV",
+	r"C:\WeGameApps\rail_apps\ffxiv(2000340)",
 ];
 
 const WSL_PREFIX: &[&str] = &["/mnt", "c"];
