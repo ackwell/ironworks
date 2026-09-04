@@ -183,7 +183,8 @@ commands! {
 	/// Role 1 is the frame the rest hang off, and the three roles a shot can bind live in
 	/// [`bindings`](Self::bindings): its first participant at index 0 is role 1's, index 6 is role
 	/// 2's and index 11 is role 3's, each followed by a sub-index and a second participant of its
-	/// own. Role 1 takes the participant's rotation as well as its position unless index 4 is one;
+	/// own, which stands in where the first names nothing. Role 1 takes the participant's rotation
+	/// as well as its position unless index 4 is one;
 	/// roles 2 and 3 take the position alone. A binding names `0xffffffff` where the role stands
 	/// in the world instead.
 	///
