@@ -213,9 +213,13 @@ commands! {
 	C006 { enabled: i32, unknown_2: i32, unknown_3: i32 }
 
 	/// Plays an animation, usable only from a `.pap`.
-	C009 { duration: i32, unknown_1: i32, #[getset(skip)] path: Option<String> }
+	C009 { duration: i32, unknown_1: i32, #[getset(skip)] motion: Option<String> }
 
 	/// Plays an animation.
+	///
+	/// From a `.cutb` the start and end are frames of the clip itself at thirty a second, which is
+	/// what a cutscene's own frame numbering runs at: a command naming `cbfm_arms` ends at 155,
+	/// and that pack's own binding gives the clip 5.1666665 seconds.
 	C010 {
 		duration: i32,
 		unknown_1: i32,
@@ -223,7 +227,7 @@ commands! {
 		flags: i32,
 		animation_start: f32,
 		animation_end: f32,
-		#[getset(skip)] path: Option<String>,
+		#[getset(skip)] motion: Option<String>,
 		unknown_2: i32,
 	}
 
@@ -289,6 +293,24 @@ commands! {
 
 	/// Gathering delay.
 	C034 { enabled: i32, unknown_2: i32 }
+
+	/// A motion to stand a character in, by the name a pack the timeline's own loader holds gives
+	/// it - the same kind of name [`C010`] plays, not a file path.
+	///
+	/// A longer form of the command writes seven further words past these, which this does not
+	/// read: they hold `1, 0, 1.0, 0, 0, 0, 0` in every file the game ships, and both forms sit in
+	/// the same file.
+	C040 {
+		/// One in every file the game ships.
+		enabled: i32,
+		unknown_1: i32,
+		#[getset(skip)] motion: Option<String>,
+		/// A frame count in its low bits, in the same fives [`C090`] states one in, with flags
+		/// above it that only the longer form sets.
+		unknown_2: i32,
+		unknown_3: i32,
+		unknown_4: i32,
+	}
 
 	/// Footstep.
 	C042 { enabled: i32, unknown_2: i32, bind_id: i32, sound_id: i32 }
@@ -379,6 +401,18 @@ commands! {
 
 	/// Not named by any reference implementation.
 	C089 { duration: i32, unknown_2: i32, unknown_3: i32 }
+
+	/// The expression to put on a face, by the `cfxf_` name a face pack gives it.
+	C090 {
+		/// One in every file the game ships.
+		enabled: i32,
+		unknown_1: i32,
+		#[getset(skip)] motion: Option<String>,
+		/// A frame count, in fives.
+		unknown_2: i32,
+		/// Nought to three.
+		unknown_3: i32,
+	}
 
 	/// Colour.
 	C093 {
@@ -736,7 +770,21 @@ macro_rules! path {
 	};
 }
 
-path!(C002 C009 C010 C012 C063 C173);
+path!(C002 C012 C063 C173);
+
+macro_rules! motion {
+	($($magic:ident)*) => {
+		$(impl $magic {
+			/// The motion the command plays, by the name a pack gives it. Never a file path: no
+			/// string any of these carries holds a separator at all.
+			pub fn motion(&self) -> Option<&str> {
+				self.motion.as_deref()
+			}
+		})*
+	};
+}
+
+motion!(C009 C010 C040 C090);
 
 macro_rules! vectors {
 	($($magic:ident { $($field:ident)* })*) => {
