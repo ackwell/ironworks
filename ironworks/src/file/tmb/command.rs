@@ -276,13 +276,19 @@ commands! {
 		scale: [f32; 3],
 	}
 
-	/// Not named by any reference implementation. A scene runs it against every kind of node it
-	/// places.
+	/// Whether the node its track names is drawn. A scene runs it against every kind of node it
+	/// places, and a cutscene swaps a stand-in for an actor with a pair of them.
+	///
+	/// `sub_14186BC30` reads the low byte of [`visibility`](Self::visibility) as the state to put
+	/// the node in and the byte above it as whether the two objects hanging off that node - a
+	/// character's weapons - follow it. The clip's own revert puts the node back to drawn, so a
+	/// node no command has reached is drawn.
 	C019 {
 		duration: i32,
 		unknown_1: i32,
-		/// Zero or one in each of its two low bytes.
-		unknown_2: i32,
+		/// Drawn in its low byte, and whether the node's own two sub-objects follow in the byte
+		/// above it.
+		visibility: i32,
 	}
 
 	/// Not named by any reference implementation.
@@ -330,6 +336,40 @@ commands! {
 		weapon_id: i16,
 		body_id: i16,
 		variant_id: i32,
+	}
+
+	/// Plays a visual effect on the actor whose track runs it.
+	///
+	/// Built out of the same class as [`C012`], `sub_141851D70`, told apart by the id it is
+	/// registered under: 9 there and 39 here, which `sub_141852280` reads to pick which of two
+	/// readings of the record to run. This one is `sub_141B67BB0`, and it takes the effect's first
+	/// object from the actor the track names rather than from any field here, so nothing in the
+	/// body says whom it plays on.
+	///
+	/// The [`curve_id`](Self::curve_id) set holds five channels on one target, `0x0a` through
+	/// `0x0e`, which the clip reads as the effect's colour and alpha.
+	C049 {
+		enabled: i32,
+		unknown_1: i32,
+		/// Id of the `TMFC` holding the effect's own curves.
+		curve_id: i32,
+		#[getset(skip)] path: Option<String>,
+		/// A second object to bind to, by the id the scheduler knows it under, or `0xffffffff`
+		/// where the effect binds the actor alone.
+		second_object: u32,
+		unknown_2: u8,
+		bind_type_1: u8,
+		bind_type_2: u8,
+		unknown_3: u8,
+		/// Where on each object the effect hangs, or `0xffff` where it stands at the object itself.
+		bind_id_1: u16,
+		bind_id_2: u16,
+		unknown_4: u16,
+		/// Read for its lowest bit alone.
+		flags: u8,
+		unknown_5: u8,
+		unknown_6: i32,
+		unknown_7: i32,
 	}
 
 	/// Voiceline, by sound id.
@@ -778,7 +818,7 @@ macro_rules! path {
 	};
 }
 
-path!(C002 C012 C063 C173);
+path!(C002 C012 C049 C063 C173);
 
 macro_rules! motion {
 	($($magic:ident)*) => {
