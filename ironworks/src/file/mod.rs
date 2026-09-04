@@ -11,7 +11,7 @@ mod file;
 #[cfg(any(feature = "pap", feature = "sklb"))]
 #[cfg_attr(not(all(feature = "pap", feature = "sklb")), allow(dead_code))]
 mod havok;
-#[cfg(any(feature = "lgb", feature = "lvb", feature = "sgb"))]
+#[cfg(feature = "layer")]
 pub mod layer;
 #[cfg(any(feature = "shcd", feature = "shpk"))]
 mod shader;

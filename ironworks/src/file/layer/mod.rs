@@ -3,6 +3,13 @@
 //! A layer group is three nested offset tables ending in one tagged union: the group names its
 //! layers, a layer names its instances, and an instance's leading discriminant says how to read the
 //! rest of it. `.lgb` holds a group directly; `.sgb` and `.lvb` wrap one in a scene.
+//!
+//! A cutscene reaches the instance half alone, so the group half is unreachable without one of the
+//! formats that holds a group.
+#![cfg_attr(
+	not(any(feature = "lgb", feature = "lvb", feature = "sgb")),
+	allow(dead_code)
+)]
 
 mod instance;
 #[cfg(any(feature = "sgb", feature = "lvb"))]
@@ -14,12 +21,12 @@ pub use scene::{Glow, Lane, Scene, SceneAnimation, SceneGlow, SceneSpin, SceneTi
 pub use instance::{
 	Aetheryte, AnimationState, Attenuation, BgPart, ChairKind, ChairMarker, Character, ClientPath,
 	CollisionBox, Colour, CullingBox, Decal, DoorState, EnvLocation, EnvShape, EnvSpace, EventNpc,
-	EventObject, ExitKind, ExitRange, FateRange, GameObject, Instance, InstanceData, InstanceKind,
-	LightKind, LightSource, LineStyle, LineVfx, MapRange, MovePath, MovePathMode, PathPoint,
-	PointLightKind, PopKind, PopRange, PositionMarker, PositionMarkerKind, PrefetchRange,
-	QuestMarker, Rgba, RotationKind, RotationState, ShadowMode, SharedGroup, Sound,
-	SoundEffectKind, TargetMarker, TargetMarkerKind, Transform, Treasure, TriggerBox, TriggerShape,
-	Vfx, Weapon, WeaponModel,
+	EventObject, ExitKind, ExitRange, FateRange, GameObject, HelperKind, HelperObject, Instance,
+	InstanceData, InstanceKind, LightKind, LightSource, LineStyle, LineVfx, MapRange, MovePath,
+	MovePathMode, PathPoint, Placement, PointLightKind, PopKind, PopRange, PositionMarker,
+	PositionMarkerKind, PrefetchRange, QuestMarker, Rgba, RotationKind, RotationState, ShadowMode,
+	SharedGroup, Sound, SoundEffectKind, TargetMarker, TargetMarkerKind, Transform, Treasure,
+	TriggerBox, TriggerShape, Vfx, Weapon, WeaponModel,
 };
 
 use binrw::BinRead;

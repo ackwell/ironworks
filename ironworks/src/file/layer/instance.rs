@@ -173,7 +173,7 @@ pub struct Instance {
 }
 
 impl Instance {
-	pub(super) fn parse(bytes: &[u8], at: usize, end: usize) -> Result<Self> {
+	pub(crate) fn parse(bytes: &[u8], at: usize, end: usize) -> Result<Self> {
 		let head = bytes
 			.get(at..end.max(at))
 			.filter(|region| region.len() >= PREFIX)
@@ -209,6 +209,7 @@ pub enum InstanceData {
 	PositionMarker(PositionMarker),
 	SharedGroup(SharedGroup),
 	Sound(Sound),
+	HelperObject(HelperObject),
 	EventNpc(EventNpc),
 	Character(Character),
 	Aetheryte(Aetheryte),
@@ -263,6 +264,9 @@ impl InstanceData {
 				Self::SharedGroup(SharedGroup::parse(bytes, at, &mut cursor)?)
 			}
 			InstanceKind::Sound => Self::Sound(Sound::parse(bytes, at, &mut cursor)?),
+			InstanceKind::HelperObject => {
+				Self::HelperObject(HelperObject::parse(bytes, at, &mut cursor)?)
+			}
 			InstanceKind::EventNpc => Self::EventNpc(EventNpc::read(&mut cursor)?),
 			InstanceKind::Character => Self::Character(Character::read(&mut cursor)?),
 			InstanceKind::Aetheryte => Self::Aetheryte(Aetheryte::read(&mut cursor)?),
@@ -294,6 +298,227 @@ impl InstanceData {
 			InstanceKind::Decal => Self::Decal(Decal::parse(bytes, at, &mut cursor)?),
 			InstanceKind::CullingBox => Self::CullingBox(CullingBox::read(&mut cursor)?),
 			_ => Self::Unknown(payload.to_vec()),
+		})
+	}
+}
+
+/// What a [`HelperObject`] stands in for.
+///
+/// The client builds an [`Instance`] of the kind named here in the helper's place, out of the
+/// fields each variant points at.
+#[binread]
+#[br(little, repr = u32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+pub enum HelperKind {
+	/// Nothing is built.
+	None = 0,
+	/// An object already in the world, reached by [`HelperObject::object_id`].
+	Existing = 1,
+	/// The player watching, as an [`InstanceKind::Player`].
+	Player = 2,
+	/// The party member at [`HelperObject::party_index`], as an [`InstanceKind::PartyMember`].
+	PartyMember = 3,
+	/// [`HelperObject::base_id`] as an [`InstanceKind::EventNpc`].
+	EventNpc = 4,
+	/// [`HelperObject::base_id`] as an [`InstanceKind::BattleNpc`].
+	BattleNpc = 5,
+	/// Nothing is built, as for [`Self::None`].
+	Reserved6 = 6,
+	/// Nothing is built, as for [`Self::None`].
+	Reserved7 = 7,
+	/// [`HelperObject::nested`], which carries an [`InstanceKind::BgPart`].
+	BgPart = 8,
+	/// [`HelperObject::nested`], which carries an [`InstanceKind::SharedGroup`].
+	SharedGroup = 9,
+	/// [`HelperObject::weapon`], as an [`InstanceKind::Weapon`].
+	Weapon = 10,
+	/// The player's stabled chocobo, as an [`InstanceKind::StableChocobo`].
+	StableChocobo = 11,
+	/// The member at [`HelperObject::member_index`] of the other roster, as an
+	/// [`InstanceKind::PartyMember`].
+	PartyMemberAlt = 12,
+	/// The member at [`HelperObject::roster_index`], as an [`InstanceKind::Unknown82`].
+	Unknown82 = 13,
+	/// An [`InstanceKind::Unknown80`], out of the running event's director.
+	Unknown80 = 14,
+	/// An [`InstanceKind::Unknown81`], out of the running event's director.
+	Unknown81 = 15,
+	/// [`HelperObject::nested`]'s own path, as an [`InstanceKind::Unknown85`].
+	Unknown85 = 16,
+}
+
+/// Bytes a [`Placement`] takes.
+const PLACEMENT: usize = 0x38;
+
+/// A transform a helper states apart from the instance's own.
+#[binread]
+#[br(little)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
+#[get_copy = "pub"]
+pub struct Placement {
+	transform: Transform,
+	/// Bit zero stands [`Self::transform`] in for the instance's own.
+	flags: u32,
+	unknown: [u32; 4],
+}
+
+/// A stand-in for something a file cannot name until it plays: whoever is watching, one of their
+/// party, or an asset carried alongside.
+///
+/// Only a cutscene's `CTAL` places one.
+#[derive(Debug, Getters, CopyGetters)]
+pub struct HelperObject {
+	#[get_copy = "pub"]
+	kind: HelperKind,
+
+	/// The object already in the world that [`HelperKind::Existing`] takes over.
+	#[get_copy = "pub"]
+	object_id: u32,
+
+	/// A row of `ENpcBase`, or of `BNpcBase` under [`HelperKind::BattleNpc`]. The kinds that copy
+	/// a live character fall back to it.
+	#[get_copy = "pub"]
+	base_id: u32,
+
+	#[get_copy = "pub"]
+	party_index: u8,
+
+	#[get_copy = "pub"]
+	member_index: u8,
+
+	#[get_copy = "pub"]
+	roster_index: u8,
+
+	#[get_copy = "pub"]
+	weapon: WeaponModel,
+
+	/// Which height to stand the character at, over whatever its own customise data says: zero
+	/// leaves it be, and one through five are the 0, 25, 50, 75 and 100 of the game's own slider.
+	#[get_copy = "pub"]
+	height: u8,
+
+	/// Take [`Self::base_id`] over the live character [`Self::kind`] names.
+	#[get_copy = "pub"]
+	forces_base_id: bool,
+
+	/// Put the character into its normal mode once it is set up.
+	#[get_copy = "pub"]
+	normal_mode: bool,
+
+	#[getset(skip)]
+	nested: Option<Box<Instance>>,
+
+	#[get_copy = "pub"]
+	placement: Option<Placement>,
+
+	#[get_copy = "pub"]
+	unknown_1: bool,
+
+	#[get_copy = "pub"]
+	unknown_2: bool,
+
+	#[get_copy = "pub"]
+	unknown_3: u8,
+
+	#[get_copy = "pub"]
+	unknown_4: f32,
+
+	#[get_copy = "pub"]
+	unknown_5: [u8; 4],
+
+	/// Nothing in the client reads these.
+	#[get_copy = "pub"]
+	unknown_6: [f32; 9],
+
+	#[get_copy = "pub"]
+	unknown_7: [u8; 4],
+
+	#[get_copy = "pub"]
+	unknown_8: i32,
+}
+
+#[binread]
+#[br(little)]
+struct HelperFields {
+	#[br(map = |raw: u8| raw != 0, pad_after = 3)]
+	unknown_1: bool,
+	kind: HelperKind,
+	#[br(map = |raw: u8| raw != 0)]
+	unknown_2: bool,
+	height: u8,
+	#[br(map = |raw: u8| raw != 0)]
+	normal_mode: bool,
+	party_index: u8,
+	object_id: u32,
+	base_id: u32,
+	#[br(map = |raw: u8| raw != 0)]
+	forces_base_id: bool,
+	unknown_3: u8,
+	weapon: WeaponModel,
+	member_index: u8,
+	roster_index: u8,
+	unknown_4: f32,
+	nested: i32,
+	unknown_5: [u8; 4],
+	unknown_6: [f32; 9],
+	unknown_7: [u8; 4],
+}
+
+impl HelperObject {
+	/// Where the kinds naming one take their asset from.
+	pub fn nested(&self) -> Option<&Instance> {
+		self.nested.as_deref()
+	}
+
+	fn parse(bytes: &[u8], at: usize, cursor: &mut Cursor<&[u8]>) -> Result<Self> {
+		let end = at + PREFIX + cursor.get_ref().len();
+		let fields = HelperFields::read(cursor)?;
+		// The oldest cutscenes end a record ahead of the last two fields, so what reads there is
+		// either nothing at all or whatever the node lays out next: an offset with no room for a
+		// placement behind it inside the record names none.
+		let [unknown_8, offset] = <[i32; 2]>::read_le(cursor).unwrap_or_default();
+		let placement = match offset {
+			0 => None,
+			offset => {
+				let start = seek(at, offset)?;
+				(start.saturating_add(PLACEMENT) <= end).then_some(start)
+			}
+		};
+
+		let nested = match fields.nested {
+			0 => None,
+			offset => {
+				let start = seek(at, offset)?;
+				let bound = placement.unwrap_or(end);
+				Some(Box::new(Instance::parse(bytes, start, bound)?))
+			}
+		};
+
+		Ok(Self {
+			kind: fields.kind,
+			object_id: fields.object_id,
+			base_id: fields.base_id,
+			party_index: fields.party_index,
+			member_index: fields.member_index,
+			roster_index: fields.roster_index,
+			weapon: fields.weapon,
+			height: fields.height,
+			forces_base_id: fields.forces_base_id,
+			normal_mode: fields.normal_mode,
+			nested,
+			placement: match placement {
+				None => None,
+				Some(found) => Some(Placement::read(&mut seek_to(bytes, found)?)?),
+			},
+			unknown_1: fields.unknown_1,
+			unknown_2: fields.unknown_2,
+			unknown_3: fields.unknown_3,
+			unknown_4: fields.unknown_4,
+			unknown_5: fields.unknown_5,
+			unknown_6: fields.unknown_6,
+			unknown_7: fields.unknown_7,
+			unknown_8,
 		})
 	}
 }

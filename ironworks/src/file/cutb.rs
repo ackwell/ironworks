@@ -10,7 +10,7 @@ use crate::{
 	error::{Error, ErrorValue, Result},
 };
 
-use super::{File, tmb::Timeline};
+use super::{File, layer::Instance, tmb::Timeline};
 
 /// Bytes ahead of the node table.
 const HEADER: u64 = 12;
@@ -29,9 +29,6 @@ const SCENE_ENTRIES: u64 = 0x54;
 
 /// Where a `CTAL` reaches the records it holds, ahead of their count.
 const PARTICIPANT_TABLE: u64 = 0x08;
-
-/// Where a `CTAL` record's unmodelled body starts, past its id and its transform.
-const PARTICIPANT_BODY: u64 = 0x30;
 
 /// Where a `CTEX` starts the table of runs it holds, and how many bytes one entry of it takes.
 const TRACK_TABLE: u64 = 0x28;
@@ -137,8 +134,9 @@ pub enum Node {
 	/// `CTDS`: the level the cutscene plays in, and what it drives there.
 	Scene(Scene),
 
-	/// `CTAL`: the participants the cutscene drives.
-	Participants(Vec<Participant>),
+	/// `CTAL`: the participants the cutscene drives, as the layer instances they are written as.
+	/// Every one the game ships is an [`InstanceKind::HelperObject`](super::layer::InstanceKind).
+	Participants(Vec<Instance>),
 
 	/// `CTPA`: groups of twelve-byte records. Their fields are not modelled.
 	Groups(Vec<Group>),
@@ -190,33 +188,6 @@ impl Scene {
 	/// The pairs of ids the cutscene drives, which this crate does not name.
 	pub fn entries(&self) -> &[[u32; 2]] {
 		&self.entries
-	}
-}
-
-/// `CTAL`: one participant of a cutscene, which the timelines name by [`Self::id`].
-#[derive(Debug, CopyGetters)]
-#[get_copy = "pub"]
-pub struct Participant {
-	kind: u32,
-
-	/// What a timeline's actors and cameras reach the participant by.
-	id: u32,
-
-	position: [f32; 3],
-
-	/// In radians.
-	rotation: [f32; 3],
-
-	scale: [f32; 3],
-
-	#[getset(skip)]
-	body: Vec<u8>,
-}
-
-impl Participant {
-	/// Everything the record holds past its transform, which this crate does not model.
-	pub fn body(&self) -> &[u8] {
-		&self.body
 	}
 }
 
@@ -302,7 +273,7 @@ fn node(bytes: &[u8], entry: u64) -> Result<Node> {
 		b"CTRL" => Node::Resources(resources(bytes, at)?),
 		b"CTIS" => Node::Sheet(string(bytes, at + u64::from(u32_at(bytes, at)?))?),
 		b"CTDS" => Node::Scene(scene(bytes, at)?),
-		b"CTAL" => Node::Participants(participants(bytes, at, size)?),
+		b"CTAL" => Node::Participants(participants(body)?),
 		b"CTPA" => Node::Groups(groups(bytes, at)?),
 		b"CTEX" => match tracks(bytes, at, size) {
 			Some(held) => Node::Tracks(held),
@@ -411,32 +382,23 @@ fn floats(bytes: &[u8], at: u64) -> Result<[f32; 3]> {
 
 /// Reads the participants a `CTAL` names, each running to where the next starts.
 ///
-/// The last one's extent is not stated, so it carries the strings the node ends with.
-fn participants(bytes: &[u8], at: u64, size: u64) -> Result<Vec<Participant>> {
-	let table = at + u64::from(u32_at(bytes, at + PARTICIPANT_TABLE)?);
-	let count = u64::from(u32_at(bytes, at + PARTICIPANT_TABLE + 4)?);
-	region(bytes, table, count * 4)?;
+/// The last one's extent is not stated, so it carries the strings the node ends with. Records are
+/// read over the node alone, so an offset inside one cannot reach another node.
+fn participants(node: &[u8]) -> Result<Vec<Instance>> {
+	let table = u64::from(u32_at(node, PARTICIPANT_TABLE)?);
+	let count = u64::from(u32_at(node, PARTICIPANT_TABLE + 4)?);
+	region(node, table, count * 4)?;
 
 	let starts = (0..count)
-		.map(|index| Ok(table + u64::from(u32_at(bytes, table + index * 4)?)))
+		.map(|index| Ok((table + u64::from(u32_at(node, table + index * 4)?)) as usize))
 		.collect::<Result<Vec<_>>>()?;
 
 	starts
 		.iter()
 		.enumerate()
 		.map(|(index, start)| {
-			let end = starts.get(index + 1).copied().unwrap_or(at + size);
-			let extent = end
-				.checked_sub(start + PARTICIPANT_BODY)
-				.ok_or_else(|| invalid(format!("a record at {start:#x} ending at {end:#x}")))?;
-			Ok(Participant {
-				kind: u32_at(bytes, *start)?,
-				id: u32_at(bytes, start + 4)?,
-				position: floats(bytes, start + 0x0C)?,
-				rotation: floats(bytes, start + 0x18)?,
-				scale: floats(bytes, start + 0x24)?,
-				body: region(bytes, start + PARTICIPANT_BODY, extent)?.to_vec(),
-			})
+			let end = starts.get(index + 1).copied().unwrap_or(node.len());
+			Instance::parse(node, *start, end)
 		})
 		.collect()
 }
@@ -466,7 +428,13 @@ fn groups(bytes: &[u8], at: u64) -> Result<Vec<Group>> {
 mod test {
 	use std::io::{self, Cursor};
 
-	use crate::{error::Error, file::File};
+	use crate::{
+		error::Error,
+		file::{
+			File,
+			layer::{HelperKind, InstanceData, InstanceKind},
+		},
+	};
 
 	use super::{Cutscene, Node};
 
@@ -545,7 +513,43 @@ mod test {
 		bytes
 	}
 
-	fn participants(records: &[(u32, u32, [f32; 3], &[u8])]) -> Vec<u8> {
+	/// One helper record: what it stands for, where it stands, and the base row it names. `asset`
+	/// nests a background part behind the record and puts a placement behind that.
+	fn helper(id: u32, kind: u32, position: [f32; 3], base_id: u32, asset: Option<&str>) -> Vec<u8> {
+		let mut record = vec![0; 0x8C];
+		record[0x00..0x04].copy_from_slice(&15u32.to_le_bytes());
+		record[0x04..0x08].copy_from_slice(&id.to_le_bytes());
+		for (index, axis) in position.iter().enumerate() {
+			let at = 0x0C + index * 4;
+			record[at..at + 4].copy_from_slice(&axis.to_le_bytes());
+		}
+		record[0x34..0x38].copy_from_slice(&kind.to_le_bytes());
+		record[0x39] = 3;
+		record[0x40..0x44].copy_from_slice(&base_id.to_le_bytes());
+
+		let Some(asset) = asset else {
+			return record;
+		};
+
+		let mut nested = vec![0; 0x5C];
+		nested[0x00..0x04].copy_from_slice(&1u32.to_le_bytes());
+		nested[0x30..0x34].copy_from_slice(&0x5Cu32.to_le_bytes());
+		nested.extend(asset.as_bytes());
+		nested.push(0);
+
+		record[0x54..0x58].copy_from_slice(&0x8Cu32.to_le_bytes());
+		let placement = 0x8C + nested.len();
+		record[0x88..0x8C].copy_from_slice(&u32::try_from(placement).unwrap().to_le_bytes());
+		record.extend(nested);
+
+		let mut block = vec![0; 0x38];
+		block[0x00..0x04].copy_from_slice(&7.0f32.to_le_bytes());
+		block[0x24..0x28].copy_from_slice(&1u32.to_le_bytes());
+		record.extend(block);
+		record
+	}
+
+	fn participants(records: &[Vec<u8>]) -> Vec<u8> {
 		// The first pair the header holds is empty in every file the game ships, and the records
 		// come through the second.
 		let mut bytes = Vec::from(16u32.to_le_bytes());
@@ -554,20 +558,12 @@ mod test {
 		bytes.extend(u32::try_from(records.len()).unwrap().to_le_bytes());
 
 		let mut at = records.len() * 4;
-		let mut bodies: Vec<u8> = Vec::new();
-		for (kind, id, position, body) in records {
+		for record in records {
 			bytes.extend(u32::try_from(at).unwrap().to_le_bytes());
-			let mut record = Vec::from(kind.to_le_bytes());
-			record.extend(id.to_le_bytes());
-			record.resize(0x0C, 0);
-			record.extend(position.iter().flat_map(|axis| axis.to_le_bytes()));
-			record.resize(0x30, 0);
-			record.extend(*body);
 			at += record.len();
-			bodies.extend(record);
 		}
 
-		bytes.extend(bodies);
+		bytes.extend(records.concat());
 		// The strings the node ends with, which no record's extent covers.
 		bytes.push(0);
 		bytes
@@ -647,8 +643,8 @@ mod test {
 			(
 				b"CTAL",
 				participants(&[
-					(15, 0xff00_0001, [4.0, 5.0, 6.0], &[7; 4]),
-					(3, 0xff00_0002, [0.0; 3], &[8; 4]),
+					helper(0xff00_0001, 4, [4.0, 5.0, 6.0], 1_003_223, None),
+					helper(0xff00_0002, 8, [0.0; 3], 0, Some("bg/one.mdl")),
 				]),
 				None,
 			),
@@ -679,12 +675,36 @@ mod test {
 		let Node::Participants(participants) = &nodes[3] else {
 			panic!("expected participants, got {:?}", nodes[3]);
 		};
-		assert_eq!(participants[0].kind(), 15);
+		assert_eq!(participants[0].kind(), InstanceKind::HelperObject);
 		assert_eq!(participants[0].id(), 0xff00_0001);
-		assert_eq!(participants[0].position(), [4.0, 5.0, 6.0]);
-		assert_eq!(participants[0].body(), [7; 4]);
-		// The last record runs to the node's end, over the strings behind it.
-		assert_eq!(participants[1].body().len(), 5);
+		assert_eq!(participants[0].transform().translation(), [4.0, 5.0, 6.0]);
+
+		let InstanceData::HelperObject(helper) = participants[0].data() else {
+			panic!("expected a helper, got {:?}", participants[0].data());
+		};
+		assert_eq!(helper.kind(), HelperKind::EventNpc);
+		assert_eq!(helper.base_id(), 1_003_223);
+		assert_eq!(helper.height(), 3);
+		assert!(helper.nested().is_none());
+		assert!(helper.placement().is_none());
+
+		let InstanceData::HelperObject(helper) = participants[1].data() else {
+			panic!("expected a helper, got {:?}", participants[1].data());
+		};
+		assert_eq!(helper.kind(), HelperKind::BgPart);
+		let Some(nested) = helper.nested() else {
+			panic!("expected a nested instance");
+		};
+		assert_eq!(nested.kind(), InstanceKind::BgPart);
+		let InstanceData::BgPart(part) = nested.data() else {
+			panic!("expected a background part, got {:?}", nested.data());
+		};
+		assert_eq!(part.asset_path(), "bg/one.mdl");
+		let Some(placement) = helper.placement() else {
+			panic!("expected a placement");
+		};
+		assert_eq!(placement.transform().translation(), [7.0, 0.0, 0.0]);
+		assert_eq!(placement.flags(), 1);
 
 		let Node::Groups(groups) = &nodes[4] else {
 			panic!("expected groups, got {:?}", nodes[4]);
