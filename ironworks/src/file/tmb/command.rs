@@ -82,6 +82,12 @@ impl Field for Vec<Caption> {
 	}
 }
 
+impl Field for Vec<[f32; 3]> {
+	fn read<R: Read + Seek>(reader: &mut R, endian: Endian, base: u64) -> BinResult<Self> {
+		at_list(reader, endian, base, 12)
+	}
+}
+
 impl Field for Option<Filter> {
 	fn read<R: Read + Seek>(reader: &mut R, endian: Endian, base: u64) -> BinResult<Self> {
 		at_offset(reader, endian, base, 0x14, |reader| {
@@ -588,6 +594,30 @@ commands! {
 	/// A colour a scene gives a model it places.
 	C113 { duration: i32, unknown_1: i32, color: [f32; 4] }
 
+	/// Where the world is streamed from, sampled at a fixed interval.
+	///
+	/// The samples are read straight rather than through a curve set: `sub_141844D50` divides the
+	/// elapsed frame by [`step`](Self::step), interpolates between the two samples either side, and
+	/// writes the result to the streaming manager's own origin and to the terrain streamer, until
+	/// [`until`](Self::until). Nothing sounds or is drawn from it.
+	///
+	/// [`pass`](Self::pass) indexes a byte of scratch the scheduler clears as a scene opens, which
+	/// the command raises as it starts and lowers as it ends. The position is written once that
+	/// byte reaches [`passes`](Self::passes), or straight away where the index is `0xffff`, and
+	/// never while another command holds the streaming override.
+	C114 {
+		enabled: i32,
+		unknown_1: i32,
+		/// Where the origin stands, [`step`](Self::step) frames apart.
+		#[getset(skip)] samples: Vec<[f32; 3]>,
+		pass: u16,
+		passes: u16,
+		/// Frames between one sample and the next.
+		step: i32,
+		/// The frame the track stops at.
+		until: f32,
+	}
+
 	/// Forced forward movement, driven by an f-curve.
 	C117 { duration: i32, unknown_2: i32, curve_id: i32 }
 
@@ -932,6 +962,13 @@ impl C048 {
 	/// How long the line stands in each language, in the client's own language order.
 	pub fn captions(&self) -> &[Caption] {
 		&self.captions
+	}
+}
+
+impl C114 {
+	/// Where the streaming origin stands, one sample every [`step`](Self::step) frames.
+	pub fn samples(&self) -> &[[f32; 3]] {
+		&self.samples
 	}
 }
 
