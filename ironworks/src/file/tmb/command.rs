@@ -5,7 +5,7 @@ use std::io::{Read, Seek};
 use binrw::{BinRead, BinResult, Endian, binread};
 use getset::CopyGetters;
 
-use super::{at_offset, offset_floats, offset_string, rest};
+use super::{at_list, at_offset, offset_floats, offset_string, rest};
 
 /// One `Cxxx` item.
 #[derive(Debug, CopyGetters)]
@@ -76,6 +76,12 @@ impl Field for Vec<f32> {
 	}
 }
 
+impl Field for Vec<Caption> {
+	fn read<R: Read + Seek>(reader: &mut R, endian: Endian, base: u64) -> BinResult<Self> {
+		at_list(reader, endian, base, 12)
+	}
+}
+
 impl Field for Option<Filter> {
 	fn read<R: Read + Seek>(reader: &mut R, endian: Endian, base: u64) -> BinResult<Self> {
 		at_offset(reader, endian, base, 0x14, |reader| {
@@ -102,6 +108,26 @@ pub struct Filter {
 	unknown_5: i32,
 
 	unknown_6: i32,
+}
+
+/// How long a [`C048`] subtitle stands in one language.
+///
+/// The client indexes these by the language it runs in: `ja`, `en`, `de`, `fr`, `chs`, a slot it
+/// rejects, `ko`, `tc`, the order `sub_14185AE20` walks its own suffix table in. The two the game
+/// ships nothing for are the rejected slot and `tc`.
+#[binread]
+#[br(little)]
+#[derive(Debug, Clone, Copy, CopyGetters)]
+#[get_copy = "pub"]
+pub struct Caption {
+	/// One where that language states the line, nought where it states nothing.
+	enabled: i32,
+
+	/// How long the line stands, in milliseconds. The client counts it down against the frame's
+	/// own elapsed seconds (`Client::UI::Agent::AgentTalkSubtitle.Update`).
+	duration: i32,
+
+	unknown_3: i32,
 }
 
 macro_rules! commands {
@@ -330,6 +356,34 @@ commands! {
 		weapon_id: i16,
 		body_id: i16,
 		variant_id: i32,
+	}
+
+	/// A subtitle: the row it stands, and how long it stands for in each language.
+	///
+	/// The row is named rather than numbered. [`key`](Self::key) is the key column of the sheet the
+	/// cutscene's own `CTIS` node names - `cut_scene/070/VoiceMan_07003` or
+	/// `quest/000/ManFst000_00083`, two string columns of key and text - and the row is the one
+	/// whose key matches it exactly. Past the six-figure line number the key carries the speaker's
+	/// name, which the client's own parsers stop short of reading
+	/// (`TEXT_%6s%3d_%5d_%1x%2d%3d`).
+	///
+	/// The client shows it through `Client::UI::UIModule.ShowTalkSubtitle`, which lays
+	/// `ui/uld/TalkSubtitle.uld` out against a 1280 by 720 frame and clamps its width to sixteen
+	/// by nine.
+	C048 {
+		enabled: i32,
+		unknown_1: i32,
+		/// Nine in the opening movies and one in the cutscenes the engine draws.
+		subtitle_type: i32,
+		unknown_3: i32,
+		unknown_4: i32,
+		unknown_5: i32,
+		#[getset(skip)] captions: Vec<Caption>,
+		#[getset(skip)] key: Option<String>,
+		unknown_6: i32,
+		unknown_7: i32,
+		unknown_8: i32,
+		unknown_9: i32,
 	}
 
 	/// Voiceline, by sound id.
@@ -824,6 +878,18 @@ impl C004 {
 	/// The participants and the fields between them, in the order the file writes them.
 	pub fn bindings(&self) -> &[u32; 17] {
 		&self.bindings
+	}
+}
+
+impl C048 {
+	/// The key of the row the subtitle stands, in the sheet the cutscene's `CTIS` names.
+	pub fn key(&self) -> Option<&str> {
+		self.key.as_deref()
+	}
+
+	/// How long the line stands in each language, in the client's own language order.
+	pub fn captions(&self) -> &[Caption] {
+		&self.captions
 	}
 }
 
