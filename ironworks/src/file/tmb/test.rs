@@ -211,6 +211,51 @@ fn reads_the_head_actors_tracks_and_commands() {
 	assert_eq!(known, [1, 2, 3, 4]);
 }
 
+/// A subtitle names the row it stands rather than numbering it, and states a length apiece for the
+/// languages the game ships one in.
+#[test]
+fn a_subtitle_names_its_row_and_a_length_a_language() {
+	let mut build = Builder::default();
+	let key = build.pool(b"TEXT_VOICEMAN_07003_003100_GALUF\0");
+	let captions = build.pool(
+		&[(1, 2519), (1, 2467), (0, 0)]
+			.iter()
+			.flat_map(|(enabled, duration)| {
+				let mut held = i32::to_le_bytes(*enabled).to_vec();
+				held.extend(i32::to_le_bytes(*duration));
+				held.extend([0; 4]);
+				held
+			})
+			.collect::<Vec<u8>>(),
+	);
+
+	let mut subtitle = Vec::new();
+	subtitle.extend(9i16.to_le_bytes());
+	subtitle.extend(410i16.to_le_bytes());
+	subtitle.extend([1, 0, 1, 0, 0, -1].iter().flat_map(|field: &i32| field.to_le_bytes()));
+	subtitle.extend(list(3));
+	subtitle.extend([0; 4]);
+	subtitle.extend([0; 16]);
+	build.item(b"C048", subtitle, &[(28, captions), (36, key)]);
+
+	let file = Timeline::read(Cursor::new(build.build())).unwrap();
+	let Item::Command(command) = &file.items()[0] else {
+		panic!("not a command")
+	};
+	assert_eq!((command.id(), command.time()), (9, 410));
+	let CommandKind::C048(subtitle) = command.kind() else {
+		panic!("not a subtitle")
+	};
+	assert_eq!(subtitle.key(), Some("TEXT_VOICEMAN_07003_003100_GALUF"));
+	assert_eq!(subtitle.subtitle_type(), 1);
+	let lengths: Vec<(i32, i32)> = subtitle
+		.captions()
+		.iter()
+		.map(|caption| (caption.enabled(), caption.duration()))
+		.collect();
+	assert_eq!(lengths, [(1, 2519), (1, 2467), (0, 0)]);
+}
+
 /// An item may declare more bytes than the fields modelled here spend, so the next item is found
 /// from the declared size rather than from wherever the field reads left the cursor.
 #[test]
