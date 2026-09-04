@@ -220,6 +220,9 @@ commands! {
 	/// From a `.cutb` the start and end are frames of the clip itself at thirty a second, which is
 	/// what a cutscene's own frame numbering runs at: a command naming `cbfm_arms` ends at 155,
 	/// and that pack's own binding gives the clip 5.1666665 seconds.
+	///
+	/// The client takes the name to whichever of the acting object's own loaded packs holds it
+	/// (`sub_141B087C0` into `sub_1404200E0`), rather than deriving a path from it.
 	C010 {
 		duration: i32,
 		unknown_1: i32,
@@ -294,8 +297,12 @@ commands! {
 	/// Gathering delay.
 	C034 { enabled: i32, unknown_2: i32 }
 
-	/// A motion to stand a character in, by the name a pack the timeline's own loader holds gives
-	/// it - the same kind of name [`C010`] plays, not a file path.
+	/// A motion to play by the name a pack the timeline's own loader holds gives it - the same
+	/// kind of name [`C010`] plays, not a file path.
+	///
+	/// The client builds this and [`C090`] out of one class, `sub_141804390`, told apart by the id
+	/// it is registered under: 32 here and 75 there, which `sub_14183DE30` reads to pick which of
+	/// two runs of the shared object it drives.
 	///
 	/// A longer form of the command writes seven further words past these, which this does not
 	/// read: they hold `1, 0, 1.0, 0, 0, 0, 0` in every file the game ships, and both forms sit in
@@ -402,7 +409,8 @@ commands! {
 	/// Not named by any reference implementation.
 	C089 { duration: i32, unknown_2: i32, unknown_3: i32 }
 
-	/// The expression to put on a face, by the `cfxf_` name a face pack gives it.
+	/// The expression to put on a face, by the `cfxf_` name a face pack gives it. Built out of the
+	/// same class as [`C040`], under a different id.
 	C090 {
 		/// One in every file the game ships.
 		enabled: i32,
