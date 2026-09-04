@@ -173,13 +173,22 @@ commands! {
 
 	/// The camera a shot runs through, usable only from a `.cutb`.
 	///
-	/// Where the camera stands and how it is set up come from the curve set below rather than from
-	/// this body. Target 1 is the eye: its own translate and rotate curves are where the shot's
-	/// camera actually moves. Target 2 carries curves of the same shape but sits at the identity at
-	/// the shot's first frame in 71% of the cameras the game ships (115,742/158,260), and still does
-	/// at two later sampled times in 111,899 of those; the rest carry a real, if usually smaller,
-	/// transform of their own and what it is for is not established. The set's own channels - the
-	/// ones at `0x30` and up, on target `0xff` - are the camera itself:
+	/// Where the camera stands comes from the curve set below rather than from this body. The set's
+	/// targets carry a [`role`](super::Curve::role) apiece and hang off one another by
+	/// [`parent`](super::Curve::parent); the last target of a role is the one the camera reads.
+	/// Role 2 stands the eye, role 3 what it looks at, and role 4 a point one unit along its up
+	/// vector, so the camera aims from role 2 towards role 3 with role 3 - role 2 as its forward
+	/// and role 4 - role 2 as its up. Where no target carries role 4 the up is world up.
+	///
+	/// Role 1 is the frame the rest hang off, and the three roles a shot can bind live in
+	/// [`bindings`](Self::bindings): its first participant at index 0 is role 1's, index 6 is role
+	/// 2's and index 11 is role 3's, each followed by a sub-index and a second participant of its
+	/// own. Role 1 takes the participant's rotation as well as its position unless index 4 is one;
+	/// roles 2 and 3 take the position alone. A binding names `0xffffffff` where the role stands
+	/// in the world instead.
+	///
+	/// The set's own channels - the ones at `0x30` and up, on target `0xff` - are the camera
+	/// itself:
 	///
 	/// - `0x34` is a focal length in millimetres, which the game turns into a vertical field of
 	///   view as `2 * atan(7.0015101 / focal)` against a frame it fixes at sixteen by nine.
@@ -193,9 +202,9 @@ commands! {
 		#[getset(skip)] name: Option<String>,
 		near_plane: f32,
 		far_plane: f32,
-		/// The participants the shot binds to, as `CTAL` ids or `0xffffffff`, interleaved with
-		/// the unnamed fields that go with them. The wider body carries two further pairs, which
-		/// are past what this reads.
+		/// The participants the shot binds its curve set's roles to, as `CTAL` ids or
+		/// `0xffffffff`, interleaved with the sub-indices and flags that go with them. See the
+		/// type's own doc for which index belongs to which role.
 		#[getset(skip)] bindings: [u32; 17],
 	}
 

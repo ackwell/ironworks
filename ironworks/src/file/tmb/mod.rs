@@ -330,6 +330,13 @@ pub struct Curve {
 	/// Which of the set's targets the curve drives, or `0xff` where it drives the set itself.
 	target: u8,
 
+	/// What the target stands for, which the set's consumer knows it by rather than by index. A
+	/// `C004` camera's roles are named on [`command::C004`].
+	role: u8,
+
+	/// The target this one hangs off, or `None` where it stands on its own.
+	parent: Option<u8>,
+
 	#[getset(skip)]
 	keys: Vec<Key>,
 }
@@ -712,6 +719,8 @@ fn offset_curves<R: Read + Seek>(
 		curves.push(Curve {
 			tag: record[4],
 			target: record[6],
+			role: (u16::from_le_bytes([record[4], record[5]]) >> 6) as u8 & 0x1F,
+			parent: (record[7] != 0xff).then_some(record[7]),
 			keys,
 		});
 	}

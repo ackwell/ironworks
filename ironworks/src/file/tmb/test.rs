@@ -500,6 +500,56 @@ fn a_curve_outside_the_transform_channels_keeps_its_tag() {
 	assert_eq!(found.curves()[0].keys()[0].value(), 35.0);
 }
 
+/// A curve carries its target's role and parent alongside the channel: the role sits above the
+/// channel in the sixteen bits the tag opens, so a role past three reaches into the byte behind it.
+#[test]
+fn a_curve_names_its_target_s_role_and_parent() {
+	let mut build = Builder::default();
+	let curves = build.pool(&{
+		let mut bytes = vec![0xEE; 4];
+		for (tag, high, target, parent) in [(0x80u8, 0u8, 0u8, 0xFFu8), (0x00, 1, 1, 0)] {
+			bytes.extend([0; 4]);
+			bytes.extend([tag, high, target, parent]);
+			bytes.extend([0; 8]);
+		}
+		bytes
+	});
+
+	build.item(b"TMDH", header(1, 60), &[]);
+
+	let mut curve = Vec::new();
+	curve.extend(2i16.to_le_bytes());
+	curve.extend(0i16.to_le_bytes());
+	curve.extend([0; 4]);
+	curve.extend(2u32.to_le_bytes());
+	curve.extend([0; 12]);
+	build.item(b"TMFC", curve, &[(4, curves)]);
+
+	let file = Timeline::read(Cursor::new(build.build())).unwrap();
+	let Item::Curves(found) = &file.items()[1] else {
+		panic!("not a curve set")
+	};
+	let held: Vec<(u8, u8, Option<u8>, Option<Channel>)> = found
+		.curves()
+		.iter()
+		.map(|curve| {
+			(
+				curve.target(),
+				curve.role(),
+				curve.parent(),
+				curve.channel(),
+			)
+		})
+		.collect();
+	assert_eq!(
+		held,
+		[
+			(0, 2, None, Some(Channel::TranslationX)),
+			(1, 4, Some(0), Some(Channel::TranslationX)),
+		]
+	);
+}
+
 /// A span runs as a cubic Hermite over the slopes its two keys carry, unless the key it leaves
 /// says to run straight. The tag names the channel in its low six bits, so a target past the
 /// first reaches the same component.
