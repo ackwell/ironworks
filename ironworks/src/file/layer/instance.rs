@@ -122,7 +122,7 @@ pub enum InstanceKind {
 #[get_copy = "pub"]
 pub struct Transform {
 	translation: [f32; 3],
-	/// Euler angles, applied X then Y then Z.
+	/// Euler angles, composing as `Rz * Ry * Rx`.
 	rotation: [f32; 3],
 	scale: [f32; 3],
 }
