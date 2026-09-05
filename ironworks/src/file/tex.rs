@@ -34,9 +34,16 @@ pub struct Texture {
 	#[get_copy = "pub"]
 	depth: u16,
 
+	#[br(temp)]
+	packed_mip_levels: u8,
+
 	/// Mipmap level count.
+	#[br(calc = packed_mip_levels & 0x7F)]
 	#[get_copy = "pub"]
 	mip_levels: u8,
+
+	#[br(calc = (packed_mip_levels & 0x80) != 0)]
+	unknown1: bool,
 
 	/// Texture array size. Only used by D2Array texture kinds.
 	#[get_copy = "pub"]
