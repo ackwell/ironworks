@@ -523,6 +523,17 @@ struct BoundingBox {
 	max: [f32; 4],
 }
 
+impl File {
+	/// The box the file states the whole model fills, in the model's own space.
+	pub(super) fn bounds(&self) -> ([f32; 3], [f32; 3]) {
+		let held = &self.bounding_boxes;
+		(
+			[held.min[0], held.min[1], held.min[2]],
+			[held.max[0], held.max[1], held.max[2]],
+		)
+	}
+}
+
 #[cfg(test)]
 mod test {
 	use std::io::Cursor;

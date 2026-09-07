@@ -36,6 +36,11 @@ impl Model {
 		self.file.shadow()
 	}
 
+	/// The box the file states this model fills, in the model's own space, as `(min, max)`.
+	pub fn bounds(&self) -> ([f32; 3], [f32; 3]) {
+		self.file.bounds()
+	}
+
 	// TODO: Expose mesh kinds
 	// TODO: Maybe mesh filter?
 	// TODO: iterator?
